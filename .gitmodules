@@ -1,0 +1,3 @@
+[submodule "thirdparty/gatb-core"]
+	path = thirdparty/gatb-core
+	url = https://github.com/GATB/gatb-core.git
