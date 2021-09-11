@@ -1562,7 +1562,7 @@ void Bloocoo::execute_binning(){
 
 	cout << "Simplifying graph" << endl;
 	GraphSimplify* graphSimplify = new GraphSimplify(gfa_filename_noUnsupportedEdges, _outputDir);
-	graphSimplify->execute();
+	graphSimplify->execute(0);
 
 	//exit(1);
 
@@ -1736,7 +1736,7 @@ void Bloocoo::execute_binning(){
 	//solveBin(graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(1869, true), graphSimplify, 0);
 	
 	//genome_201_50x
-	solveBin(graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(1336, false), graphSimplify, 0);
+	solveBin(graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(1745, false), graphSimplify, 0);
 	
 	exit(1);
 

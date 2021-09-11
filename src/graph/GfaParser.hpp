@@ -1,10 +1,16 @@
 
+
+#ifndef MDBG_METAG_GFAPARSER
+#define MDBG_METAG_GFAPARSER
+
 using namespace std;
 #include <string>
 #include <fstream>
 #include <iostream>
 #include <vector>
 #include "Graph.hpp"
+#include "../Commons.hpp"
+//#include "GraphSimplify.hpp"
 
 struct UnitigLength{
 	u_int32_t _index;
@@ -21,49 +27,7 @@ struct UnitigData{
 	//unordered_set<ReadIndexType> _readIndexes_exists;
 };
 
-struct DbgEdge{
-	u_int32_t _from;
-	u_int32_t _to;
 
-	bool operator==(const DbgEdge &other) const{
-		return ((_from == other._from) && (_to == other._to));
-	}
-
-    size_t hash() const{
-		std::size_t seed = 2;
-		seed ^= _from + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-		seed ^= _to + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-        //auto hash1 = hash<T1>{}(p._from);
-        //auto hash2 = hash<T2>{}(p._to);
-        return seed;
-	}
-
-    DbgEdge normalize(){
-        DbgEdge edge1 = {_from, _to};
-        DbgEdge edge2 = {_to, _from};
-        if(edge1.hash() < edge2.hash()){
-            return edge1;
-        }
-        else{
-            return edge2;
-        }
-    }
-
-};
-
-
-struct hash_pair {
-    size_t operator()(const DbgEdge& p) const
-    {
-        return p.hash();
-		//std::size_t seed = 2;
-		//seed ^= p._from + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-		//seed ^= p._to + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-        //auto hash1 = hash<T1>{}(p._from);
-        //auto hash2 = hash<T2>{}(p._to);
-        //return seed;
-    }
-};
 
 class GfaParser{
 
@@ -734,7 +698,7 @@ public:
         
     }
 
-    static void rewriteGfa_withoutNodes(const string& filename, const string& outputFilename, const unordered_set<u_int32_t>& nodes){
+    static void rewriteGfa_withoutNodes(const string& filename, const string& outputFilename, const unordered_set<u_int32_t>& nodes, const unordered_set<DbgEdge, hash_pair>& edges, BiGraph* graph){
 
         
         cout << filename << endl;
@@ -760,9 +724,18 @@ public:
             }
             else if((*fields)[0] == "L"){
                 u_int32_t from = std::stoull((*fields)[1]);
+                bool from_orient = (*fields)[2] == "+";
                 u_int32_t to = std::stoull((*fields)[3]);
+                bool to_orient = (*fields)[4] == "+";
 
                 if(nodes.find(from) != nodes.end() || nodes.find(to) != nodes.end()) continue;
+
+                u_int32_t nodeIndex_from = graph->nodeName_to_nodeIndex(from, from_orient);
+                u_int32_t nodeIndex_to = graph->nodeName_to_nodeIndex(to, to_orient);
+                
+                DbgEdge edge = {nodeIndex_from, nodeIndex_to};
+                edge = edge.normalize();
+                if(edges.find(edge) != edges.end()) continue;
 
                 outputFile << line << endl;
             }
@@ -863,3 +836,7 @@ public:
     }*/
 
 };
+
+
+
+#endif

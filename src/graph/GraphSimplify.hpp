@@ -6,7 +6,16 @@
 
 //#define PRINT_DEBUG_SIMPLIFICATION
 
+
+
+#ifndef MDBG_METAG_GRAPHSIMPLIFY
+#define MDBG_METAG_GRAPHSIMPLIFY
+
+#include "Commons.hpp"
+
+
 using namespace std;
+
 
 
 struct Unitig{
@@ -32,6 +41,7 @@ public:
     //unordered_map<u_int32_t, u_int32_t> _nodeAbundances;
     //unordered_map<u_int32_t, u_int32_t> _nodeLengths;
     vector<bool> _isNodeRemoved;
+    unordered_set<DbgEdge, hash_pair> _isEdgeRemoved;
 
     GraphSimplify(const string& inputGfaFilename, const string& outputDir){
         _inputGfaFilename = inputGfaFilename;
@@ -45,8 +55,20 @@ public:
         _isNodeRemoved.resize(_graphSuccessors->_nbNodes, false);
     }
 
+    GraphSimplify* clone(){
+        GraphSimplify* clone = new GraphSimplify(_inputGfaFilename, _outputDir);
 
-    void execute(){
+        clone->_graphSuccessors = _graphSuccessors;
+        clone->_graphPredecessors = _graphPredecessors;
+        clone->_nodeAbundances = _nodeAbundances;
+        clone->_nodeLengths = _nodeLengths;
+        clone->_isNodeRemoved = _isNodeRemoved;
+        clone->_isEdgeRemoved = _isEdgeRemoved;
+
+        return clone;
+    }
+
+    void execute(float abundanceCutoff_min){
 
 
         bool dummy;
@@ -55,13 +77,30 @@ public:
         
         while(true){
 
-
+            
             while(true){
-                compact();
-                u_int64_t nbBubblesRemoved = bubble(10000);
-                //cout << nbBubblesRemoved << endl;
-                if(nbBubblesRemoved == 0) break;
+
+                u_int64_t nbErrorRemoved = 0;
+                u_int64_t nbBubblesRemoved = 0;
+
+                while(true){
+                    compact();
+                    nbErrorRemoved = removeLowAbundantNodes(abundanceCutoff_min);
+                    if(nbErrorRemoved == 0) break;
+                }
+
+                while(true){
+                    compact();
+                    nbBubblesRemoved = bubble(10000);
+                    if(nbBubblesRemoved == 0) break;
+                }
+
+                removeSmallLoop();
+
+                if(nbErrorRemoved == 0 && nbBubblesRemoved == 0) break;
             }
+
+
 
             u_int64_t nbTipsRemoved = tip();
             //cout << nbTipsRemoved << endl;
@@ -78,9 +117,27 @@ public:
             removedNodes.insert(nodeName);
         }
 
-        GfaParser::rewriteGfa_withoutNodes(_inputGfaFilename, _inputGfaFilename + "_tmp.gfa", removedNodes);
+        GfaParser::rewriteGfa_withoutNodes(_inputGfaFilename, _inputGfaFilename + "_tmp.gfa", removedNodes, _isEdgeRemoved, _graphSuccessors);
 
 
+    }
+
+    u_int64_t removeLowAbundantNodes(float abundanceCutoff_min){
+
+        u_int64_t nbRemoved = 0;
+
+        if(abundanceCutoff_min == 0) return nbRemoved;
+
+        for(size_t nodeIndex=0; nodeIndex<_graphSuccessors->_nbNodes; nodeIndex++){
+            if(_isNodeRemoved[nodeIndex]) continue;
+            
+            if(_unitigs[_nodeToUnitig[nodeIndex]]._abundance < abundanceCutoff_min){
+                _isNodeRemoved[nodeIndex] = true;
+            }
+
+        }
+
+        return nbRemoved;
     }
 
     u_int64_t tip(){
@@ -263,6 +320,131 @@ public:
     }
 
 
+    u_int64_t removeSmallLoop(){
+
+        cout << "removing small loops" << endl;
+        u_int64_t nbRemoved = 0;
+
+        //vector<u_int32_t> unitigNodes;
+
+        //vector<bool> isVisited(_graphSuccessors->_nbNodes, false);
+        bool dummy = false;
+
+        for(Unitig& unitig_source : _unitigs){
+
+
+            //if(isVisited[unitig_source._startNode]) continue;
+            //if(isVisited[unitig_source._endNode]) continue;
+
+
+            vector<u_int32_t> neighbors;
+            getSuccessors(unitig_source._endNode, 0, neighbors);
+
+            /*
+            if(unitig_source._endNode == _graphSuccessors->nodeName_to_nodeIndex(1997, dummy)){
+                cout << "lala " << neighbors.size() << endl;
+                for(u_int32_t nn : neighbors){
+                    cout << _graphSuccessors->nodeToString(nn) << endl;
+                }
+            }
+            */
+
+            if(neighbors.size() < 2) continue;
+
+            bool foundSmallLoop = false;
+
+            for(size_t i=0; i<neighbors.size(); i++){
+
+                Unitig& unitig_dest = nodeIndex_to_unitig(neighbors[i]);
+
+                for(size_t j=0; j<neighbors.size(); j++){
+                    if(i == j) continue;
+
+                    Unitig& unitig_loop = nodeIndex_to_unitig(neighbors[j]);
+
+
+
+
+                    vector<u_int32_t> predecessors;
+                    getPredecessors(unitig_loop._startNode, 0, predecessors);
+                    if(predecessors.size() != 2) continue;
+                    vector<u_int32_t> successors;
+                    getSuccessors(unitig_loop._endNode, 0, successors);
+                    if(successors.size() != 2) continue;
+
+                    /*
+                    if(unitig_source._endNode == _graphSuccessors->nodeName_to_nodeIndex(1997, dummy)){
+                        cout << "Pred: " << predecessors.size() << endl;
+                        for(u_int32_t nn : predecessors){
+                            cout << _graphSuccessors->nodeToString(nn) << endl;
+                        }
+                    }
+                    
+                    if(unitig_source._endNode == _graphSuccessors->nodeName_to_nodeIndex(1997, dummy)){
+                        cout << "Succ: " << successors.size() << endl;
+                        for(u_int32_t nn : successors){
+                            cout << _graphSuccessors->nodeToString(nn) << endl;
+                        }
+                    }*/
+
+                    if((nodeIndex_to_unitigIndex(predecessors[0]) == unitig_loop._index && nodeIndex_to_unitigIndex(predecessors[1]) == unitig_source._index) || (nodeIndex_to_unitigIndex(predecessors[0]) == unitig_source._index && nodeIndex_to_unitigIndex(predecessors[1]) == unitig_loop._index)){
+                        if((nodeIndex_to_unitigIndex(successors[0]) == unitig_loop._index && nodeIndex_to_unitigIndex(successors[1]) == unitig_dest._index) || (nodeIndex_to_unitigIndex(successors[0]) == unitig_dest._index && nodeIndex_to_unitigIndex(successors[1]) == unitig_loop._index)){
+                            cout << "Small loop: " <<  _graphSuccessors->nodeToString(unitig_loop._startNode) << endl;
+
+                            
+                            DbgEdge edge = {unitig_source._endNode, unitig_dest._startNode};
+                            edge = edge.normalize();
+                            _isEdgeRemoved.insert(edge);
+                            edge = {unitig_loop._endNode, unitig_loop._startNode};
+                            edge = edge.normalize();
+                            _isEdgeRemoved.insert(edge);
+
+                            nbRemoved += 1;
+                            foundSmallLoop = true;
+                            break;
+                            //isVisited[unitig_source._startNode] = true;
+                            //isVisited[unitig_source._destNode] = true;
+                        }
+                    }
+
+                }
+
+                if(foundSmallLoop) break;
+            }
+
+            /*
+            getPredecessors(unitig._startNode, 0, neighbors);
+            if(neighbors.size() == 0) continue;
+
+            getSuccessors(unitig._endNode, 0, neighbors);
+            if(neighbors.size() > 0) continue;
+
+            isVisited[unitig._startNode] = true;
+            isVisited[unitig._endNode] = true;
+
+            getUnitigNodes(unitig, unitigNodes);
+            for(u_int32_t node : unitigNodes){
+                _isNodeRemoved[node] = true;
+            }
+            */
+
+            //#ifdef PRINT_DEBUG_SIMPLIFICATION
+            //    cout << "\tSmall loop: " << _graphSuccessors->nodeIndex_to_nodeName(unitig._endNode, dummy) << endl;
+            //#endif 
+
+            //nbRemoved += 1;
+        }
+
+        return nbRemoved;
+    }
+
+    u_int32_t nodeIndex_to_unitigIndex(u_int32_t nodeIndex){
+        return _unitigs[_nodeToUnitig[nodeIndex]]._index;
+    }
+
+    Unitig& nodeIndex_to_unitig(u_int32_t nodeIndex){
+        return _unitigs[_nodeToUnitig[nodeIndex]];
+    }
 
     void compact(){
 
@@ -512,11 +694,16 @@ public:
                 continue;
             }
 
+            if(isEdgeRemoved(n, nn)){
+                node = node->next;
+                continue;
+            }
+
             //u_int32_t nodeName = _graphSuccessors->nodeIndex_to_nodeName(nn, dummy);
-			if(abundanceCutoff_min != 0 && _unitigs[_nodeToUnitig[nn]]._abundance < abundanceCutoff_min){ //Abundance min cutoff
-				node = node->next;
-				continue;
-			}
+			//if(abundanceCutoff_min != 0 && _unitigs[_nodeToUnitig[nn]]._abundance < abundanceCutoff_min){ //Abundance min cutoff
+			//	node = node->next;
+			//	continue;
+			//}
 
             successors.push_back(nn);
             node = node->next;
@@ -537,15 +724,25 @@ public:
                 continue;
             }
 
+            if(isEdgeRemoved(n, nn)){
+                node = node->next;
+                continue;
+            }
             //u_int32_t nodeName = _graphSuccessors->nodeIndex_to_nodeName(nn, dummy);
-			if(abundanceCutoff_min != 0 && _unitigs[_nodeToUnitig[nn]]._abundance < abundanceCutoff_min){ //Abundance min cutoff
-				node = node->next;
-				continue;
-			}
+			//if(abundanceCutoff_min != 0 && _unitigs[_nodeToUnitig[nn]]._abundance < abundanceCutoff_min){ //Abundance min cutoff
+			//	node = node->next;
+			//	continue;
+			//}
 
             predecessors.push_back(nn);
             node = node->next;
         }
+    }
+
+    bool isEdgeRemoved(u_int32_t nodeIndex_from, u_int32_t nodeIndex_to){
+        DbgEdge edge = {nodeIndex_from, nodeIndex_to};
+		edge = edge.normalize();
+        return _isEdgeRemoved.find(edge) != _isEdgeRemoved.end();
     }
 
     void getUnitigNodes(Unitig& unitig, vector<u_int32_t>& nodes){
@@ -572,3 +769,5 @@ public:
     }
 
 };
+
+#endif

@@ -8,8 +8,7 @@
 #ifndef _BLOOCOO_HPP_
 #define _BLOOCOO_HPP_
 
-
-#include <gatb/gatb_core.hpp>
+#include "Commons.hpp"
 
 #include <string>
 #include <sstream>
@@ -578,8 +577,9 @@ public:
 		_abundanceCutoff_min = abundanceCutoff_min;
 	}
 
-	u_int32_t getNextNode(u_int32_t current_nodeIndex, GraphSimplify* graph, vector<UnitigData>& _unitigDatas, bool forward, bool canExplorePath){
+	u_int32_t getNextNode(u_int32_t current_nodeIndex, GraphSimplify* graph, vector<UnitigData>& _unitigDatas, bool forward, u_int32_t currentDepth){
 
+		if(currentDepth > 1) return -1;
 
 		//u_int64_t iter = 0;
 		bool orient_dummy = false;
@@ -624,22 +624,16 @@ public:
 		
 
 
-		if(successors.size() > 1){
-			if(canExplorePath){
+		if(currentDepth == 0){
+			if(successors.size() > 1){
+				for(size_t i=0; i<currentDepth; i++) cout << "  ";
 				cout << "----------- " << endl;
 				for(u_int32_t utg_n : successors){
+				for(size_t i=0; i<currentDepth; i++) cout << "  ";
 					cout << graph->_graphSuccessors->nodeToString(current_nodeIndex) << " " << " -> " <<  graph->_graphSuccessors->nodeToString(utg_n) << " " << computeSharedReads(_unitigDatas[current_nodeName], _unitigDatas[graph->_graphSuccessors->nodeIndex_to_nodeName(utg_n, orient_dummy)]) << endl;
 				
 				}
 			}
-			else{
-				cout << "\t\t\t\t----------- " << endl;
-				for(u_int32_t utg_n : successors){
-					cout << "\t\t\t\t" << graph->_graphSuccessors->nodeToString(current_nodeIndex) << " " << " -> " <<  graph->_graphSuccessors->nodeToString(utg_n) << " " << computeSharedReads(_unitigDatas[current_nodeName], _unitigDatas[graph->_graphSuccessors->nodeIndex_to_nodeName(utg_n, orient_dummy)]) << endl;
-				
-				}
-			}
-
 		}
 
 		for(u_int32_t utg_n : successors){
@@ -651,12 +645,12 @@ public:
 			u_int32_t successor_abundance = graph->_nodeAbundances[successor_nodeName]; //_unitigDatas[unitigIndex]._meanAbundance;
 
 			if(successors.size() > 1){
-				if(canExplorePath){
-					if(isPathAlreadyExplored(utg_n, current_nodeIndex, graph, _unitigDatas, forward)){
-						//cout << "Already explored: " << current_nodeName << " " << successor_nodeName << endl;
-						continue;
-					}
+				//if(currentDepth == 0){
+				if(isPathAlreadyExplored(utg_n, current_nodeIndex, graph, _unitigDatas, forward, currentDepth+1, 20)){
+					//cout << "Already explored: " << current_nodeName << " " << successor_nodeName << endl;
+					continue;
 				}
+				//}
 			}
 
 
@@ -667,11 +661,9 @@ public:
 		}
 		
 		if(data_successors.size() == 0){
-			if(canExplorePath){
+			if(currentDepth == 0){
+				for(size_t i=0; i<currentDepth; i++) cout << "  ";
 				cout << "No successors" << endl;
-			}
-			else{
-				cout << "\t\t\t\tNo successors" << endl;
 			}
 			return -1;
 		}
@@ -680,6 +672,28 @@ public:
 			return current_nodeIndex;
 		}
 		else{
+
+
+			/*
+			//-------------------------------------------------------------------------------
+			//Solve multiple simple cycle
+			vector<SuccessorData> successors_nonVisited;
+			for(SuccessorData& successor : data_successors){
+				if(isPathAlreadyExplored(successor._nodeIndex, current_nodeIndex, graph, _unitigDatas, forward, currentDepth+1, 0)) continue;	
+				successors_nonVisited.push_back(successor);
+			}
+
+			if(successors_nonVisited.size() == 1){
+				for(SuccessorData& successor : successors_nonVisited){
+					if(isSmallCycle(successor._nodeIndex, current_nodeIndex, graph, _unitigDatas, forward, currentDepth+1)){
+						return successor._nodeIndex;
+					}
+				}	
+			}
+	
+			//-------------------------------------------------------------------------------
+			*/
+
 
 
 			u_int32_t currentUnitigIndex = graph->_nodeToUnitig[_prevNodes[_prevNodes.size()-1]];
@@ -755,13 +769,10 @@ public:
 				//cout << canExplorePath << endl;
 				//cout << current_nodeIndex << " "  <<  _source_nodeIndex << endl;
 
-				if(canExplorePath){
+				if(currentDepth == 0){
+					for(size_t i=0; i<currentDepth; i++) cout << "  ";
 					cout << str_debug << endl;
 				}
-				else{
-					cout << "\t\t\t\t" << str_debug << endl;
-				}
-
 
 				prevRank += 1;
 
@@ -790,30 +801,57 @@ public:
 				current_nodeIndex = successors_bestPrevRank[0]._nodeIndex;
 				//nodeExplored(current_nodeIndex, graph);
 
-				if(canExplorePath){
+				if(currentDepth == 0){
+					for(size_t i=0; i<currentDepth; i++) cout << "  ";
 					cout << "Node chosen: " << graph->_graphSuccessors->nodeToString(current_nodeIndex) << " " << graph->_nodeAbundances[graph->_graphSuccessors->nodeIndex_to_nodeName(current_nodeIndex, orient_dummy)]  << endl;
 				}
-				else{
-					cout << "\t\t\t\tNode chosen: " << graph->_graphSuccessors->nodeToString(current_nodeIndex) << " " << graph->_nodeAbundances[graph->_graphSuccessors->nodeIndex_to_nodeName(current_nodeIndex, orient_dummy)]  << endl;
-				}
-
 
 				return current_nodeIndex;
 			}
 			else{
 				
-				if(canExplorePath){
-					cout << "Check simple cycle" << endl;
+
+
+
+				
+				if(currentDepth == 0){
+
+					if(currentDepth == 0){
+						for(size_t i=0; i<currentDepth; i++) cout << "  ";
+						cout << "Check simple cycle" << endl;
+					}
+
 					for(SuccessorData& successor : successors_bestPrevRank){
 
-						if(isSimpleCycle(successor._nodeIndex, current_nodeIndex, graph, _unitigDatas, forward)){
+						if(isSmallCycle(successor._nodeIndex, current_nodeIndex, graph, _unitigDatas, forward, currentDepth+1)){
 							return successor._nodeIndex;
 						}
 						
 					}
 
-				}
 
+
+					for(size_t i=0; i<successors_bestPrevRank.size(); i++){
+						u_int32_t to_nodeIndex = successors_bestPrevRank[i]._nodeIndex;
+						for(size_t j=0; j<successors_bestPrevRank.size(); j++){
+							if(i == j) continue;
+							
+							u_int32_t from_nodeIndex = successors_bestPrevRank[j]._nodeIndex;
+
+							if(currentDepth == 0){
+								for(size_t i=0; i<currentDepth; i++) cout << "  ";
+								cout << "Check simple cycle from: " << graph->_graphSuccessors->nodeToString(from_nodeIndex) << "    to:    " << graph->_graphSuccessors->nodeToString(to_nodeIndex) << endl;
+							}
+
+							if(isSmallCycle(from_nodeIndex, to_nodeIndex, graph, _unitigDatas, forward, currentDepth+1)){
+								//exit(1);
+								return from_nodeIndex;
+							}
+
+						}	
+					}
+				}
+				
 
 				return -1;
 				
@@ -824,22 +862,42 @@ public:
 
 	}
 
-	bool isPathAlreadyExplored(u_int32_t current_nodeIndex, u_int32_t source_nodeIndex, GraphSimplify* graph, vector<UnitigData>& _unitigDatas, bool forward){
+	bool isPathAlreadyExplored(u_int32_t current_nodeIndex, u_int32_t source_nodeIndex, GraphSimplify* graph, vector<UnitigData>& _unitigDatas, bool forward, u_int32_t currentDepth, u_int64_t maxIter){
 		
 		//bool lala = true;
 
-		cout << "\tIs path explored: " << graph->_graphSuccessors->nodeToString(current_nodeIndex) << " ?    ";
+		if(currentDepth == 1){
+			for(size_t i=0; i<currentDepth; i++) cout << "  ";
+			cout << "Is path explored: " << graph->_graphSuccessors->nodeToString(current_nodeIndex) << " ?    ";
+		}
+
 		if(_visitedNodes.find(current_nodeIndex) == _visitedNodes.end()){
-			cout << " No" << endl;
+			if(currentDepth == 1){
+				cout << " No" << endl;
+			}
 			//lala = false;
 			return false;
 		}
 
+		if(maxIter == 0){
+			if(_visitedNodes.find(current_nodeIndex) == _visitedNodes.end()){
+				if(currentDepth == 1){
+					cout << " No" << endl;
+				}
+				return false;
+			}
+			else{
+				if(currentDepth == 1){
+					cout << " Yes" << endl;
+				}
+				return true;
+			}
+		}
 
 		//u_int32_t source_nodeIndex = current_nodeIndex;
 		PathExplorer pathExplorer(_prevNodes, _source_abundance, current_nodeIndex, current_nodeIndex, _abundanceCutoff_min, _visitedNodes);
 
-		u_int64_t maxIter = 10;
+		//u_int64_t maxIter = 10;
 
 
 		u_int64_t iter = 0;
@@ -850,35 +908,44 @@ public:
 
 		while(true){
 		
-			current_nodeIndex = pathExplorer.getNextNode(current_nodeIndex, graph, _unitigDatas, forward, false);
+			current_nodeIndex = pathExplorer.getNextNode(current_nodeIndex, graph, _unitigDatas, forward, currentDepth);
 			//cout <<  " " << graph->_graphSuccessors->nodeToString(current_nodeIndex);
 			if(current_nodeIndex == source_nodeIndex) break;
 			if(current_nodeIndex == -1){ //dead end or multiple braching path
-				cout << " No" << endl;
+				if(currentDepth == 1){
+					for(size_t i=0; i<currentDepth; i++) cout << "  ";
+					cout << " No" << endl;
+				}
 				//lala = false;
 				return false;
 			}
 
 			if(_visitedNodes.find(current_nodeIndex) == _visitedNodes.end()){
-				cout << " No" << endl;
+				if(currentDepth == 1){
+					for(size_t i=0; i<currentDepth; i++) cout << "  ";
+					cout << " No" << endl;
+				}
 				//lala = false;
 				return false;
 			}
 
 			pathExplorer.nodeExplored(current_nodeIndex, graph);
 
-			if(iter > maxIter) break;
+			if(iter >= maxIter) break;
 
 			iter += 1;
 		}
 		
-		cout << " Yes" << endl;
+		if(currentDepth == 1){
+			for(size_t i=0; i<currentDepth; i++) cout << "  ";
+			cout << " Yes" << endl;
+		}
 
 		//if(!lala) return false;
 		return true;
 	}
 
-
+	/*
 	bool isSimpleCycle(u_int32_t current_nodeIndex, u_int32_t source_nodeIndex, GraphSimplify* graph, vector<UnitigData>& _unitigDatas, bool forward){
 		
 		//bool lala = true;
@@ -917,6 +984,69 @@ public:
 		}
 		
 		cout << " No" << endl;
+
+		//if(!lala) return false;
+		return false;
+	}
+	*/
+
+	bool isSmallCycle(u_int32_t from_nodeIndex, u_int32_t to_nodeIndex, GraphSimplify* graph, vector<UnitigData>& _unitigDatas, bool forward, u_int32_t currentDepth){
+		
+		unordered_set<u_int32_t> visitedNodes = _visitedNodes;
+		//bool lala = true;
+
+
+		if(currentDepth == 1){
+			for(size_t i=0; i<currentDepth; i++) cout << "  ";
+			cout << "Is simple cycle: " << graph->_graphSuccessors->nodeToString(from_nodeIndex) << " ?    ";
+		}
+
+		PathExplorer pathExplorer(_prevNodes, _source_abundance, from_nodeIndex, from_nodeIndex, _abundanceCutoff_min, visitedNodes);
+
+
+		u_int64_t maxIter = 100;
+		u_int64_t iter = 0;
+		pathExplorer.nodeExplored(from_nodeIndex, graph);
+		pathExplorer._visitedNodes.insert(from_nodeIndex);
+
+		//cout << "Start extension: " << graph->_graphSuccessors->nodeToString(from_nodeIndex) << endl;
+
+		while(true){
+		
+			from_nodeIndex = pathExplorer.getNextNode(from_nodeIndex, graph, _unitigDatas, forward, currentDepth);
+			//cout << graph->_graphSuccessors->nodeToString(from_nodeIndex) << endl;
+			pathExplorer._visitedNodes.insert(from_nodeIndex);
+
+			//cout <<  " " << graph->_graphSuccessors->nodeToString(current_nodeIndex);
+			if(from_nodeIndex == to_nodeIndex){
+				if(currentDepth == 1){
+					for(size_t i=0; i<currentDepth; i++) cout << "  ";
+					cout << " Yes" << endl;
+				}
+				return true;
+			}
+			if(from_nodeIndex == -1){ //dead end or multiple braching path
+				if(currentDepth == 1){
+					for(size_t i=0; i<currentDepth; i++) cout << "  ";
+					cout << " No" << endl;
+				}
+				//lala = false;
+				return false;
+			}
+
+
+
+			pathExplorer.nodeExplored(from_nodeIndex, graph);
+
+			if(iter > maxIter) break;
+
+			iter += 1;
+		}
+		
+		if(currentDepth == 1){
+			for(size_t i=0; i<currentDepth; i++) cout << "  ";
+			cout << " No" << endl;
+		}
 
 		//if(!lala) return false;
 		return false;
@@ -2552,8 +2682,11 @@ public:
 		//return utg_nodeIndex;
 	}
 
+	float computeAbundanceCutoff_min(u_int32_t nodeIndex, GraphSimplify* graph){
+		return graph->_unitigs[graph->_nodeToUnitig[nodeIndex]]._abundance / 4.0;
+	}
+
 	void solveBin(u_int32_t source_nodeIndex, GraphSimplify* graph, int pathIndex){
-		
 
 		bool orient_dummy = false;
 		u_int32_t nodeName = graph->_graphSuccessors->nodeIndex_to_nodeName(source_nodeIndex, orient_dummy);
@@ -2561,8 +2694,8 @@ public:
 		cout << "----- Start solve bin ------" << endl;
 		cout << "Source: " << nodeName << " " << graph->_graphSuccessors->nodeToString(source_nodeIndex) << endl;
 
-		cout << graph->_nodeToUnitig[source_nodeIndex] << endl;
-		cout << graph->_unitigs[graph->_nodeToUnitig[source_nodeIndex]]._abundance << endl;
+		//cout << graph->_nodeToUnitig[source_nodeIndex] << endl;
+		//cout << graph->_unitigs[graph->_nodeToUnitig[source_nodeIndex]]._abundance << endl;
 		//bool orient_dummy;
 		//u_int32_t utg_nodeIndex = source_nodeIndex; //graph->nodeName_to_nodeIndex(utg, orient_dummy);
 		
@@ -2570,8 +2703,15 @@ public:
 		
 
 		//float abundanceCutoff_min = graph->_nodeAbundances[nodeName] / 5.0;
-		float abundanceCutoff_min = graph->_unitigs[graph->_nodeToUnitig[source_nodeIndex]]._abundance / 4.0;
+		float abundanceCutoff_min = computeAbundanceCutoff_min(source_nodeIndex, graph);
 		cout << "Abundance cutoff min: " << abundanceCutoff_min << endl;
+
+		cout << "Simplifying graph local" << endl;
+		graph = graph->clone();
+		cout << "clone done" << endl;
+		graph->execute(abundanceCutoff_min);
+
+
 		//u_int32_t source_unitigIndex = graph->nodeIndex_to_nodeName(utg, orient_dummy);
 		u_int32_t source_abundance = graph->_unitigs[graph->_nodeToUnitig[source_nodeIndex]]._abundance;
 		cout << graph->_unitigs[graph->_nodeToUnitig[source_nodeIndex]]._abundance << endl;
@@ -2618,7 +2758,7 @@ public:
 		while(true){
 			PathExplorer pathExplorer(pathData.prevNodes, pathData.source_abundance, pathData.source_nodeIndex, current_nodeIndex, pathData._abundanceCutoff_min, visitedNodes);
 			//u_int32_t nextNodeIndex = pathExplorer.getNextNode( graph, _unitigDatas, 100000, forward, true);
-			current_nodeIndex = pathExplorer.getNextNode(current_nodeIndex, graph, _unitigDatas, forward, true);
+			current_nodeIndex = pathExplorer.getNextNode(current_nodeIndex, graph, _unitigDatas, forward, 0);
 			//cout << graph->_graphSuccessors->nodeToString(current_nodeIndex) << endl;
 
 			if(current_nodeIndex == pathData.source_nodeIndex){ //Path complete

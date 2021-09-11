@@ -1,4 +1,10 @@
 
+
+
+#ifndef MDBG_METAG_GRAPH
+#define MDBG_METAG_GRAPH
+
+
 #include <iostream>
 #include <unordered_map>
 #include <vector>
@@ -922,3 +928,6 @@ public:
 
 
 };
+
+
+#endif
