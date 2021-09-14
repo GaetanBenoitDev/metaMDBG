@@ -1,4 +1,4 @@
-project(Bloocoo)
+project(mdbgAsmMeta)
 
 cmake_minimum_required (VERSION 2.6)
 
@@ -73,10 +73,14 @@ include_directories (${PROGRAM_SOURCE_DIR})
 file (GLOB_RECURSE  ProjectFiles  ${PROGRAM_SOURCE_DIR}/*)
 add_executable(${PROJECT_NAME} ${ProjectFiles})
 target_link_libraries(${PROJECT_NAME} ${gatb-core-libraries})
-add_custom_command(
-    TARGET ${PROJECT_NAME} POST_BUILD
-    COMMAND ln -sf "${CMAKE_CURRENT_SOURCE_DIR}/scripts/metaBloocoo" "${PROJECT_BINARY_DIR}/bin"
-)
+
+#add_custom_command(
+#    TARGET ${PROJECT_NAME} POST_BUILD
+#    COMMAND ln -sf "${CMAKE_CURRENT_SOURCE_DIR}/scripts/metaBloocoo" "${PROJECT_BINARY_DIR}/bin"
+#)
+
+#add_executable        (toBasespace  src/ToBasespace/ToBasespace.cpp)
+#target_link_libraries (toBasespace  ${gatb-core-libraries})
 
 ################################################################################
 #  PACKAGING

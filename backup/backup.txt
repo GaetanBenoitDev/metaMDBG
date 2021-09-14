@@ -2542,3 +2542,1720 @@ void Bloocoo::execute_binning(){
 }
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+void Bloocoo::execute_binning_cleanGraph(){
+	string gfa_filename = _inputDir + "/minimizer_graph_unitigs.gfa";
+	string mdbg_filename = _inputDir + "/mdbg_nodes.gz";
+
+	cout << gfa_filename << endl;
+	MDBG* mdbg = new MDBG(_kminmerSize);
+	mdbg->load(mdbg_filename);
+
+	vector<u_int32_t> unitigLengths;
+	vector<int32_t> node_to_unitig(mdbg->_dbg_nodes.size(), -1);
+	GfaParser gfaParser;
+	UnitigGraph* graph = gfaParser.createGraph(gfa_filename, node_to_unitig, unitigLengths);
+	
+	cout << "Nb nodes: " << (graph->_nbNodes/2) << endl;
+	cout << "Nb edges: " << graph->_nbEdges << endl;
+
+
+
+
+	BiGraph* graph_bi = gfaParser.createBiGraph_lol(_inputDir + "/minimizer_graph_notips_nobubbles.gfa", true);
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	
+	load_read_compositions();
+	//load_filtered_minimizers();
+
+
+
+	
+	
+	gzFile file_readData = gzopen(_filename_readMinimizers.c_str(),"rb");
+
+	ReadIndexType readIndex = 0;
+	_unitigDatas.resize(graph->_nbNodes);
+	//vector<UnitigData> unitigDatas;
+	//for(size_t i=0; i<graph->_nbNodes; i++){
+	//	unitigDatas.push_back({i, {}});
+		//unitigDatas[i]._compositionMean.resize(_compositionManager->_compositionVectorSize);
+	//}
+
+
+
+	/*
+	cout << "Collecting truth kminmers" << endl;
+	//ofstream file_groundTruth_hifiasm_position(_outputDir + "/groundtruth_hifiasm_position.csv");
+	ofstream file_groundTruth_hifiasm(_outputDir + "/groundtruth_hifiasm.csv");
+	file_groundTruth_hifiasm << "Name,Colour" << endl;
+	//file_groundTruth_hifiasm_position << "Name,Colour" << endl;
+
+	unordered_set<u_int32_t> groundTruth_kminmers;
+	unordered_set<u_int32_t> groundTruth_unitig;
+	int founded = 0;
+	for(auto it : mdbg->_dbg_nodes){
+		//for(auto it : _evaluation_hifiasmGroundTruth){
+
+		const KmerVec& vec = it.first;
+
+		u_int32_t kminmer_index = mdbg->_dbg_nodes[vec]._index;
+		u_int32_t unitigIndex = node_to_unitig[kminmer_index];
+		if(unitigIndex == -1) continue;
+
+		unitigDatas[unitigIndex]._nbKminmers += 1;
+		unitigDatas[unitigIndex]._meanAbundance += mdbg->_dbg_nodes[vec]._abundance;
+
+
+
+		//vec = vec.normalize();
+		if(_evaluation_hifiasmGroundTruth.find(vec) == _evaluation_hifiasmGroundTruth.end()) continue;
+		//if(mdbg->_dbg_nodes.find(vec) == mdbg->_dbg_nodes.end()) continue;
+
+
+		groundTruth_kminmers.insert(kminmer_index);
+		founded += 1;
+
+
+		groundTruth_unitig.insert(unitigIndex);
+		file_groundTruth_hifiasm << gfaParser.unitigIndex_to_unitigName(unitigIndex) << "," << _evaluation_hifiasmGroundTruth[vec] << endl;
+		//file_groundTruth_hifiasm_position << unitigIndex << "," << _evaluation_hifiasmGroundTruth_position[vec] << endl;
+
+		vector<u_int32_t> neighbors;
+		graph->collectNeighbors(unitigIndex, 100, neighbors, 100);
+		for(u_int32_t nn : neighbors){
+			//cout << nn << endl;
+			groundTruth_kminmers.insert(nn);
+			groundTruth_unitig.insert(nn);
+			//unitigDatas[nn]._nbKminmers += 1;
+			//unitigDatas[nn]._meanAbundance += mdbg->_dbg_nodes[vec]._abundance;
+			//u_int32_t unitigIndex = node_to_unitig[nn];
+			//if(unitigIndex == -1) continue;
+			//groundTruth_unitig.insert(unitigIndex);
+		}
+
+		
+		//cout << founded << endl;
+		//cout << "n: " << neighbors.size() << endl;
+		//cout << n << endl;
+
+
+		cout << groundTruth_kminmers.size() << endl;
+	}
+
+	for(UnitigData& data : unitigDatas){
+		if(data._nbKminmers != 0){
+			data._meanAbundance /= data._nbKminmers;
+		}
+	}
+	cout << "Nb nodes abundant: " << groundTruth_kminmers.size() << endl;
+	cout << "Founded: " << founded << endl;
+	gfaParser.rewriteGfa_withUnitigs(gfa_filename, gfa_filename + "_groundTruth_hifiasm.gfa", groundTruth_unitig, unitigDatas);
+	cout << "endo" << endl;
+	file_groundTruth_hifiasm.close();
+	//file_groundTruth_hifiasm_position.close();
+	*/
+
+
+	while(true){
+		
+		//cout << readIndex << endl;
+
+		u_int16_t size;
+		vector<u_int64_t> minimizers;
+		gzread(file_readData, (char*)&size, sizeof(size));
+
+		if(gzeof(file_readData)) break;
+		
+		minimizers.resize(size);
+		gzread(file_readData, (char*)&minimizers[0], size * sizeof(u_int64_t));
+
+
+		vector<KmerVec> kminmers; 
+		MDBG::getKminmers(_kminmerSize, minimizers, kminmers);
+
+		vector<ReadIndexType> unitigIndexex;
+
+		for(KmerVec& vec : kminmers){
+			if(mdbg->_dbg_nodes.find(vec) == mdbg->_dbg_nodes.end()) continue;
+
+			u_int32_t kminmer_index = mdbg->_dbg_nodes[vec]._index;
+			u_int32_t unitigIndex = node_to_unitig[kminmer_index];
+			if(unitigIndex == -1) continue;
+
+			/*
+			UnitigData& unitigData = unitigDatas[unitigIndex];
+			ReadData& readData = _readDatas[readIndex];
+			for(size_t i=0; i<readData._composition.size(); i++){
+				unitigData._compositionMean[i] += readData._composition[i];
+			}
+			unitigData._compositionNb += 1;
+			*/
+
+			//if(groundTruth_unitig.find(unitigIndex) == groundTruth_unitig.end()) continue;
+
+			//cout << kminmer_index << " " << unitigIndex << endl;
+			if(std::find(unitigIndexex.begin(), unitigIndexex.end(), unitigIndex) != unitigIndexex.end()) continue;
+
+			unitigIndexex.push_back(unitigIndex);
+			if(unitigIndexex.size() >= 2) break;
+		}
+
+		if(unitigIndexex.size() >= 2){
+			for(KmerVec& vec : kminmers){
+				if(mdbg->_dbg_nodes.find(vec) == mdbg->_dbg_nodes.end()) continue;
+
+				u_int32_t kminmer_index = mdbg->_dbg_nodes[vec]._index;
+				u_int32_t unitigIndex = node_to_unitig[kminmer_index];
+				if(unitigIndex == -1) continue;
+
+				//if(groundTruth_unitig.find(unitigIndex) == groundTruth_unitig.end()) continue;
+				//if(groundTruth_unitig.find(unitigIndex) == groundTruth_unitig.end()) continue;
+
+				UnitigData& unitigData = _unitigDatas[unitigIndex];
+				
+				//if(unitigData._readIndexes_exists.find(readIndex) != unitigData._readIndexes_exists.end()) continue;
+				//cout << unitigData._readIndexes.size() << endl;
+				//if(std::find(unitigData._readIndexes.begin(), unitigData._readIndexes.end(), readIndex) != unitigData._readIndexes.end()) continue;
+					
+				//unitigData._readIndexes_exists.insert(readIndex);
+				//cout << unitigIndex << " " << unitigData._readIndexes.size() << endl;
+				//cout << unitigData._readIndexes.size() << endl;
+				unitigData._readIndexes.push_back(readIndex);
+
+				//cout << kminmer_index << " " << unitigIndex << " " << unitigData._readIndexes.size() << " " << readIndex << endl;
+				//cout << unitigData._readIndexes.size() << " " << unitigLengths[unitigIndex] << endl;
+				//if(std::find(unitigIndexex.begin(), unitigIndexex.end(), unitigIndex) != unitigIndexex.end()) continue
+				//unitigIndexex.push_back(unitigIndex);
+
+			}
+		}
+
+
+		
+		readIndex += 1;
+	}
+
+	/*
+	for(UnitigData& data : unitigDatas){
+		for(size_t i=0; i<data._compositionMean.size(); i++){
+			data._compositionMean[i] /= data._compositionNb;
+		}
+
+	}
+	*/
+
+
+
+
+	//solveBin(GfaParser::unitigName_to_id("utg0000804l"), graph);
+	
+
+	//solveBin(GfaParser::unitigName_to_id("utg0000805l"), graph, unitigDatas, file_groundTruth, 1);
+
+	///home/gats/workspace/run/hifiasm_meta/AD_components/component_5.fasta
+	//solveBin(GfaParser::unitigName_to_id("utg0437330l"), graph, unitigDatas, file_groundTruth, 1);
+	
+	///home/gats/workspace/run/hifiasm_meta/AD_components/component_6.fasta
+	//solveBin(GfaParser::unitigName_to_id("utg0459582l"), graph, unitigDatas, file_groundTruth, 1);
+
+
+	///home/gats/workspace/run/hifiasm_meta/AD_components/component_5.fasta
+	//solveBin(721346, graph, unitigDatas, file_groundTruth, 1);
+
+	///home/gats/workspace/run/hifiasm_meta/AD_components/component_6.fasta
+	//solveBin(1057286, graph, unitigDatas, file_groundTruth, 1);
+
+	///home/gats/workspace/run/hifiasm_meta/AD_components/component_8.fasta
+	//solveBin(GfaParser::unitigName_to_id("utg0198809l"), graph, unitigDatas, file_groundTruth, 1, binNodes);
+
+	///home/gats/workspace/run/hifiasm_meta/AD_components/component_9.fasta
+	//solveBin(GfaParser::unitigName_to_id("utg0435813l"), graph, unitigDatas, file_groundTruth, 1, binNodes);
+
+
+
+	/*
+	solveBin(4106, graph, unitigDatas, file_groundTruth, 1);
+	solveBin(51899, graph, unitigDatas, file_groundTruth, 2);
+	solveBin(95193, graph, unitigDatas, file_groundTruth, 3);
+	solveBin(10985, graph, unitigDatas, file_groundTruth, 4);
+
+	solveBin(78693, graph, unitigDatas, file_groundTruth, 5);
+	solveBin(92561, graph, unitigDatas, file_groundTruth, 6);
+	solveBin(109366, graph, unitigDatas, file_groundTruth, 7);
+	solveBin(234177, graph, unitigDatas, file_groundTruth, 8);
+	solveBin(143694, graph, unitigDatas, file_groundTruth, 9);
+	solveBin(25798, graph, unitigDatas, file_groundTruth, 10);
+	*/
+
+
+	//solveBin(GfaParser::unitigName_to_id("utg0000799l"), graph);
+
+	ofstream file_groundTruth(_outputDir + "/binning_results.csv");
+	file_groundTruth << "Name,Colour" << endl;
+	unordered_set<u_int32_t> binNodes;
+	//TODO
+	file_groundTruth.close();
+
+	
+	/*
+	cout << "Writing gfa" << endl;
+
+	unordered_set<u_int32_t> unitigs;
+	for(auto it : mdbg->_dbg_nodes){
+
+		const KmerVec& vec = it.first;
+
+		u_int32_t kminmer_index = mdbg->_dbg_nodes[vec]._index;
+		u_int32_t unitigIndex = node_to_unitig[kminmer_index];
+		if(unitigIndex == -1) continue;
+
+
+		if(binNodes.find(unitigIndex) == binNodes.end()) continue;
+		unitigs.insert(unitigIndex);
+
+		vector<u_int32_t> neighbors;
+		graph->collectNeighbors(unitigIndex, 100, neighbors, 100);
+		for(u_int32_t nn : neighbors){
+			unitigs.insert(nn);
+		}
+
+	}
+	gfaParser.rewriteGfa_withUnitigs(gfa_filename, gfa_filename + "_binResults.gfa", unitigs, unitigDatas);
+	*/
+	//file_groundTruth_hifiasm_position.close();
+
+
+
+	/*
+	unordered_set<DbgEdge, hash_pair> unsupportedEdges;
+
+	for(size_t utg=0; utg<graph->_nbNodes; utg++){
+
+		//cout << utg << " " << graph->_nbNodes << endl;
+
+		adjNode* node = graph->_nodes[utg];
+
+        while (node != nullptr) {
+			
+			ReadIndexType utg_n = node->val;
+
+			//cout << utg << " " << utg_n << " " << unitigDatas[utg]._readIndexes.size() << " " << unitigDatas[utg_n]._readIndexes.size() << endl;
+
+			if(unsupportedEdges.find({utg, utg_n}) != unsupportedEdges.end() || unsupportedEdges.find({utg_n, utg}) != unsupportedEdges.end()) {	
+				node = node->next;
+				continue;
+			}
+
+			if(shareAnyRead(unitigDatas[utg], unitigDatas[utg_n])){
+				node = node->next;
+				continue;
+			}
+
+			//if(shareAnyRead(unitigDatas[utg], unitigDatas[utg_n])){
+			unsupportedEdges.insert({utg, utg_n});
+			unsupportedEdges.insert({utg_n, utg});
+			//}
+
+			node = node->next;
+        }
+
+	}
+
+	cout << "Nb unsupported edges: " << unsupportedEdges.size() << endl;
+
+	gfaParser.rewriteGfa_withoutEdges(gfa_filename, gfa_filename +"_2.gfa", unsupportedEdges);
+
+
+
+	delete graph;
+	node_to_unitig.clear();
+	unitigLengths.clear();
+	components.clear();
+	graph = gfaParser.createGraph(gfa_filename +"_2.gfa", node_to_unitig, unitigLengths);
+	
+	cout << "Nb nodes: " << graph->_nbNodes << endl;
+	cout << "Nb edges: " << graph->_nbEdges << endl;
+
+	graph->computeConnectedComponents(components);
+
+	cout << endl << "Nb connected components: " << components.size() << endl;
+	for(size_t i=0; i<components.size(); i++){
+
+		u_int64_t component_size_nt = 0;
+		for(u_int32_t utg : components[i]){
+			component_size_nt += unitigLengths[utg];
+		}
+		if(component_size_nt > 1000000){
+			cout << i <<": " << component_size_nt << endl;
+		}
+	}
+	cout << endl;
+	*/
+
+	/*
+	ofstream file_groundTruth(_outputDir + "/binning_results.csv");
+	file_groundTruth << "Name,Colour" << endl;
+
+	int iter = 0;
+	//utg0000256l
+	ReadIndexType utg = 33; //255
+	stack<ReadIndexType> stack;
+	stack.push(utg);
+
+	unordered_set<DbgEdge, hash_pair> isEdgeVisited;
+
+	while (!stack.empty() && iter < 500){
+		
+		utg = stack.top();
+		stack.pop();
+
+
+		string unitigName = "utg";
+		string unitig_name_id = to_string(utg+1);
+		size_t nbZeros = 7 - unitig_name_id.size();
+		//cout << unitigIndex << " " << nbZeros << endl;
+		for(size_t i=0; i<nbZeros; i++){
+			unitigName += "0";
+		}
+		unitigName += unitig_name_id + "l";
+
+		cout << "Visit node: " << unitigName << endl;
+
+		//cout << unitigName << endl;
+		file_groundTruth << unitigName << "," << "red" << endl;
+
+
+
+
+		adjNode* node = graph->_nodes[utg];
+		vector<UnitigEdgeScore> unitigScores;
+
+        while (node != nullptr) {
+			
+			ReadIndexType utg_n = node->val;
+			if(isEdgeVisited.find({utg, utg_n}) != isEdgeVisited.end() || isEdgeVisited.find({utg_n, utg}) != isEdgeVisited.end()) {	
+				node = node->next;
+				continue;
+			}
+
+			unitigScores.push_back({utg, utg_n, computeSharedReads(unitigDatas[utg], unitigDatas[utg_n])});
+
+			node = node->next;
+        }
+
+		if(unitigScores.size() == 0) continue;
+
+		std::sort(unitigScores.begin(), unitigScores.end(), UnitigEdgeScoreComparator);
+
+		UnitigEdgeScore& bestEdge = unitigScores[0];
+
+		isEdgeVisited.insert({bestEdge._from, bestEdge._to});
+		isEdgeVisited.insert({bestEdge._to, bestEdge._from});
+
+		for(size_t i=0; i<unitigScores.size(); i++) {
+			cout << unitigScores[i]._from << " " << unitigScores[i]._to << " " <<  unitigScores[i]._score << endl;
+			if(unitigScores[i]._score == 0) continue;
+			stack.push(unitigScores[i]._to);
+		}
+
+		//if(bestEdge._score == 0) continue;
+
+
+
+		iter += 1;
+
+
+	}
+	
+
+	file_groundTruth.close();
+	*/
+	/*
+	for(UnitigData& unitigData : unitigDatas){
+		cout << "------------- " << unitigData._index << endl;
+		for(ReadIndexType readIndex : unitigData._readIndexes){
+			cout << readIndex << " ";
+		}
+		cout << endl;
+	}
+	*/
+}
+
+
+	/*
+	vector<u_int32_t> node_to_unitig(mdbg_errorFree->_dbg_nodes.size(), 0);
+	GfaParser gfaParser;
+	AdjGraph* graph = gfaParser.createGraph("/home/gats/workspace/data/overlap_test/read_overlaps_notips_nobubbles.gfa", node_to_unitig);
+	
+	vector<vector<u_int32_t>> components;
+	graph->computeConnectedComponents(components);
+	
+	cout << "Nb connected components: " << components.size() << endl;
+	for(size_t i=0; i<components.size(); i++){
+		if(components[i].size() > 50){
+			cout << i <<": " << components[i].size() << endl;
+		}
+		//if(components[i].size() == 1) cout << components[i][0] << endl;
+	}
+	*/
+
+
+	/*
+	cout << _overlapGraph->_nbNodes << endl;
+	cout << _overlapGraph->_nbEdges << endl;
+
+
+	
+	AdjGraph* minimizerGraph_cleaned = new AdjGraph();
+	MinimizerPairMap* _minimizerPairMap_cleaned = new MinimizerPairMap();
+
+	//for (auto& it: minimizerCounts) {
+	//	if(it.second <= 1) continue;
+	//	if(it.second <= 10) continue;
+	//	cout << it.second << endl;
+	//}
+
+	for(size_t n=0; n<_overlapGraph->_nbNodes; n++){
+
+		MinimizerPair& pair = _minimizerPairMap->id_to_pair(n);
+
+
+
+		if(!checkRemoveNode(n, _overlapGraph, _minimizerPairMap, minimizerCounts)){
+			//_overlapGraph->collectNeighbors(n, 1, neighbors);
+			//if(minimizerCounts[pair] > 1 && minimizerCounts[pair] < 35){
+			_minimizerPairMap_cleaned->addNode(pair);
+			bool added = minimizerGraph_cleaned->addNode(_minimizerPairMap_cleaned->pair_to_id(pair));
+			if(added){
+				//output_file_gfa << "S" << "\t" << _minimizerPairMap->pair_to_id(pair) << "\t" << "*" << "\t" << "LN:i:" << 0 << "\t" << "dp:i:" << minimizerCounts[pair] << endl;
+			}
+		}
+
+
+		adjNode* node = _overlapGraph->_nodes[n];
+
+        while (node != nullptr) {
+			
+			u_int32_t nn = node->val;
+			MinimizerPair& pair_nn = _minimizerPairMap->id_to_pair(nn);
+
+			if(!checkRemoveNode(nn, _overlapGraph, _minimizerPairMap, minimizerCounts)){
+				//if(minimizerCounts[pair_nn] > 1 && minimizerCounts[pair_nn] < 35){
+				_minimizerPairMap_cleaned->addNode(pair_nn);
+				bool added = minimizerGraph_cleaned->addNode(_minimizerPairMap_cleaned->pair_to_id(pair_nn));
+				if(added){
+					//output_file_gfa << "S" << "\t" << _minimizerPairMap->pair_to_id(pair_nn) << "\t" << "*" << "\t" << "LN:i:" << 0 << "\t" << "dp:i:" << minimizerCounts[pair_nn] << endl;
+				}
+
+				added = minimizerGraph_cleaned->addEdge_checkDuplicate(_minimizerPairMap_cleaned->pair_to_id(pair), _minimizerPairMap_cleaned->pair_to_id(pair_nn), 0);
+				if(added){
+					//output_file_gfa << "L" << "\t" << _minimizerPairMap->pair_to_id(pair) << "\t" << "+" << "\t" << _minimizerPairMap->pair_to_id(pair_nn) << "\t" << "+" << "\t" << "0M" << endl;
+				}
+
+			}
+
+			node = node->next;
+        }
+
+	}
+
+	cout << minimizerGraph_cleaned->_nbNodes << endl;
+	cout << minimizerGraph_cleaned->_nbEdges << endl;
+
+	output_file_gfa.close();
+	*/
+
+	/*
+	vector<float> dists;
+	for(size_t n=0; n<_readData.size(); n++){
+		
+
+		for(size_t nn=n+1; nn<_readData.size(); nn++){
+			float dist = computeDistanceTNF(_readData[n], _readData[nn]);
+
+			//cout << dist << endl;
+			
+			dists.push_back(dist);
+
+		}
+	}
+
+	print_stats(dists);
+	*/
+	
+	//cout << nbMinimizers << endl;
+
+	/*
+	u_int64_t processed = 0;
+
+	vector<vector<u_int16_t>> readCoverages(readIndex);
+	unordered_map<MinimizerPair, u_int16_t> readPairCount;
+
+	cout << minimizerPairs_to_reads.size() << endl;
+
+	for (auto& it: minimizerPairs_to_reads) {
+
+		processed += 1;
+		if(processed % 100000 == 0){
+			float progress = ((float) processed) / minimizerPairs_to_reads.size();
+			//cout << progress << endl;
+		} 
+
+
+		MinimizerPair minimizerPair = it.first;
+		vector<u_int32_t>& readIds = it.second;
+
+
+
+		//u_int32_t m1 = (u_int32_t)((minimizerPair & 0xFFFFFFFF00000000LL) >> 32);
+		//u_int32_t m2 = (u_int32_t)(minimizerPair & 0xFFFFFFFFLL);
+		//cout << "Read pair: " << m1 << " " << m2 << " " << minimizerPair << endl;
+
+		//cout << readIds.size() << endl;
+		//cout << "------------" << endl;
+		//for(size_t k=0; k<readIds.size(); k++) {
+		//	cout << readIds[k] << endl;
+		//}
+
+
+
+		if(readIds.size() == 1) continue;
+
+		//cout << readIds.size() << endl;
+		if(readIds.size() > 10000) continue;
+
+		//cout << readIds.size() << endl;
+		for(size_t i=0; i<readIds.size(); i++) {
+			
+				//cout << i << " " << readIds.size() << endl;
+
+			u_int32_t read1 = readIds[i];
+
+			//if(read1 == 9363) cout << "Reads: " << readIds.size() << endl; 
+
+			for(size_t j=i+1; j<readIds.size(); j++) {
+
+				u_int32_t read2 = readIds[j];
+				//if(read2 == 9363) cout << "Reads: " << readIds.size() << endl; 
+
+
+				//if ((read1 == 7721 && read2 == 9442) || read2 == 7721 && read1 == 9442) {
+					//cout << "lala" << endl;
+				//}
+
+				//cout << read1 << " " << read2 << endl;
+
+				if(read1 == read2){
+					//cout << "------------" << endl;
+					//for(size_t k=0; k<readIds.size(); k++) {
+						//cout << readIds[k] << endl;
+					//}
+					continue;
+				}
+
+				float dist = computeDistanceTNF(_readData[read1], _readData[read2]);
+				//float t = 0.01f + 
+				if(dist > 0.6f){
+					//cout << read1 << " " << read2 << " " << dist << endl;
+					continue;
+				}
+
+				
+
+				
+
+
+				//if(_evaluation_readToDataset[read1] != _evaluation_readToDataset[read2]){
+				//	cout << "Diff dataset: " << computeDistanceTNF(_readData[read1], _readData[read2]) << endl;
+				//}
+				//else{
+				//	cout << "Same dataset: " << computeDistanceTNF(_readData[read1], _readData[read2]) << endl;
+				//}
+
+				MinimizerPair readPair = {read1, read2};
+				//u_int64_t readPair = (u_int64_t) read1 << 32 | read2;
+
+				if(readPairCount.find(readPair) == readPairCount.end()){
+					//cout << "Overlap: " << read1 << " " << read2 << endl;
+					readPairCount[readPair] = 0;
+					//cout << readPairCount.size() << endl;
+				}
+
+				readPairCount[readPair] += 1;
+
+
+				//if ((readPair._first == 7721 && read2 == 9442) || read2 == 7721 && read1 == 9442) {
+					//cout << readPairCount[readPair] << endl;
+				//}
+
+				//cout << j << endl;
+
+			}
+		}
+
+		
+		//cout << "Reads: " << readIds.size() << endl;
+
+
+	}
+
+
+	*/
+	/*
+	for(size_t i=0; i<readCoverages.size(); i++){
+		if(read_headers[i] == "G3_0 S1_1"){
+
+			for(size_t cov : readCoverages[i]){
+				cout << cov << endl;
+			}
+
+			float mean = 0;
+			
+			for(size_t cov : readCoverages[i]){
+				mean += cov;
+			}
+			mean /= readCoverages[i].size();
+
+			float var = 0;
+			for(size_t cov : readCoverages[i]){
+				var += pow((cov - mean), 2);
+			}
+			var /= (readCoverages[i].size() - 1);
+			float sd = SQRT(var);
+			
+			cout << "Mean: " << mean << endl;
+			cout << "Sd: " << sd << endl;
+			cout << "Var: " << var << endl;
+
+		}
+	}
+	*/
+
+	/*
+	set<u_int32_t> nodes;
+
+
+	//vector<u_int32_t> nodes;
+
+	//ofstream output_file("/home/gats/workspace/data/overlap_test/read_overlaps.txt");
+	ofstream output_file_gfa("/home/gats/workspace/data/overlap_test/read_overlaps.gfa");
+
+	u_int64_t nbOverlaps = 0;
+
+	u_int64_t nbOverlaps_interGenomes = 0;
+
+	
+	//u_int64_t nbNodes = 0;
+	for (auto& it: readPairCount) {
+		u_int16_t count = it.second;
+		//if(count <= 1) continue;
+
+
+		MinimizerPair readPair = it.first;
+		u_int32_t read1 = readPair._first;//(u_int32_t)((readPair & 0xFFFFFFFF00000000LL) >> 32);
+		u_int32_t read2 = readPair._second;//(u_int32_t)(readPair & 0xFFFFFFFFLL);
+
+		nodes.insert(read1);
+		nodes.insert(read2);
+		//nbNodes += 1;
+	}
+	
+	GraphInfo* graphInfo = new GraphInfo();
+
+	cout << "Nb nodes: " << nodes.size() << endl;
+	//cout << readIndex << " " << nbNodes << endl;
+	//u_int64_t nbNodes = readIndex;
+	_overlapGraph = new AdjGraph(nodes.size());
+
+	vector<Overlap> overlaps;
+
+	int nbOverlapsLala = 0;
+	for (auto& it: readPairCount) {
+		
+		u_int16_t count = it.second;
+		if(count <= 1) continue;
+
+
+		MinimizerPair readPair = it.first;
+
+		u_int32_t read1 = readPair._first;//(u_int32_t)((readPair & 0xFFFFFFFF00000000LL) >> 32);
+		u_int32_t read2 = readPair._second;//(u_int32_t)(readPair & 0xFFFFFFFFLL);
+
+		overlaps.push_back({read1, read2, count});
+
+
+		//if(read1 == read2) cout << "rofl " << read1 << endl;
+
+
+		if(read1 == 9363 || read2 == 9363){
+			nbOverlapsLala += 1;
+			//cout << "ReadPairCount: " << nbOverlapsLala << " " << count << endl; 
+		}
+
+
+		//float dist = computeDistanceTNF(_readData[read1], _readData[read2]);
+		//float t = 0.01f + count * 0.005f;
+		//if(dist > t) continue; //To remove I think
+
+		if(_evaluation_readToDataset[read1] != _evaluation_readToDataset[read2]){
+			nbOverlaps_interGenomes += 1;
+			//float dist = computeDistanceTNF(_readData[read1], _readData[read2]);
+			//cout << "Bad overlaps: " <<  read1 << " " << read2 << " " << count << " " << dist << endl;
+		}
+
+		//if ((read1 == 7721 && read2 == 9442) || read2 == 7721 && read1 == 9442) {
+			//cout << read_headers[read1] << " " << read_headers[read2] << endl;
+		//}
+
+
+		//if(read1 == 101) cout << _readData[read1]._graphVertex << endl;
+		//if(read2 == 101) cout << _readData[read2]._graphVertex << endl;
+
+
+		//output_file << read_headers[read1] << ";" << read_headers[read2] << ";" << count << endl; //!
+
+		//cout << read1 << " " << read2 << " " << count << " " << (_evaluation_readToDataset[read1] == _evaluation_readToDataset[read2]) << endl;
+		//if(!_readData[read1]._vertexCreated){
+		//	_readData[read1]._vertexCreated = true;
+			//nodes.push_back(read1);
+			//boost::adjacency_list<>::vertex_descriptor v1 = boost::add_vertex(_overlapGraph);
+			//_readData[read1]._graphVertex = v1;
+			//_overlapGraph[v1]._readIndex = read1;
+
+			//cout << "Create node: " << v1 << " " << read1 << endl;
+			//if(read1 == 101) cout << "Added " << v1 << endl;
+
+		//}
+		//if(!_readData[read2]._vertexCreated){
+		//	_readData[read2]._vertexCreated = true;
+			//nodes.push_back(read2);
+			//boost::adjacency_list<>::vertex_descriptor v1 = boost::add_vertex(_overlapGraph);
+			//_readData[read2]._graphVertex = v1;
+			//_overlapGraph[v1]._readIndex = read2;
+			
+			//cout << "Create node: " << v1 << " " << read2 << endl;
+			//if(read2 == 101) cout << "Added " << v1 << endl;
+		//}
+
+		//if(read1 > nbNodes || read2 > nbNodes) cout << "allo" << endl;
+
+		graphInfo->addNode(read1);
+		graphInfo->addNode(read2);
+
+		_overlapGraph->addEdge(graphInfo->readIndex_to_id(read1), graphInfo->readIndex_to_id(read2), 0);
+		//cout << read1 << " " << read2 << " " << nbNodes << endl;
+
+		//boost::add_edge(_readData[read1]._graphVertex, _readData[read2]._graphVertex, _overlapGraph);
+
+		//output_file_gfa << "L" << "\t" << read1 << "\t" << "+" << "\t" << read2 << "\t" << "+" << "\t" << "0M" << endl;
+
+		nbOverlaps += 1;
+
+	}
+
+	//vector<bool> hasMatch(readIndex, false);
+	unordered_map<ReadIndexType, vector<ReadIndexType>> bestOverlaps;
+	unordered_map<ReadIndexType, vector<ReadIndexType>> bestOverlaps_reverse;
+	//cout << "----" << endl;
+	std::sort(overlaps.begin(), overlaps.end(), OverlapComparator);
+	for(Overlap& overlap : overlaps){
+
+		ReadIndexType read1 = overlap._r1;
+		ReadIndexType read2 = overlap._r2;
+
+
+		if(bestOverlaps.find(read1) == bestOverlaps.end() && bestOverlaps_reverse.find(read2) == bestOverlaps_reverse.end()){
+
+			bool isCycle = false;
+			ReadIndexType currentRead = read1;
+			while(true){
+
+				if(bestOverlaps_reverse.find(currentRead) == bestOverlaps_reverse.end()) break;
+
+				currentRead = bestOverlaps_reverse[currentRead];
+				if(currentRead == read2){
+					isCycle = true;
+					break;
+				}
+			}
+
+			if(!isCycle){
+				bestOverlaps[read1] = read2;
+				bestOverlaps_reverse[read2] = read1;
+				continue;
+			}
+			
+		}
+		
+		if(bestOverlaps.find(read2) == bestOverlaps.end() && bestOverlaps_reverse.find(read1) == bestOverlaps_reverse.end()){
+
+			bool isCycle = false;
+			ReadIndexType currentRead = read2;
+			while(true){
+
+				if(bestOverlaps_reverse.find(currentRead) == bestOverlaps_reverse.end()) break;
+				currentRead = bestOverlaps_reverse[currentRead];
+				if(currentRead == read1){
+					isCycle = true;
+					break;
+				}
+			}
+
+			if(!isCycle){
+				bestOverlaps[read2] = read1;
+				bestOverlaps_reverse[read1] = read2;
+			}
+			
+		}
+		
+		
+
+
+
+		//else if(bestOverlaps.find(read2) == bestOverlaps.end()){
+		//	bestOverlaps[read2] = read1;
+		//	hasMatch[read1] = true;
+		//}
+
+
+		//cout << "Overlap: " << overlap._nbMinimizers << endl;
+	}
+
+	for (auto& it: bestOverlaps) {
+		
+		u_int32_t read1 = it.first;//(u_int32_t)((readPair & 0xFFFFFFFF00000000LL) >> 32);
+		u_int32_t read2 = it.second;//(u_int32_t)(readPair & 0xFFFFFFFFLL);
+		output_file_gfa << "L" << "\t" << read1 << "\t" << "+" << "\t" << read2 << "\t" << "+" << "\t" << "0M" << endl;
+	}
+	//for(size_t i=0; i<_readData.size(); i++){
+	//	if(_readData[i]._composition.size() == 0) continue;
+	//	output_file_gfa << "L" << "\t" << i << "\t" << "+" << "\t" << _readData[i]._readBestMatch << "\t" << "+" << "\t" << "0M" << endl;
+	//}
+	
+	for(u_int32_t node : nodes){
+		output_file_gfa << "S" << "\t" << node << "\t" << "*" << "\t" << "LN:i:" << _readData[node]._length << endl;
+	}
+
+	output_file_gfa.close();
+	nodes.clear();
+
+	cout << "Nb overlaps: " <<  nbOverlaps << endl;
+	cout << "Nb overlaps inter genomes: " <<  nbOverlaps_interGenomes << endl;
+
+	*/
+	/*
+	//_overlapGraph->display_AdjList(0, graphInfo);
+	cout << "--------" << endl;
+	vector<u_int32_t> neighbors;
+	_overlapGraph->collectNeighbors(0, 2, neighbors);
+	for(u_int32_t n : neighbors){
+		cout << n << endl;
+	}
+
+	set<u_int32_t> lala;
+	cout << "--------" << endl;
+	_overlapGraph->collectNeighbors(0, 1, neighbors);
+	for(u_int32_t n : neighbors){
+		lala.insert(n);
+		vector<u_int32_t> neighbors2;
+		_overlapGraph->collectNeighbors(n, 1, neighbors2);
+		for(u_int32_t nn : neighbors2){
+			lala.insert(nn);
+		}
+	}
+
+	for(auto lalala : lala){
+		cout << lalala << endl;
+	}
+
+	//output_file.close();
+
+	//_overlapGraph->display_AdjList(0);
+	*/
+	/*
+	cout << "Nb nodes: " << boost::num_vertices(_overlapGraph) << endl;
+
+	std::vector<int> component (boost::num_vertices (_overlapGraph));
+	size_t num_components = boost::connected_components (_overlapGraph, &component[0]);
+	cout << "Nb components: " << num_components << endl;
+
+	vector<vector<ReadIndexType>> readPerCompoenents(num_components);
+	vector<u_int64_t> nbNodePerComponents(num_components, 0);
+
+	for (size_t i = 0; i < boost::num_vertices (_overlapGraph); i++){
+		nbNodePerComponents[component[i]] += 1;
+
+		readPerCompoenents[component[i]].push_back(_overlapGraph[i]._readIndex);
+		//cout <<  "Node: " << i << " Read: " << graph[i]._readIndex << endl;
+	}
+	
+	for(size_t i=0; i<num_components; i++){
+		if(nbNodePerComponents[i] < 100) continue;
+		cout << "Compoenents " << i << ": " << nbNodePerComponents[i] << endl;
+	}
+
+	cout << "Nb components: " << num_components << endl;
+	*/
+	/*
+	for(size_t i=0; i<readPerCompoenents.size(); i++){
+		cout << "---------------- " << i << endl;
+		for(ReadIndexType ri : readPerCompoenents[i]){
+			cout << _evaluation_readToDataset[ri] << endl;
+		}
+	}
+	*/
+
+	//createSimilarityGraph(graphInfo);
+
+
+/*
+static void writeGfa(AdjGraph* graph, const string& outputFilename){
+
+        cout << "Dumping graph: " << outputFilename << endl;
+
+        //cout << graph->_nbNodes << endl;
+	    vector<u_int64_t> neighbors;
+
+	    ofstream outputFile(outputFilename);
+
+        for(size_t n=0; n<graph->_nbNodes; n++){
+            //if(graph->_nodes[n]->isBidirection) continue;
+
+            //cout << n << " " << graph->_graphInfo->_unitigs_length.size() << endl;
+            outputFile << "S" << "\t" << n << "\t" << "*" << "\t" << "LN:i:" << graph->_graphInfo->_unitigs_length[n] << endl;
+
+
+            adjNode* node = graph->_nodes[n];
+            while (node != nullptr) {
+
+                if(node->isBidirection){
+                    node = node->next;
+                    continue;
+                }
+
+                string from = "";
+                if(node->directionFrom) from = "+"; else from = "-";
+
+                string to = "";
+                if(node->directionTo) to = "+"; else to = "-";
+
+                outputFile << "L" << "\t" << n << "\t" << from << "\t" << node->val << "\t" << to << "\t" << "0M" << endl;
+
+                node = node->next;
+
+            }
+
+
+        }
+
+        outputFile.close();
+    }
+
+*/
+
+
+
+/*
+void Bloocoo::createSimilarityGraph(GraphInfo* graphInfo){
+
+
+	
+	ofstream stats_file("/home/gats/workspace/run/histos/binner_stats.csv");
+	ofstream graph_output_file("/home/gats/workspace/run/histos/similarityGraph.txt");
+
+
+	u_int64_t nbEdgeIntra = 0;
+	u_int64_t nbEdgeInter = 0;
+
+	vector<float> distTNF_intra;
+	vector<float> distTNF_inter;
+	vector<u_int32_t> neighbors;
+
+	u_int64_t nbEdges = 0;
+
+	for(size_t n=0; n<_overlapGraph->_nbNodes; n++){
+
+		ReadIndexType read = graphInfo->id_to_readIndex(n);
+		//ReadIndexType read = _overlapGraph[n]._readIndex;
+		u_int32_t read_datasetId = _evaluation_readToDataset[read];
+
+		//cout << n << " " << read << endl;
+		_overlapGraph->collectNeighbors(n, 10, neighbors);
+
+		//cout << "------" << endl;
+		//auto neighbours = boost::adjacent_vertices(n, _overlapGraph);
+		//for (auto nn : make_iterator_range(neighbours)){
+
+		for (u_int64_t nn : neighbors){
+
+			//cout << nn << endl;
+			//ReadIndexType read_neighbor = _overlapGraph[nn]._readIndex;
+			ReadIndexType read_neighbor = graphInfo->id_to_readIndex(nn);
+			u_int32_t read_neighbor_datasetId = _evaluation_readToDataset[read_neighbor];
+
+			
+
+			float dist = computeDistanceTNF(_readData[read], _readData[read_neighbor]);
+
+			//if(n == 0){
+				//cout << dist << endl;
+			//}
+			if(read_datasetId == read_neighbor_datasetId){
+				nbEdgeIntra += 1;
+				distTNF_intra.push_back(dist);
+				//cout << dist << endl;
+			}
+			else{
+				nbEdgeInter += 1;
+				distTNF_inter.push_back(dist);
+				//cout << dist << endl;
+			}
+			
+			if(dist > 0.05) continue;
+			
+
+			float weight = 1.0 - dist;
+			graph_output_file << read << " " << read_neighbor << " " << weight << endl;
+			nbEdges += 1;
+
+		}
+		
+	}
+	
+	cout << "Nb edges total: " << nbEdges << endl;
+	cout << "Nb edges intra: " << nbEdgeIntra << endl;
+	cout << "Nb edges inter: " << nbEdgeInter << endl;
+	cout << "Intra dists:" << endl;
+	print_stats(distTNF_intra);
+	cout << "Inter dists:" << endl;
+	print_stats(distTNF_inter);
+
+	graph_output_file.close();
+
+
+	stats_file.close();
+}
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	//vector<ReadData> _readDatas;
+	//vector<u_int32_t> _nodeAbundances;
+
+	/*
+    void collectNeighbors_sharingReads(AdjGraph* graph, u_int32_t utg, const vector<UnitigData>& unitigDatas, vector<u_int32_t>& neighbors, unordered_set<u_int32_t>& binNodes){
+
+		//results.clear();
+		unordered_set<u_int32_t> isVisited;
+        neighbors.clear();
+        //if(_nodes[s] == nullptr) return;
+
+        //neighbors.push_back(s);
+
+        //for(size_t i=0; i<_nbNodes; i++){
+        //    isVisited[i] = false;
+        //    distance[i] = 0;
+            //prev[i] = -1;
+        //}
+
+    
+        queue<u_int32_t> queue;
+    
+        //isVisited[s] = true;
+        //distance[s] = 0;
+        queue.push(utg);
+		isVisited.insert(utg);
+		//results.insert(utg_n);
+    
+    
+        while(!queue.empty()){
+            
+            u_int32_t n = queue.front();
+            queue.pop();
+
+            adjNode* node = graph->_nodes[n];
+
+            while (node != nullptr) {
+
+                u_int32_t utg_n = node->val;
+
+                if (isVisited.find(utg_n) != isVisited.end()){
+                    node = node->next;
+                    continue;
+                }
+
+				isVisited.insert(utg_n);
+
+				if(!shareAnyRead(unitigDatas[utg], unitigDatas[utg_n])){
+                    node = node->next;
+                    continue;
+				}
+                //isVisited[nn] = true;
+                //distance[nn] = distance[n] + 1;
+
+				if(binNodes.find(utg_n) == binNodes.end()){
+                	neighbors.push_back(utg_n);
+				}
+
+
+                //if(distance[nn] >= maxDistance) continue;
+
+                //cout << "Push: " << nn << " " << distance[nn] << endl;
+                queue.push(utg_n);
+				//results.insert(utg_n);
+
+                node = node->next;
+            }
+
+        }
+
+    }*/
+
+	/*
+	void solveBin(u_int32_t utg, AdjGraph* graph, const vector<UnitigData>& unitigDatas, ofstream& file, int color){
+
+		//cout << computeSharedReads(unitigDatas[924320], unitigDatas[924321]) << endl;
+		//cout << computeSharedReads(unitigDatas[924328], unitigDatas[924327]) << endl;
+		//cout << computeSharedReads(unitigDatas[924328], unitigDatas[4451136]) << endl;
+
+		unordered_set<u_int32_t> binNodes;
+
+		stack<ReadIndexType> stack;
+		stack.push(utg);
+		binNodes.insert(utg);
+		//unordered_set<u_int32_t> isNodeVisisted;
+		unordered_map<DbgEdge, float, hash_pair> cache_distanceTnf;
+		unordered_set<DbgEdge, hash_pair> isEdgeVisited;
+
+
+
+
+
+		while (!stack.empty()){
+			
+			utg = stack.top();
+			stack.pop();
+
+
+		
+
+			file << utg << "," << color << endl;
+
+
+
+
+
+			vector<u_int32_t> neighbors;
+			//unordered_set<u_int32_t> neighborsShar
+
+			//collectNeighbors_sharingReads(graph, utg, unitigDatas, neighbors, binNodes);
+			graph->collectNeighbors(utg, 1, neighbors, 0);
+			//if(neighbors.size() == 0) continue;
+
+			//cout << "---------------" << endl;
+			//cout << utg << endl;
+
+			for(u_int32_t utg_n : neighbors){
+			
+			
+				DbgEdge edge = {utg, utg_n};
+				edge = edge.normalize();
+
+				if(isEdgeVisited.find(edge) != isEdgeVisited.end()){
+					continue;
+				}
+
+				isEdgeVisited.insert(edge);
+
+
+				
+				vector<float> tnf_distances;
+				
+				for(u_int32_t r1 : unitigDatas[utg]._readIndexes){
+					for(u_int32_t r2 : unitigDatas[utg_n]._readIndexes){
+						//if(r1 == r2) continue;
+						
+						DbgEdge readPair = {r1, r2};
+						readPair = readPair.normalize();
+
+						float distance_tnf = -1;
+						if(cache_distanceTnf.find(readPair) != cache_distanceTnf.end()){
+							//cout << "oyo" << endl;
+							distance_tnf = cache_distanceTnf[readPair];
+						}
+						else{
+							distance_tnf = computeDistanceTNF(_readDatas[r1], _readDatas[r2]);
+							//distance_tnf = euclidianDistance(_readDatas[r1]._composition, _readDatas[r2]._composition);
+							cache_distanceTnf[readPair] = distance_tnf;
+						}
+						
+					
+						tnf_distances.push_back(distance_tnf);
+
+					}
+					
+				}
+
+				float median = compute_median_float(tnf_distances);
+
+				if(median > 0.1){
+					//float dist = euclidianDistance(unitigDatas[utg]._compositionMean, unitigDatas[utg_n]._compositionMean);
+					cout << utg << " " << utg_n << "      " << median << endl;
+				}
+
+				
+				u_int64_t nbSharedReads = computeSharedReads(unitigDatas[utg], unitigDatas[utg_n]);
+				if(nbSharedReads == 0) continue;
+				if(nbSharedReads <= 30){
+					//if(median > 0.001){
+						continue;
+					//}
+				}
+
+				stack.push(utg_n);
+				binNodes.insert(utg_n);
+				cout << "Bin nodes: " << binNodes.size() << " " << utg_n << " " << median << endl;
+				
+
+
+			}
+
+
+
+
+
+		}
+
+		cout << "Bin nodes: " << binNodes.size() << endl;
+	}
+	*/
+
+
+	//void getUnitigLengths(const string& gfa_filename){
+	//	u_int64_t nbUnitigs = GfaParser::getUnitigLengths(gfa_filename, _unitigLengths);
+	//}
+
+	/*
+	void computeNodeAbundance(MDBG* mdbg, const string& gfa_filename){
+
+		string gfa_filename_unitig = gfa_filename + "_tmp.gfa";
+
+		string command = "gfatools asm -u " + gfa_filename + " > " + gfa_filename_unitig;
+		
+		cout << command << endl;
+		int ret = system(command.c_str());
+		if(ret != 0){
+			cout << "ERROR IN GFA TOOLS" << endl;
+			exit(ret);
+		}
+
+		vector<int32_t> node_to_unitig(mdbg->_dbg_nodes.size(), -1);
+		u_int64_t nbUnitigs = GfaParser::getNodeToUnitig(gfa_filename_unitig, node_to_unitig);
+
+		cout << nbUnitigs << endl;
+		
+		_nodeAbundances.resize(mdbg->_dbg_nodes.size(), 0);
+		vector<u_int32_t> unitigAbundances(nbUnitigs, 0);
+		vector<u_int32_t> unitigAbundancesSize(nbUnitigs, 0);
+
+		for(auto it : mdbg->_dbg_nodes){
+
+			const KmerVec& vec = it.first;
+
+			u_int32_t kminmer_index = mdbg->_dbg_nodes[vec]._index;
+			//u_int32_t unitigIndex = node_to_unitig[kminmer_index];
+			//if(unitigIndex == -1) continue;
+
+			//unitigDatas[unitigIndex]._nbKminmers += 1;
+			//unitigDatas[unitigIndex]._meanAbundance += mdbg->_dbg_nodes[vec]._abundance;
+			u_int32_t unitigIndex = node_to_unitig[kminmer_index];
+			//if(unitigIndex == -1) continue;
+
+			if(mdbg->_dbg_nodes[vec]._abundance > unitigAbundances[unitigIndex]){
+				unitigAbundances[unitigIndex] = mdbg->_dbg_nodes[vec]._abundance;
+			}
+			//unitigAbundances[unitigIndex] = max(unitigAbundances[unitigIndex], mdbg->_dbg_nodes[vec]._abundance);
+			//unitigAbundancesSize[unitigIndex] += 1;
+
+			//_unitigDatas[kminmer_index]._meanAbundance += mdbg->_dbg_nodes[vec]._abundance;
+			//_unitigDatas[kminmer_index]._nbKminmers += 1;
+		}
+		
+		for(auto it : mdbg->_dbg_nodes){
+			const KmerVec& vec = it.first;
+			u_int32_t kminmer_index = mdbg->_dbg_nodes[vec]._index;
+
+			u_int32_t unitigIndex = node_to_unitig[kminmer_index];
+			//_unitigDatas[unitigIndex]._meanAbundance = unitigAbundances[unitigIndex];
+			_nodeAbundances[kminmer_index] = unitigAbundances[unitigIndex];
+			//if(unitigIndex == -1) continue;
+
+			//_unitigDatas[kminmer_index]._meanAbundance = unitigAbundances[unitigIndex]; // ((float) unitigAbundances[unitigIndex]) / unitigAbundancesSize[unitigIndex];
+		}
+
+		std::remove(gfa_filename_unitig.c_str());
+
+		
+		cout << mdbg->_dbg_nodes.size() << endl;
+		float abundanceCutoff_min = 4.2;
+		unordered_set<u_int32_t> nodes;
+		for(auto it : mdbg->_dbg_nodes){
+			const KmerVec& vec = it.first;
+			u_int32_t kminmer_index = mdbg->_dbg_nodes[vec]._index;
+
+			u_int32_t unitigIndex = node_to_unitig[kminmer_index];
+			//if(unitigIndex == -1) continue;
+
+			//_unitigDatas[kminmer_index]._meanAbundance = unitigAbundances[unitigIndex]; // ((float) unitigAbundances[unitigIndex]) / unitigAbundancesSize[unitigIndex];
+			//if(_unitigDatas[unitigIndex]._meanAbundance > abundanceCutoff_min){
+			if(_nodeAbundances[kminmer_index] > abundanceCutoff_min){
+				nodes.insert(kminmer_index);
+			}
+		}
+		GfaParser::rewriteGfa_withNodes(gfa_filename, gfa_filename + "_debug_filterByAbundance.gfa", nodes);
+		cout << nodes.size() << endl;
+		
+		//size_t i=0;
+		//for(UnitigData& data : _unitigDatas){
+		//	cout << i << " " << data._meanAbundance << endl;
+		//	i += 1;
+		//}
+	}*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+void solveBin(u_int32_t utg, AdjGraph* graph, const vector<UnitigData>& unitigDatas, ofstream& file, int color){
+
+
+
+		unordered_set<u_int32_t> binNodes;
+
+		stack<ReadIndexType> stack;
+		stack.push(utg);
+		binNodes.insert(utg);
+		unordered_set<u_int32_t> isNodeVisisted;
+		unordered_map<DbgEdge, float, hash_pair> cache_distanceTnf;
+
+
+
+
+		while (!stack.empty()){
+			
+			utg = stack.top();
+			stack.pop();
+
+
+			file << GfaParser::unitigIndex_to_unitigName(utg) << "," << color << endl;
+
+
+
+
+
+			vector<u_int32_t> neighbors;
+			//unordered_set<u_int32_t> neighborsShar
+
+			//collectNeighbors_sharingReads(graph, utg, unitigDatas, neighbors, binNodes);
+			graph->collectNeighbors(utg, 1, neighbors);
+			//if(neighbors.size() == 0) continue;
+
+			cout << "---------------" << endl;
+			cout << GfaParser::unitigIndex_to_unitigName(utg) << endl;
+
+			for(u_int32_t utg_n : neighbors){
+			
+				if(isNodeVisisted.find(utg_n) != isNodeVisisted.end()){
+					continue;
+				}
+
+				isNodeVisisted.insert(utg_n);
+
+
+				float dist = euclidianDistance(unitigDatas[utg]._compositionMean, unitigDatas[utg_n]._compositionMean);
+				cout << GfaParser::unitigIndex_to_unitigName(utg) << " " << GfaParser::unitigIndex_to_unitigName(utg_n) << " " << dist << endl;
+				
+				//if(binNodes.find(utg_n) != binNodes.end()){
+					//node = node->next;
+				//	continue;
+				//}
+				
+				vector<float> tnf_distances;
+				
+				for(u_int32_t r1 : unitigDatas[utg]._readIndexes){
+					for(u_int32_t r2 : unitigDatas[utg_n]._readIndexes){
+						//if(r1 == r2) continue;
+						
+						DbgEdge readPair = {r1, r2};
+						readPair = readPair.normalize();
+
+						float distance_tnf = -1;
+						if(cache_distanceTnf.find(readPair) != cache_distanceTnf.end()){
+							//cout << "oyo" << endl;
+							distance_tnf = cache_distanceTnf[readPair];
+						}
+						else{
+							distance_tnf = computeDistanceTNF(_readDatas[r1], _readDatas[r2]);
+							cache_distanceTnf[readPair] = distance_tnf;
+						}
+						
+					
+						tnf_distances.push_back(distance_tnf);
+
+					}
+					
+				}
+
+				float median = compute_median_float(tnf_distances);
+				cout << median << endl;
+
+				u_int64_t nbSharedReads = computeSharedReads(unitigDatas[utg], unitigDatas[utg_n]);
+				if(nbSharedReads <= 1) continue;
+
+				stack.push(utg_n);
+				binNodes.insert(utg_n);
+				cout << "Bin nodes: " << binNodes.size() << " " << GfaParser::unitigIndex_to_unitigName(utg_n) << endl;
+				
+
+
+			}
+
+		}
+
+		cout << "Bin nodes: " << binNodes.size() << endl;
+	}
+*/
+
+

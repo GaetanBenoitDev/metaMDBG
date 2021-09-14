@@ -120,7 +120,7 @@ public:
                 isModification = true;
             }
 
-            /*
+            
             while(true){
                 compact();
                 nbBubblesRemoved = bubble(10000);
@@ -129,7 +129,7 @@ public:
                 #endif
                 if(nbBubblesRemoved == 0) break;
                 isModification = true;
-            }*/
+            }
 
             while(true){
                 compact();
