@@ -579,7 +579,7 @@ public:
 
 	u_int32_t getNextNode(u_int32_t current_nodeIndex, GraphSimplify* graph, vector<UnitigData>& _unitigDatas, bool forward, u_int32_t currentDepth){
 
-		if(currentDepth > 1) return -1;
+		if(currentDepth > 5) return -1;
 
 		//u_int64_t iter = 0;
 		bool orient_dummy = false;
@@ -747,7 +747,7 @@ public:
 					//if(nbSharedReads > _abundanceCutoff_min/2){
 					//if(nbSharedReads > successor._abundance/5){
 					//if(nbSharedReads > 0){
-					if(nbSharedReads > 0){
+					if(nbSharedReads > _abundanceCutoff_min/2){
 						successor._prevRank = prevRank; //prevRank_unitig; //prevRank; //TODO better comparison in number of nucletoides
 						//successor._processedNodeIndex.push_back(prev_nodeIndex);
 					}
@@ -1956,6 +1956,7 @@ public:
 				if(bannedPositions[i]) continue;
 
 				KmerVec vec;
+				vector<u_int32_t> currentMinimizerIndex;
 
 				int j=i;
 				while(true){
@@ -1970,12 +1971,18 @@ public:
 					//if(bannedMinimizers.find(minimizer) != bannedMinimizers.end()) continue;
 
 					vec._kmers.push_back(minimizer);
+					currentMinimizerIndex.push_back(j);
 
 					if(vec._kmers.size() == _kminmerSize){
 						if(vec.isPalindrome()){
-							for(size_t p=j-_kminmerSize+1; p<=j-1; p++){
-								bannedPositions[p] = true;
+							//for(size_t p=j-_kminmerSize+1; p<=j-1; p++){
+							//	bannedPositions[p] = true;
+							//}
+							for(size_t m=0; m<_kminmerSize-1; m++){
+								bannedPositions[currentMinimizerIndex[m]] = true;
+								//cout << "Banned: " << currentMinimizerIndex[m] << endl;
 							}
+
 							hasPalindrome = true;
 							break;
 						}
@@ -2682,11 +2689,12 @@ public:
 		//return utg_nodeIndex;
 	}
 
-	float computeAbundanceCutoff_min(u_int32_t nodeIndex, GraphSimplify* graph){
-		return graph->_unitigs[graph->_nodeToUnitig[nodeIndex]]._abundance / 4.0;
+	float computeAbundanceCutoff_min(u_int32_t abundance){
+		return abundance / 4.0;
 	}
 
-	void solveBin(u_int32_t source_nodeIndex, GraphSimplify* graph, int pathIndex){
+	void solveBin(u_int32_t source_nodeIndex, u_int32_t abundance, GraphSimplify* graph, int pathIndex){
+
 
 		bool orient_dummy = false;
 		u_int32_t nodeName = graph->_graphSuccessors->nodeIndex_to_nodeName(source_nodeIndex, orient_dummy);
@@ -2703,16 +2711,25 @@ public:
 		
 
 		//float abundanceCutoff_min = graph->_nodeAbundances[nodeName] / 5.0;
-		float abundanceCutoff_min = computeAbundanceCutoff_min(source_nodeIndex, graph);
+		float abundanceCutoff_min = computeAbundanceCutoff_min(abundance);
 		cout << "Abundance cutoff min: " << abundanceCutoff_min << endl;
+		//if(abundanceCutoff_min < 30) return;
 
 		cout << "Simplifying graph local" << endl;
-		graph = graph->clone();
-		cout << "clone done" << endl;
-		graph->execute(abundanceCutoff_min);
+		graph->clear();
+		graph->debug_writeGfaErrorfree(abundanceCutoff_min);
+		//graph->clear();
+		//graph->execute(abundanceCutoff_min);
+		//graph = graph->clone();
+		//cout << "clone done" << endl;
+		//graph->execute(abundanceCutoff_min);
 
 
 		//u_int32_t source_unitigIndex = graph->nodeIndex_to_nodeName(utg, orient_dummy);
+		if(graph->_nodeToUnitig[source_nodeIndex] == -1){
+			cout << "Source node removed :(" << endl;
+			return; //????
+		}
 		u_int32_t source_abundance = graph->_unitigs[graph->_nodeToUnitig[source_nodeIndex]]._abundance;
 		cout << graph->_unitigs[graph->_nodeToUnitig[source_nodeIndex]]._abundance << endl;
 		//cout << "PAS BON CA: utiliser successeur puis predeesseur" << endl;
@@ -2761,12 +2778,13 @@ public:
 			current_nodeIndex = pathExplorer.getNextNode(current_nodeIndex, graph, _unitigDatas, forward, 0);
 			//cout << graph->_graphSuccessors->nodeToString(current_nodeIndex) << endl;
 
+			if(current_nodeIndex == -1) return false; //No more successors, or no branching solution
+			
 			if(current_nodeIndex == pathData.source_nodeIndex){ //Path complete
 				cout << "Path complete!" << endl;
 				return true; 
 			}
 			//if(current_nodeIndex == -2) return true; //Path complete
-			if(current_nodeIndex == -1) return false; //No more successors, or no branching solution
 
 			binNode(current_nodeIndex, pathData.prevNodes, graph, pathData._index);
 			visitedNodes.insert(current_nodeIndex);

@@ -15,6 +15,10 @@ using namespace std;
 struct UnitigLength{
 	u_int32_t _index;
     u_int32_t _length;
+    u_int32_t _nodeIndex;
+    
+    u_int32_t _startNodeIndex;
+    u_int32_t _abundance;
 };
 
 struct UnitigData{

@@ -580,7 +580,10 @@ void Bloocoo::execute ()
 			
 			vector<bool> bannedPositions(minimizers.size(), false);
 
+			//cout << "-------" << endl;
 			while(true){
+
+				//cout << "w" << endl;
 
 				bool hasPalindrome = false;
 
@@ -588,21 +591,27 @@ void Bloocoo::execute ()
 				for(int i=0; i<i_max; i++){
 					if(bannedPositions[i]) continue;
 
+					//cout << i << "/" << minimizers.size() << endl;
 					KmerVec vec;
 
+					vector<u_int32_t> currentMinimizerIndex;
 					int j=i;
 					while(true){
 						
-						if(j >= minimizers.size()) break;
+						if(j >= minimizers.size()){
+							break;
+						}
 						if(bannedPositions[j]){
-							//cout << "banned " << j << endl;
+							//cout << "    is banned " << j << endl;
 							j += 1;
+
 							continue;
 						}
 
 						u_int64_t minimizer = minimizers[j];
 						//if(bannedMinimizers.find(minimizer) != bannedMinimizers.end()) continue;
 
+						currentMinimizerIndex.push_back(j);
 						vec._kmers.push_back(minimizer);
 
 						if(vec._kmers.size() == _kminmerSize){
@@ -611,10 +620,35 @@ void Bloocoo::execute ()
 								//exit(1);
 								//cout << "PALOUF" << endl;
 								//vec._kmers.pop_back();
+								//for(size_t p=j-_kminmerSize+1; p<=j-1; p++){
+								//	cout << "Banned: " << p << endl;
+								//	bannedPositions[p] = true;
+									//cout << "banned " << p << endl;
+								//}
+
+								/*
 								for(size_t p=j-_kminmerSize+1; p<=j-1; p++){
+									cout << "Banned: " << p << endl;
 									bannedPositions[p] = true;
 									//cout << "banned " << p << endl;
 								}
+								*/
+
+								//cout << endl;
+								//int loulalsdf = 0;
+								//for(u_int64_t m : minimizers){
+								//	cout << loulalsdf << ": " << m << endl;
+								//	loulalsdf += 1;
+								//}
+								//cout << endl;
+
+								for(size_t m=0; m<_kminmerSize-1; m++){
+									bannedPositions[currentMinimizerIndex[m]] = true;
+									//cout << "Banned: " << currentMinimizerIndex[m] << endl;
+								}
+
+								//exit(1);
+
 								//cout << j << endl;
 								//cout << j-1 << endl;
 								//cout << j-2 << endl;
@@ -1560,11 +1594,7 @@ void Bloocoo::execute_binning(){
 	//cout << "Nb nodes: " << (graphBi_successors->_nbNodes/2) << endl;
 	//cout << "Nb edges: " << graphBi_successors->_nbEdges << endl;
 
-	cout << "Simplifying graph" << endl;
-	GraphSimplify* graphSimplify = new GraphSimplify(gfa_filename_noUnsupportedEdges, _outputDir);
-	graphSimplify->execute(0);
 
-	//exit(1);
 
 	/*
 
@@ -1620,12 +1650,6 @@ void Bloocoo::execute_binning(){
 	ofstream file_groundTruth_hifiasm(_outputDir + "/groundtruth_hifiasm.csv");
 	file_groundTruth_hifiasm << "Name,Colour" << endl;
 	file_groundTruth_hifiasm_position << "Name,Order" << endl;
-
-	unordered_set<u_int32_t> visitedNodes;
-	for(auto it : mdbg->_dbg_nodes){
-		if(_evaluation_hifiasmGroundTruth.find(it.first) == _evaluation_hifiasmGroundTruth.end()) continue;
-		visitedNodes.insert(it.second._index);
-	}
 
 	//unordered_set<u_int32_t> groundTruth_kminmers;
 	int founded = 0;
@@ -1715,17 +1739,70 @@ void Bloocoo::execute_binning(){
 	getUnitigLengths(gfa_filename_unitigs);
 	*/
 
+	cout << "Simplifying graph" << endl;
+	GraphSimplify* graphSimplify = new GraphSimplify(gfa_filename_noUnsupportedEdges, _outputDir);
+	graphSimplify->execute(1);
+	//graphSimplify->compact();
+	
+	
+	exit(1);
+	
 	file_groundTruth = ofstream(_outputDir + "/binning_results.csv");
 	file_groundTruth << "Name,Colour" << endl;
+
+	//562 (ecoli)
+	solveBin(graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(9847, true), graphSimplify->nodeIndex_to_unitig(9847)._abundance, graphSimplify, 0);
+	//solveBin(graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(10645, false), graphSimplify->nodeIndex_to_unitig(10645)._abundance, graphSimplify, 0);
+
+
+	exit(1);
+
+
+
+	//file_groundTruth.close();
 
 	unordered_set<u_int32_t> binNodes;
 	
 	
+	unordered_set<u_int32_t> visitedNodes;
+	vector<u_int32_t> startingNodesIndex;
+
 	vector<UnitigLength> unitigLengths;
 	for(Unitig& unitig : graphSimplify->_unitigs){
-		unitigLengths.push_back({unitig._index, unitig._length});
+		unitigLengths.push_back({unitig._index, unitig._length, unitig._startNode});
 	}
 	std::sort(unitigLengths.begin(), unitigLengths.end(), UnitigComparator_ByLength);
+
+	bool orient_dummy;
+	//size_t binIndex=0;
+	for(UnitigLength& unitigLength : unitigLengths){
+		cout << "Unitig length: " << unitigLength._length << " " << unitigLength._index << endl;
+		
+		if(unitigLength._length < 10000) continue;
+		//Unitig& unitig = graphSimplify->_unitigs[unitigLength._index];
+		//if(graphSimplify->_nodeToUnitig[unitig._startNode] == -1) continue;
+
+		vector<u_int32_t> nodes;
+		Unitig& unitig = graphSimplify->_unitigs[unitigLength._index];
+
+		unitigLength._abundance = unitig._abundance;
+
+		float abundanceCutoff_min = computeAbundanceCutoff_min(unitigLength._abundance);
+		//if(abundanceCutoff_min < 30) continue;
+
+
+		
+		graphSimplify->getUnitigNodes(unitig, nodes);
+
+		u_int32_t nodeIndex = nodes[rand() % nodes.size()];
+		//u_int32_t nodeName = graphSimplify->_graphSuccessors->nodeIndex_to_nodeName(nodeIndex, orient_dummy);
+		//if(_binnedNodes.find(nodeName) != _binnedNodes.end()) continue;
+
+
+
+		unitigLength._startNodeIndex = nodeIndex;
+		//startingNodesIndex.push_back(nodeIndex);
+	}
 
 	//for(size_t n=0; n<graphSimplify->_nodeToUnitig.size(); n++){
 	//	u_int32_t unitigIndex = graphSimplify->_nodeToUnitig[n];
@@ -1736,30 +1813,73 @@ void Bloocoo::execute_binning(){
 	//solveBin(graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(1869, true), graphSimplify, 0);
 	
 	//genome_201_50x
-	solveBin(graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(1745, false), graphSimplify, 0);
+	//solveBin(graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(115862, false), graphSimplify, 0);
 	
-	exit(1);
+	//exit(1);
 
-	bool orient_dummy;
 	size_t binIndex=0;
+	//for(u_int32_t nodeIndex : startingNodesIndex){
 	for(UnitigLength& unitigLength : unitigLengths){
+		if(unitigLength._index % 2 == 1) continue;
+		cout << "Unitig length: " << unitigLength._length << " " << unitigLength._index << endl;
+
+		if(unitigLength._length < 10000) continue;
+		float abundanceCutoff_min = computeAbundanceCutoff_min(unitigLength._abundance);
+		//if(abundanceCutoff_min < 30) continue;
+		if(visitedNodes.find(unitigLength._index) != visitedNodes.end()) continue;
+
+		u_int32_t nodeIndex = unitigLength._startNodeIndex;
+		
+		u_int32_t nodeName = graphSimplify->_graphSuccessors->nodeIndex_to_nodeName(nodeIndex, orient_dummy);
+		if(_binnedNodes.find(nodeName) != _binnedNodes.end()) continue;
+
+		visitedNodes.insert(unitigLength._index);
+		//vector<u_int32_t> nodes;
+		//Unitig& unitig = graphSimplify->_unitigs[unitigLength._index];
+		//graphSimplify->getUnitigNodes(unitig, nodes);
+		//for(u_int32_t node : nodes){
+		//	visitedNodes.insert(node);
+		//}
+		/*
 		cout << "Unitig length: " << unitigLength._length << " " << unitigLength._index << endl;
 		
-		if(unitigLength._length < 5000) continue;
+		if(unitigLength._length < 10000) continue;
 
-		for(size_t n=0; n<graphSimplify->_nodeToUnitig.size(); n++){
-			if(n%2 == 1) continue;
+		//Unitig& unitig = graphSimplify->_unitigs[unitigLength._index];
+		//if(graphSimplify->_nodeToUnitig[unitig._startNode] == -1) continue;
 
-			u_int32_t nodeName = graphSimplify->_graphSuccessors->nodeIndex_to_nodeName(n, orient_dummy);
-			if(_binnedNodes.find(nodeName) != _binnedNodes.end()) continue;
+		vector<u_int32_t> nodes;
+		Unitig& unitig = graphSimplify->_unitigs[unitigLength._index];
+		graphSimplify->getUnitigNodes(unitig, nodes);
+
+		u_int32_t nodeIndex = nodes[rand() % nodes.size()];
+		u_int32_t nodeName = graphSimplify->_graphSuccessors->nodeIndex_to_nodeName(nodeIndex, orient_dummy);
+		if(_binnedNodes.find(nodeName) != _binnedNodes.end()) continue;
+
+		float abundanceCutoff_min = computeAbundanceCutoff_min(nodeIndex, graphSimplify);
+		if(abundanceCutoff_min < 30) continue;
+		//u_int32_t nodeName = graphSimplify->_graphSuccessors->nodeIndex_to_nodeName(unitigLength.startNode, orient_dummy);
+		//if(_binnedNodes.find(nodeName) != _binnedNodes.end()) continue;
 			
-			if(graphSimplify->_nodeToUnitig[n] == unitigLength._index){
-				solveBin(n, graphSimplify, binIndex);
+		*/
+
+		//for(size_t n=0; n<graphSimplify->_nodeToUnitig.size(); n++){
+		//	if(n%2 == 1) continue;
+
+
+			//if(graphSimplify->_nodeToUnitig[n] == unitigLength._index){
+
+				
+				//file_groundTruth = ofstream(_outputDir + "/binning_results.csv");
+	
+				solveBin(nodeIndex, unitigLength._abundance, graphSimplify, binIndex);
+				//file_groundTruth.close();
+
 				//exit(1);
 				binIndex += 1;
-				break;
-			}
-		}
+				//break;
+			//}
+		//}
 		
 	}
 

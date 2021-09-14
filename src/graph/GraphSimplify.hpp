@@ -55,6 +55,18 @@ public:
         _isNodeRemoved.resize(_graphSuccessors->_nbNodes, false);
     }
 
+    ~GraphSimplify(){
+        delete _graphSuccessors;
+        delete _graphPredecessors;
+    }
+
+    void clear(){
+        //_isNodeRemoved.resize(_graphSuccessors->_nbNodes, false);
+        _isNodeRemoved = vector<bool>(_graphSuccessors->_nbNodes, false);
+        _isEdgeRemoved.clear();
+    }
+
+    /*
     GraphSimplify* clone(){
         GraphSimplify* clone = new GraphSimplify(_inputGfaFilename, _outputDir);
 
@@ -67,6 +79,7 @@ public:
 
         return clone;
     }
+    */
 
     void execute(float abundanceCutoff_min){
 
@@ -75,38 +88,66 @@ public:
         unordered_set<u_int32_t> removedNodes;
 
         
+
+        
         while(true){
+
+            u_int64_t nbTipsRemoved = 0;
+            u_int64_t nbErrorRemoved = 0;
+            u_int64_t nbBubblesRemoved = 0;
+            u_int64_t nbSmallLoopRemoved = 0;
+
+            bool isModification = false;
+
+            while(true){
+                compact();
+                nbErrorRemoved = removeLowAbundantNodes(abundanceCutoff_min);
+                #ifdef PRINT_DEBUG_SIMPLIFICATION
+                    cout << "Nb error removed: " << nbErrorRemoved << endl;
+                #endif
+                if(nbErrorRemoved == 0) break;
+                isModification = true;
+            }
 
             
             while(true){
-
-                u_int64_t nbErrorRemoved = 0;
-                u_int64_t nbBubblesRemoved = 0;
-
-                while(true){
-                    compact();
-                    nbErrorRemoved = removeLowAbundantNodes(abundanceCutoff_min);
-                    if(nbErrorRemoved == 0) break;
-                }
-
-                while(true){
-                    compact();
-                    nbBubblesRemoved = bubble(10000);
-                    if(nbBubblesRemoved == 0) break;
-                }
-
-                removeSmallLoop();
-
-                if(nbErrorRemoved == 0 && nbBubblesRemoved == 0) break;
+                compact();
+                nbTipsRemoved = tip(10000);
+                #ifdef PRINT_DEBUG_SIMPLIFICATION
+                    cout << "Nb tip removed: " << nbTipsRemoved << endl;
+                #endif
+                if(nbTipsRemoved == 0) break;
+                isModification = true;
             }
 
+            /*
+            while(true){
+                compact();
+                nbBubblesRemoved = bubble(10000);
+                #ifdef PRINT_DEBUG_SIMPLIFICATION
+                    cout << "Nb bubble removed: " << nbBubblesRemoved << endl;
+                #endif
+                if(nbBubblesRemoved == 0) break;
+                isModification = true;
+            }*/
 
+            while(true){
+                compact();
+                nbSmallLoopRemoved = removeSmallLoop(10000);
+                #ifdef PRINT_DEBUG_SIMPLIFICATION
+                    cout << "Nb small loop removed: " << nbSmallLoopRemoved << endl;
+                #endif
+                if(nbSmallLoopRemoved == 0) break;
+                isModification = true;
+            }
 
-            u_int64_t nbTipsRemoved = tip();
-            //cout << nbTipsRemoved << endl;
-            if(nbTipsRemoved == 0) break;
+            
 
+            if(!isModification) break;
         }
+
+
+        
 
         
 
@@ -129,10 +170,15 @@ public:
         if(abundanceCutoff_min == 0) return nbRemoved;
 
         for(size_t nodeIndex=0; nodeIndex<_graphSuccessors->_nbNodes; nodeIndex++){
+            //cout << nodeIndex << " " <<_graphSuccessors->_nbNodes << endl;
             if(_isNodeRemoved[nodeIndex]) continue;
             
+            //cout << "lala: " << _nodeToUnitig[nodeIndex] << endl;
+            //cout << _unitigs[_nodeToUnitig[nodeIndex]]._abundance << endl;
+
             if(_unitigs[_nodeToUnitig[nodeIndex]]._abundance < abundanceCutoff_min){
                 _isNodeRemoved[nodeIndex] = true;
+                nbRemoved += 1;
             }
 
         }
@@ -140,7 +186,7 @@ public:
         return nbRemoved;
     }
 
-    u_int64_t tip(){
+    u_int64_t tip(float maxLength){
 
         u_int64_t nbRemoved = 0;
 
@@ -152,8 +198,10 @@ public:
 
         for(Unitig& unitig : _unitigs){
 
-            if(isVisited[unitig._startNode]) continue;
-            if(isVisited[unitig._endNode]) continue;
+            if(unitig._length > maxLength) continue;
+            
+            //if(isVisited[unitig._startNode]) continue;
+            //if(isVisited[unitig._endNode]) continue;
 
             getPredecessors(unitig._startNode, 0, neighbors);
             if(neighbors.size() == 0) continue;
@@ -161,8 +209,9 @@ public:
             getSuccessors(unitig._endNode, 0, neighbors);
             if(neighbors.size() > 0) continue;
 
-            isVisited[unitig._startNode] = true;
-            isVisited[unitig._endNode] = true;
+            //isVisited[unitig._startNode] = true;
+            //isVisited[unitig._endNode] = true;
+
 
             getUnitigNodes(unitig, unitigNodes);
             for(u_int32_t node : unitigNodes){
@@ -170,7 +219,7 @@ public:
             }
 
             #ifdef PRINT_DEBUG_SIMPLIFICATION
-                cout << "\tTip: " << _graphSuccessors->nodeIndex_to_nodeName(unitig._endNode, dummy) << endl;
+                cout << "\tTip: " << _graphSuccessors->nodeIndex_to_nodeName(unitig._endNode, dummy) << " " << unitig._length << endl;
             #endif 
 
             nbRemoved += 1;
@@ -320,9 +369,9 @@ public:
     }
 
 
-    u_int64_t removeSmallLoop(){
+    u_int64_t removeSmallLoop(float maxLength){
 
-        cout << "removing small loops" << endl;
+        //cout << "removing small loops" << endl;
         u_int64_t nbRemoved = 0;
 
         //vector<u_int32_t> unitigNodes;
@@ -361,7 +410,7 @@ public:
                     if(i == j) continue;
 
                     Unitig& unitig_loop = nodeIndex_to_unitig(neighbors[j]);
-
+                    if(unitig_loop._length > maxLength) continue;
 
 
 
@@ -389,8 +438,10 @@ public:
 
                     if((nodeIndex_to_unitigIndex(predecessors[0]) == unitig_loop._index && nodeIndex_to_unitigIndex(predecessors[1]) == unitig_source._index) || (nodeIndex_to_unitigIndex(predecessors[0]) == unitig_source._index && nodeIndex_to_unitigIndex(predecessors[1]) == unitig_loop._index)){
                         if((nodeIndex_to_unitigIndex(successors[0]) == unitig_loop._index && nodeIndex_to_unitigIndex(successors[1]) == unitig_dest._index) || (nodeIndex_to_unitigIndex(successors[0]) == unitig_dest._index && nodeIndex_to_unitigIndex(successors[1]) == unitig_loop._index)){
-                            cout << "Small loop: " <<  _graphSuccessors->nodeToString(unitig_loop._startNode) << endl;
-
+                            
+                            #ifdef PRINT_DEBUG_SIMPLIFICATION
+                                cout << "Small loop: " <<  _graphSuccessors->nodeToString(unitig_loop._startNode) << endl;
+                            #endif
                             
                             DbgEdge edge = {unitig_source._endNode, unitig_dest._startNode};
                             edge = edge.normalize();
@@ -472,6 +523,10 @@ public:
         //size_t nodeIndex = _graphSuccessors->nodeName_to_nodeIndex(720, true);
 
         for(size_t nodeIndex=0; nodeIndex<_graphSuccessors->_nbNodes; nodeIndex++){
+
+            //if(nodeIndex % 10000 == 0){
+            //    cout << nodeIndex << " " << _graphSuccessors->_nbNodes << endl;
+            //}
             //if(nodeIndex % 2 == 1) continue;
 
             if(_isNodeRemoved[nodeIndex]) continue;
@@ -486,22 +541,48 @@ public:
             //forward
             while(true){
                 getSuccessors(endNode, 0, neighbors);
+                //cout << "lala1: " << neighbors.size() << endl;
                 if(neighbors.size() != 1) break;
+                if(neighbors[0] == nodeIndex){
+                    endNode = neighbors[0];
+                    break; //Circular
+                }
+                //cout << endNode << " " << neighbors[0] << endl;
+
                 u_int32_t successor = neighbors[0];
                 getPredecessors(successor, 0, neighbors);
+                //cout << "lala2: " << neighbors.size() << endl;
                 if(neighbors.size() != 1) break;
+
+                //cout << successor << " " << neighbors[0] << endl;
+
                 endNode = successor;
+
             }
 
             
             //backward
             while(true){
                 getPredecessors(startNode, 0, neighbors);
+                //cout << "loulou1: " << neighbors.size() << endl;
                 if(neighbors.size() != 1) break;
+                if(neighbors[0] == nodeIndex){
+                    startNode = neighbors[0];
+                    break; //Circular, todo: don't need to backward if circular
+                }
+
+                //cout << startNode << " " << neighbors[0] << endl;
+
                 u_int32_t predecessor = neighbors[0];
                 getSuccessors(predecessor, 0, neighbors);
+                //cout << "loulou2: " << neighbors.size() << endl;
                 if(neighbors.size() != 1) break;
+
+                //cout << predecessor << " " << neighbors[0] << endl;
+
                 startNode = predecessor;
+
+                
             }
             
 
@@ -546,6 +627,8 @@ public:
             //cout << "---------------" << endl;
             while(true){
 
+
+
                 //cout << _graphSuccessors->nodeIndex_to_nodeName(node, dummy) << endl;
                 u_int32_t nodeName = _graphSuccessors->nodeIndex_to_nodeName(node, dummy);
 
@@ -558,10 +641,14 @@ public:
                 //nbNodes += 1;
 
                 getSuccessors(node, 0, neighbors);
+
+                //cout << "lili: " << node << " " << neighbors.size() << endl;
+
                 isVisited[node] = true;
                 _nodeToUnitig[node] = unitigIndex;
 
                 if(node == endNode) break;
+                
                 node = neighbors[0];
 
             }
@@ -761,10 +848,81 @@ public:
 
             getSuccessors(node, 0, neighbors);
 
+
             if(node == unitig._endNode) break;
             node = neighbors[0];
 
         }
+
+    }
+
+    void debug_writeGfaErrorfree(float abundanceCutoff_min){
+
+        clear();
+
+        while(true){
+
+            u_int64_t nbTipsRemoved = 0;
+            u_int64_t nbErrorRemoved = 0;
+            u_int64_t nbBubblesRemoved = 0;
+            u_int64_t nbSmallLoopRemoved = 0;
+
+            bool isModification = false;
+
+            while(true){
+                compact();
+                nbErrorRemoved = removeLowAbundantNodes(abundanceCutoff_min);
+                #ifdef PRINT_DEBUG_SIMPLIFICATION
+                    cout << "Nb error removed: " << nbErrorRemoved << endl;
+                #endif
+                if(nbErrorRemoved == 0) break;
+                isModification = true;
+            }
+
+            while(true){
+                compact();
+                nbTipsRemoved = tip(10000);
+                #ifdef PRINT_DEBUG_SIMPLIFICATION
+                    cout << "Nb tip removed: " << nbTipsRemoved << endl;
+                #endif
+                if(nbTipsRemoved == 0) break;
+                isModification = true;
+            }
+
+            /*
+            while(true){
+                compact();
+                nbBubblesRemoved = bubble(10000);
+                #ifdef PRINT_DEBUG_SIMPLIFICATION
+                    cout << "Nb bubble removed: " << nbBubblesRemoved << endl;
+                #endif
+                if(nbBubblesRemoved == 0) break;
+                isModification = true;
+            }*/
+
+            while(true){
+                compact();
+                nbSmallLoopRemoved = removeSmallLoop(10000);
+                #ifdef PRINT_DEBUG_SIMPLIFICATION
+                    cout << "Nb small loop removed: " << nbSmallLoopRemoved << endl;
+                #endif
+                if(nbSmallLoopRemoved == 0) break;
+                isModification = true;
+            }
+
+            if(!isModification) break;
+        }
+
+        unordered_set<u_int32_t> removedNodes;
+        bool dummy = true;
+
+        for(size_t nodeIndex=0; nodeIndex<_graphSuccessors->_nbNodes; nodeIndex++){
+            if(!_isNodeRemoved[nodeIndex]) continue;
+            u_int32_t nodeName = _graphSuccessors->nodeIndex_to_nodeName(nodeIndex, dummy);
+            removedNodes.insert(nodeName);
+        }
+
+        GfaParser::rewriteGfa_withoutNodes(_inputGfaFilename, _inputGfaFilename + "_errorFree.gfa", removedNodes, _isEdgeRemoved, _graphSuccessors);
 
     }
 
