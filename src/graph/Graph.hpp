@@ -731,7 +731,7 @@ public:
         }
     }
 
-    u_int32_t nodeName_to_nodeIndex(u_int32_t nodeName, bool isOrientationForward){
+    static u_int32_t nodeName_to_nodeIndex(u_int32_t nodeName, bool isOrientationForward){
         if(isOrientationForward){
             return nodeName * 2;
         }
@@ -740,8 +740,13 @@ public:
         }
     }
 
-    u_int32_t nodeIndex_to_nodeName(u_int32_t nodeIndex, bool& isOrientationForward){
+    static u_int32_t nodeIndex_to_nodeName(u_int32_t nodeIndex, bool& isOrientationForward){
         isOrientationForward = (nodeIndex % 2) == 0;
+        return nodeIndex / 2;
+    }
+
+    static u_int32_t nodeIndex_to_nodeName(u_int32_t nodeIndex){
+        //isOrientationForward = (nodeIndex % 2) == 0;
         return nodeIndex / 2;
     }
 

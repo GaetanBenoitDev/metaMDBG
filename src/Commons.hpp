@@ -28,6 +28,7 @@ using namespace std;
 #define STR_INPUT_TRUTH "-itruth"
 
 
+
 //KMER_SPAN(1)
 typedef Kmer<>::ModelDirect    ModelDirect;
 typedef Kmer<>::ModelCanonical ModelCanonical;
@@ -40,6 +41,18 @@ typedef Kmer<>::ModelMinimizer<ModelCanonical> ModelMinimizer;
 
 typedef u_int32_t ReadIndexType;
 
+struct ReadKminmer{
+	u_int32_t _read_pos_start;
+	u_int32_t _read_pos_end;
+	u_int16_t _length;
+	bool _isReversed;
+	u_int16_t _position_of_second_minimizer;
+	u_int16_t _position_of_second_to_last_minimizer;
+	u_int16_t _position_of_second_minimizer_seq;
+	u_int16_t _position_of_second_to_last_minimizer_seq;
+	u_int16_t _seq_length_start;
+	u_int16_t _seq_length_end;
+};
 
 struct DbgEdge{
 	u_int32_t _from;
@@ -104,8 +117,8 @@ struct MinimizerPair{
 
 struct DbgNode{
 	u_int32_t _index;
-	u_int16_t _abundance;
-	u_int32_t _length;
+	u_int32_t _abundance;
+	u_int16_t _length;
 };
 
 
@@ -156,6 +169,21 @@ struct KmerVec{
 			return *this;
 		}
 		else{
+			return vec_reverse;
+		}
+		
+	}
+
+	KmerVec normalize(bool& isReversed){
+
+		KmerVec vec_reverse = reverse();
+
+		if(h() < vec_reverse.h()){
+			isReversed = false;
+			return *this;
+		}
+		else{
+			isReversed = true;
 			return vec_reverse;
 		}
 		
@@ -254,7 +282,77 @@ struct Overlap {
     u_int16_t _nbMinimizers;
 };
 
+static const unsigned char basemap[256] = {
+	0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
+	16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  27,  28,  29,  30,  31,
+	32,  33,  34,  35,  36,  37,  38,  39,  40,  41,  42,  43,  44,  45,  46,  47,
+	48,  49,  50,  51,  52,  53,  54,  55,  56,  57,  58,  59,  60,  61,  62,  63,
+	64, 'T', 'V', 'G', 'H', 'E', 'F', 'C', 'D', 'I', 'J', 'M', 'L', 'K', 'N', 'O',
+	'P', 'Q', 'Y', 'S', 'A', 'A', 'B', 'W', 'X', 'R', 'Z',  91,  92,  93,  94,  95,
+	96, 't', 'v', 'g', 'h', 'e', 'f', 'c', 'd', 'i', 'j', 'm', 'l', 'k', 'n', 'o',
+	'p', 'q', 'y', 's', 'a', 'a', 'b', 'w', 'x', 'r', 'z', 123, 124, 125, 126, 127,
+	128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143,
+	144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159,
+	160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175,
+	176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191,
+	192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207,
+	208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223,
+	224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239,
+	240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255
+};
 
+class Utils{
+
+
+
+
+public:
+
+	static void revcomp(string& sequence){
+
+		std::reverse(sequence.begin(), sequence.end());
+		
+		for(size_t i=0; i<sequence.size(); i++){
+			sequence[i] = basemap[sequence[i]];
+		}
+	}
+};
+
+
+class Encoder{
+
+public: 
+
+	static void encode_rle(const char* sequence, size_t length, string& rleSequence, vector<u_int64_t>& rlePositions) {
+		/*
+		string sequence_str;
+
+				char lastChar = '0';
+				for(size_t i=0; i<sequence.getDataSize(); i++){
+					if(readseq[i] == lastChar) continue;
+					sequence_str += readseq[i];
+					lastChar = readseq[i];
+				}
+		*/
+		rleSequence = "";
+		char lastChar = '#';
+		u_int64_t lastPos = 0;
+
+		for(size_t i=0; i<length; i++){
+			char c = sequence[i];
+			if(c == lastChar) continue;
+			if(lastChar != '#'){
+				rleSequence += lastChar;
+				rlePositions.push_back(lastPos);
+				lastPos = i;
+			}
+			lastChar = c;
+		}
+		rleSequence += lastChar;
+		rlePositions.push_back(lastPos);
+	}
+
+};
 
 class MDBG{
 
@@ -270,7 +368,7 @@ public:
 		_node_id = 0;
 	}
 
-	void addNode(const KmerVec& vec, u_int32_t length){
+	void addNode(const KmerVec& vec, u_int16_t length){
 
 
 
@@ -381,8 +479,12 @@ public:
 		gzclose(file);
 	}
 
-	static void getKminmers(size_t kminmerSize, const vector<u_int64_t>& minimizers, vector<KmerVec>& kminmers){
 
+
+	static void getKminmers(const size_t l, const size_t k, const vector<u_int64_t>& minimizers, const vector<u_int64_t>& minimizersPos, vector<KmerVec>& kminmers, vector<ReadKminmer>& kminmersLength, const vector<u_int64_t>& rlePositions){
+
+        kminmersLength.clear();
+        bool doesComputeLength = minimizersPos.size() > 0;
 		/*
 		vector<u_int64_t> minimizers_filtered;
 
@@ -419,7 +521,7 @@ public:
 		
 
 		
-		if(minimizers.size() < kminmerSize) return;
+		if(minimizers.size() < k) return;
 
 		//unordered_set<u_int64_t> bannedMinimizers;
 		vector<bool> bannedPositions(minimizers.size(), false);
@@ -428,7 +530,7 @@ public:
 
 			bool hasPalindrome = false;
 
-			int i_max = ((int)minimizers.size()) - (int)kminmerSize + 1;
+			int i_max = ((int)minimizers.size()) - (int)k + 1;
 			for(int i=0; i<i_max; i++){
 				if(bannedPositions[i]) continue;
 
@@ -450,12 +552,12 @@ public:
 					vec._kmers.push_back(minimizer);
 					currentMinimizerIndex.push_back(j);
 
-					if(vec._kmers.size() == kminmerSize){
+					if(vec._kmers.size() == k){
 						if(vec.isPalindrome()){
 							//for(size_t p=j-_kminmerSize+1; p<=j-1; p++){
 							//	bannedPositions[p] = true;
 							//}
-							for(size_t m=0; m<kminmerSize-1; m++){
+							for(size_t m=0; m<k-1; m++){
 								bannedPositions[currentMinimizerIndex[m]] = true;
 								//cout << "Banned: " << currentMinimizerIndex[m] << endl;
 							}
@@ -464,7 +566,110 @@ public:
 							break;
 						}
 						else{
-							kminmers.push_back(vec.normalize());
+
+							bool isReversed;
+							vec = vec.normalize(isReversed);
+
+							//cout << "Is reversed: " << isReversed << endl;
+                            if(doesComputeLength){
+
+								u_int32_t read_pos_start = rlePositions[minimizersPos[i]];
+								u_int32_t read_pos_end = rlePositions[minimizersPos[i+k-1]]; // + (rlePositions[minimizersPos[i+k-1]] - rlePositions[minimizersPos[i+k-1] + l]); //+ l;
+								read_pos_end +=  (rlePositions[minimizersPos[i+k-1] + l - 1] - rlePositions[minimizersPos[i+k-1]]); //l-1 a check
+								u_int16_t length = read_pos_end - read_pos_start;
+								// seqSize = read_pos_end - read_pos_start;
+
+								//if(isReversed){
+								//	read_pos_start = rlePositions[minimizersPos[i+k-1]];
+								//	read_pos_end = rlePositions[minimizersPos[i]];
+								//}
+
+								/*
+								cout << "------------" << endl;
+								cout << rlePositions[minimizersPos[i]] << endl;
+								cout << rlePositions[minimizersPos[i+1]] << endl;
+								cout << rlePositions[minimizersPos[i+2]] << endl;
+								cout << "Length: " << length << endl;
+								*/
+
+								u_int16_t seq_length_start = 0;
+								u_int16_t seq_length_end = 0;
+
+								u_int16_t position_of_second_minimizer = 0;
+								u_int16_t position_of_second_minimizer_seq = 0;
+								if(isReversed){
+									position_of_second_minimizer = rlePositions[minimizersPos[i+k-2]]; //rlePositions[minimizersPos[i+k-1]] - rlePositions[minimizersPos[i+k-2]];
+									position_of_second_minimizer_seq = position_of_second_minimizer;
+									//position_of_second_minimizer_seq += (rlePositions[minimizersPos[i+k-2] + l - 1] - rlePositions[minimizersPos[i+k-2]]);
+									//exit(1);
+
+									u_int16_t pos_last_minimizer = rlePositions[minimizersPos[i+k-2] + l - 1];
+									seq_length_start = read_pos_end - pos_last_minimizer; //rlePositions[minimizersPos[i+k-1]] - rlePositions[minimizersPos[i+k-2]];
+								}
+								else{
+
+									u_int16_t pos_last_minimizer = rlePositions[minimizersPos[i+k-2]];
+									seq_length_start = pos_last_minimizer - read_pos_start;
+
+									//cout << "todo" << endl;
+									//seq_length_start = 
+									//position_of_second_minimizer = rlePositions[minimizersPos[i+1]];// - rlePositions[minimizersPos[i]];
+								}
+
+								u_int16_t position_of_second_to_last_minimizer = 0;
+								u_int16_t position_of_second_to_last_minimizer_seq = 0;
+								if(isReversed){
+									
+									u_int16_t pos_last_minimizer = rlePositions[minimizersPos[i+k-2]];
+									seq_length_end = pos_last_minimizer - read_pos_start;
+
+									//position_of_second_to_last_minimizer = rlePositions[minimizersPos[i+1]]; // - rlePositions[minimizersPos[i]];
+								}
+								else{
+									position_of_second_to_last_minimizer = rlePositions[minimizersPos[i+k-2]]; //rlePositions[minimizersPos[i+k-1]] - rlePositions[minimizersPos[i+k-2]];
+									position_of_second_to_last_minimizer_seq = position_of_second_to_last_minimizer;
+									//position_of_second_to_last_minimizer_seq += (rlePositions[minimizersPos[i+k-2] + l - 1] - rlePositions[minimizersPos[i+k-2]]);
+
+									u_int16_t pos_last_minimizer = rlePositions[minimizersPos[i+k-2] + l - 1];
+									//position_of_second_to_last_minimizer_seq = rlePositions[minimizersPos[i+k-2] + l - 1];
+									seq_length_end = read_pos_end - pos_last_minimizer; //rlePositions[minimizersPos[i+k-1]] - rlePositions[minimizersPos[i+k-2]];
+									//position_of_second_to_last_minimizer_seq = length - seq_length_end;
+									//seq_length_end = rlePositions[minimizersPos[i+k-1]] - rlePositions[minimizersPos[i+k-2]];
+									//position_of_second_to_last_minimizer_seq =  length - seq_length_end + 1; //(rlePositions[minimizersPos[i+k-2]] - read_pos_start);//rlePositions[minimizersPos[i+k-2]] - read_pos_start;
+								}
+
+								//u_int16_t lala = seq_length_end;
+								//lala -= (rlePositions[minimizersPos[i+k-2] + l])
+								//cout << "lala: " << rlePositions[minimizersPos[i+k-2] + l] << endl;
+
+								/*
+								cout << "\t" << read_pos_start << endl;
+								cout << "\t" << seq_length_start << " " << seq_length_end << endl;
+								cout << "\t" << position_of_second_to_last_minimizer_seq << endl;
+								cout << "\t" << read_pos_end << endl;
+								*/
+							
+								//cout << minimizersPos[i] << endl;
+								//cout << rlePositions.size() << endl;
+
+                                
+
+
+								//cout << "HI: " << read_pos_start << " " << read_pos_end << " " << position_of_second_to_last_minimizer << endl;
+								//cout << "HIIIII: " << rlePositions[minimizersPos[i+k-1] + l] << " " << rlePositions[minimizersPos[i+k-1]] << endl;
+
+
+								//cout << "HO: " << read_pos_start << " " << read_pos_end << " " << position_of_second_to_last_minimizer << endl;
+
+								//cout << read_pos_start << endl;
+								//cout << read_pos_end << endl;
+
+								//u_int16_t length = (rlePositions[minimizersPos[i+k-1]] + 1 - rlePositions[minimizersPos[i]] + 1);
+								//cout << "HAAAA: " << length << endl;
+                                kminmersLength.push_back({read_pos_start, read_pos_end, length, isReversed, position_of_second_minimizer, position_of_second_to_last_minimizer, position_of_second_minimizer_seq, position_of_second_to_last_minimizer_seq, seq_length_start, seq_length_end});
+                            }
+
+							kminmers.push_back(vec);
 							break;
 						}
 					}

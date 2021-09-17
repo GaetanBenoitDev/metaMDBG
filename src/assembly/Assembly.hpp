@@ -673,7 +673,7 @@ public:
 	Assembly(): Tool ("asm"){
 
 
-		getParser()->push_back (new OptionOneParam (STR_INPUT, "input graph dir", true));
+		getParser()->push_back (new OptionOneParam (STR_INPUT_DIR, "input dir", true));
 		//getParser()->push_back (new OptionOneParam (STR_OUTPUT, "output contig filename", true));
 		//getParser()->push_back (new OptionOneParam (STR_MINIM_SIZE, "minimizer length", false, "16"));
 		//getParser()->push_back (new OptionOneParam (STR_KMINMER_SIZE, "k-min-mer length", false, "3"));
@@ -703,7 +703,7 @@ public:
 	}
 
 	void parseArgs(){
-		_inputDir = getInput()->getStr(STR_INPUT);
+		_inputDir = getInput()->getStr(STR_INPUT_DIR);
 		_truthInputFilename = getInput()->get(STR_INPUT_TRUTH) ? getInput()->getStr(STR_INPUT_TRUTH) : "";
 
 		string filename_parameters = _inputDir + "/parameters.gz";
@@ -807,7 +807,10 @@ public:
 
 
 			vector<KmerVec> kminmers; 
-			MDBG::getKminmers(_kminmerSize, minimizers, kminmers);
+			vector<ReadKminmer> kminmersInfo;
+			vector<u_int64_t> minimizersPos; 
+			vector<u_int64_t> rlePositions;
+			MDBG::getKminmers(_minimizerSize, _kminmerSize, minimizers, minimizersPos, kminmers, kminmersInfo, rlePositions);
 
 			/*
 			if(readIndex == 75286){
@@ -1093,11 +1096,16 @@ public:
 		file_groundTruth = ofstream(_inputDir + "/binning_results.csv");
 		file_groundTruth << "Name,Colour" << endl;
 
-		// 201
-		solveBin(graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(4750, true), graphSimplify->nodeIndex_to_unitig(4750)._abundance, graphSimplify, 0);
 
-		//562 (ecoli)
-		//solveBin(graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(9847, true), graphSimplify->nodeIndex_to_unitig(9847)._abundance, graphSimplify, 0);
+		// mini genome test
+		//solveBin(graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(16, true), graphSimplify->nodeIndex_to_unitig(4750)._abundance, graphSimplify, 0);
+
+		// 201
+		//solveBin(graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(4750, true), graphSimplify->nodeIndex_to_unitig(4750)._abundance, graphSimplify, 0);
+
+
+		562 (ecoli)
+		solveBin(graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(9847, true), graphSimplify->nodeIndex_to_unitig(9847)._abundance, graphSimplify, 0);
 
 
 
@@ -1438,6 +1446,24 @@ public:
 			nodePath_backward = pathData.prevNodes;
 		}
 
+
+		vector<u_int32_t> nodePath;
+		if(nodePath_backward.size() > 1){
+			std::reverse(nodePath_backward.begin(), nodePath_backward.end());
+			nodePath_backward.pop_back(); //Remove source node
+			nodePath = nodePath_backward;
+		}
+
+		nodePath.insert(nodePath.end(), nodePath_forward.begin(), nodePath_forward.end());
+
+		if(nodePath.size() > 0){
+			u_int64_t size = nodePath.size();
+			gzwrite(_outputContigFile, (const char*)&size, sizeof(size));
+			gzwrite(_outputContigFile, (const char*)&nodePath[0], size * sizeof(u_int32_t));
+		}
+
+		cout << nodePath.size() << endl;
+		/*
 		//cout << nodePath_forward.size() << endl;
 		//cout << nodePath_backward.size() << endl;
 
@@ -1463,6 +1489,8 @@ public:
 		u_int64_t size = nodePath_forward.size();
 		gzwrite(_outputContigFile, (const char*)&size, sizeof(size));
 		gzwrite(_outputContigFile, (const char*)&nodePath_forward[0], size * sizeof(u_int32_t));
+		*/
+
 
 
 		/*
@@ -1689,38 +1717,6 @@ public:
 	}
 
 
-	/*
-	struct Parameter
-	{
-	    //Parameter (Simka& simka, IProperties* props) : props(props) {}
-	    Parameter (IProperties* props) : _props(props) {}
-	    //Simka& _simka;
-	    IProperties* _props;
-	};
-
-	//template<size_t span> struct Functor {
-
-	void operator ()  (Parameter p){
-
-		Simka2ComputeKmerSpectrumAlgorithm<span>* algo = new Simka2ComputeKmerSpectrumAlgorithm<span>(p._props);
-		algo->execute();
-		delete algo;
-	}
-
-
-	//};
-
-	void execute ()
-	{
-		IProperties* input = getInput();
-		//Parameter params(*this, getInput());
-		Parameter params(input);
-
-		size_t kmerSize = getInput()->getInt (STR_KMER_SIZE);
-
-	    Integer::apply<Functor,Parameter> (kmerSize, params);
-	}
-	*/
 };
 
 

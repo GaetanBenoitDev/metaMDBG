@@ -55,12 +55,16 @@ public:
 	//string _filename_filteredMinimizers;
 	//string _filename_readCompositions;
 
-	vector<u_int32_t> _evaluation_readToDataset;
+	//vector<u_int32_t> _evaluation_readToDataset;
+	MDBG* _mdbg;
 	//MinimizerPairMap* _minimizerPairMap;
 
     Bloocoo ();
     void execute ();
 	void createGroundTruth();
+	void createMDBG();
+	void createGfa();
+	void parseArgs();
 	//void createSimilarityGraph(GraphInfo* graphInfo);
 	//void execute_binning();
 	//void execute_binning_cleanGraph();
@@ -89,7 +93,7 @@ public:
 		cout << "Var: " << var << endl;
 	}
 
-	double compute_median(vector<u_int16_t> scores){
+	double compute_median(vector<u_int32_t> scores){
 		size_t size = scores.size();
 
 		if (size == 0){

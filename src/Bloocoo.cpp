@@ -21,8 +21,13 @@ Bloocoo::Bloocoo () : Tool("bloocoo")
 
 
 
-void Bloocoo::execute ()
-{
+void Bloocoo::execute (){
+	parseArgs();
+	createMDBG();
+	createGfa();
+}
+
+void Bloocoo::parseArgs(){
 
 	//_compositionManager = new CompositionManager(4);
 
@@ -59,6 +64,12 @@ void Bloocoo::execute ()
 	gzwrite(file_parameters, (const char*)&_minimizerDensity, sizeof(_minimizerDensity));
 	gzclose(file_parameters);
 
+}
+
+void Bloocoo::createMDBG (){
+
+
+
 	/*
 	if(_input_extractKminmers != ""){
 		extract_kminmers();
@@ -86,7 +97,7 @@ void Bloocoo::execute ()
 
 
 
-
+	cout << _inputFilename << endl;
 	IBank* inbank = Bank::open(_inputFilename);
 
 	
@@ -377,6 +388,7 @@ void Bloocoo::execute ()
 
 	//unordered_map<MinimizerPair, u_int16_t> minimizerCounts;
 	unordered_map<u_int64_t, u_int64_t> minimizerCounts;
+	unordered_map<KmerVec, u_int32_t> kminmerCounts;
 	unordered_map<KmerVec, u_int16_t> kminmersData;
 
 
@@ -408,18 +420,26 @@ void Bloocoo::execute ()
 			//cout << "-" << endl;
 			Sequence& sequence = itSeq->item();
 
+			//cout << sequence.toString() << endl;
+			string rleSequence;
+			vector<u_int64_t> rlePositions;
 
-
-			char* readseq = sequence.getDataBuffer();
-			string sequence_str;
-
-			char lastChar = '0';
-			for(size_t i=0; i<sequence.getDataSize(); i++){
-				if(readseq[i] == lastChar) continue;
-				sequence_str += readseq[i];
-				lastChar = readseq[i];
+			/*
+			string testseq = "AAAGGTCGTTTTA";
+			encode_rle(testseq.c_str(), testseq.size(), rleSequence, rlePositions);
+			cout << testseq << endl;
+			cout << rleSequence << endl; 
+			for(size_t i=0; i<rlePositions.size(); i++){
+				cout << rlePositions[i] << " ";
 			}
+			cout << endl;
+			*/
 
+			Encoder::encode_rle(sequence.getDataBuffer(), sequence.getDataSize(), rleSequence, rlePositions);
+			
+			//for(size_t i=0; i<rlePositions.size(); i++) {
+			//	cout << i << ": " << rlePositions[i] << " " << endl;
+			//}
 
 			//_readData.push_back(readData);
 
@@ -438,8 +458,8 @@ void Bloocoo::execute ()
 			size_t nbMinimizersPerRead = 0;
 
 			//u_int64_t lastMinimizer = -1;
-			Data buf((char*)sequence_str.c_str());
-			u_int32_t sequenceLength = sequence_str.size();
+			Data buf((char*)rleSequence.c_str());
+			//u_int32_t sequenceLength = rleSequence.size();
 
 			//vector<float> composition;
 			//_compositionManager->readToComposition(buf, sequenceLength, composition);
@@ -499,7 +519,8 @@ void Bloocoo::execute ()
 					minimizers_pos.push_back(pos);
 
 					//cout << pos << endl;
-
+					//cout << rlePositions[pos] << endl; 
+					
 					minimizerCounts[minimizer] += 1;
 					
 					//cout << pos << endl;
@@ -588,7 +609,7 @@ void Bloocoo::execute ()
 			//	cout << m << endl;
 			//}
 			//cout << endl;
-			
+			/*
 			vector<bool> bannedPositions(minimizers.size(), false);
 
 			//cout << "-------" << endl;
@@ -627,31 +648,6 @@ void Bloocoo::execute ()
 
 						if(vec._kmers.size() == _kminmerSize){
 							if(vec.isPalindrome()){
-								//cout << sequence.toString() << endl;
-								//exit(1);
-								//cout << "PALOUF" << endl;
-								//vec._kmers.pop_back();
-								//for(size_t p=j-_kminmerSize+1; p<=j-1; p++){
-								//	cout << "Banned: " << p << endl;
-								//	bannedPositions[p] = true;
-									//cout << "banned " << p << endl;
-								//}
-
-								/*
-								for(size_t p=j-_kminmerSize+1; p<=j-1; p++){
-									cout << "Banned: " << p << endl;
-									bannedPositions[p] = true;
-									//cout << "banned " << p << endl;
-								}
-								*/
-
-								//cout << endl;
-								//int loulalsdf = 0;
-								//for(u_int64_t m : minimizers){
-								//	cout << loulalsdf << ": " << m << endl;
-								//	loulalsdf += 1;
-								//}
-								//cout << endl;
 
 								for(size_t m=0; m<_kminmerSize-1; m++){
 									bannedPositions[currentMinimizerIndex[m]] = true;
@@ -688,7 +684,7 @@ void Bloocoo::execute ()
 				
 				if(!hasPalindrome) break;
 			}
-			
+			*/
 
 
 			/*
@@ -720,6 +716,15 @@ void Bloocoo::execute ()
 				//kminmers.push_back(vec.normalize());
 			}
 			*/
+
+			vector<KmerVec> kminmers; 
+			vector<ReadKminmer> kminmersInfo;
+			MDBG::getKminmers(_minimizerSize, _kminmerSize, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions);
+
+			for(size_t i=0; i<kminmers.size(); i++){
+				kminmerCounts[kminmers[i]] += 1;
+				kminmersData[kminmers[i]] = kminmersInfo[i]._length;
+			}
 
 			u_int16_t size = minimizers.size();
 			gzwrite(file_readData, (const char*)&size, sizeof(size));
@@ -906,7 +911,7 @@ void Bloocoo::execute ()
 
 
 			//cout << "Nb minimizers: " << nbMinizersRead << endl;
-			_evaluation_readToDataset.push_back(datasetID);
+			//_evaluation_readToDataset.push_back(datasetID);
 			readIndex += 1;
 		}
 
@@ -924,13 +929,13 @@ void Bloocoo::execute ()
 	//gzclose(file_readComposition);
 
 
+	/*
 	file_readData = gzopen(_filename_readMinimizers.c_str(),"rb");
 
 
 
 
 	//unordered_set<u_int64_t> filteredMinimizers;
-
 
 
 
@@ -964,6 +969,7 @@ void Bloocoo::execute ()
 	}
 
 	gzclose(file_readData);
+	*/
 	//cout << "Nb repeated minimizers: " << filteredMinimizers.size() << endl;
 
 	/*
@@ -976,6 +982,7 @@ void Bloocoo::execute ()
 	*/
 
 
+	/*
 	file_readData = gzopen(_filename_readMinimizers.c_str(),"rb");
 	unordered_map<KmerVec, u_int16_t> kminmerCounts;
 	//unordered_map<KmerVec, u_int16_t> kminmerPreSuf_Counts;
@@ -1006,11 +1013,10 @@ void Bloocoo::execute ()
 		}
 
 	}
+	*/
 
-
-	gzclose(file_readData);
+	//gzclose(file_readData);
 	cout << "Nb kminmers: " << kminmerCounts.size() << endl;
-
 
 	file_readData = gzopen(_filename_readMinimizers.c_str(),"rb");
 	//cout << "Nb edges: " << nbEdges << endl;
@@ -1020,7 +1026,7 @@ void Bloocoo::execute ()
 	//delete mdbg;
 	
 
-	MDBG* mdbg = new MDBG(_kminmerSize);
+	_mdbg = new MDBG(_kminmerSize);
 
 	//for(size_t readIndex=0; readIndex<_readData.size(); readIndex++) {
 	//	ReadData& readData = _readData[readIndex];
@@ -1040,11 +1046,14 @@ void Bloocoo::execute ()
 
 
 		vector<KmerVec> kminmers; 
-		MDBG::getKminmers(_kminmerSize, minimizers, kminmers);
+		vector<ReadKminmer> kminmersInfo;
+		vector<u_int64_t> minimizersPos; 
+		vector<u_int64_t> rlePositions;
+		MDBG::getKminmers(_minimizerSize, _kminmerSize, minimizers, minimizersPos, kminmers, kminmersInfo, rlePositions);
 		//getKminmers_filterRepeatedEdge(minimizers, filteredMinimizers, kminmers, kminmerCounts);
 
 
-		vector<u_int16_t> abundances;
+		vector<u_int32_t> abundances;
 
 		for(KmerVec& vec : kminmers){
 			abundances.push_back(kminmerCounts[vec]);
@@ -1067,7 +1076,7 @@ void Bloocoo::execute ()
 			}
 
 			//cout << kminmersData[vec] << endl;
-			mdbg->addNode(vec, kminmersData[vec]); //TODO length
+			_mdbg->addNode(vec, kminmersData[vec]);
 			/*
 			if(mdbg->_dbg_nodes[vec]._index == 8814){
 				cout << "8814:" << endl;
@@ -1151,12 +1160,12 @@ void Bloocoo::execute ()
 
 	}
 
+	cout << "Nb solid kminmers: " << _mdbg->_dbg_nodes.size() << endl;
 
 
+}
 
-
-
-
+void Bloocoo::createGfa(){
 	cout << "Writing gfa..." << endl;
 	//cout << "Cleaning repeats..." << endl;
 
@@ -1168,7 +1177,7 @@ void Bloocoo::execute ()
 	string gfa_filename = _outputDir + "/minimizer_graph.gfa";
 	ofstream output_file_gfa(gfa_filename);
 
-	for(auto vec_id : mdbg->_dbg_nodes){
+	for(auto vec_id : _mdbg->_dbg_nodes){
 
 		KmerVec vec = vec_id.first;
 		KmerVec vec_rev = vec_id.first.reverse();
@@ -1177,54 +1186,54 @@ void Bloocoo::execute ()
 		output_file_gfa << "S" << "\t" << id << "\t" << "*" << "\t" << "LN:i:" << vec_id.second._length << "\t" << "dp:i:" << vec_id.second._abundance << endl;
 
 		//cout << mdbg->_dbg_edges[vec.prefix().normalize()].size() << endl;
-		for(KmerVec& v : mdbg->_dbg_edges[vec.prefix().normalize()]){
+		for(KmerVec& v : _mdbg->_dbg_edges[vec.prefix().normalize()]){
 			if(v==vec) continue;
 			KmerVec v_rev = v.reverse();
 
 			if (vec.suffix() == v.prefix()) {
 				nbEdges += 1;
-				output_file_gfa << "L" << "\t" << id << "\t" << "+" << "\t" << mdbg->_dbg_nodes[v]._index << "\t" << "+" << "\t" << "0M" << endl;
+				output_file_gfa << "L" << "\t" << id << "\t" << "+" << "\t" << _mdbg->_dbg_nodes[v]._index << "\t" << "+" << "\t" << "0M" << endl;
 				//vec_add_edge("+", "+");
 			}
 			if (vec.suffix() == v_rev.prefix()) {
 				nbEdges += 1;
-				output_file_gfa << "L" << "\t" << id << "\t" << "+" << "\t" << mdbg->_dbg_nodes[v]._index << "\t" << "-" << "\t" << "0M" << endl;
+				output_file_gfa << "L" << "\t" << id << "\t" << "+" << "\t" << _mdbg->_dbg_nodes[v]._index << "\t" << "-" << "\t" << "0M" << endl;
 				//vec_add_edge("+", "-");
 			}
 			if (vec_rev.suffix() == v.prefix()) {
 				nbEdges += 1;
-				output_file_gfa << "L" << "\t" << id << "\t" << "-" << "\t" << mdbg->_dbg_nodes[v]._index << "\t" << "+" << "\t" << "0M" << endl;
+				output_file_gfa << "L" << "\t" << id << "\t" << "-" << "\t" << _mdbg->_dbg_nodes[v]._index << "\t" << "+" << "\t" << "0M" << endl;
 				//vec_add_edge("-", "+");
 			}
 			if (vec_rev.suffix() == v_rev.prefix()) {
 				nbEdges += 1;
-				output_file_gfa << "L" << "\t" << id << "\t" << "-" << "\t" << mdbg->_dbg_nodes[v]._index << "\t" << "-" << "\t" << "0M" << endl;
+				output_file_gfa << "L" << "\t" << id << "\t" << "-" << "\t" << _mdbg->_dbg_nodes[v]._index << "\t" << "-" << "\t" << "0M" << endl;
 				//vec_add_edge("-", "-");
 			}
 
 		}
-		for(KmerVec& v : mdbg->_dbg_edges[vec.suffix().normalize()]){
+		for(KmerVec& v : _mdbg->_dbg_edges[vec.suffix().normalize()]){
 			if(v==vec) continue;
 			KmerVec v_rev = v.reverse();
 
 			if (vec.suffix() == v.prefix()) {
 				nbEdges += 1;
-				output_file_gfa << "L" << "\t" << id << "\t" << "+" << "\t" << mdbg->_dbg_nodes[v]._index << "\t" << "+" << "\t" << "0M" << endl;
+				output_file_gfa << "L" << "\t" << id << "\t" << "+" << "\t" << _mdbg->_dbg_nodes[v]._index << "\t" << "+" << "\t" << "0M" << endl;
 				//vec_add_edge("+", "+");
 			}
 			if (vec.suffix() == v_rev.prefix()) {
 				nbEdges += 1;
-				output_file_gfa << "L" << "\t" << id << "\t" << "+" << "\t" << mdbg->_dbg_nodes[v]._index << "\t" << "-" << "\t" << "0M" << endl;
+				output_file_gfa << "L" << "\t" << id << "\t" << "+" << "\t" << _mdbg->_dbg_nodes[v]._index << "\t" << "-" << "\t" << "0M" << endl;
 				//vec_add_edge("+", "-");
 			}
 			if (vec_rev.suffix() == v.prefix()) {
 				nbEdges += 1;
-				output_file_gfa << "L" << "\t" << id << "\t" << "-" << "\t" << mdbg->_dbg_nodes[v]._index << "\t" << "+" << "\t" << "0M" << endl;
+				output_file_gfa << "L" << "\t" << id << "\t" << "-" << "\t" << _mdbg->_dbg_nodes[v]._index << "\t" << "+" << "\t" << "0M" << endl;
 				//vec_add_edge("-", "+");
 			}
 			if (vec_rev.suffix() == v_rev.prefix()) {
 				nbEdges += 1;
-				output_file_gfa << "L" << "\t" << id << "\t" << "-" << "\t" << mdbg->_dbg_nodes[v]._index << "\t" << "-" << "\t" << "0M" << endl;
+				output_file_gfa << "L" << "\t" << id << "\t" << "-" << "\t" << _mdbg->_dbg_nodes[v]._index << "\t" << "-" << "\t" << "0M" << endl;
 				//vec_add_edge("-", "-");
 			}
 		}
@@ -1235,7 +1244,7 @@ void Bloocoo::execute ()
 
 	output_file_gfa.close();
 	
-	cout << "Nb nodes: " << mdbg->_dbg_nodes.size() << endl;
+	cout << "Nb nodes: " << _mdbg->_dbg_nodes.size() << endl;
 	cout << "Nb edges: " << nbEdges << endl;
 	
 
@@ -1284,14 +1293,16 @@ void Bloocoo::execute ()
 
 
 
-	mdbg->dump(_outputDir + "/mdbg_nodes.gz");
-	mdbg->_dbg_nodes.clear();
-	mdbg->_dbg_edges.clear();
+	_mdbg->dump(_outputDir + "/mdbg_nodes.gz");
+	//_mdbg->_dbg_nodes.clear();
+	//_mdbg->_dbg_edges.clear();
 
 
 
 	//createGroundTruth();
 }
+
+
 
 void Bloocoo::createGroundTruth(){
 }
