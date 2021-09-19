@@ -339,17 +339,21 @@ public:
 		u_int64_t lastPos = 0;
 
 		for(size_t i=0; i<length; i++){
+			//cout << i << " " << length << endl;
 			char c = sequence[i];
 			if(c == lastChar) continue;
 			if(lastChar != '#'){
 				rleSequence += lastChar;
 				rlePositions.push_back(lastPos);
 				lastPos = i;
+				//cout << lastChar << endl;
 			}
 			lastChar = c;
 		}
+		//cout << lastChar << endl;
 		rleSequence += lastChar;
 		rlePositions.push_back(lastPos);
+		rlePositions.push_back(length);
 	}
 
 };
@@ -575,8 +579,12 @@ public:
 
 								u_int32_t read_pos_start = rlePositions[minimizersPos[i]];
 								u_int32_t read_pos_end = rlePositions[minimizersPos[i+k-1]]; // + (rlePositions[minimizersPos[i+k-1]] - rlePositions[minimizersPos[i+k-1] + l]); //+ l;
-								read_pos_end +=  (rlePositions[minimizersPos[i+k-1] + l - 1] - rlePositions[minimizersPos[i+k-1]]); //l-1 a check
+								read_pos_end +=  (rlePositions[minimizersPos[i+k-1] + l] - rlePositions[minimizersPos[i+k-1]]); //l-1 a check
+
+								//cout << "HI: " << rlePositions[minimizersPos[i+k-1] + l - 1] << endl;
+								//cout << "HI: " << rlePositions[minimizersPos[i+k-1] + l] << endl;
 								u_int16_t length = read_pos_end - read_pos_start;
+
 								// seqSize = read_pos_end - read_pos_start;
 
 								//if(isReversed){
@@ -603,12 +611,12 @@ public:
 									//position_of_second_minimizer_seq += (rlePositions[minimizersPos[i+k-2] + l - 1] - rlePositions[minimizersPos[i+k-2]]);
 									//exit(1);
 
-									u_int16_t pos_last_minimizer = rlePositions[minimizersPos[i+k-2] + l - 1];
+									u_int16_t pos_last_minimizer = rlePositions[minimizersPos[i+k-2] + l];
 									seq_length_start = read_pos_end - pos_last_minimizer; //rlePositions[minimizersPos[i+k-1]] - rlePositions[minimizersPos[i+k-2]];
 								}
 								else{
 
-									u_int16_t pos_last_minimizer = rlePositions[minimizersPos[i+k-2]];
+									u_int16_t pos_last_minimizer = rlePositions[minimizersPos[i+1]];
 									seq_length_start = pos_last_minimizer - read_pos_start;
 
 									//cout << "todo" << endl;
@@ -620,7 +628,7 @@ public:
 								u_int16_t position_of_second_to_last_minimizer_seq = 0;
 								if(isReversed){
 									
-									u_int16_t pos_last_minimizer = rlePositions[minimizersPos[i+k-2]];
+									u_int16_t pos_last_minimizer = rlePositions[minimizersPos[i+1]];
 									seq_length_end = pos_last_minimizer - read_pos_start;
 
 									//position_of_second_to_last_minimizer = rlePositions[minimizersPos[i+1]]; // - rlePositions[minimizersPos[i]];
@@ -630,7 +638,9 @@ public:
 									position_of_second_to_last_minimizer_seq = position_of_second_to_last_minimizer;
 									//position_of_second_to_last_minimizer_seq += (rlePositions[minimizersPos[i+k-2] + l - 1] - rlePositions[minimizersPos[i+k-2]]);
 
-									u_int16_t pos_last_minimizer = rlePositions[minimizersPos[i+k-2] + l - 1];
+									u_int16_t pos_last_minimizer = rlePositions[minimizersPos[i+k-2] + l];
+									//cout << "lala: " << rlePositions.size() << " " << (minimizersPos[i+k-1] + l) << endl;
+									//cout << read_pos_end << " " << pos_last_minimizer << endl;
 									//position_of_second_to_last_minimizer_seq = rlePositions[minimizersPos[i+k-2] + l - 1];
 									seq_length_end = read_pos_end - pos_last_minimizer; //rlePositions[minimizersPos[i+k-1]] - rlePositions[minimizersPos[i+k-2]];
 									//position_of_second_to_last_minimizer_seq = length - seq_length_end;
@@ -638,6 +648,7 @@ public:
 									//position_of_second_to_last_minimizer_seq =  length - seq_length_end + 1; //(rlePositions[minimizersPos[i+k-2]] - read_pos_start);//rlePositions[minimizersPos[i+k-2]] - read_pos_start;
 								}
 
+								//cout << read_pos_start << " " <<  read_pos_end << " " << length << "      " << seq_length_start << " " << seq_length_end << endl;
 								//u_int16_t lala = seq_length_end;
 								//lala -= (rlePositions[minimizersPos[i+k-2] + l])
 								//cout << "lala: " << rlePositions[minimizersPos[i+k-2] + l] << endl;

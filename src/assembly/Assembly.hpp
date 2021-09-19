@@ -1096,7 +1096,6 @@ public:
 		file_groundTruth = ofstream(_inputDir + "/binning_results.csv");
 		file_groundTruth << "Name,Colour" << endl;
 
-
 		// mini genome test
 		//solveBin(graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(16, true), graphSimplify->nodeIndex_to_unitig(4750)._abundance, graphSimplify, 0);
 
@@ -1104,8 +1103,8 @@ public:
 		//solveBin(graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(4750, true), graphSimplify->nodeIndex_to_unitig(4750)._abundance, graphSimplify, 0);
 
 
-		562 (ecoli)
-		solveBin(graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(9847, true), graphSimplify->nodeIndex_to_unitig(9847)._abundance, graphSimplify, 0);
+		//562 (ecoli)    9847
+		solveBin(graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(10, true), graphSimplify->nodeIndex_to_unitig(9847)._abundance, graphSimplify, 0);
 
 
 
@@ -1554,6 +1553,7 @@ public:
 			current_nodeIndex = pathExplorer.getNextNode(current_nodeIndex, graph, _unitigDatas, forward, 0);
 			//cout << graph->_graphSuccessors->nodeToString(current_nodeIndex) << endl;
 
+			//if(_binnedNodes.size() > 100) return false; //DEBUG assemble small fragment
 			if(current_nodeIndex == -1) return false; //No more successors, or no branching solution
 			
 			if(current_nodeIndex == pathData.source_nodeIndex){ //Path complete
