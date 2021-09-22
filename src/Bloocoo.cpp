@@ -9,7 +9,7 @@ Bloocoo::Bloocoo () : Tool("bloocoo")
 
 	getParser()->push_back (new OptionOneParam (STR_INPUT, "input file", true));
 	getParser()->push_back (new OptionOneParam (STR_OUTPUT, "output dir", true));
-	getParser()->push_back (new OptionOneParam (STR_MINIM_SIZE, "minimizer length", false, "16"));
+	getParser()->push_back (new OptionOneParam (STR_MINIM_SIZE, "minimizer length", false, "21"));
 	getParser()->push_back (new OptionOneParam (STR_KMINMER_SIZE, "k-min-mer length", false, "3"));
 	getParser()->push_back (new OptionOneParam (STR_DENSITY, "density of minimizers", false, "0.005"));
 	//getParser()->push_back (new OptionOneParam (STR_INPUT_DIR, "input dir", false, ""));
@@ -490,6 +490,18 @@ void Bloocoo::createMDBG (){
 			u_int32_t lastMinimizerPos = -1;
 			for (itKmer.first(); !itKmer.isDone(); itKmer.next()){
 
+				//cout << pos << " " << (rleSequence.size()-_minimizerSize) << endl;
+
+				if(pos == 0){
+					//cout << "lala1" << endl;
+					pos += 1;
+					continue;
+				}
+				else if(pos == rleSequence.size()-_minimizerSize){
+					//cout << "lala2" << endl;
+					continue;
+				}
+
 				kmer_type kmerMin = itKmer->value();
 				//if(!itKmer->value().isValid()) continue;
 				//kmer_type kmerMin = min(itKmer->value(), revcomp(itKmer->value(), _kmerSize));
@@ -719,7 +731,7 @@ void Bloocoo::createMDBG (){
 
 			vector<KmerVec> kminmers; 
 			vector<ReadKminmer> kminmersInfo;
-			MDBG::getKminmers(_minimizerSize, _kminmerSize, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions);
+			MDBG::getKminmers(_minimizerSize, _kminmerSize, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex);
 
 			for(size_t i=0; i<kminmers.size(); i++){
 				kminmerCounts[kminmers[i]] += 1;
@@ -1049,7 +1061,7 @@ void Bloocoo::createMDBG (){
 		vector<ReadKminmer> kminmersInfo;
 		vector<u_int64_t> minimizersPos; 
 		vector<u_int64_t> rlePositions;
-		MDBG::getKminmers(_minimizerSize, _kminmerSize, minimizers, minimizersPos, kminmers, kminmersInfo, rlePositions);
+		MDBG::getKminmers(_minimizerSize, _kminmerSize, minimizers, minimizersPos, kminmers, kminmersInfo, rlePositions, 0);
 		//getKminmers_filterRepeatedEdge(minimizers, filteredMinimizers, kminmers, kminmerCounts);
 
 
@@ -1075,8 +1087,19 @@ void Bloocoo::createMDBG (){
 				if(kminmerCounts[vec] <= minAbundance_cutoff) continue;
 			}
 
+
 			//cout << kminmersData[vec] << endl;
 			_mdbg->addNode(vec, kminmersData[vec]);
+
+			/*
+			if(vec.isPalindrome() && _mdbg->_dbg_nodes[vec]._abundance == 1){
+				cout << "--------" << endl;
+				cout << _mdbg->_dbg_nodes[vec]._index << endl;
+				cout << vec._kmers[0] << endl;
+				cout << vec._kmers[1] << endl;
+				cout << vec._kmers[2] << endl;
+			}
+			*/
 			/*
 			if(mdbg->_dbg_nodes[vec]._index == 8814){
 				cout << "8814:" << endl;

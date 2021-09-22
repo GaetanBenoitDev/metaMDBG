@@ -723,6 +723,10 @@ public:
 
             if((*fields)[0] == "S"){
                 u_int32_t node = std::stoull((*fields)[1]);
+                //if(node == 214){
+                //    cout << "FOUNDED" << endl;
+                //    cout << (nodes.find(node) != nodes.end()) << endl;
+                //}
                 if(nodes.find(node) != nodes.end()) continue;
                 outputFile << line << endl;
             }

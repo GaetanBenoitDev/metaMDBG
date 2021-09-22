@@ -16,6 +16,9 @@
 
 using namespace std;
 
+struct Bubble{
+    vector<u_int32_t> _nodes;
+};
 
 
 struct Unitig{
@@ -41,7 +44,10 @@ public:
     //unordered_map<u_int32_t, u_int32_t> _nodeAbundances;
     //unordered_map<u_int32_t, u_int32_t> _nodeLengths;
     vector<bool> _isNodeRemoved;
+    vector<bool> _isBubble;
     unordered_set<DbgEdge, hash_pair> _isEdgeRemoved;
+
+    vector<Bubble> _bubbles;
 
     GraphSimplify(const string& inputGfaFilename, const string& outputDir){
         _inputGfaFilename = inputGfaFilename;
@@ -53,6 +59,7 @@ public:
         _nodeLengths.resize(_graphSuccessors->_nbNodes/2, false);
         GfaParser::getNodeData(inputGfaFilename, _nodeAbundances, _nodeLengths);
         _isNodeRemoved.resize(_graphSuccessors->_nbNodes, false);
+        _isBubble.resize(_graphSuccessors->_nbNodes, false);
     }
 
     ~GraphSimplify(){
@@ -63,7 +70,10 @@ public:
     void clear(){
         //_isNodeRemoved.resize(_graphSuccessors->_nbNodes, false);
         _isNodeRemoved = vector<bool>(_graphSuccessors->_nbNodes, false);
+        _isBubble = vector<bool>(_graphSuccessors->_nbNodes, false);
         _isEdgeRemoved.clear();
+        _bubbles.clear();
+        
     }
 
     /*
@@ -110,9 +120,10 @@ public:
             }
 
             
+            
             while(true){
                 compact();
-                nbTipsRemoved = tip(10000);
+                nbTipsRemoved = tip(50000);
                 #ifdef PRINT_DEBUG_SIMPLIFICATION
                     cout << "Nb tip removed: " << nbTipsRemoved << endl;
                 #endif
@@ -140,7 +151,8 @@ public:
                 if(nbSmallLoopRemoved == 0) break;
                 isModification = true;
             }
-
+            
+            
             
 
             if(!isModification) break;
@@ -204,7 +216,7 @@ public:
             //if(isVisited[unitig._endNode]) continue;
 
             getPredecessors(unitig._startNode, 0, neighbors);
-            if(neighbors.size() == 0) continue;
+            if(neighbors.size() != 1) continue;
 
             getSuccessors(unitig._endNode, 0, neighbors);
             if(neighbors.size() > 0) continue;
@@ -317,11 +329,26 @@ public:
                         cout << "\tBubble: " << _graphSuccessors->nodeIndex_to_nodeName(utg_1._endNode, dummy) << " " << _graphSuccessors->nodeIndex_to_nodeName(utg_4._startNode, dummy) << " " << _graphSuccessors->nodeIndex_to_nodeName(utg_2._startNode, dummy) << " " << _graphSuccessors->nodeIndex_to_nodeName(utg_3._startNode, dummy) << " " << utg_2._length << " " << utg_3._length << endl;
                     #endif
 
+                    
+                    //Memorise bubble unitigs
+                    getUnitigNodes(utg_3, unitigNodes);
+                    for(u_int32_t node : unitigNodes){
+                        _isBubble[node] = true;
+                    }
+                    getUnitigNodes(utg_2, unitigNodes);
+                    for(u_int32_t node : unitigNodes){
+                        _isBubble[node] = true;
+                    }
+                    
+
+                    //remove bubble
                     if(utg_2._abundance > utg_3._abundance){
                         getUnitigNodes(utg_3, unitigNodes);
 
                         isVisited[utg_3._startNode] = true;
                         isVisited[utg_3._endNode] = true;
+
+
                         //startNodeName = _graphSuccessors->nodeIndex_to_nodeName(utg_3._startNode, dummy);
                         //isVisited[startNodeName] = true;
                         //startNodeName = _graphSuccessors->nodeIndex_to_nodeName(utg_3._endNode, dummy);
@@ -338,10 +365,14 @@ public:
                         //isVisited[startNodeName] = true;
                     }
 
+                    Bubble bubble;
                     for(u_int32_t node : unitigNodes){
                         _isNodeRemoved[node] = true;
+                        bubble._nodes.push_back(node);
                         //removedNodes.insert(node);
                     }
+                    _bubbles.push_back(bubble);
+
                     
                     //startNodeName = _graphSuccessors->nodeIndex_to_nodeName(utg_1._startNode, dummy);
                     //isVisited[startNodeName] = true;
@@ -869,9 +900,12 @@ public:
 
             bool isModification = false;
 
+            //u_int32_t loulou = BiGraph::nodeName_to_nodeIndex(214, false);
+
+            //remove very low abundant nodes
             while(true){
                 compact();
-                nbErrorRemoved = removeLowAbundantNodes(abundanceCutoff_min);
+                nbErrorRemoved = removeLowAbundantNodes(abundanceCutoff_min/2.0);
                 #ifdef PRINT_DEBUG_SIMPLIFICATION
                     cout << "Nb error removed: " << nbErrorRemoved << endl;
                 #endif
@@ -879,9 +913,26 @@ public:
                 isModification = true;
             }
 
+            //Remove abundant nodes progressively (should save variant bubbles with lower abundance)
+            for(float i=0.1; i<abundanceCutoff_min; i++){
+                while(true){
+                    compact();
+                    nbErrorRemoved = removeLowAbundantNodes(i);
+                    #ifdef PRINT_DEBUG_SIMPLIFICATION
+                        cout << "Nb error removed: " << nbErrorRemoved << endl;
+                    #endif
+                    if(nbErrorRemoved == 0) break;
+                    isModification = true;
+                }
+            }
+
+
+            //cout << "Error: " << _isNodeRemoved[loulou] << endl;
+            //compact();
+
             while(true){
                 compact();
-                nbTipsRemoved = tip(10000);
+                nbTipsRemoved = tip(50000);
                 #ifdef PRINT_DEBUG_SIMPLIFICATION
                     cout << "Nb tip removed: " << nbTipsRemoved << endl;
                 #endif
@@ -889,7 +940,9 @@ public:
                 isModification = true;
             }
 
-            /*
+            //cout << "tip: " << _isNodeRemoved[loulou] << endl;
+
+            
             while(true){
                 compact();
                 nbBubblesRemoved = bubble(10000);
@@ -898,7 +951,7 @@ public:
                 #endif
                 if(nbBubblesRemoved == 0) break;
                 isModification = true;
-            }*/
+            }
 
             while(true){
                 compact();
@@ -910,20 +963,94 @@ public:
                 isModification = true;
             }
 
+            //cout << "Small bubble: " << _isNodeRemoved[loulou] << endl;
+
             if(!isModification) break;
         }
+
+
+        //cout << "Nb bubbles: " << _bubbles.size() << endl;
+        //for(Bubble& bubble : _bubbles){
+        //    for(u_int32_t nodeIndex : bubble._nodes){
+        //        cout << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
+        //    }
+        //}
+
+        while(true){
+            vector<u_int32_t> neighbors;
+            u_int64_t bubbleAdded = 0;
+
+            for(Bubble& bubble : _bubbles){
+                u_int32_t startNode = bubble._nodes[0];
+                u_int32_t endNode = bubble._nodes[bubble._nodes.size()-1];
+                if(!_isNodeRemoved[startNode]) continue; //&& !_isNodeRemoved[endNode]
+
+                getPredecessors(startNode, 0, neighbors);
+                if(neighbors.size() == 0) continue;
+
+                bool isPathValid = false;
+                for(u_int32_t n : neighbors){
+                    if(!_isNodeRemoved[n]){
+                        isPathValid = true;
+                        break;
+                    }
+                }
+
+                if(!isPathValid) continue;
+
+                getSuccessors(endNode, 0, neighbors);
+                if(neighbors.size() == 0) continue;
+
+                isPathValid = false;
+                for(u_int32_t n : neighbors){
+                    if(!_isNodeRemoved[n]){
+                        isPathValid = true;
+                        break;
+                    }
+                }
+
+                if(!isPathValid) continue;
+
+                for(u_int32_t nodeIndex : bubble._nodes){
+                    //cout << "Bubble saved: " << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
+                    _isNodeRemoved[nodeIndex] = false;
+                }
+
+                bubbleAdded += 1;
+            }
+
+            if(bubbleAdded == 0) break;
+        }
+
 
         unordered_set<u_int32_t> removedNodes;
         bool dummy = true;
 
+        //cout << "orlolo" << endl;
         for(size_t nodeIndex=0; nodeIndex<_graphSuccessors->_nbNodes; nodeIndex++){
+            //cout << nodeIndex << " " << BiGraph::nodeName_to_nodeIndex(214, true) << endl;
+            //if(nodeIndex == BiGraph::nodeName_to_nodeIndex(214, true)){
+            //    cout << "haha" << endl;
+            //    cout << _isNodeRemoved[nodeIndex] << endl;
+            //}
+            //if(nodeIndex == BiGraph::nodeName_to_nodeIndex(214, false)){
+            //    cout << "haha" << endl;
+            //    cout << _isNodeRemoved[nodeIndex] << endl;
+            //}
+
             if(!_isNodeRemoved[nodeIndex]) continue;
             u_int32_t nodeName = _graphSuccessors->nodeIndex_to_nodeName(nodeIndex, dummy);
+
             removedNodes.insert(nodeName);
         }
 
-        GfaParser::rewriteGfa_withoutNodes(_inputGfaFilename, _inputGfaFilename + "_errorFree.gfa", removedNodes, _isEdgeRemoved, _graphSuccessors);
+        //Debug gfa
+        //GfaParser::rewriteGfa_withoutNodes(_inputGfaFilename, _inputGfaFilename + "_errorFree.gfa", removedNodes, _isEdgeRemoved, _graphSuccessors);
 
+        //cout << "lalalal" << endl;
+        //cout << _isNodeRemoved[BiGraph::nodeName_to_nodeIndex(214, true)] << endl;
+
+        //exit(1);
     }
 
 };
