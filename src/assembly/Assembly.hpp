@@ -56,15 +56,13 @@ public:
 
 	u_int32_t getNextNode(u_int32_t current_nodeIndex, GraphSimplify* graph, vector<UnitigData>& _unitigDatas, bool forward, u_int32_t currentDepth){
 
-		if(currentDepth > 5) return -1;
+		if(currentDepth > 1) return -1;
 
 		//u_int64_t iter = 0;
 		bool orient_dummy = false;
 		vector<u_int32_t> successors;
 
 		//u_int32_t current_nodeIndex = _start_nodeIndex;
-
-
 
 		u_int32_t current_nodeName = graph->_graphSuccessors->nodeIndex_to_nodeName(current_nodeIndex, orient_dummy);
 		u_int32_t current_abundance = graph->_nodeAbundances[current_nodeName]; //_unitigDatas[current_unitigIndex]._meanAbundance;
@@ -1141,7 +1139,7 @@ public:
 
 		cout << "Simplifying graph" << endl;
 		GraphSimplify* graphSimplify = new GraphSimplify(gfa_filename_noUnsupportedEdges, _inputDir);
-		graphSimplify->execute(1);
+		graphSimplify->execute(30);
 		//graphSimplify->compact();
 		
 		
@@ -1168,6 +1166,7 @@ public:
 
 		//file_groundTruth.close();
 
+		auto rng = std::default_random_engine {};
 		unordered_set<u_int32_t> binNodes;
 		
 		
@@ -1176,16 +1175,21 @@ public:
 
 		vector<UnitigLength> unitigLengths;
 		for(Unitig& unitig : graphSimplify->_unitigs){
+			if(unitig._index % 2 == 1) continue;
+			if(unitig._length < 30000) continue;
+			if(unitig._abundance < 200) continue;
+
 			unitigLengths.push_back({unitig._index, unitig._length, unitig._startNode});
 		}
 		std::sort(unitigLengths.begin(), unitigLengths.end(), UnitigComparator_ByLength);
+
+		cout << "Nb starting unitigs: " << unitigLengths.size() << endl;
 
 		bool orient_dummy;
 		//size_t binIndex=0;
 		for(UnitigLength& unitigLength : unitigLengths){
 			//cout << "Unitig length: " << unitigLength._length << " " << unitigLength._index << endl;
 			
-			if(unitigLength._length < 30000) continue;
 			//Unitig& unitig = graphSimplify->_unitigs[unitigLength._index];
 			//if(graphSimplify->_nodeToUnitig[unitig._startNode] == -1) continue;
 
@@ -1194,20 +1198,28 @@ public:
 
 			unitigLength._abundance = unitig._abundance;
 
-			float abundanceCutoff_min = computeAbundanceCutoff_min(unitigLength._abundance);
-			if(unitigLength._abundance < 100) continue;
+			//float abundanceCutoff_min = computeAbundanceCutoff_min(unitigLength._abundance);
+			//if(unitigLength._abundance < 100) continue;
 
 
 			
 			graphSimplify->getUnitigNodes(unitig, nodes);
 
-			u_int32_t nodeIndex = nodes[rand() % nodes.size()];
+			std::shuffle(nodes.begin(), nodes.end(), rng);
+
+			for(u_int32_t nodeIndex : nodes){
+				if(graphSimplify->_isBubble[nodeIndex]) continue;
+				unitigLength._startNodeIndex = nodeIndex;
+				break;
+			}
+
+			//u_int32_t nodeIndex = nodes[rand() % nodes.size()];
 			//u_int32_t nodeName = graphSimplify->_graphSuccessors->nodeIndex_to_nodeName(nodeIndex, orient_dummy);
 			//if(_binnedNodes.find(nodeName) != _binnedNodes.end()) continue;
 
 
 
-			unitigLength._startNodeIndex = nodeIndex;
+			//unitigLength._startNodeIndex = nodeIndex;
 			//startingNodesIndex.push_back(nodeIndex);
 		}
 
@@ -1227,13 +1239,17 @@ public:
 		size_t binIndex=0;
 		//for(u_int32_t nodeIndex : startingNodesIndex){
 		for(UnitigLength& unitigLength : unitigLengths){
-			if(unitigLength._index % 2 == 1) continue;
-			cout << "Unitig length: " << unitigLength._length << " " << unitigLength._index << endl;
 
-			if(unitigLength._length < 30000) continue;
-			float abundanceCutoff_min = computeAbundanceCutoff_min(unitigLength._abundance);
-			if(unitigLength._abundance < 100) continue;
+			cout << "Try asm: " << unitigLength._startNodeIndex << endl;
+			//if(unitigLength._index % 2 == 1) continue;
+
+			//if(unitigLength._length < 30000) continue;
+			//loat abundanceCutoff_min = computeAbundanceCutoff_min(unitigLength._abundance);
+			//if(unitigLength._abundance < 100) continue;
 			if(visitedNodes.find(unitigLength._index) != visitedNodes.end()) continue;
+
+
+			//cout << "Unitig length: " << unitigLength._length << " " << unitigLength._index << endl;
 
 			u_int32_t nodeIndex = unitigLength._startNodeIndex;
 			
@@ -1241,6 +1257,9 @@ public:
 			if(_binnedNodes.find(nodeName) != _binnedNodes.end()) continue;
 
 			visitedNodes.insert(unitigLength._index);
+
+			
+
 			//vector<u_int32_t> nodes;
 			//Unitig& unitig = graphSimplify->_unitigs[unitigLength._index];
 			//graphSimplify->getUnitigNodes(unitig, nodes);
@@ -1358,6 +1377,7 @@ public:
 		u_int32_t source_nodeIndex;
 		u_int32_t source_nodeIndex_path;
 		float _abundanceCutoff_min;
+		//unordered_map<u_int32_t, bool> _isNodeImproved;
 	};
 
 	//vector<PathData> _pathDatas;
