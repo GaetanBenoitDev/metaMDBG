@@ -406,6 +406,8 @@ void Bloocoo::createMDBG (){
 	vector<u_int64_t> minim2;
 	vector<ReadData> comps;
 
+	int lol = 0;
+
 	for (size_t i=0; i<itBanks.size(); i++)
 	{
 		itSeq = createIterator<Sequence> (itBanks[i], inbank->estimateNbItemsBanki(i), "lala");
@@ -733,10 +735,31 @@ void Bloocoo::createMDBG (){
 			vector<ReadKminmer> kminmersInfo;
 			MDBG::getKminmers(_minimizerSize, _kminmerSize, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex);
 
+			bool isLala = false;
+			bool isLoulou = false;
+
 			for(size_t i=0; i<kminmers.size(); i++){
 				kminmerCounts[kminmers[i]] += 1;
 				kminmersData[kminmers[i]] = kminmersInfo[i]._length;
+
+				//if(kminmers[i]._kmers[0] == 81904984297519754 && kminmers[i]._kmers[1] == 37284240752535023 && kminmers[i]._kmers[2] == 82851683898915704){
+				//	isLala = true;
+				//}
+				//if(kminmers[i]._kmers[0] == 45618398143196555 && kminmers[i]._kmers[1] == 55406240415237664 && kminmers[i]._kmers[2] == 33230919625359447){
+				//	isLoulou = true;
+				//}
+
+
+
+
 			}
+
+			//if(isLala && isLoulou){
+			//	lol += 1;
+			//	cout << lol << endl;
+			//}
+
+
 
 			u_int16_t size = minimizers.size();
 			gzwrite(file_readData, (const char*)&size, sizeof(size));
@@ -1090,6 +1113,15 @@ void Bloocoo::createMDBG (){
 
 			//cout << kminmersData[vec] << endl;
 			_mdbg->addNode(vec, kminmersData[vec]);
+
+			/*
+			if(_mdbg->_dbg_nodes[vec]._index == 7837 || _mdbg->_dbg_nodes[vec]._index == 7836){
+				cout << "--------" << endl;
+				cout << vec._kmers[0] << endl;
+				cout << vec._kmers[1] << endl;
+				cout << vec._kmers[2] << endl;
+			}
+			*/
 
 			/*
 			if(vec.isPalindrome() && _mdbg->_dbg_nodes[vec]._abundance == 1){

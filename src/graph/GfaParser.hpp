@@ -17,8 +17,10 @@ struct UnitigLength{
     u_int32_t _length;
     u_int32_t _nodeIndex;
     
-    u_int32_t _startNodeIndex;
+    //u_int32_t _startNodeIndex;
     u_int32_t _abundance;
+
+    vector<u_int32_t> _startNodeIndexes;
 };
 
 struct UnitigData{
@@ -37,7 +39,7 @@ class GfaParser{
 
 public:
 
-    AdjGraph* createGraph_lol(const string& filename){
+    static AdjGraph* createGraph_lol(const string& filename){
 
         AdjGraph* graph = new AdjGraph();
 
@@ -611,10 +613,10 @@ public:
         return unitigName;
     }
 
-    void rewriteGfa_withoutEdges(const string& filename, const string& outputFilename, const unordered_set<DbgEdge, hash_pair>& removedEdges){
+    static void rewriteGfa_withoutEdges(const string& filename, const string& outputFilename, const unordered_set<DbgEdge, hash_pair>& removedEdges){
 
         
-
+        int nbEdges = 0;
         ifstream infile(filename);
 	    ofstream outputFile(outputFilename);
 
@@ -642,6 +644,7 @@ public:
                 if(removedEdges.find({utg_to, utg_from}) != removedEdges.end()) continue;
 
                 outputFile << line << endl;
+                nbEdges += 1;
             }
             else {
                 outputFile << line << endl;
@@ -649,6 +652,7 @@ public:
             
         }
 
+        cout << "lalala: " << nbEdges << endl;
 
         delete fields;
         delete fields_optional;

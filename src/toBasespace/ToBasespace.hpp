@@ -443,9 +443,9 @@ public:
 						//exit(1);
 						//exit(1);
 					}
+					if(lala && loulou) exit(1);
 
 					*/
-					if(lala && loulou) exit(1);
 					if(0){
 					//if(nodeName == 12234){
 
