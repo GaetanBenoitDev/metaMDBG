@@ -147,8 +147,19 @@ public:
 			return -1;
 		}
 		else if(data_successors.size() == 1){
+			
 			current_nodeIndex = data_successors[0]._nodeIndex;
-			updateNodeChosen(current_nodeIndex, currentDepth);
+
+			/*
+			//Anti-bug temp
+			if(_isNodeImproved.find(current_nodeIndex) != _isNodeImproved.end()){
+				if(!_isNodeImproved[current_nodeIndex]){
+					return -1;
+				}
+			}
+
+			//updateNodeChosen(current_nodeIndex, currentDepth);
+			*/
 			return current_nodeIndex;
 		}
 		else{
@@ -1020,6 +1031,21 @@ public:
 		//string gfa_filename_unitigs = _inputDir + "/minimizer_graph_unitigs.gfa";
 		string mdbg_filename = _inputDir + "/mdbg_nodes.gz";
 
+
+
+		/*
+		cout << "Simplifying graph" << endl;
+		GraphSimplify* graphSimplify2 = new GraphSimplify(gfa_filename, _inputDir);
+		graphSimplify2->execute(5);
+		//graphSimplify2->clear(1);
+		//graphSimplify2->compact();
+		graphSimplify2->extractComponent(2246262);
+		*/
+
+
+
+
+		
 		cout << gfa_filename << endl;
 		MDBG* mdbg = new MDBG(_kminmerSize);
 		mdbg->load(mdbg_filename);
@@ -1029,6 +1055,9 @@ public:
 		if(_truthInputFilename != ""){
 			extract_truth_kminmers(mdbg);
 		}
+
+
+
 
 		//vector<u_int32_t> unitigLengths;
 		//vector<int32_t> node_to_unitig(mdbg->_dbg_nodes.size(), -1);
@@ -1224,6 +1253,12 @@ public:
 		
 
 
+
+
+
+
+
+
 		/*
 		computeNodeAbundance(mdbg, gfa_filename_noUnsupportedEdges);
 		getUnitigLengths(gfa_filename_unitigs);
@@ -1234,9 +1269,18 @@ public:
 		GraphSimplify* graphSimplify = new GraphSimplify(gfa_filename_noUnsupportedEdges, _inputDir);
 		cout << graphSimplify->_graphSuccessors->_nbEdges << endl;
 		graphSimplify->execute(5);
+
+		
+		//cout << "remettre cleaning" << endl;
 		//graphSimplify->compact();
 		
 		
+		//graphSimplify->extractComponent(1224833);
+
+
+
+
+
 		//exit(1);
 		
 		file_groundTruth = ofstream(_inputDir + "/binning_results.csv");
@@ -1253,7 +1297,7 @@ public:
 
   
 		//562 (ecoli)
-		//solveBin(graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(600, false), graphSimplify->nodeIndex_to_unitig(600)._abundance, graphSimplify, 0);
+		//solveBin(graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(1224833, false), 35, graphSimplify, 0);
 		//exit(1);
 
 
@@ -1267,7 +1311,7 @@ public:
 		unordered_set<u_int32_t> binNodes;
 		
 		
-		unordered_set<u_int32_t> visitedNodes;
+		//unordered_set<u_int32_t> visitedNodes;
 		vector<u_int32_t> startingNodesIndex;
 
 		vector<u_int32_t> unitigLength_cutoffs = {100000, 50000, 30000, 10000};
@@ -1276,6 +1320,7 @@ public:
 		vector<vector<UnitigLength>> startingUnitigs;
 		startingUnitigs.resize(unitigLength_cutoffs.size());
 
+		unordered_set<u_int32_t> usedNodeNames;
 		for(size_t i=0; i<unitigLength_cutoffs.size(); i++){
 				
 			u_int32_t unitigLength_cutoff_min = unitigLength_cutoffs[i];
@@ -1286,11 +1331,11 @@ public:
 
 			vector<UnitigLength>& unitigLengths = startingUnitigs[i];
 
-			for(Unitig& unitig : graphSimplify->_unitigs){
-				if(unitig._index % 2 == 1) continue;
+			for(const Unitig& unitig : graphSimplify->_unitigs){
+				//if(unitig._index % 2 == 1) continue;
 				if(unitig._length < unitigLength_cutoff_min) continue;
 				if(unitig._length > unitigLength_cutoff_max) continue;
-				if(unitig._abundance < 20) continue; //200
+				if(unitig._abundance < 24) continue; //200
 
 
 				vector<u_int32_t> nodes;
@@ -1305,18 +1350,61 @@ public:
 				
 				graphSimplify->getUnitigNodes(unitig, nodes);
 
-				std::shuffle(nodes.begin(), nodes.end(), rng);
+				/*
+				cout << endl << "----" << endl;
+				for(u_int32_t nIndex : nodes){
+					u_int32_t nName = BiGraph::nodeIndex_to_nodeName(nIndex);
+					cout << nName << " " << graphSimplify->_nodeAbundances[nName] << endl;
+				}*/
 
+
+
+
+				//std::shuffle(nodes.begin(), nodes.end(), rng);
+				
+				bool isValid = true;
+				u_int32_t maxAbundance = 0;
 				u_int32_t startNodeIndex = -1;
 				for(u_int32_t nodeIndex : nodes){
-					if(graphSimplify->_isBubble[nodeIndex]) continue;
-					startNodeIndex = nodeIndex;
+
+					u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
+
+					if(usedNodeNames.find(nodeName) != usedNodeNames.end()){
+						isValid = false;
+						break;
+					}
+
+
+					usedNodeNames.insert(nodeName);
+					//if(graphSimplify->_isBubble[nodeIndex]) continue;
+
+					u_int32_t abundance = graphSimplify->_nodeAbundances[nodeName];
+					if(abundance > maxAbundance){
+						maxAbundance = abundance;
+						startNodeIndex = nodeIndex;
+					}
+					//startNodeIndex = nodeIndex;
 					//unitigLength._startNodeIndex = nodeIndex;
-					break;
+					//break;
 				}
 
+				if(!isValid) continue;
 
-				unitigLengths.push_back({unitig._index, unitig._length, unitig._startNode, startNodeIndex, unitig._abundance});
+				/*
+				if(BiGraph::nodeIndex_to_nodeName(startNodeIndex) == 2246258){
+					cout << "-" << endl;
+					cout << "OMG" << endl;
+					cout << unitig._abundance << endl;
+
+					for(u_int32_t nIndex : nodes){
+						u_int32_t nName = BiGraph::nodeIndex_to_nodeName(nIndex);
+						cout << nName << " " << graphSimplify->_nodeAbundances[nName] << endl;
+					}
+					exit(1);
+				}
+				*/
+
+				unitigLengths.push_back({unitig._length, unitig._abundance, startNodeIndex});
 			}
 
 			std::sort(unitigLengths.begin(), unitigLengths.end(), UnitigComparator_ByAbundance);
@@ -1325,7 +1413,7 @@ public:
 			cout << "Length cutoff: " << unitigLength_cutoff_min << " " << unitigLength_cutoff_max << endl;
 			cout << "Nb starting unitigs: " << unitigLengths.size() << endl;
 		}
-	
+		usedNodeNames.clear();
 
 
 		for(const vector<UnitigLength>& startingUnitig : startingUnitigs){	
@@ -1334,14 +1422,14 @@ public:
 
 			for(const UnitigLength& unitigLength : startingUnitig){
 
-				cout << unitigLength._length << " " << unitigLength._abundance << endl;
+				cout << unitigLength._length << " " << unitigLength._abundance << " " << BiGraph::nodeIndex_to_nodeName(unitigLength._startNodeIndex) << endl;
 				//cout << "Try asm: " << unitigLength._startNodeIndex << endl;
 				//if(unitigLength._index % 2 == 1) continue;
 
 				//if(unitigLength._length < 30000) continue;
 				//loat abundanceCutoff_min = computeAbundanceCutoff_min(unitigLength._abundance);
 				//if(unitigLength._abundance < 100) continue;
-				if(visitedNodes.find(unitigLength._index) != visitedNodes.end()) continue;
+				//if(visitedNodes.find(unitigLength._index) != visitedNodes.end()) continue;
 
 
 				//cout << "Unitig length: " << unitigLength._length << " " << unitigLength._index << endl;
@@ -1351,7 +1439,7 @@ public:
 				u_int32_t nodeName = graphSimplify->_graphSuccessors->nodeIndex_to_nodeName(nodeIndex);
 				if(_binnedNodes.find(nodeName) != _binnedNodes.end()) continue;
 
-				visitedNodes.insert(unitigLength._index);
+				//visitedNodes.insert(unitigLength._index);
 
 				
 
@@ -1394,7 +1482,13 @@ public:
 						//file_groundTruth = ofstream(_outputDir + "/binning_results.csv");
 			
 						bool isContigValid = solveBin(nodeIndex, unitigLength._abundance, graphSimplify, binIndex);
-						if(isContigValid) binIndex += 1;
+						if(isContigValid){
+							binIndex += 1;
+						} 
+						else{
+							bool isContigValid = solveBin(graphSimplify->nodeIndex_toReverseDirection(nodeIndex), unitigLength._abundance, graphSimplify, binIndex);
+							if(isContigValid) binIndex += 1;
+						}
 
 						//file_groundTruth.close();
 
@@ -1847,7 +1941,7 @@ public:
 		_binnedNodes.insert(current_unitigIndex);
 		//cout << "Add node: " << graph->_graphSuccessors->nodeToString(nodeIndex) << " " << graph->_nodeAbundances[current_unitigIndex]  << endl;
 
-		_nbVisitedTimes[current_unitigIndex] += 1;
+		_nbVisitedTimes[nodeIndex] += 1;
 		//cout << _nbVisitedTimes[current_unitigIndex] << endl;
 		//return utg_nodeIndex;
 	}
@@ -1890,7 +1984,7 @@ public:
 
 
 		//u_int32_t source_unitigIndex = graph->nodeIndex_to_nodeName(utg, orient_dummy);
-		if(graph->_nodeToUnitig[source_nodeIndex] == -1){
+		if(graph->_nodeToUnitig[source_nodeIndex] == -1){ //actuellement ça peut arriver si l'assemblage demarre sur une tip
 			cout << "Source node removed :(" << endl;
 			return false; //????
 		}
@@ -1918,7 +2012,13 @@ public:
 			cout << endl << endl << endl << endl << endl << "----- Backward -------------------------------------------------------------------------------------------------------------------------------------" << endl;
 			_iter = 0;
 			pathData = {pathIndex, {}, {}, {}, source_abundance, source_nodeIndex, source_nodeIndex, abundanceCutoff_min};
-			solveBin_path(pathData, graph, false);
+			pathSolved = solveBin_path(pathData, graph, false);
+			if(pathSolved){ //Assez bizarre, l'algo peut echouer en forward mais résoudre en backward et inversement
+
+				supportingReads_forward.clear();
+				nodePath_forward.clear();
+				cout << "Path is solve backward" << endl;
+			}
 
 			nodePath_backward = pathData.nodePath;
 			getSupportingReads(nodePath_backward, supportingReads_backward);
@@ -1971,6 +2071,7 @@ public:
 		cout << nodePath.size() << endl;
 		cout << nodePath_supportingReads.size() << endl;
 
+		/*
 		cout << PathExplorer::computeSharedReads(_unitigDatas[8326], _unitigDatas[7836]) << endl;
 		cout << PathExplorer::computeSharedReads(_unitigDatas[8326], _unitigDatas[1519]) << endl;
 		cout << PathExplorer::computeSharedReads(_unitigDatas[8326], _unitigDatas[1520]) << endl;
@@ -1981,7 +2082,7 @@ public:
 		
 		cout << PathExplorer::computeSharedReads(_unitigDatas[8326], _unitigDatas[11316]) << endl;
 		cout << PathExplorer::computeSharedReads(_unitigDatas[8326], _unitigDatas[1523]) << endl;
-
+		*/
 		//exit(1);
 		/*
 		//cout << nodePath_forward.size() << endl;
@@ -2133,6 +2234,8 @@ public:
 			}
 			//cout << graph->_graphSuccessors->nodeToString(current_nodeIndex) << endl;
 
+			//cout << pathData.nodePath.size() << endl;
+			//cout << current_nodeIndex << endl;
 			//if(_binnedNodes.size() > 100) return false; //DEBUG assemble small fragment
 			if(current_nodeIndex == -1) return false; //No more successors, or no branching solution
 			
@@ -2147,6 +2250,12 @@ public:
 			binNode(current_nodeIndex, pathData.prevNodes, pathData.nodePath, graph, pathData._index);
 			visitedNodes.insert(current_nodeIndex);
 
+			//anti-bug, infinite loop
+			if(_nbVisitedTimes.find(current_nodeIndex) != _nbVisitedTimes.end()){
+				if(_nbVisitedTimes[current_nodeIndex] > 1000){
+					return false;
+				}
+			}
 			/*
 			for(size_t i=1; i<pathExplorer._exploredNodes.size(); i++){
 				u_int32_t nodeIndex = pathExplorer._exploredNodes[i];

@@ -34,7 +34,7 @@ class GraphSimplify{
 public:
 
     BiGraph* _graphSuccessors;
-    BiGraph* _graphPredecessors;
+    //BiGraph* _graphPredecessors;
     string _outputDir;
     string _inputGfaFilename;
     vector<Unitig> _unitigs;
@@ -49,14 +49,14 @@ public:
     unordered_set<DbgEdge, hash_pair> _isEdgeRemoved;
 
     vector<Bubble> _bubbles;
-    u_int32_t _lastAbundanceCutoff;
+    //u_int32_t _lastAbundanceCutoff;
 
     GraphSimplify(const string& inputGfaFilename, const string& outputDir){
         _inputGfaFilename = inputGfaFilename;
         _outputDir = outputDir;
 
         _graphSuccessors = GfaParser::createBiGraph_lol(inputGfaFilename, true);
-	    _graphPredecessors = GfaParser::createBiGraph_lol(inputGfaFilename, false);
+	    //_graphPredecessors = GfaParser::createBiGraph_lol(inputGfaFilename, false);
         _nodeAbundances.resize(_graphSuccessors->_nbNodes/2, false);
         _nodeLengths.resize(_graphSuccessors->_nbNodes/2, false);
         GfaParser::getNodeData(inputGfaFilename, _nodeAbundances, _nodeLengths);
@@ -67,7 +67,7 @@ public:
 
     ~GraphSimplify(){
         delete _graphSuccessors;
-        delete _graphPredecessors;
+        //delete _graphPredecessors;
     }
 
     void clear(float abundanceCutoff_min){
@@ -157,7 +157,7 @@ public:
             }
 
             cout << "3" << endl;
-            
+            /*
             while(true){
                 compact();
                 nbBubblesRemoved = bubble(50000);
@@ -166,7 +166,7 @@ public:
                 #endif
                 if(nbBubblesRemoved == 0) break;
                 isModification = true;
-            }
+            }*/
 
             cout << "4" << endl;
 
@@ -191,7 +191,7 @@ public:
 
         
 
-
+        /*
         for(size_t nodeIndex=0; nodeIndex<_graphSuccessors->_nbNodes; nodeIndex++){
             if(_isNodeValid2.find(nodeIndex) != _isNodeValid2.end()) continue;
             //if(_isNodeValid[nodeIndex]) continue;
@@ -201,7 +201,7 @@ public:
 
         cout << "REWRITE GFA WITHOUT NODe: faire l'inverse rewrite gfa WITH node et utiliser _isNodeValid2 direct" << endl;
         GfaParser::rewriteGfa_withoutNodes(_inputGfaFilename, _inputGfaFilename + "_tmp.gfa", removedNodes, _isEdgeRemoved, _graphSuccessors);
-
+        */
 
     }
 
@@ -252,7 +252,7 @@ public:
         vector<u_int32_t> neighbors;
         vector<u_int32_t> unitigNodes;
 
-        vector<bool> isVisited(_graphSuccessors->_nbNodes, false);
+        //vector<bool> isVisited(_graphSuccessors->_nbNodes, false);
         bool dummy = false;
 
         for(Unitig& unitig : _unitigs){
@@ -885,11 +885,15 @@ public:
 
         bool dummy;
         predecessors.clear();
-        adjNode* node = _graphPredecessors->_nodes[n];
         
+
+
+
+        adjNode* node = _graphSuccessors->_nodes[nodeIndex_toReverseDirection(n)];
+
         while (node != nullptr) {
 
-			u_int32_t nn = node->val;
+			u_int32_t nn = nodeIndex_toReverseDirection(node->val);
             //if(!_isNodeValid[nn]){
             if(_isNodeValid2.find(nn) == _isNodeValid2.end()){
                 node = node->next;
@@ -909,6 +913,22 @@ public:
             predecessors.push_back(nn);
             node = node->next;
         }
+    }
+
+    
+    u_int32_t nodeIndex_toReverseDirection(u_int32_t nodeIndex){
+        bool orient;
+        u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex, orient);
+
+        u_int32_t nodeIndex_prev;
+        if(orient){
+            nodeIndex_prev = BiGraph::nodeName_to_nodeIndex(nodeName, false);
+        }
+        else{
+            nodeIndex_prev = BiGraph::nodeName_to_nodeIndex(nodeName, true);
+        }
+
+        return nodeIndex_prev;
     }
 
     void getNeighbors(u_int32_t n, float abundanceCutoff_min, vector<u_int32_t>& neighbors){
@@ -931,7 +951,7 @@ public:
         return _isEdgeRemoved.find(edge) != _isEdgeRemoved.end();
     }
 
-    void getUnitigNodes(Unitig& unitig, vector<u_int32_t>& nodes){
+    void getUnitigNodes(const Unitig& unitig, vector<u_int32_t>& nodes){
 
         nodes.clear();
         bool dummy;
@@ -957,11 +977,16 @@ public:
 
     void debug_writeGfaErrorfree(u_int32_t currentAbundance, float abundanceCutoff_min, u_int32_t nodeIndex_source){
 
-        if(currentAbundance == _lastAbundanceCutoff) return;
-        _lastAbundanceCutoff = currentAbundance;
+        //if(currentAbundance == _lastAbundanceCutoff) return;
+        //_lastAbundanceCutoff = currentAbundance;
         
+        //if(currentAbundance < 30){
+        //    abundanceCutoff_min = 0;
+        //}
+
         clear(abundanceCutoff_min);
 
+        
         while(true){
 
             u_int64_t nbTipsRemoved = 0;
@@ -973,6 +998,7 @@ public:
 
             compact();
             removeUnconnectedNodes(nodeIndex_source);
+
             //u_int32_t loulou = BiGraph::nodeName_to_nodeIndex(214, false);
 
             //remove very low abundant nodes
@@ -980,7 +1006,7 @@ public:
                 compact();
                 nbErrorRemoved = removeLowAbundantNodes(abundanceCutoff_min/2.0);
                 #ifdef PRINT_DEBUG_SIMPLIFICATION
-                    cout << "Nb error removed: " << nbErrorRemoved << endl;
+                    cout << "Nb error removed 1: " << nbErrorRemoved << endl;
                 #endif
                 if(nbErrorRemoved == 0) break;
                 isModification = true;
@@ -992,51 +1018,13 @@ public:
                     compact();
                     nbErrorRemoved = removeLowAbundantNodes(i);
                     #ifdef PRINT_DEBUG_SIMPLIFICATION
-                        cout << "Nb error removed: " << nbErrorRemoved << endl;
+                        cout << "Nb error removed 2: " << nbErrorRemoved << endl;
                     #endif
                     if(nbErrorRemoved == 0) break;
                     isModification = true;
                 }
             }
 
-
-            /*
-            float i=0.1;
-            while(true){
-                while(true){
-                    compact();
-                    nbErrorRemoved = removeLowAbundantNodes(i);
-                    #ifdef PRINT_DEBUG_SIMPLIFICATION
-                        cout << "Nb error removed: " << nbErrorRemoved << endl;
-                    #endif
-                    if(nbErrorRemoved == 0) break;
-                    isModification = true;
-                }
-
-                if(i < 50){
-                    i += 1;
-                }
-                else if(i< 100){
-                    i += 2;
-                }
-                else{
-                    i += 10;
-                }
-
-                if(i > abundanceCutoff_min) break;
-                //i = min(i, abundanceCutoff_min);
-            }
-
-            while(true){
-                compact();
-                nbErrorRemoved = removeLowAbundantNodes(abundanceCutoff_min);
-                #ifdef PRINT_DEBUG_SIMPLIFICATION
-                    cout << "Nb error removed: " << nbErrorRemoved << endl;
-                #endif
-                if(nbErrorRemoved == 0) break;
-                isModification = true;
-            }
-            */
             removeUnconnectedNodes(nodeIndex_source);
 
             //cout << "Error: " << _isNodeRemoved[loulou] << endl;
@@ -1139,10 +1127,17 @@ public:
         }
 
         /*
-        TODO: write valid ndoes instead of removedNodes... evite de faire cette indexation inutile
-        unordered_set<u_int32_t> removedNodes;
-        bool dummy = true;
+        cout << "TODO: write valid ndoes instead of removedNodes... evite de faire cette indexation inutile" << endl;
+        unordered_set<u_int32_t> validNodes;
 
+
+        for (auto& nodeIndex : _isNodeValid2){
+            u_int32_t nodeName = _graphSuccessors->nodeIndex_to_nodeName(nodeIndex);
+            validNodes.insert(nodeName);
+        }
+        */
+
+        /*
         //cout << "orlolo" << endl;
         for(size_t nodeIndex=0; nodeIndex<_graphSuccessors->_nbNodes; nodeIndex++){
             //cout << nodeIndex << " " << BiGraph::nodeName_to_nodeIndex(214, true) << endl;
@@ -1155,14 +1150,20 @@ public:
             //    cout << _isNodeRemoved[nodeIndex] << endl;
             //}
 
-            if(_isNodeValid[nodeIndex]) continue;
-            u_int32_t nodeName = _graphSuccessors->nodeIndex_to_nodeName(nodeIndex, dummy);
-
+            //if(_isNodeValid[nodeIndex]) continue;
+            if(_isNodeValid2.find(nodeIndex) != _isNodeValid2.end()){
+                cout << _graphSuccessors->nodeIndex_to_nodeName(nodeIndex) << endl;
+                cout << "lala" << _isNodeValid2.size() << endl;
+                continue;
+            }
+            u_int32_t nodeName = _graphSuccessors->nodeIndex_to_nodeName(nodeIndex);
             removedNodes.insert(nodeName);
         }
         */
+
+
         //Debug gfa
-        //GfaParser::rewriteGfa_withoutNodes(_inputGfaFilename, _inputGfaFilename + "_errorFree.gfa", removedNodes, _isEdgeRemoved, _graphSuccessors);
+        //GfaParser::rewriteGfa_withoutNodes(_inputGfaFilename, _inputGfaFilename + "_errorFree.gfa", validNodes, _isEdgeRemoved, _graphSuccessors);
 
         //cout << "lalalal" << endl;
         //cout << _isNodeRemoved[BiGraph::nodeName_to_nodeIndex(214, true)] << endl;
@@ -1183,6 +1184,12 @@ public:
 
         queue <int> queue;
 
+        //cout << "----------" << endl;
+        //cout << nodeIndex_source << endl;
+        //cout << _unitigs.size() << endl;
+        //cout << _nodeToUnitig[nodeIndex_source] << endl;
+
+
         queue.push(nodeIndex_to_unitigIndex(nodeIndex_source));
         component.insert(nodeIndex_to_unitigIndex(nodeIndex_source));
         //component.push_back(nodeIndex_source);
@@ -1190,6 +1197,7 @@ public:
         while (!queue.empty()){
 
             u_int64_t unitigIndex = queue.front();
+            //cout << "1: " << unitigIndex << endl;
 
             queue.pop();
 
@@ -1200,6 +1208,7 @@ public:
 
 
             for(u_int32_t nodeIndex_neighbor : neighbors1){
+                //cout << "2: " << _nodeToUnitig[nodeIndex_neighbor] << endl;
                 u_int32_t unitigIndex_neighbor = nodeIndex_to_unitigIndex(nodeIndex_neighbor);
                 if (component.find(unitigIndex_neighbor) != component.end()) continue;
 
@@ -1210,6 +1219,7 @@ public:
             }
 
             for(u_int32_t nodeIndex_neighbor : neighbors2){
+                //cout << "3: " << _nodeToUnitig[nodeIndex_neighbor] << endl;
                 u_int32_t unitigIndex_neighbor = nodeIndex_to_unitigIndex(nodeIndex_neighbor);
                 if (component.find(unitigIndex_neighbor) != component.end()) continue;
 
@@ -1224,6 +1234,11 @@ public:
 
     void removeUnconnectedNodes(u_int32_t nodeIndex_source){
         
+        //Bizarre mais peut etre detruit dans les region pourri composé de 3 unitig relié a leur extreminité (donc 3 tips) par exemple
+        if(_isNodeValid2.find(nodeIndex_source) == _isNodeValid2.end()){
+            return;
+        }
+
         cout << "Compute connected component" << endl;
         cout << _isNodeValid2.size() << endl;
         unordered_set<u_int32_t> component;
@@ -1247,7 +1262,120 @@ public:
 
         cout << "Component size: " << isNodeValid2.size() << endl;
         _isNodeValid2 = isNodeValid2;
+
+        /*
+        if(_isNodeValid2.size() == 90){
+
+
+            unordered_set<u_int32_t> validNodes;
+            
+            for (auto& nodeIndex : _isNodeValid2){
+                u_int32_t nodeName = _graphSuccessors->nodeIndex_to_nodeName(nodeIndex);
+                cout << BiGraph::nodeToString(nodeName) << endl;
+                validNodes.insert(nodeName);
+            }
+
+            GfaParser::rewriteGfa_withoutNodes(_inputGfaFilename, _inputGfaFilename + "_component.gfa", validNodes, _isEdgeRemoved, _graphSuccessors);
+        }
+        */
+
     }
+
+    void collectNeighbors(u_int32_t nodeIndex_source, u_int32_t maxDistance, u_int32_t maxNeighbors, unordered_set<u_int32_t>& neighbors){
+
+        unordered_map<u_int32_t, u_int32_t> distance;
+        neighbors.clear();
+        //if(_nodes[s] == nullptr) return;
+
+        //neighbors.push_back(s);
+
+
+    
+        queue<u_int32_t> queue;
+    
+        //isVisited[s] = true;
+        distance[nodeIndex_source] = 0;
+        queue.push(nodeIndex_source);
+        neighbors.insert(nodeIndex_source);
+    
+        while(!queue.empty()){
+            
+            u_int32_t n = queue.front();
+            queue.pop();
+
+            vector<u_int32_t> nodeNeighbors;
+            getNeighbors(n, 0, nodeNeighbors);
+
+            for(u_int32_t nodeIndex_neighbor : nodeNeighbors){
+
+
+                if(neighbors.find(nodeIndex_neighbor) != neighbors.end()){
+                    continue;
+                }
+
+                //if(visitedNodes.find(nn) != visitedNodes.end()){
+                //    node = node->next;
+                //    continue;
+                //}
+
+                if(maxNeighbors > 0 && neighbors.size() >= maxNeighbors){
+                    break;
+                }
+
+                neighbors.insert(nodeIndex_neighbor);
+                //isVisited[nn] = true;
+                distance[nodeIndex_neighbor] = distance[n] + 1;
+                //neighbors.push_back(nn);
+
+
+                if(distance[nodeIndex_neighbor] >= maxDistance){
+                    continue;
+                }
+
+                //cout << "Push: " << nn << " " << distance[nn] << endl;
+                queue.push(nodeIndex_neighbor);
+
+            }
+
+            if(maxNeighbors > 0 && neighbors.size() >= maxNeighbors){
+                break;
+            }
+
+        }
+
+
+
+    }
+
+    void extractComponent(u_int32_t nodeName){
+        
+        u_int32_t nodeIndex = BiGraph::nodeName_to_nodeIndex(nodeName, true);
+
+        vector<u_int32_t> unitigNodes;
+        getUnitigNodes(nodeIndex_to_unitig(nodeIndex), unitigNodes);
+        for(u_int32_t nIndex : unitigNodes){
+            u_int32_t nName = BiGraph::nodeIndex_to_nodeName(nIndex);
+            cout << nName << " " << _nodeAbundances[nName] << endl;
+        }
+
+
+        cout << nodeName << " " << nodeIndex_to_unitig(nodeIndex)._abundance << " " << nodeIndex_to_unitig(nodeIndex)._length << endl;
+        //cout << nodeIndex_to_unitig(nodeIndex)._abundance << endl;
+        
+        unordered_set<u_int32_t> nodes;
+		collectNeighbors(nodeIndex, 200, 10000, nodes);
+
+        unordered_set<u_int32_t> validNodes;
+
+        for (auto& nodeIndex : nodes){
+            u_int32_t nodeName = _graphSuccessors->nodeIndex_to_nodeName(nodeIndex);
+            validNodes.insert(nodeName);
+        }
+
+        GfaParser::rewriteGfa_withoutNodes(_inputGfaFilename, _inputGfaFilename + "_component.gfa", validNodes, _isEdgeRemoved, _graphSuccessors);
+		//exit(1);
+    }
+    
 
 };
 

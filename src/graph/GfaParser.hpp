@@ -13,14 +13,12 @@ using namespace std;
 //#include "GraphSimplify.hpp"
 
 struct UnitigLength{
-	u_int32_t _index;
+	//u_int32_t _index;
     u_int32_t _length;
-    u_int32_t _nodeIndex;
+    //u_int32_t _nodeIndex;
     
-    //u_int32_t _startNodeIndex;
     u_int32_t _abundance;
-
-    vector<u_int32_t> _startNodeIndexes;
+    u_int32_t _startNodeIndex;
 };
 
 struct UnitigData{
@@ -731,7 +729,7 @@ public:
                 //    cout << "FOUNDED" << endl;
                 //    cout << (nodes.find(node) != nodes.end()) << endl;
                 //}
-                if(nodes.find(node) != nodes.end()) continue;
+                if(nodes.find(node) == nodes.end()) continue;
                 outputFile << line << endl;
             }
             else if((*fields)[0] == "L"){
@@ -740,7 +738,7 @@ public:
                 u_int32_t to = std::stoull((*fields)[3]);
                 bool to_orient = (*fields)[4] == "+";
 
-                if(nodes.find(from) != nodes.end() || nodes.find(to) != nodes.end()) continue;
+                if(nodes.find(from) == nodes.end() || nodes.find(to) == nodes.end()) continue;
 
                 u_int32_t nodeIndex_from = graph->nodeName_to_nodeIndex(from, from_orient);
                 u_int32_t nodeIndex_to = graph->nodeName_to_nodeIndex(to, to_orient);

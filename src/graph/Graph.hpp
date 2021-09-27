@@ -761,7 +761,7 @@ public:
         return true;
     }
 
-    string nodeToString(u_int32_t nodeIndex){
+    static string nodeToString(u_int32_t nodeIndex){
         bool orient;
         u_int32_t nodeName = nodeIndex_to_nodeName(nodeIndex, orient);
         string orientStr = "";
