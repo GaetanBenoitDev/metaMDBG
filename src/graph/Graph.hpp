@@ -761,6 +761,21 @@ public:
         return true;
     }
 
+    bool addEdge_debug(u_int32_t from, u_int32_t to){
+
+        u_int32_t nodeIndex_from = nodeName_to_nodeIndex(from, true);
+        u_int32_t nodeIndex_to = nodeName_to_nodeIndex(to, true);
+        _nodes[nodeIndex_from] = getAdjListNode(nodeIndex_to, 0, _nodes[nodeIndex_from]);
+        _nbEdges += 1;
+
+        nodeIndex_from = nodeName_to_nodeIndex(to, false);
+        nodeIndex_to = nodeName_to_nodeIndex(from, false);
+        _nodes[nodeIndex_from] = getAdjListNode(nodeIndex_to, 0, _nodes[nodeIndex_from]);
+        _nbEdges += 1;
+
+        return true;
+    }
+
     static string nodeToString(u_int32_t nodeIndex){
         bool orient;
         u_int32_t nodeName = nodeIndex_to_nodeName(nodeIndex, orient);
@@ -851,6 +866,9 @@ public:
 
 
     }
+
+
+
 
 
 };

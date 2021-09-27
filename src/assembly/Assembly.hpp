@@ -984,6 +984,43 @@ public:
 	}
 
 	void execute (){
+
+		/*
+        BiGraph* graph = new BiGraph(8);
+		graph->addEdge_debug(0, 1); //a, b
+		graph->addEdge_debug(1, 2); //b, c
+		graph->addEdge_debug(1, 4); //b, e
+		graph->addEdge_debug(1, 5); //b, f
+		graph->addEdge_debug(4, 0); //e, a
+		graph->addEdge_debug(4, 5); //e, f
+		graph->addEdge_debug(5, 6); //f, g
+		graph->addEdge_debug(6, 5); //g, f
+		graph->addEdge_debug(2, 6); //c, g
+		graph->addEdge_debug(2, 3); //c, d
+		graph->addEdge_debug(3, 2); //d, c
+		graph->addEdge_debug(3, 7); //d, h
+		graph->addEdge_debug(7, 3); //h, d
+		graph->addEdge_debug(7, 6); //h, g
+
+		GraphSimplify* g = new GraphSimplify(graph);
+		vector<vector<u_int32_t>> sccs;
+		g->getStronglyConnectedComponents(sccs);
+		cout << sccs.size() << endl;
+
+		for(vector<u_int32_t>& scc : sccs){
+			cout << "----" << endl;
+			for(u_int32_t unitigIndex : scc){
+				vector<u_int32_t> nodes;
+				g->getUnitigNodes(g->_unitigs[unitigIndex], nodes);
+				for(u_int32_t nodeIndex : nodes){
+					cout << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
+				}
+			}
+		}
+
+		exit(1);
+		*/
+	
 		parseArgs();
 
 

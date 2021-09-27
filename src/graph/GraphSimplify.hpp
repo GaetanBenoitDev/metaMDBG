@@ -65,6 +65,30 @@ public:
 
     }
 
+    GraphSimplify(BiGraph* graph){
+        _inputGfaFilename = "";
+        _outputDir = "";
+
+        _graphSuccessors = graph;
+        
+        for(size_t nodeIndex=0; nodeIndex<_graphSuccessors->_nbNodes; nodeIndex++){
+            _isNodeValid2.insert(nodeIndex);
+        }
+
+        _nodeAbundances = vector<u_int32_t>(_graphSuccessors->_nbNodes/2, 0);
+        _nodeLengths = vector<u_int32_t>(_graphSuccessors->_nbNodes/2, 0);
+
+
+
+	    //_graphPredecessors = GfaParser::createBiGraph_lol(inputGfaFilename, false);
+        //_nodeAbundances.resize(_graphSuccessors->_nbNodes/2, false);
+        //_nodeLengths.resize(_graphSuccessors->_nbNodes/2, false);
+        //GfaParser::getNodeData(inputGfaFilename, _nodeAbundances, _nodeLengths);
+        //_isNodeValid = vector<bool>(_graphSuccessors->_nbNodes, true);
+        //_isBubble = vector<bool>(_graphSuccessors->_nbNodes, false);
+
+    }
+
     ~GraphSimplify(){
         delete _graphSuccessors;
         //delete _graphPredecessors;
@@ -744,6 +768,7 @@ public:
 
             //if(nodeIndex % 2 == 0) continue;
 
+            //cout << BiGraph::nodeIndex_to_nodeName(startNode) << " " << BiGraph::nodeIndex_to_nodeName(endNode) << endl;
             _unitigs.push_back({unitigIndex, startNode, endNode, abundance_max, length});
             //outfile << "S" << "\t" << unitigIndex << "\t" << "*" << endl;
             unitigIndex += 1;
@@ -944,6 +969,22 @@ public:
         neighbors.insert(neighbors.end(), successors.begin(), successors.end());
         neighbors.insert(neighbors.end(), predecessors.begin(), predecessors.end());
     }
+
+    
+    void getSuccessors_unitig(u_int32_t unitigIndex, vector<u_int32_t>& successors){
+
+        successors.clear();
+
+        Unitig& unitig = _unitigs[unitigIndex];
+
+        vector<u_int32_t> successors_nodeIndex;
+        getSuccessors(unitig._endNode, 0, successors_nodeIndex);
+            
+        for(u_int32_t nodeIndex : successors_nodeIndex){
+            successors.push_back(nodeIndex_to_unitigIndex(nodeIndex));
+        }
+    }
+    
 
     bool isEdgeRemoved(u_int32_t nodeIndex_from, u_int32_t nodeIndex_to){
         DbgEdge edge = {nodeIndex_from, nodeIndex_to};
@@ -1375,6 +1416,130 @@ public:
         GfaParser::rewriteGfa_withoutNodes(_inputGfaFilename, _inputGfaFilename + "_component.gfa", validNodes, _isEdgeRemoved, _graphSuccessors);
 		//exit(1);
     }
+    
+    //https://networkx.org/documentation/networkx-1.9/_modules/networkx/algorithms/components/strongly_connected.html#strongly_connected_components
+    void getStronglyConnectedComponents(vector<vector<u_int32_t>>& sccs){
+
+        sccs.clear();
+
+        compact();
+        cout << "Nb unitigs: " << _unitigs.size() << endl;
+
+        unordered_map<u_int32_t, u_int32_t> preorder;
+        unordered_map<u_int32_t, u_int32_t> lowlink;
+        unordered_set<u_int32_t> scc_found;
+        vector<u_int32_t> scc_queue;
+        vector<u_int32_t> queue;
+
+        u_int64_t i = 0;
+
+        
+        for(Unitig& unitig_source : _unitigs){
+            //for(u_int32_t nodeIndex : _isNodeValid2){
+            if(scc_found.find(unitig_source._index) == scc_found.end()){
+                
+
+                queue.clear();
+                queue.push_back(unitig_source._index);
+
+                while(queue.size() > 0){
+                    u_int32_t v = queue[queue.size()-1];
+
+                    if(preorder.find(v) == preorder.end()){
+                        i += 1;
+                        preorder[v] = i;
+                    }
+
+                    bool done = true;
+
+                    vector<u_int32_t> v_nbrs;
+                    getSuccessors_unitig(v, v_nbrs); //_unitigs[v]._endNode
+                    
+                    for(u_int32_t w : v_nbrs){
+                        if(preorder.find(w) == preorder.end()){
+                            queue.push_back(w);
+                            done = false;
+                            break;
+                        }
+                    }
+
+                    if(done){
+                        lowlink[v] = preorder[v];
+                        for(u_int32_t w : v_nbrs){
+                            if(scc_found.find(w) == scc_found.end()){
+                                if(preorder[w] > preorder[v]){
+                                    lowlink[v] = min(lowlink[v], lowlink[w]);
+                                }
+                                else{
+                                    lowlink[v] = min(lowlink[v], preorder[w]);
+                                }
+                            }
+                        }
+
+                        queue.pop_back();
+
+                        if(lowlink[v] == preorder[v]){
+                            scc_found.insert(v);
+                            vector<u_int32_t> scc = {v};
+                            while(scc_queue.size() > 0 && preorder[scc_queue[scc_queue.size()-1]] > preorder[v]){
+                                u_int32_t k = scc_queue[scc_queue.size()-1];
+                                scc_queue.pop_back();
+                                scc_found.insert(k);
+                                scc.push_back(k);
+                            }
+                            sccs.push_back(scc);
+                        }
+                        else{
+                            scc_queue.push_back(v);
+                        }
+                    }
+                }
+            }
+        }
+
+    }
+
+    /*
+   preorder={}
+    lowlink={}
+    scc_found={}
+    scc_queue = []
+    i=0     # Preorder counter
+    for source in G:
+        if source not in scc_found:
+            queue=[source]
+            while queue:
+                v=queue[-1]
+                if v not in preorder: 
+                    i=i+1
+                    preorder[v]=i
+                done=1
+                v_nbrs=G[v] 
+                for w in v_nbrs:
+                    if w not in preorder: 
+                        queue.append(w)
+                        done=0
+                        break
+                if done==1:
+                    lowlink[v]=preorder[v]
+                    for w in v_nbrs:
+                        if w not in scc_found: 
+                            if preorder[w]>preorder[v]:
+                                lowlink[v]=min([lowlink[v],lowlink[w]])
+                            else:
+                                lowlink[v]=min([lowlink[v],preorder[w]])
+                    queue.pop()
+                    if lowlink[v]==preorder[v]: #
+                        scc_found[v]=True
+                        scc=[v]
+                        while scc_queue and preorder[scc_queue[-1]]>preorder[v]:
+                            k=scc_queue.pop()
+                            scc_found[k]=True
+                            scc.append(k)
+                        yield scc
+                    else:
+                        scc_queue.append(v) */
+
     
 
 };
