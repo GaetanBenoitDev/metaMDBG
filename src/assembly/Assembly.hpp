@@ -29,8 +29,82 @@ struct SuccessorData{
 
 
 
+/*
+class SourceSinkSolver{
+
+	GraphSimplify* _graph;
+
+	SourceSinkSolver(GraphSimplify* graph){
+		_graph = graph;
+	}
+
+	void solve_unitig(u_int32_t source_unitigIndex, u_int32_t sink_unitigIndex, vector<u_int32_t>& path){
+		shortestPath_unitig(source_unitigIndex, sink_unitigIndex, path);
+	}
 
 
+    u_int32_t shortestPath_unitig(u_int32_t source_unitigIndex, u_int32_t sink_unitigIndex, vector<u_int32_t>& path){
+
+		unordered_set<u_int32_t> isVisited;
+		unordered_map<u_int32_t, u_int32_t> distance;
+		unordered_map<u_int32_t, u_int32_t> prev;
+        queue<u_int32_t> queue;
+
+
+        distance[source_unitigIndex] = 0;
+        isVisited.insert(source_unitigIndex);
+		prev[source_unitigIndex] = -1;
+
+        queue.push(source_unitigIndex);
+        bool found = false;
+
+        while (!queue.empty() && !found){
+
+            u_int32_t unitigIndex_current = queue.front();
+            queue.pop();
+
+			vector<u_int32_t> successors;
+			_graph->getSuccessors_unitig(unitigIndex_current, successors);
+
+
+			for(u_int32_t unitigIndex_successor : successors){
+
+                if (isVisited.find(unitigIndex_successor) != isVisited.end()) continue;
+
+                distance[unitigIndex_successor] = distance[unitigIndex_current] + 1;
+                queue.push(unitigIndex_successor);
+                isVisited.insert(unitigIndex_successor);
+                prev[unitigIndex_successor] = unitigIndex_current;
+
+                if(unitigIndex_successor == sink_unitigIndex){
+                    found = true;
+                    break;
+                }
+
+            }
+
+
+
+        }
+
+        if(found){
+
+            path.clear();
+            u_int32_t n = sink_unitigIndex;
+            while(n != source_unitigIndex){
+                path.push_back(n);
+                n = prev[n];
+            }
+            path.push_back(source_unitigIndex);
+
+            return distance[sink_unitigIndex];
+        }
+
+        return -1;
+    }
+
+};
+*/
 
 class PathExplorer{
 
@@ -70,6 +144,7 @@ public:
 		u_int32_t current_nodeName = graph->_graphSuccessors->nodeIndex_to_nodeName(current_nodeIndex, orient_dummy);
 		u_int32_t current_abundance = graph->_nodeAbundances[current_nodeName]; //_unitigDatas[current_unitigIndex]._meanAbundance;
 
+		//cout << "Current node: " << current_nodeName << endl;
 		//if(_iter > 10000) return;
 
 		//cout << "----------- " << iter << endl;
@@ -98,6 +173,10 @@ public:
 			graph->getPredecessors(current_nodeIndex, _abundanceCutoff_min, successors);
 		}
 
+		//cout << successors.size() << endl;
+		//if(successors.size() > 0){
+		//	cout << BiGraph::nodeIndex_to_nodeName(successors[0]) << endl;
+		//}
 		//bool isBranchingNode = successors.size() > 1;
 		
 
@@ -1020,7 +1099,7 @@ public:
 
 		exit(1);
 		*/
-	
+
 		parseArgs();
 
 
@@ -1062,14 +1141,28 @@ public:
 	void execute_assembly(){
 
 		//size_t globalAbundanceCutoff_min = 3;
-
+		
 		string gfa_filename = _inputDir + "/minimizer_graph.gfa";
 		string gfa_filename_noUnsupportedEdges = _inputDir + "/minimizer_graph_noUnsupportedEdges.gfa";
 		//string gfa_filename_unitigs = _inputDir + "/minimizer_graph_unitigs.gfa";
 		string mdbg_filename = _inputDir + "/mdbg_nodes.gz";
 
+		/*
+        BiGraph* lol = GfaParser::createBiGraph_lol(_inputDir + "/minimizer_graph_noUnsupportedEdges.gfa_errorFree.gfa", true);
+		cout << "lala" << endl;
+		GraphSimplify* g = new GraphSimplify(lol);
+		cout << "lala" << endl;
+		g->debug_writeGfaErrorfree(0, 0, g->_graphSuccessors->nodeName_to_nodeIndex(582450, true));
+		exit(1);
+		*/
 
-
+		/*
+		GraphSimplify* g = new GraphSimplify(gfa_filename, _inputDir);
+		for(size_t i=0; i<1000000000; i++){
+			cout << "lala" << endl;
+		}
+		exit(1);
+		*/
 		/*
 		cout << "Simplifying graph" << endl;
 		GraphSimplify* graphSimplify2 = new GraphSimplify(gfa_filename, _inputDir);
@@ -1304,7 +1397,11 @@ public:
 
 		cout << "Simplifying graph" << endl;
 		GraphSimplify* graphSimplify = new GraphSimplify(gfa_filename_noUnsupportedEdges, _inputDir);
-		cout << graphSimplify->_graphSuccessors->_nbEdges << endl;
+		//graphSimplify->debug_writeGfaErrorfree(0, 0, BiGraph::nodeName_to_nodeIndex(5643, true));
+		//exit(1);
+
+
+		//cout << graphSimplify->_graphSuccessors->_nbEdges << endl;
 		graphSimplify->execute(5);
 
 		
@@ -1334,7 +1431,7 @@ public:
 
   
 		//562 (ecoli)
-		//solveBin(graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(1224833, false), 35, graphSimplify, 0);
+		//solveBin(graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(582450, true), 136, graphSimplify, 0);
 		//exit(1);
 
 

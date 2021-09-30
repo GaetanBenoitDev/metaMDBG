@@ -54,7 +54,10 @@ struct GraphNode {
     u_int64_t _nodeID, _length;
 };
 
-
+struct AdjNode {
+    u_int32_t _index;
+    float _overlap;
+};
 
 
 
@@ -692,7 +695,7 @@ int main()
 */
 
 class BiGraph{
-    
+    /*
     adjNode* getAdjListNode(u_int32_t to, float weight, adjNode* head)   {
         adjNode* newNode = new adjNode;
         newNode->val = to;
@@ -701,6 +704,7 @@ class BiGraph{
         newNode->next = head;
         return newNode;
     }
+    */
 
 public:
 
@@ -708,14 +712,14 @@ public:
     u_int64_t _nbEdges;
     //u_int32_t _nodeIndex;
 
-    vector<adjNode*> _nodes;
+    vector<vector<AdjNode>> _nodes;
     vector<bool> isVisited;
     vector<u_int32_t> distance;
     vector<u_int32_t> prev;
 
     BiGraph(u_int32_t nbNodes){
         _nbNodes = nbNodes * 2;
-        _nodes.resize(_nbNodes, nullptr);
+        _nodes.resize(_nbNodes);
 
         prev.resize(_nbNodes, 0);
         isVisited.resize(_nbNodes, 0);
@@ -726,9 +730,9 @@ public:
     }
 
     ~BiGraph() {
-        for (int i = 0; i < _nbNodes; i++){
-            delete[] _nodes[i];
-        }
+        //for (int i = 0; i < _nbNodes; i++){
+        //    delete[] _nodes[i];
+        //}
     }
 
     static u_int32_t nodeName_to_nodeIndex(u_int32_t nodeName, bool isOrientationForward){
@@ -755,7 +759,7 @@ public:
         u_int32_t nodeIndex_from = nodeName_to_nodeIndex(from, fromOrient);
         u_int32_t nodeIndex_to = nodeName_to_nodeIndex(to, toOrient);
 
-        _nodes[nodeIndex_from] = getAdjListNode(nodeIndex_to, weight, _nodes[nodeIndex_from]);
+        _nodes[nodeIndex_from].push_back({nodeIndex_to, weight});//getAdjListNode(nodeIndex_to, weight, _nodes[nodeIndex_from]);
         _nbEdges += 1;
 
         return true;
@@ -765,15 +769,32 @@ public:
 
         u_int32_t nodeIndex_from = nodeName_to_nodeIndex(from, true);
         u_int32_t nodeIndex_to = nodeName_to_nodeIndex(to, true);
-        _nodes[nodeIndex_from] = getAdjListNode(nodeIndex_to, 0, _nodes[nodeIndex_from]);
+        _nodes[nodeIndex_from].push_back({nodeIndex_to, 0}); //= getAdjListNode(nodeIndex_to, 0, _nodes[nodeIndex_from]);
         _nbEdges += 1;
 
         nodeIndex_from = nodeName_to_nodeIndex(to, false);
         nodeIndex_to = nodeName_to_nodeIndex(from, false);
-        _nodes[nodeIndex_from] = getAdjListNode(nodeIndex_to, 0, _nodes[nodeIndex_from]);
+        _nodes[nodeIndex_from].push_back({nodeIndex_to, 0});  // = getAdjListNode(nodeIndex_to, 0, _nodes[nodeIndex_from]);
         _nbEdges += 1;
 
         return true;
+    }
+
+    void removeEdge(u_int32_t from, bool fromOrient, u_int32_t to, bool toOrient){
+
+        u_int32_t nodeIndex_from = nodeName_to_nodeIndex(from, fromOrient);
+        u_int32_t nodeIndex_to = nodeName_to_nodeIndex(to, toOrient);
+
+        vector<AdjNode>& successors = _nodes[nodeIndex_from];
+        // Traversing through the first vector list
+        // and removing the second element from it
+        for (size_t i=0; i < successors.size(); i++) {
+            if (successors[i]._index == nodeIndex_to) {
+                successors.erase(successors.begin() + i);
+                break;
+            }
+        }
+    
     }
 
     static string nodeToString(u_int32_t nodeIndex){
@@ -819,20 +840,22 @@ public:
             u_int32_t n = queue.front();
             queue.pop();
 
-            adjNode* node = _nodes[n];
+            vector<AdjNode>& nodes = _nodes[n];
+            //& node = _nodes[n];
 
-            while (node != nullptr) {
+            //while (node != nullptr) {
+            for(AdjNode& node : nodes){
 
-                u_int32_t nn = node->val;
+                u_int32_t nn = node._index;
 
                 //if (isVisited[nn]){
                 if(isVisitedSet.find(nn) != isVisitedSet.end()){
-                    node = node->next;
+                    //node = node->next;
                     continue;
                 }
 
                 if(visitedNodes.find(nn) != visitedNodes.end()){
-                    node = node->next;
+                    //node = node->next;
                     continue;
                 }
 
@@ -847,14 +870,14 @@ public:
 
 
                 if(distance[nn] >= maxDistance){
-                    node = node->next;
+                    //node = node->next;
                     continue;
                 }
 
                 //cout << "Push: " << nn << " " << distance[nn] << endl;
                 queue.push(nn);
 
-                node = node->next;
+                //node = node->next;
             }
 
             if(maxNeighbors > 0 && neighbors.size() >= maxNeighbors){
@@ -870,9 +893,111 @@ public:
 
 
 
+};
+
+
+class Graph2{
+
+public:
+
+    u_int64_t _nbNodes;
+    u_int64_t _nbEdges;
+
+    vector<vector<AdjNode>> _successors;
+    vector<vector<AdjNode>> _predecessors;
+    
+    Graph2(){
+        //_nbNodes = nbNodes;
+        //_successors.resize(_nbNodes);
+        //_predecessors.resize(_nbNodes);
+
+        _successors.clear();
+        _predecessors.clear();
+        _nbNodes = 0;
+        _nbEdges = 0;
+    }
+
+    unordered_map<u_int32_t, u_int32_t> _nodeName_to_nodeIndex;
+    vector<u_int32_t> _nodeIndex_to_nodeName;
+
+
+    //vector<u_int64_t> _unitigs_length;
+
+    void addNode(u_int32_t nodeName){
+        if (_nodeName_to_nodeIndex.find(nodeName) != _nodeName_to_nodeIndex.end()) return;
+
+        _nodeName_to_nodeIndex[nodeName] = _nodeIndex_to_nodeName.size();
+        _nodeIndex_to_nodeName.push_back(nodeName);
+    }
+
+    u_int32_t nodeName_to_nodeIndex(u_int32_t nodeName){
+        return _nodeName_to_nodeIndex[nodeName];
+    }
+
+    u_int32_t nodeIndex_to_nodeName(u_int32_t nodeIndex){
+        return _nodeIndex_to_nodeName[nodeIndex];
+    }
+
+    void addEdge(u_int32_t from, u_int32_t to){
+
+        u_int32_t nodeIndex_from = nodeName_to_nodeIndex(from);
+        u_int32_t nodeIndex_to = nodeName_to_nodeIndex(to);
+        _successors[nodeIndex_from].push_back({nodeIndex_to, 0}); //= getAdjListNode(nodeIndex_to, 0, _nodes[nodeIndex_from]);
+        _predecessors[nodeIndex_to].push_back({nodeIndex_from, 0}); //= getAdjListNode(nodeIndex_to, 0, _nodes[nodeIndex_from]);
+        _nbEdges += 1;
+    }
+
+    void removeEdge(u_int32_t from, u_int32_t to){
+
+        u_int32_t nodeIndex_from = nodeName_to_nodeIndex(from);
+        u_int32_t nodeIndex_to = nodeName_to_nodeIndex(to);
+
+        vector<AdjNode>& successors = _successors[nodeIndex_from];
+        
+        for (size_t i=0; i < successors.size(); i++) {
+            if (successors[i]._index == nodeIndex_to) {
+                successors.erase(successors.begin() + i);
+                break;
+            }
+        }
+    
+        vector<AdjNode>& predecessors = _predecessors[nodeIndex_to];
+        
+        for (size_t i=0; i < predecessors.size(); i++) {
+            if (predecessors[i]._index == nodeIndex_from) {
+                predecessors.erase(predecessors.begin() + i);
+                break;
+            }
+        }
+
+    }
+    
+    u_int32_t in_degree(u_int32_t v){
+        return _predecessors[nodeName_to_nodeIndex(v)].size();
+    }
+    
+    u_int32_t out_degree(u_int32_t v){
+        return _successors[nodeName_to_nodeIndex(v)].size();
+    }
+
+    void getSuccessors(u_int32_t v, vector<u_int32_t>& successors){
+        successors.clear();
+        for(AdjNode& node : _successors[nodeName_to_nodeIndex(v)]){
+            successors.push_back(nodeIndex_to_nodeName(node._index));
+        }
+    }
+    
+    void getPredecessors(u_int32_t v, vector<u_int32_t>& predecessors){
+        predecessors.clear();
+        for(AdjNode& node : _predecessors[nodeName_to_nodeIndex(v)]){
+            predecessors.push_back(nodeIndex_to_nodeName(node._index));
+        }
+    }
 
 };
 
+
+/*
 class UnitigGraph{
     
     adjNode* getAdjListNode(u_int32_t to, float weight, adjNode* head)   {
@@ -933,24 +1058,15 @@ public:
             _nbEdges += 1;
             return true; 
         }
-        /*
-        if((fromOrient && toOrient) || (fromOrient && !toOrient) || (fromOrient && !toOrient)){
-            _nodes[from] = getAdjListNode(to, weight, _nodes[from]);
-            _nbEdges += 1;
-            return true;
-        }
-        else if(!fromOrient && !toOrient){
-            _nodes[to] = getAdjListNode(from, weight, _nodes[to]);
-            _nbEdges += 1;
-            return true;
-        }
-        */
+
 
         return false;
     }
 
 
 };
+*/
+
 
 
 #endif

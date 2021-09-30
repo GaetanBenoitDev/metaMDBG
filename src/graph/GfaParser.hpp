@@ -171,7 +171,8 @@ public:
         while (std::getline(infile, line)){
             if(line[0] == 'S') nbNodes += 1;
         }
-
+        //nbNodes = 5000000;
+        //cout << "to remove" << endl;
         BiGraph* graph = new BiGraph(nbNodes);
 
         infile.clear();
@@ -211,6 +212,7 @@ public:
         return graph;
     }
 
+    /*
     UnitigGraph* createGraph(const string& filename, vector<int32_t>& node_to_unitig, vector<u_int32_t>& unitigLengths){
 
         //unordered_map<u_int64_t, u_int64_t> counts;
@@ -282,27 +284,7 @@ public:
 
                 graph->addEdge(from_id, fromOrient, to_id, toOrient, 0);
 
-                /*
-                string& from = (*fields)[1];
-                bool isSuccessor = (*fields)[2] == "+";
-                string& to = (*fields)[3];
-                bool directionTo = (*fields)[4] == "+";
-                u_int64_t overlap = std::stoull((*fields)[5]);
-                //cout << line << endl;
-
-                u_int32_t from_id = unitigName_to_id(from);
-                u_int32_t to_id = unitigName_to_id(to);
-                graph->addNode(from_id);
-                graph->addNode(to_id);
-
-                graph->addEdge_checkDuplicate(from_id, to_id, 0, isSuccessor);
-                graph->addEdge_checkDuplicate(to_id, from_id, 0, !isSuccessor);
-                //graphInfo->addNode(from);
-                //graphInfo->addNode(to);
-
-                //graphEdges->push_back({graphInfo->name_to_id(from), graphInfo->name_to_id(to), overlap, directionFrom, directionTo, false});
-                //graphEdges->push_back({graph->name_to_id(to), graph->name_to_id(from), overlap, directionTo, directionFrom, true});
-                */
+                
             }
             else if((*fields)[0] == "A"){
 
@@ -339,21 +321,10 @@ public:
         delete fields;
         delete fields_optional;
 
-        /*
-        cout << "Creating graph" << endl;
-        graphInfo->create(graphNodes);
-        graph->create(graphEdges, graphNodes->size(), graphInfo);
-        cout << "done" << endl;
 
-        delete graphEdges;
-        delete graphNodes;
-
-        cout << graph->_nbNodes << endl;
-        cout << graph->_nbEdges << endl;
-        */
 
         return graph;
-    }
+    }*/
 
     static u_int64_t getNodeToUnitig(const string& filename, vector<int32_t>& node_to_unitig){
 
