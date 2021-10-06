@@ -157,7 +157,7 @@ public:
         return graph;
     }
 
-    static BiGraph* createBiGraph_lol(const string& filename, bool indexSuccessors){
+    static BiGraph* createBiGraph_lol(const string& filename, bool indexSuccessors, u_int32_t nbNodes){
 
 
         ifstream infile(filename);
@@ -166,11 +166,13 @@ public:
         vector<string>* fields = new vector<string>();
         vector<string>* fields_optional = new vector<string>();
 
-        u_int32_t nbNodes = 0;
-
-        while (std::getline(infile, line)){
-            if(line[0] == 'S') nbNodes += 1;
+        if(nbNodes == 0){
+            while (std::getline(infile, line)){
+                if(line[0] == 'S') nbNodes += 1;
+            }
         }
+
+
         //nbNodes = 5000000;
         //cout << "to remove" << endl;
         BiGraph* graph = new BiGraph(nbNodes);

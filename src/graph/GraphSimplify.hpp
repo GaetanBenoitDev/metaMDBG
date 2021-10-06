@@ -33,9 +33,9 @@ struct Unitig{
 
 
 
-"todo: take superbubble dans algo d'assemblage, ça peut loop actuellement"
-"calculer la vrai length des unitigs en prenant en compte les overlaps"
-"ne plus utiliser de component connexe qunad abondance < 30"
+//"todo: take superbubble dans algo d'assemblage, ça peut loop actuellement"
+//"calculer la vrai length des unitigs en prenant en compte les overlaps"
+//"ne plus utiliser de component connexe qunad abondance < 30"
 
 class GraphSimplify{
 
@@ -64,11 +64,11 @@ public:
     //GraphSimplify::SuperbubbleSimplify* _superbubbleSimplify;
     //u_int32_t _lastAbundanceCutoff;
 
-    GraphSimplify(const string& inputGfaFilename, const string& outputDir){
+    GraphSimplify(const string& inputGfaFilename, const string& outputDir, u_int32_t nbNodes){
         _inputGfaFilename = inputGfaFilename;
         _outputDir = outputDir;
 
-        _graphSuccessors = GfaParser::createBiGraph_lol(inputGfaFilename, true);
+        _graphSuccessors = GfaParser::createBiGraph_lol(inputGfaFilename, true, nbNodes);
 	    //_graphPredecessors = GfaParser::createBiGraph_lol(inputGfaFilename, false);
         _nodeAbundances.resize(_graphSuccessors->_nbNodes/2, false);
         _nodeLengths.resize(_graphSuccessors->_nbNodes/2, false);
@@ -136,6 +136,9 @@ public:
         _isEdgeRemoved.clear();
         _bubbles.clear();
         
+
+            //_isNodeValid2.erase(BiGraph::nodeName_to_nodeIndex(1009227, false));
+            //_isNodeValid2.erase(BiGraph::nodeName_to_nodeIndex(1009227, true));
     }
 
     /*
@@ -1178,6 +1181,8 @@ push s into S
                 continue;
             }
             
+
+            
             /*
             if(BiGraph::nodeName_to_nodeIndex(2068, false) == nn){
                 continue;
@@ -1230,6 +1235,8 @@ push s into S
                 //node = node->next;
                 continue;
             }
+
+
 
             /*
             if(BiGraph::nodeName_to_nodeIndex(2068, false) == nn){
@@ -1602,20 +1609,15 @@ push s into S
         //compact();
         //superbubble(50000);
         
-        /*
-        cout << "TODO: write valid ndoes instead of removedNodes... evite de faire cette indexation inutile" << endl;
+        
+        //Debug gfa
         unordered_set<u_int32_t> validNodes;
-
-
         for (auto& nodeIndex : _isNodeValid2){
             u_int32_t nodeName = _graphSuccessors->nodeIndex_to_nodeName(nodeIndex);
             validNodes.insert(nodeName);
         }
-        
-
-        //Debug gfa
         GfaParser::rewriteGfa_withoutNodes(_inputGfaFilename, _inputGfaFilename + "_errorFree.gfa", validNodes, _isEdgeRemoved, _graphSuccessors);
-        */
+        
 
 
         /*

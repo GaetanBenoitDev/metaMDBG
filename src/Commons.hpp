@@ -26,6 +26,7 @@ using namespace std;
 #define STR_DENSITY "-d"
 #define STR_INPUT_DIR "-idir"
 #define STR_INPUT_TRUTH "-itruth"
+#define STR_HIFIASM_DEBUG "--debug"
 
 
 //KMER_SPAN(1)
@@ -514,6 +515,7 @@ public:
 
 	static void getKminmers(const size_t l, const size_t k, const vector<u_int64_t>& minimizers, const vector<u_int64_t>& minimizersPos, vector<KmerVec>& kminmers, vector<ReadKminmer>& kminmersLength, const vector<u_int64_t>& rlePositions, int readIndex){
 
+
         kminmersLength.clear();
         bool doesComputeLength = minimizersPos.size() > 0;
 		/*
@@ -559,10 +561,19 @@ public:
 
 		while(true){
 
+			//if(readIndex == 94931){
+			//	cout << "------------------------" << endl;
+			//}
+
 			bool hasPalindrome = false;
 
 			int i_max = ((int)minimizers.size()) - (int)k + 1;
 			for(int i=0; i<i_max; i++){
+
+				//if(readIndex == 94931){
+				//	cout << i << ": " << minimizers[i] << endl;
+				//}
+
 				if(bannedPositions[i]) continue;
 
 				KmerVec vec;
@@ -578,19 +589,39 @@ public:
 					}
 
 					u_int64_t minimizer = minimizers[j];
+
+
 					//if(bannedMinimizers.find(minimizer) != bannedMinimizers.end()) continue;
 
 					vec._kmers.push_back(minimizer);
 					currentMinimizerIndex.push_back(j);
 
 					if(vec._kmers.size() == k){
+
+
+						//if(readIndex == 94931){
+							//cout << "-----" << endl;
+							//cout << vec._kmers[0] << endl;
+							//cout << vec._kmers[1] << endl;
+							//cout << vec._kmers[2] << endl;
+						//}
+
 						if(vec.isPalindrome()){
+
+							//if(readIndex == 96573){
+							//	cout << "\tPalouf" << endl;
+							//}
+
 							//cout << "Palindrome!" << endl;
 							//for(size_t p=j-_kminmerSize+1; p<=j-1; p++){
 							//	bannedPositions[p] = true;
 							//}
 							for(size_t m=0; m<k; m++){
 								bannedPositions[currentMinimizerIndex[m]] = true;
+
+								//if(readIndex == 94931){
+								//	cout << "Banned: " << currentMinimizerIndex[m] << endl;
+								//}
 								//cout << "Banned: " << currentMinimizerIndex[m] << endl;
 							}
 							/*
@@ -747,6 +778,10 @@ public:
 								//cout << "HAAAA: " << length << endl;
                                 kminmersLength.push_back({read_pos_start, read_pos_end, length, isReversed, position_of_second_minimizer, position_of_second_to_last_minimizer, position_of_second_minimizer_seq, position_of_second_to_last_minimizer_seq, seq_length_start, seq_length_end});
                             }
+
+							//if(readIndex == 30539){
+							//	cout << vec._kmers[0] << " " << vec._kmers[1] << " " << vec._kmers[2] << endl;
+							//}
 
 							kminmers.push_back(vec);
 							break;

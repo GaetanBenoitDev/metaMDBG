@@ -316,6 +316,21 @@ public:
 				MDBG::getKminmers(_minimizerSize, _kminmerSize, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex);
 
 				/*
+				if(readIndex == 30539){
+					cout << "--------------" << endl;
+					for(size_t i=0; i<kminmers.size(); i++){
+						u_int32_t nodeName = _mdbg->_dbg_nodes[kminmers[i]]._index;
+						
+						cout << nodeName << "          " << kminmers[i]._kmers[0] << " " << kminmers[i]._kmers[1] << " " << kminmers[i]._kmers[2] << "         " << _mdbg->_dbg_nodes[kminmers[i]]._abundance << endl;
+
+					}
+
+					exit(1);
+
+				}
+				*/
+
+				/*
 				if(readIndex == 584 || readIndex == 920){
 
 					//cout << sequence.toString() << endl;
