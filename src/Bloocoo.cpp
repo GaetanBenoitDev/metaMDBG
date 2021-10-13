@@ -388,8 +388,8 @@ void Bloocoo::createMDBG (){
 
 	//unordered_map<MinimizerPair, u_int16_t> minimizerCounts;
 	unordered_map<u_int64_t, u_int64_t> minimizerCounts;
-	unordered_map<KmerVec, u_int32_t> kminmerCounts;
-	unordered_map<KmerVec, u_int16_t> kminmersData;
+	//unordered_map<KmerVec, u_int32_t> kminmerCounts;
+	unordered_map<KmerVec, KminmerData> kminmersData;
 
 
 
@@ -731,6 +731,11 @@ void Bloocoo::createMDBG (){
 			}
 			*/
 
+			//Small hack to disable rle positions mapping, the mdbg work on compressed positions
+			for(size_t i=0; i<rlePositions.size(); i++){
+				rlePositions[i] = i;
+			}
+
 			vector<KmerVec> kminmers; 
 			vector<ReadKminmer> kminmersInfo;
 			MDBG::getKminmers(_minimizerSize, _kminmerSize, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex);
@@ -739,8 +744,13 @@ void Bloocoo::createMDBG (){
 			bool isLoulou = false;
 
 			for(size_t i=0; i<kminmers.size(); i++){
-				kminmerCounts[kminmers[i]] += 1;
-				kminmersData[kminmers[i]] = kminmersInfo[i]._length;
+
+				if(kminmersData.find(kminmers[i]) == kminmersData.end()){
+					kminmersData[kminmers[i]] = {0, kminmersInfo[i]._length - _minimizerSize, kminmersInfo[i]._seq_length_start, kminmersInfo[i]._seq_length_end, kminmersInfo[i]._isReversed};
+				}
+
+				kminmersData[kminmers[i]]._count += 1;
+				//kminmersData[kminmers[i]] = kminmersInfo[i]._length;
 
 				//if(kminmers[i]._kmers[0] == 81904984297519754 && kminmers[i]._kmers[1] == 37284240752535023 && kminmers[i]._kmers[2] == 82851683898915704){
 				//	isLala = true;
@@ -1051,7 +1061,8 @@ void Bloocoo::createMDBG (){
 	*/
 
 	//gzclose(file_readData);
-	cout << "Nb kminmers: " << kminmerCounts.size() << endl;
+
+	cout << "Nb kminmers: " << kminmersData.size() << endl;
 
 	file_readData = gzopen(_filename_readMinimizers.c_str(),"rb");
 	//cout << "Nb edges: " << nbEdges << endl;
@@ -1091,7 +1102,7 @@ void Bloocoo::createMDBG (){
 		vector<u_int32_t> abundances;
 
 		for(KmerVec& vec : kminmers){
-			abundances.push_back(kminmerCounts[vec]);
+			abundances.push_back(kminmersData[vec]._count);
 		}
 
 		float minAbundance_cutoff = compute_median(abundances) / 2;
@@ -1106,13 +1117,15 @@ void Bloocoo::createMDBG (){
 
 		for(KmerVec& vec : kminmers){
 			//if(kminmerCounts[vec] > 1000) cout << kminmerCounts[vec] << endl;
-			if(kminmerCounts[vec] <= 2){
-				if(kminmerCounts[vec] <= minAbundance_cutoff) continue;
+			if(kminmersData[vec]._count <= 2){
+				if(kminmersData[vec]._count <= minAbundance_cutoff) continue;
 			}
 
 
 			//cout << kminmersData[vec] << endl;
-			_mdbg->addNode(vec, kminmersData[vec]);
+
+			KminmerData& kminmerData = kminmersData[vec];
+			_mdbg->addNode(vec, kminmerData._length, kminmerData._overlapLength_start, kminmerData._overlapLength_end, kminmerData._isReversed);
 
 			/*
 			if(_mdbg->_dbg_nodes[vec]._index == 7837 || _mdbg->_dbg_nodes[vec]._index == 7836){
@@ -1247,22 +1260,26 @@ void Bloocoo::createGfa(){
 
 			if (vec.suffix() == v.prefix()) {
 				nbEdges += 1;
-				output_file_gfa << "L" << "\t" << id << "\t" << "+" << "\t" << _mdbg->_dbg_nodes[v]._index << "\t" << "+" << "\t" << "0M" << endl;
+				u_int16_t overlapLength = _mdbg->_dbg_nodes[vec]._overlapLength_end;
+				output_file_gfa << "L" << "\t" << id << "\t" << "+" << "\t" << _mdbg->_dbg_nodes[v]._index << "\t" << "+" << "\t" << overlapLength << "M" << endl;
 				//vec_add_edge("+", "+");
 			}
 			if (vec.suffix() == v_rev.prefix()) {
 				nbEdges += 1;
-				output_file_gfa << "L" << "\t" << id << "\t" << "+" << "\t" << _mdbg->_dbg_nodes[v]._index << "\t" << "-" << "\t" << "0M" << endl;
+				u_int16_t overlapLength = _mdbg->_dbg_nodes[vec]._overlapLength_end;
+				output_file_gfa << "L" << "\t" << id << "\t" << "+" << "\t" << _mdbg->_dbg_nodes[v]._index << "\t" << "-" << "\t" << overlapLength << "M" << endl;
 				//vec_add_edge("+", "-");
 			}
 			if (vec_rev.suffix() == v.prefix()) {
 				nbEdges += 1;
-				output_file_gfa << "L" << "\t" << id << "\t" << "-" << "\t" << _mdbg->_dbg_nodes[v]._index << "\t" << "+" << "\t" << "0M" << endl;
+				u_int16_t overlapLength = _mdbg->_dbg_nodes[vec]._overlapLength_start;
+				output_file_gfa << "L" << "\t" << id << "\t" << "-" << "\t" << _mdbg->_dbg_nodes[v]._index << "\t" << "+" << "\t" << overlapLength << "M" << endl;
 				//vec_add_edge("-", "+");
 			}
 			if (vec_rev.suffix() == v_rev.prefix()) {
 				nbEdges += 1;
-				output_file_gfa << "L" << "\t" << id << "\t" << "-" << "\t" << _mdbg->_dbg_nodes[v]._index << "\t" << "-" << "\t" << "0M" << endl;
+				u_int16_t overlapLength = _mdbg->_dbg_nodes[vec]._overlapLength_start;
+				output_file_gfa << "L" << "\t" << id << "\t" << "-" << "\t" << _mdbg->_dbg_nodes[v]._index << "\t" << "-" << "\t" << overlapLength << "M" << endl;
 				//vec_add_edge("-", "-");
 			}
 
@@ -1273,22 +1290,26 @@ void Bloocoo::createGfa(){
 
 			if (vec.suffix() == v.prefix()) {
 				nbEdges += 1;
-				output_file_gfa << "L" << "\t" << id << "\t" << "+" << "\t" << _mdbg->_dbg_nodes[v]._index << "\t" << "+" << "\t" << "0M" << endl;
+				u_int16_t overlapLength = _mdbg->_dbg_nodes[vec]._overlapLength_end;
+				output_file_gfa << "L" << "\t" << id << "\t" << "+" << "\t" << _mdbg->_dbg_nodes[v]._index << "\t" << "+" << "\t" << overlapLength << "M" << endl;
 				//vec_add_edge("+", "+");
 			}
 			if (vec.suffix() == v_rev.prefix()) {
 				nbEdges += 1;
-				output_file_gfa << "L" << "\t" << id << "\t" << "+" << "\t" << _mdbg->_dbg_nodes[v]._index << "\t" << "-" << "\t" << "0M" << endl;
+				u_int16_t overlapLength = _mdbg->_dbg_nodes[vec]._overlapLength_end;
+				output_file_gfa << "L" << "\t" << id << "\t" << "+" << "\t" << _mdbg->_dbg_nodes[v]._index << "\t" << "-" << "\t" << overlapLength << "M" << endl;
 				//vec_add_edge("+", "-");
 			}
 			if (vec_rev.suffix() == v.prefix()) {
 				nbEdges += 1;
-				output_file_gfa << "L" << "\t" << id << "\t" << "-" << "\t" << _mdbg->_dbg_nodes[v]._index << "\t" << "+" << "\t" << "0M" << endl;
+				u_int16_t overlapLength = _mdbg->_dbg_nodes[vec]._overlapLength_start;
+				output_file_gfa << "L" << "\t" << id << "\t" << "-" << "\t" << _mdbg->_dbg_nodes[v]._index << "\t" << "+" << "\t" << overlapLength << "M" << endl;
 				//vec_add_edge("-", "+");
 			}
 			if (vec_rev.suffix() == v_rev.prefix()) {
 				nbEdges += 1;
-				output_file_gfa << "L" << "\t" << id << "\t" << "-" << "\t" << _mdbg->_dbg_nodes[v]._index << "\t" << "-" << "\t" << "0M" << endl;
+				u_int16_t overlapLength = _mdbg->_dbg_nodes[vec]._overlapLength_start;
+				output_file_gfa << "L" << "\t" << id << "\t" << "-" << "\t" << _mdbg->_dbg_nodes[v]._index << "\t" << "-" << "\t" << overlapLength << "M" << endl;
 				//vec_add_edge("-", "-");
 			}
 		}

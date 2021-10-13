@@ -824,6 +824,10 @@ push s into S
         return _unitigs[_nodeToUnitig[nodeIndex]];
     }
 
+    u_int32_t getNodeUnitigAbundance(u_int32_t nodeIndex){
+        return _unitigs[_nodeToUnitig[nodeIndex]]._abundance;
+    }
+
     void compact(){
 
         #ifdef PRINT_DEBUG_SIMPLIFICATION
@@ -983,6 +987,7 @@ push s into S
             
             size_t i=0;
             u_int32_t nbNodes = 0;
+            u_int32_t lastNode = -1;
 
             while(true){
 
@@ -995,8 +1000,18 @@ push s into S
                     abundance_max = _nodeAbundances[nodeName];
                 }
 
-                length += _nodeLengths[nodeName];
-                //abundance_sum += _nodeAbundances[nodeName];
+                if(i == 0){
+                    length += _nodeLengths[nodeName];
+                }
+                else{
+                    u_int16_t overlapLength = _graphSuccessors->getOverlap(lastNode, node);
+                    length += _nodeLengths[nodeName] - overlapLength;
+                }
+
+                //if(BiGraph::nodeIndex_to_nodeName(startNode) == 5304){
+                //    cout << "\t" << length << endl;
+                //}
+                abundance_sum += _nodeAbundances[nodeName];
                 //nbNodes += 1;
 
                 getSuccessors(node, 0, neighbors);
@@ -1023,7 +1038,7 @@ push s into S
                     if(node == endNode) break;
                 }
 
-                
+                lastNode = node;
                 node = neighbors[0];
 
 
@@ -1051,8 +1066,9 @@ push s into S
 
             //if(nodeIndex % 2 == 0) continue;
 
+            //cout << "Unitig: " << BiGraph::nodeIndex_to_nodeName(startNode) << " " << length << endl;
             //cout << BiGraph::nodeIndex_to_nodeName(startNode) << " " << BiGraph::nodeIndex_to_nodeName(endNode) << endl;
-            _unitigs.push_back({unitigIndex, startNode, endNode, abundance_max, length, nbNodes});
+            _unitigs.push_back({unitigIndex, startNode, endNode, abundance_sum / nbNodes, length, nbNodes});
             //outfile << "S" << "\t" << unitigIndex << "\t" << "*" << endl;
             unitigIndex += 1;
 
@@ -1610,6 +1626,7 @@ push s into S
         //superbubble(50000);
         
         
+        
         //Debug gfa
         unordered_set<u_int32_t> validNodes;
         for (auto& nodeIndex : _isNodeValid2){
@@ -1619,7 +1636,7 @@ push s into S
         GfaParser::rewriteGfa_withoutNodes(_inputGfaFilename, _inputGfaFilename + "_errorFree.gfa", validNodes, _isEdgeRemoved, _graphSuccessors);
         
 
-
+        //exit(1);
         /*
         //cout << "orlolo" << endl;
         for(size_t nodeIndex=0; nodeIndex<_graphSuccessors->_nbNodes; nodeIndex++){

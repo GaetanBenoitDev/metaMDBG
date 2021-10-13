@@ -192,16 +192,16 @@ public:
                 bool fromOrient = (*fields)[2] == "+";
                 string& to = (*fields)[3];
                 bool toOrient = (*fields)[4] == "+";
-                u_int64_t overlap = std::stoull((*fields)[5]);
+                u_int16_t overlap = std::stoull((*fields)[5]);
 
                 u_int32_t from_id = std::stoull(from);
                 u_int32_t to_id = std::stoull(to);
-
+                
                 if(indexSuccessors){
-                    graph->addEdge(from_id, fromOrient, to_id, toOrient, 0);
+                    graph->addEdge(from_id, fromOrient, to_id, toOrient, overlap);
                 }
                 else{
-                    graph->addEdge(to_id, toOrient, from_id, fromOrient, 0);
+                    graph->addEdge(to_id, toOrient, from_id, fromOrient, overlap);
                 }
             }
 

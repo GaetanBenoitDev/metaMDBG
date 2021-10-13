@@ -119,6 +119,9 @@ struct DbgNode{
 	u_int32_t _index;
 	u_int32_t _abundance;
 	u_int16_t _length;
+	u_int16_t _overlapLength_start;
+	u_int16_t _overlapLength_end;
+	bool _isReversed;
 };
 
 
@@ -400,7 +403,7 @@ public:
 		_node_id = 0;
 	}
 
-	void addNode(const KmerVec& vec, u_int16_t length){
+	void addNode(const KmerVec& vec, u_int16_t length, u_int16_t overlapLength_start, u_int16_t overlapLength_end, bool isReversed){
 
 
 
@@ -414,7 +417,7 @@ public:
 		}
 
 
-		DbgNode node = {_node_id, 1, length};
+		DbgNode node = {_node_id, 1, length, overlapLength_start, overlapLength_end, isReversed};
 		_dbg_nodes[vec] = node;
 
 		_dbg_edges[vec.prefix().normalize()].push_back(vec);
@@ -552,7 +555,13 @@ public:
 			//kminmers.push_back(vec.normalize());
 		}*/
 		
-
+		/*
+		if(readIndex == 39679){
+			for(size_t i=0; i<minimizers.size(); i++){
+				cout << i << ": " << minimizers[i] << endl;
+			}
+		}
+		*/
 		
 		if(minimizers.size() < k) return;
 
@@ -561,11 +570,12 @@ public:
 
 		while(true){
 
-			//if(readIndex == 94931){
+			//if(readIndex == 39679){
 			//	cout << "------------------------" << endl;
 			//}
 
 			bool hasPalindrome = false;
+			KmerVec prevVec;
 
 			int i_max = ((int)minimizers.size()) - (int)k + 1;
 			for(int i=0; i<i_max; i++){
@@ -598,15 +608,16 @@ public:
 
 					if(vec._kmers.size() == k){
 
+						/*
+						if(readIndex == 39679){
+							cout << "-----" << endl;
+							cout << vec._kmers[0] << endl;
+							cout << vec._kmers[1] << endl;
+							cout << vec._kmers[2] << endl;
+						}
+						*/
 
-						//if(readIndex == 94931){
-							//cout << "-----" << endl;
-							//cout << vec._kmers[0] << endl;
-							//cout << vec._kmers[1] << endl;
-							//cout << vec._kmers[2] << endl;
-						//}
-
-						if(vec.isPalindrome()){
+						if(vec.isPalindrome() || (i > 0 && vec.normalize() == prevVec.normalize())){ //Palindrome: 121 (créé un cycle), Large palindrome = 122 221 (créé une tip)
 
 							//if(readIndex == 96573){
 							//	cout << "\tPalouf" << endl;
@@ -619,7 +630,7 @@ public:
 							for(size_t m=0; m<k; m++){
 								bannedPositions[currentMinimizerIndex[m]] = true;
 
-								//if(readIndex == 94931){
+								//if(readIndex == 39679){
 								//	cout << "Banned: " << currentMinimizerIndex[m] << endl;
 								//}
 								//cout << "Banned: " << currentMinimizerIndex[m] << endl;
@@ -783,6 +794,7 @@ public:
 							//	cout << vec._kmers[0] << " " << vec._kmers[1] << " " << vec._kmers[2] << endl;
 							//}
 
+							prevVec = vec;
 							kminmers.push_back(vec);
 							break;
 						}

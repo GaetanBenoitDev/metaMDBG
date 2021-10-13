@@ -36,6 +36,14 @@
 
 class Bloocoo : public Tool{
     
+	struct KminmerData{
+		u_int32_t _count;
+		u_int16_t _length;
+		u_int16_t _overlapLength_start;
+		u_int16_t _overlapLength_end;
+		bool _isReversed;
+	};
+
 public:
 
 	string _inputFilename;

@@ -3,6 +3,10 @@
 //	hifiasm ground truth: utiliser contig plutot que unitig pour avoir un meilleur ordering
 //	"
 
+//PB: quand zone complexe tres fragmenté en unitig (succession d'unitig tres court), le bestPrevUnitigRank n'est pas très faible si ça se joue à un unitig prêt, ajouter une notion 
+//collectPossibleSuccessors: ici on ne veut prune que les chemins dont on est sûr à 100% qu'il ne peuvent pas etre successeur, donc plutot une methode permissive, les loop font qu'on peut rater le bon successeur si on est trop stringent
+//Idée: Utiliser strongly connected component -> si solved, on parcours le chemin résolu et on vérifie qu'il n'y a pas d'alternative dû a un génome incomplet (grande tips probablement), si chemin alternatif, on cancel le chemin et on l'assemble avec un connected component classique
+
 #ifndef MDBG_METAG_ASSEMBLY
 #define MDBG_METAG_ASSEMBLY
 
@@ -25,14 +29,15 @@ struct SuccessorData{
 	u_int32_t _nodeIndex;
 	u_int32_t _abundance;
 	u_int32_t _sourceAbundance;
-	u_int32_t _prevRank;
-	u_int32_t _prevUnitigRank;
+	int _prevRank;
+	int _prevUnitigRank;
 	bool _prevRankFinished;
 	u_int32_t _nodeIndexSuccessor;
 	u_int32_t _distanceFromSource;
 	u_int32_t _prevUnitigIndex;
 	int _nbSharedReads;
 	vector<u_int32_t> _path;
+	u_int32_t _pathLength;
 	//vector<u_int32_t> _processedNodeIndex;
 };
 
@@ -149,7 +154,7 @@ public:
 		_currentPathLength = currentPathLength;
 	}
 
-	u_int32_t getNextNode(u_int32_t current_nodeIndex, GraphSimplify* graph, bool forward, u_int32_t currentDepth, u_int32_t& resultType, vector<u_int32_t>& nextNodes, bool usePathSuccessors){
+	u_int32_t getNextNode(u_int32_t current_nodeIndex, GraphSimplify* graph, bool forward, u_int32_t currentDepth, u_int32_t& resultType, vector<SuccessorData>& nextNodes, bool usePathSuccessors){
 
 		nextNodes.clear();
 		resultType = 0;
@@ -263,7 +268,7 @@ public:
 				u_int32_t successor_nodeName = graph->_graphSuccessors->nodeIndex_to_nodeName(utg_n, orient_dummy);
 				u_int32_t successor_abundance = graph->_nodeAbundances[successor_nodeName]; //_unitigDatas[unitigIndex]._meanAbundance;
 
-				SuccessorData successor = {utg_n, successor_abundance, 0, 0, 0, false, utg_n, 0, 0, -1, {}};
+				SuccessorData successor = {utg_n, successor_abundance, 0, 0, 0, false, utg_n, 0, 0, -1, {}, 0};
 				successor._sourceAbundance = abs((int)successor._abundance - (int)_source_abundance);
 				data_successors.push_back(successor);
 
@@ -279,7 +284,8 @@ public:
 			unordered_map<u_int32_t, vector<u_int32_t>> successorPaths;
 			
 			//for(u_int32_t utg_n : successors){
-			collectPossibleSuccessors(current_nodeIndex, graph, _unitigDatas, forward, 0, 0, pathDummy, successorPaths);
+			unordered_map<u_int32_t, u_int16_t> nbVisitedTimes;
+			collectPossibleSuccessors(current_nodeIndex, graph, _unitigDatas, forward, 0, 0, pathDummy, successorPaths, nbVisitedTimes);
 			//collectPossibleSuccessors(current_nodeIndex, graph, _unitigDatas, forward, 0, 0, possibleSuccessors);
 			
 			for(auto& it : successorPaths){
@@ -308,8 +314,8 @@ public:
 				u_int32_t successor_nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
 				u_int32_t successor_abundance = graph->_nodeAbundances[successor_nodeName]; //_unitigDatas[unitigIndex]._meanAbundance;
 
-				SuccessorData successor = {nodeIndex, successor_abundance, 0, 0, 0, false, nodeIndex, distance, 0, -1, path};
-				successor._sourceAbundance = abs((int)successor._abundance - (int)_source_abundance);
+				SuccessorData successor = {nodeIndex, successor_abundance, 0, 0, 0, false, nodeIndex, distance, 0, -1, path, 0};
+				successor._sourceAbundance = abs((long)successor._abundance - (long)_source_abundance);
 				data_successors.push_back(successor);
 
 			}
@@ -319,14 +325,14 @@ public:
 			if(currentDepth == 0){
 				if(successors.size() > 1){
 					for(size_t i=0; i<currentDepth; i++) cout << "  ";
-					cout << "----------- " << endl;
-					cout << "Nb prev nodes: " << _prevNodes.size() << endl;
-					cout << "Nb possible successors: " << successorPaths.size() << endl;
+					cout << "\t----------- " << endl;
+					cout << "\tNb prev nodes: " << _prevNodes.size() << endl;
+					cout << "\tNb possible successors: " << successorPaths.size() << endl;
  					//for(u_int32_t utg_n : successors){
 					for(SuccessorData& successor : data_successors){
 						u_int32_t utg_n = successor._nodeIndex;
 						//for(size_t i=0; i<currentDepth; i++) cout << "  ";
-						cout << graph->_graphSuccessors->nodeToString(current_nodeIndex) << " " << " -> " <<  graph->_graphSuccessors->nodeToString(utg_n) << " " << computeSharedReads(_unitigDatas[current_nodeName], _unitigDatas[graph->_graphSuccessors->nodeIndex_to_nodeName(utg_n, orient_dummy)]) << endl;
+						cout << "\t" << graph->_graphSuccessors->nodeToString(current_nodeIndex) << " " << " -> " <<  graph->_graphSuccessors->nodeToString(utg_n) << " " << computeSharedReads(_unitigDatas[current_nodeName], _unitigDatas[graph->_graphSuccessors->nodeIndex_to_nodeName(utg_n, orient_dummy)]) << endl;
 					
 					}
 				}
@@ -352,7 +358,16 @@ public:
 			return -1;
 		}
 		else if(data_successors.size() == 1){
-			current_nodeIndex = data_successors[0]._nodeIndexSuccessor;
+
+			//cout << "ONE SUCC: " << data_successors[0]._path.size() << endl;
+			//for(u_int32_t nodeIndex: data_successors[0]._path){
+			//	cout << "\t" << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
+			//}
+			if(data_successors[0]._path.size() == 0){ //Si useSuccessorPath, le path est deja complet
+				data_successors[0]._path.push_back(current_nodeIndex);
+				current_nodeIndex = data_successors[0]._nodeIndexSuccessor;
+				data_successors[0]._path.push_back(current_nodeIndex);
+			}
 			//_solvedUnitigs.insert(graph->nodeIndex_to_unitigIndex(current_nodeIndex));
 			/*
 			//Anti-bug temp
@@ -364,7 +379,7 @@ public:
 
 			*/
 			updateNodeChosen(current_nodeIndex, currentDepth);
-			nextNodes.push_back(current_nodeIndex);
+			nextNodes.push_back(data_successors[0]);
 			return current_nodeIndex;
 		}
 		else{
@@ -403,15 +418,15 @@ public:
 				}
 			}*/
 			
-			//if(usePathSuccessors){
+			if(usePathSuccessors){
 				//cout << "allo " << data_successors.size() << endl;
 				vector<SuccessorData> dummy;
 				computeBestSuccessors_byUnitigRank(graph, _unitigDatas, data_successors, 0, dummy, 0, true, true, forward);
-			//}
+			}
 
 			vector<SuccessorData> successors_bestPrevUnitigRank_noCutoff;
-			computeBestSuccessors_byUnitigRank_all(graph, _unitigDatas, data_successors, currentDepth, forward, successors_bestPrevUnitigRank_noCutoff, true);
-			if(!usePathSuccessors) computeBestSuccessors_byUnitigRank_all(graph, _unitigDatas, data_successors, currentDepth, forward, successors_bestPrevUnitigRank_noCutoff, false);
+			computeBestSuccessors_byUnitigRank_all(graph, _unitigDatas, data_successors, currentDepth, forward, successors_bestPrevUnitigRank_noCutoff, true, usePathSuccessors);
+			if(!usePathSuccessors) computeBestSuccessors_byUnitigRank_all(graph, _unitigDatas, data_successors, currentDepth, forward, successors_bestPrevUnitigRank_noCutoff, false, usePathSuccessors);
 	
 			if(usePathSuccessors){
 			
@@ -442,11 +457,11 @@ public:
 				current_nodeIndex = successors_bestPrevUnitigRank_noCutoff[0]._nodeIndexSuccessor;
 
 				if(currentDepth == 0){
-					cout << "Node chosen: " << graph->_graphSuccessors->nodeToString(current_nodeIndex) << " " << graph->_nodeAbundances[graph->_graphSuccessors->nodeIndex_to_nodeName(current_nodeIndex, orient_dummy)]  << endl;
+					cout << "\tNode chosen: " << graph->_graphSuccessors->nodeToString(current_nodeIndex) << " " << graph->_nodeAbundances[graph->_graphSuccessors->nodeIndex_to_nodeName(current_nodeIndex, orient_dummy)]  << endl;
 				}
 
 				//updateNodeChosen(current_nodeIndex, currentDepth);
-				nextNodes.push_back(current_nodeIndex);
+				nextNodes.push_back(successors_bestPrevUnitigRank_noCutoff[0]);
 				return current_nodeIndex;
 			}
 
@@ -646,7 +661,7 @@ public:
 
 
 
-
+			//cout << "lalala " << successors_bestPrevUnitigRank_noCutoff.size() << endl;
 			if(successors_bestPrevUnitigRank_noCutoff.size() >= 2){
 				bool isBubble = true;
 				for(SuccessorData& successor : successors_bestPrevUnitigRank_noCutoff){
@@ -654,13 +669,18 @@ public:
 						isBubble = false;
 					}
 				}
+				//cout << isBubble << endl;
 				if(isBubble){
+					
+					"reprise: ajouter issuperbubble avec successeur seuelement"
+					sort(successors_bestPrevUnitigRank_noCutoff.begin(), successors_bestPrevUnitigRank_noCutoff.end(), SuccessorComparator_byAbundanceToSource);
+
 					//if(currentDepth == 0){
-						cout << "Take bubble: " << graph->_graphSuccessors->nodeToString(successors_bestPrevUnitigRank_noCutoff[0]._nodeIndexSuccessor) << endl;
+						cout << "\tTake bubble: " << graph->_graphSuccessors->nodeToString(successors_bestPrevUnitigRank_noCutoff[0]._nodeIndexSuccessor) << endl;
 					//}
 					//exit(1);
 					updateNodeChosen(successors_bestPrevUnitigRank_noCutoff[0]._nodeIndexSuccessor, currentDepth);
-					nextNodes.push_back(successors_bestPrevUnitigRank_noCutoff[0]._nodeIndexSuccessor);
+					nextNodes.push_back(successors_bestPrevUnitigRank_noCutoff[0]);
 					return successors_bestPrevUnitigRank_noCutoff[0]._nodeIndexSuccessor;
 				}
 
@@ -672,14 +692,14 @@ public:
 
 				if(currentDepth == 0){
 					for(size_t i=0; i<currentDepth; i++) cout << "  ";
-					cout << "Check simple cycle" << endl;
+					cout << "\tCheck simple cycle" << endl;
 				}
 
 				for(SuccessorData& successor : successors_bestPrevUnitigRank_noCutoff){
 
 					if(isSmallCycle(successor._nodeIndexSuccessor, current_nodeIndex, graph, _unitigDatas, forward, currentDepth+1)){
 						updateNodeChosen(successor._nodeIndexSuccessor, currentDepth);
-						nextNodes.push_back(successor._nodeIndexSuccessor);
+						nextNodes.push_back(successor);
 						return successor._nodeIndexSuccessor;
 					}
 					
@@ -702,7 +722,7 @@ public:
 						if(isSmallCycle(from_nodeIndex, to_nodeIndex, graph, _unitigDatas, forward, currentDepth+1)){
 							//exit(1);
 							updateNodeChosen(from_nodeIndex, currentDepth);
-							nextNodes.push_back(from_nodeIndex);
+							nextNodes.push_back(successors_bestPrevUnitigRank_noCutoff[j]);
 							return from_nodeIndex;
 						}
 
@@ -712,7 +732,7 @@ public:
 			
 			
 			for(size_t i=0; i<successors_bestPrevUnitigRank_noCutoff.size(); i++){
-				nextNodes.push_back(successors_bestPrevUnitigRank_noCutoff[i]._nodeIndexSuccessor);
+				nextNodes.push_back(successors_bestPrevUnitigRank_noCutoff[i]);
 			}
 
 
@@ -729,90 +749,129 @@ public:
 
 	}
 
-	void computeBestSuccessors_byUnitigRank_all(GraphSimplify* graph, vector<UnitigData>& _unitigDatas, vector<SuccessorData>& data_successors2, int currentDepth, bool forward, vector<SuccessorData>& validSuccessors, bool includeVisitedSuccessors){
-	
+	void computeBestSuccessors_byUnitigRank_all(GraphSimplify* graph, vector<UnitigData>& _unitigDatas, vector<SuccessorData>& data_successors2, int currentDepth, bool forward, vector<SuccessorData>& validSuccessors, bool includeVisitedSuccessors, bool usePathSuccessors){
+
+
+		//cout << currentDepth << " " << usePathSuccessors << endl;
+		float cutoff_min = _abundanceCutoff_min/4;
+		//(!usePathSuccessors){
+		//	cutoff_min = 1;
+		//}
+
+		//cout << "Cutoff min: " << cutoff_min << endl;
+
 		vector<SuccessorData> data_successors;
 		for(SuccessorData& s : data_successors2){
 			if(!includeVisitedSuccessors && _visitedNodes.find(BiGraph::nodeIndex_to_nodeName(s._nodeIndex)) != _visitedNodes.end()) continue;
 			data_successors.push_back(s);
 		}
 
+		if(data_successors.size() == 0) return;
 		//Print debug prev ranks
 
 
 
 		vector<SuccessorData> successors_bestPrevUnitigRank_cutoff;
-		computeBestSuccessors_byUnitigRank(graph, _unitigDatas, data_successors, currentDepth, successors_bestPrevUnitigRank_cutoff, _abundanceCutoff_min/2, true, false, forward);
-		if(successors_bestPrevUnitigRank_cutoff.size() == 1){
-			u_int32_t current_nodeIndex = successors_bestPrevUnitigRank_cutoff[0]._nodeIndexSuccessor;
+		//if(usePathSuccessors){
+			//cout << cutoff_min << endl;
+			computeBestSuccessors_byUnitigRank(graph, _unitigDatas, data_successors, currentDepth, successors_bestPrevUnitigRank_cutoff, cutoff_min, true, false, forward);
+			if(successors_bestPrevUnitigRank_cutoff.size() == 1){
+				u_int32_t current_nodeIndex = successors_bestPrevUnitigRank_cutoff[0]._nodeIndexSuccessor;
 
-			if(currentDepth == 1){
-				cout << "Node chosen 1: " << BiGraph::nodeIndex_to_nodeName(current_nodeIndex) << endl;// << " " << graph->_nodeAbundances[graph->_graphSuccessors->nodeIndex_to_nodeName(current_nodeIndex, orient_dummy)]  << endl;
+				if(currentDepth == 1){
+					cout << "\tNode chosen 1: " << BiGraph::nodeIndex_to_nodeName(current_nodeIndex) << endl;// << " " << graph->_nodeAbundances[graph->_graphSuccessors->nodeIndex_to_nodeName(current_nodeIndex, orient_dummy)]  << endl;
+				}
+
+				//updateNodeChosen(current_nodeIndex, currentDepth);
+				//nextNodes.push_back(current_nodeIndex);
+				//return current_nodeIndex;
+				validSuccessors.push_back(successors_bestPrevUnitigRank_cutoff[0]);
+				return;
 			}
-
-			//updateNodeChosen(current_nodeIndex, currentDepth);
-			//nextNodes.push_back(current_nodeIndex);
-			//return current_nodeIndex;
-			validSuccessors.push_back(successors_bestPrevUnitigRank_cutoff[0]);
-			return;
-		}
+		//}
 
 		
 		vector<SuccessorData> successors_bestPrevUnitigRank_noCutoff;
-		computeBestSuccessors_byUnitigRank(graph, _unitigDatas, data_successors, currentDepth, successors_bestPrevUnitigRank_noCutoff, 0, true, false, forward);
-		if(successors_bestPrevUnitigRank_noCutoff.size() == 1){
-			u_int32_t current_nodeIndex = successors_bestPrevUnitigRank_noCutoff[0]._nodeIndexSuccessor;
+		if(usePathSuccessors){
+			computeBestSuccessors_byUnitigRank(graph, _unitigDatas, data_successors, currentDepth, successors_bestPrevUnitigRank_noCutoff, 0, true, false, forward);
+			if(successors_bestPrevUnitigRank_noCutoff.size() == 1){
+				u_int32_t current_nodeIndex = successors_bestPrevUnitigRank_noCutoff[0]._nodeIndexSuccessor;
 
-			if(currentDepth == 1){
-				cout << "Node chosen 2: " << BiGraph::nodeIndex_to_nodeName(current_nodeIndex) << endl;//<< " " << graph->_nodeAbundances[graph->_graphSuccessors->nodeIndex_to_nodeName(current_nodeIndex, orient_dummy)]  << endl;
-			}
-
-			//updateNodeChosen(current_nodeIndex, currentDepth);
-			//nextNodes.push_back(current_nodeIndex);
-			//return current_nodeIndex;
-			validSuccessors.push_back(successors_bestPrevUnitigRank_noCutoff[0]);
-			return;
-		}
-
-		vector<SuccessorData> successors_bestPrevRank;
-		computeBestSuccessors_byUnitigRank(graph, _unitigDatas, data_successors, currentDepth, successors_bestPrevRank, _abundanceCutoff_min/2, false, false, forward);
-		if(successors_bestPrevRank.size() == 1){
-			u_int32_t current_nodeIndex = successors_bestPrevRank[0]._nodeIndexSuccessor;
-
-			if(currentDepth == 1){
-				cout << "Node chosen 3: " << BiGraph::nodeIndex_to_nodeName(current_nodeIndex) << endl;//<< " " << graph->_nodeAbundances[graph->_graphSuccessors->nodeIndex_to_nodeName(current_nodeIndex, orient_dummy)]  << endl;
-			}
-
-			//updateNodeChosen(current_nodeIndex, currentDepth);
-			//nextNodes.push_back(current_nodeIndex);
-			//return current_nodeIndex;
-			validSuccessors.push_back(successors_bestPrevRank[0]);
-			return;
-		}
-
-
-		for(SuccessorData& successorData : successors_bestPrevUnitigRank_cutoff){
-			
-			bool exist = false;
-			for(SuccessorData& s : validSuccessors){
-				if(s._nodeIndex == successorData._nodeIndex){
-					exist = true;
-					break;
+				if(currentDepth == 1){
+					cout << "\tNode chosen 2: " << BiGraph::nodeIndex_to_nodeName(current_nodeIndex) << endl;//<< " " << graph->_nodeAbundances[graph->_graphSuccessors->nodeIndex_to_nodeName(current_nodeIndex, orient_dummy)]  << endl;
 				}
-			}
-			if(exist) continue;
 
-			validSuccessors.push_back(successorData);
+				//updateNodeChosen(current_nodeIndex, currentDepth);
+				//nextNodes.push_back(current_nodeIndex);
+				//return current_nodeIndex;
+				validSuccessors.push_back(successors_bestPrevUnitigRank_noCutoff[0]);
+				return;
+			}
+		}
+
+		/*
+		if(usePathSuccessors){
+			vector<SuccessorData> successors_bestPrevRank;
+			computeBestSuccessors_byUnitigRank(graph, _unitigDatas, data_successors, currentDepth, successors_bestPrevRank, cutoff_min, false, false, forward);
+			if(successors_bestPrevRank.size() == 1){
+				u_int32_t current_nodeIndex = successors_bestPrevRank[0]._nodeIndexSuccessor;
+
+				if(currentDepth == 1){
+					cout << "\tNode chosen 3: " << BiGraph::nodeIndex_to_nodeName(current_nodeIndex) << endl;//<< " " << graph->_nodeAbundances[graph->_graphSuccessors->nodeIndex_to_nodeName(current_nodeIndex, orient_dummy)]  << endl;
+				}
+
+				//updateNodeChosen(current_nodeIndex, currentDepth);
+				//nextNodes.push_back(current_nodeIndex);
+				//return current_nodeIndex;
+				validSuccessors.push_back(successors_bestPrevRank[0]);
+				return;
+			}
+		}
+		*/
+
+		if(usePathSuccessors){
+			for(SuccessorData& successorData : successors_bestPrevUnitigRank_cutoff){
+				
+				bool exist = false;
+				for(SuccessorData& s : validSuccessors){
+					if(s._nodeIndex == successorData._nodeIndex){
+						exist = true;
+						break;
+					}
+				}
+				if(exist) continue;
+
+				validSuccessors.push_back(successorData);
+			}
+		}
+		else{
+			for(SuccessorData& successorData : successors_bestPrevUnitigRank_cutoff){
+				
+				bool exist = false;
+				for(SuccessorData& s : validSuccessors){
+					if(s._nodeIndex == successorData._nodeIndex){
+						exist = true;
+						break;
+					}
+				}
+				if(exist) continue;
+
+				validSuccessors.push_back(successorData);
+			}
 		}
 	}
 
 	void computeBestSuccessors_byUnitigRank(GraphSimplify* graph, vector<UnitigData>& _unitigDatas, vector<SuccessorData>& data_successors, int currentDepth, vector<SuccessorData>& successors_bestPrevUnitigRank, float abundanceCutoff_min, bool useUnitigRank, bool print_debug, bool forward){
 
+		if(currentDepth == 0){
+			cout << endl << "Cutoff: " << abundanceCutoff_min << endl;
+		}
 
 		for(SuccessorData& successor : data_successors){
 			successor._prevRankFinished = false;
-			successor._prevUnitigRank = 0;
-			successor._prevRank = 0;
+			successor._prevUnitigRank = -1;
+			successor._prevRank = -1;
+			successor._pathLength = 0;
 		}
 
 		successors_bestPrevUnitigRank.clear();
@@ -821,6 +880,10 @@ public:
 
 		u_int32_t prevRank = 0;
 		u_int32_t prevRank_unitig = 0;
+		size_t i = 0;
+
+		u_int32_t lastNode = -1;
+		u_int32_t pathLength = 0;
 
 		while(true){
 			
@@ -839,6 +902,14 @@ public:
 
 			u_int32_t prev_nodeIndex = _prevNodes[prevIndex];
 			u_int32_t prev_nodeName = graph->_graphSuccessors->nodeIndex_to_nodeName(prev_nodeIndex);
+
+			if(i == 0){
+				pathLength = graph->_nodeLengths[prev_nodeName];
+			}
+			else{
+				u_int16_t overlapLength = graph->_graphSuccessors->getOverlap(lastNode, prev_nodeIndex);
+				pathLength += (graph->_nodeLengths[prev_nodeName] - overlapLength);
+			}
 
 			//cout << prevIndex << " " << prev_nodeIndex << endl;
 			//u_int32_t current_unitigIndex = graph->_graphSuccessors->nodeIndex_to_nodeName(current_nodeIndex, orient_dummy);
@@ -872,7 +943,7 @@ public:
 				//if(nbSharedReads > _abundanceCutoff_min/2){
 				//if(nbSharedReads > successor._abundance/5){
 				//if(nbSharedReads > 0){
-				if(nbSharedReads > abundanceCutoff_min){
+				if(nbSharedReads > 0 && nbSharedReads > abundanceCutoff_min){
 
 					if(successor._nbSharedReads == -1){
 						successor._nbSharedReads = nbSharedReads;
@@ -884,7 +955,10 @@ public:
 					successor._prevUnitigRank = prevRank_unitig; //prevRank_unitig; //prevRank; //TODO better comparison in number of nucletoides
 					successor._prevRank = prevRank; //prevRank_unitig; //prevRank; //TODO better comparison in number of nucletoides
 					nbUnfinishedSuccessors += 1;
+					successor._pathLength = pathLength;
+
 					//successor._processedNodeIndex.push_back(prev_nodeIndex);
+
 				}
 				else{
 					successor._prevRankFinished = true;
@@ -900,8 +974,12 @@ public:
 				//cout << "    " << prevRank << ": " <<  graph->nodeToString(current_nodeIndex) << "     " << graph->nodeToString(successor._nodeIndex)  << ": " << nbSharedReads;
 				
 				//if(foundPath) break;
+
+				lastNode = prev_nodeIndex;
+				i += 1;
 			}
 
+			str_debug += "    " + to_string(pathLength);
 			/*
 			if(!print_debug && currentDepth == 0){
 				if(nbUnfinishedSuccessors == 1){ //We record solved unitigs
@@ -926,12 +1004,12 @@ public:
 			//cout << canExplorePath << endl;
 			//cout << current_nodeIndex << " "  <<  _source_nodeIndex << endl;
 
-			if(print_debug){
+			//if(print_debug){
 				if(currentDepth == 0){
 					//for(size_t i=0; i<currentDepth; i++) cout << "  ";
 					cout << str_debug << endl;
 				}
-			}
+			//}
 
 
 			prevRank += 1;
@@ -943,10 +1021,21 @@ public:
 
 		if(print_debug) return;
 
+		std::sort(data_successors.begin(), data_successors.end(), SuccessorComparator_byPathLength);
+		int maxPathLength = data_successors[0]._pathLength;
+		//cout << "MAX 2: " << maxPrevRank << endl;
+		//vector<SuccessorData> successors_bestPrevRank;
+		for(SuccessorData& successor : data_successors){
+			if(successor._pathLength > maxPathLength-2000){
+				successors_bestPrevUnitigRank.push_back(successor);
+			}
+		}
+
+		/*
 		if(useUnitigRank){
 			std::sort(data_successors.begin(), data_successors.end(), SuccessorComparator_byPrevUnitigRank);
-			u_int32_t maxPrevUnitigRank = data_successors[0]._prevUnitigRank;
-			//cout << maxPrevUnitigRank << endl;
+			int maxPrevUnitigRank = data_successors[0]._prevUnitigRank;
+			//cout << "MAX 1: " << maxPrevUnitigRank << endl;
 			
 			for(SuccessorData& successor : data_successors){
 				//cout << BiGraph::nodeIndex_to_nodeName(successor._nodeIndex) << " " <<  successor._prevUnitigRank << " " << maxPrevUnitigRank << endl;
@@ -957,8 +1046,10 @@ public:
 		}
 		else{
 
+			
 			std::sort(data_successors.begin(), data_successors.end(), SuccessorComparator_byPrevRank);
-			u_int32_t maxPrevRank = data_successors[0]._prevRank;
+			int maxPrevRank = data_successors[0]._prevRank;
+			//cout << "MAX 2: " << maxPrevRank << endl;
 			//vector<SuccessorData> successors_bestPrevRank;
 			for(SuccessorData& successor : data_successors){
 				if(successor._prevRank > maxPrevRank-5){
@@ -967,20 +1058,32 @@ public:
 			}
 
 		}
+		*/
 
 		
 		if(currentDepth == 0 && abundanceCutoff_min != 0){
 
 			unordered_set<u_int32_t> reachableSuccessors;
 			for(size_t i=0; i<successors_bestPrevUnitigRank.size(); i++){
-				for(size_t j=i+1; j<successors_bestPrevUnitigRank.size(); j++){
+				for(size_t j=0; j<successors_bestPrevUnitigRank.size(); j++){
+					if(i == j) continue; 
 					if(reachableSuccessors.find(successors_bestPrevUnitigRank[j]._nodeIndex) != reachableSuccessors.end()) continue; //Already reached
-					if(isReachable2(successors_bestPrevUnitigRank[i]._nodeIndex, successors_bestPrevUnitigRank[j]._nodeIndex, graph, _unitigDatas, forward, currentDepth+1, 0, false) && isReachable2(successors_bestPrevUnitigRank[j]._nodeIndex, successors_bestPrevUnitigRank[i]._nodeIndex, graph, _unitigDatas, forward, currentDepth+1, 0, false)){
-						cout << "Is reachable: " << BiGraph::nodeIndex_to_nodeName(successors_bestPrevUnitigRank[j]._nodeIndex) << " (From " << BiGraph::nodeIndex_to_nodeName(successors_bestPrevUnitigRank[i]._nodeIndex) << ")" << endl;
+						cout << "Check reachable (" << currentDepth  << "): " << BiGraph::nodeIndex_to_nodeName(successors_bestPrevUnitigRank[j]._nodeIndex) << " (From " << BiGraph::nodeIndex_to_nodeName(successors_bestPrevUnitigRank[i]._nodeIndex) << ")" << endl;
+						if(isReachable2(successors_bestPrevUnitigRank[i]._nodeIndex, successors_bestPrevUnitigRank[j]._nodeIndex, graph, _unitigDatas, forward, currentDepth+1, 0, false)){//} && isReachable2(successors_bestPrevUnitigRank[j]._nodeIndex, successors_bestPrevUnitigRank[i]._nodeIndex, graph, _unitigDatas, forward, currentDepth+1, 0, false)){
+						cout << "\tIs reachable: " << BiGraph::nodeIndex_to_nodeName(successors_bestPrevUnitigRank[j]._nodeIndex) << " (From " << BiGraph::nodeIndex_to_nodeName(successors_bestPrevUnitigRank[i]._nodeIndex) << ")" << endl;
 						reachableSuccessors.insert(successors_bestPrevUnitigRank[j]._nodeIndex);
 					}
-					else if(isReachable2(successors_bestPrevUnitigRank[i]._nodeIndex, successors_bestPrevUnitigRank[j]._nodeIndex, graph, _unitigDatas, forward, currentDepth+1, 0, true) && isReachable2(successors_bestPrevUnitigRank[j]._nodeIndex, successors_bestPrevUnitigRank[i]._nodeIndex, graph, _unitigDatas, forward, currentDepth+1, 0, true)){
-						cout << "Is reachable (RC): " << BiGraph::nodeIndex_to_nodeName(successors_bestPrevUnitigRank[j]._nodeIndex) << " (From " << BiGraph::nodeIndex_to_nodeName(successors_bestPrevUnitigRank[i]._nodeIndex) << ")" << endl;
+				}
+			}
+					
+					
+					
+					
+			for(size_t i=0; i<successors_bestPrevUnitigRank.size(); i++){
+				for(size_t j=i+1; j<successors_bestPrevUnitigRank.size(); j++){
+					if(reachableSuccessors.find(successors_bestPrevUnitigRank[j]._nodeIndex) != reachableSuccessors.end()) continue; //Already reached
+					if(isReachable2(successors_bestPrevUnitigRank[i]._nodeIndex, successors_bestPrevUnitigRank[j]._nodeIndex, graph, _unitigDatas, forward, currentDepth+1, 0, true) && isReachable2(successors_bestPrevUnitigRank[j]._nodeIndex, successors_bestPrevUnitigRank[i]._nodeIndex, graph, _unitigDatas, forward, currentDepth+1, 0, true)){
+						cout << "\tIs reachable (RC): " << BiGraph::nodeIndex_to_nodeName(successors_bestPrevUnitigRank[j]._nodeIndex) << " (From " << BiGraph::nodeIndex_to_nodeName(successors_bestPrevUnitigRank[i]._nodeIndex) << ")" << endl;
 						//cout << successors_bestPrevUnitigRank[i]._nbSharedReads << " " << successors_bestPrevUnitigRank[j]._nbSharedReads << endl;
 						if(successors_bestPrevUnitigRank[i]._nbSharedReads > successors_bestPrevUnitigRank[j]._nbSharedReads){
 							reachableSuccessors.insert(successors_bestPrevUnitigRank[j]._nodeIndex);
@@ -1103,7 +1206,8 @@ public:
 					if(BiGraph::nodeIndex_to_nodeName(u) == BiGraph::nodeIndex_to_nodeName(to_nodeIndex)) return true;
 				}
 
-				distance[u] = distance[v] + graph->_nodeLengths[BiGraph::nodeIndex_to_nodeName(u)];
+				u_int16_t overlapLength = graph->_graphSuccessors->getOverlap(v, u);
+				distance[u] = distance[v] + (graph->_nodeLengths[BiGraph::nodeIndex_to_nodeName(u)] - overlapLength);
 				queue.push_back(u);
 			}
 
@@ -1380,8 +1484,20 @@ public:
 	}
 	*/
 
-	void collectPossibleSuccessors(u_int32_t current_nodeIndex, GraphSimplify* graph, vector<UnitigData>& _unitigDatas, bool forward, u_int32_t currentDepth, u_int64_t currentLength, vector<u_int32_t> path, unordered_map<u_int32_t, vector<u_int32_t>>& successorPaths){
+	void collectPossibleSuccessors(u_int32_t current_nodeIndex, GraphSimplify* graph, vector<UnitigData>& _unitigDatas, bool forward, u_int32_t currentDepth, u_int64_t currentLength, vector<u_int32_t> path, unordered_map<u_int32_t, vector<u_int32_t>>& successorPaths, unordered_map<u_int32_t, u_int16_t> nbVisitedTimes){
 		
+		u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(current_nodeIndex);
+		nbVisitedTimes[nodeName] += 1;
+
+		u_int32_t maxVisitable = (graph->getNodeUnitigAbundance(current_nodeIndex) / (float) _source_abundance) * 20;
+		
+	
+		//cout << nodeName << " " << maxVisitable << " " << graph->getNodeUnitigAbundance(current_nodeIndex) << " " << _source_abundance << endl;
+
+		if(nbVisitedTimes[nodeName] > maxVisitable){
+			return;
+		}
+
 		//cout << currentLength << ":     " << BiGraph::nodeIndex_to_nodeName(current_nodeIndex) << endl;
 		path.push_back(current_nodeIndex);
 		//if(currentDepth == 0){	
@@ -1389,11 +1505,14 @@ public:
 		//}
 
 		if(_visitedNodes.find(BiGraph::nodeIndex_to_nodeName(current_nodeIndex)) == _visitedNodes.end()){
+			//cout << "Not visited: " << BiGraph::nodeIndex_to_nodeName(current_nodeIndex) << endl;
 			successorPaths[current_nodeIndex] = path;
 			return;
 		}
 
-		if(currentLength > maxLength){
+		//cout << currentDepth << " " << currentLength << endl;
+		//cout << nbBranchs << endl;
+		if(currentLength > maxLength){//|| currentDepth > 50){
 			return;
 		}
 
@@ -1401,12 +1520,15 @@ public:
 		pathExplorer.nodeExplored(current_nodeIndex, graph);
 		
 		u_int32_t resultType;
-		vector<u_int32_t> nextNodes;
+		vector<SuccessorData> nextNodes;
 		pathExplorer.getNextNode(current_nodeIndex, graph, forward, currentDepth+1, resultType, nextNodes, false);
 
-		for(u_int32_t nodeIndex_successor : nextNodes){
-			pathExplorer.collectPossibleSuccessors(nodeIndex_successor, graph, _unitigDatas, forward, currentDepth+1, currentLength+graph->_nodeLengths[BiGraph::nodeIndex_to_nodeName(nodeIndex_successor)], path, successorPaths);
+		for(SuccessorData& successorData : nextNodes){
+			
+			u_int16_t overlapLength = graph->_graphSuccessors->getOverlap(current_nodeIndex, successorData._nodeIndex);
+			pathExplorer.collectPossibleSuccessors(successorData._nodeIndex, graph, _unitigDatas, forward, currentDepth+1, currentLength+(graph->_nodeLengths[BiGraph::nodeIndex_to_nodeName(successorData._nodeIndex)] - overlapLength), path, successorPaths, nbVisitedTimes);
 		}
+
 
 		/*
 		while(true){
@@ -1461,7 +1583,7 @@ public:
 		//	return;
 		//}
 
-		if(currentLength > maxLength_reachable){
+		if(currentLength > maxLength_reachable || currentDepth > 50){
 			return false;
 		}
 
@@ -1469,11 +1591,12 @@ public:
 		pathExplorer.nodeExplored(current_nodeIndex, graph);
 		
 		u_int32_t resultType;
-		vector<u_int32_t> nextNodes;
+		vector<SuccessorData> nextNodes;
 		pathExplorer.getNextNode(current_nodeIndex, graph, forward, currentDepth+1, resultType, nextNodes, false);
 
-		for(u_int32_t nodeIndex_successor : nextNodes){
-			bool isReachable = pathExplorer.isReachable2(nodeIndex_successor, to_nodeIndex, graph, _unitigDatas, forward, currentDepth+1, currentLength+graph->_nodeLengths[BiGraph::nodeIndex_to_nodeName(nodeIndex_successor)], allowReverseDirection);
+		for(SuccessorData& successorData : nextNodes){
+			u_int16_t overlapLength = graph->_graphSuccessors->getOverlap(current_nodeIndex, successorData._nodeIndex);
+			bool isReachable = pathExplorer.isReachable2(successorData._nodeIndex, to_nodeIndex, graph, _unitigDatas, forward, currentDepth+1, currentLength+(graph->_nodeLengths[BiGraph::nodeIndex_to_nodeName(successorData._nodeIndex)]-overlapLength), allowReverseDirection);
 			if(isReachable) return true;
 		}
 
@@ -1686,7 +1809,7 @@ public:
 		while(true){
 		
 			u_int32_t resultType;
-			vector<u_int32_t> nextNodes;
+			vector<SuccessorData> nextNodes;
 			from_nodeIndex = pathExplorer.getNextNode(from_nodeIndex, graph, forward, currentDepth, resultType, nextNodes, false);
 			//cout << graph->_graphSuccessors->nodeToString(from_nodeIndex) << endl;
 			pathExplorer._visitedNodes.insert(BiGraph::nodeIndex_to_nodeName(from_nodeIndex));
@@ -1889,8 +2012,16 @@ public:
 		return a._distanceFromSource < b._distanceFromSource;
 	}
 
+	static bool SuccessorComparator_byAbundanceToSource(const SuccessorData &a, const SuccessorData &b){
+		return a._sourceAbundance < b._sourceAbundance;
+	}
+
 	static bool SuccessorComparator_byNbSharedReads(const SuccessorData &a, const SuccessorData &b){
 		return a._nbSharedReads > b._nbSharedReads;
+	}
+
+	static bool SuccessorComparator_byPathLength(const SuccessorData &a, const SuccessorData &b){
+		return a._pathLength > b._pathLength;
 	}
 
 	static void clampPrevNodes(vector<u_int32_t>& prevNodes, vector<UnitigData>& _unitigDatas){
@@ -1940,6 +2071,7 @@ public:
 	string _filename_hifiasmGroundtruth;
 	unordered_map<KmerVec, u_int16_t> _evaluation_hifiasmGroundTruth;
 	unordered_map<KmerVec, u_int32_t> _evaluation_hifiasmGroundTruth_position;
+	unordered_map<u_int32_t, u_int32_t> _evaluation_hifiasmGroundTruth_nodeNamePosition;
 	gzFile _outputContigFile;
 
 	Assembly(): Tool ("asm"){
@@ -2238,7 +2370,7 @@ public:
 		GraphSimplify* graphSimplify = new GraphSimplify(gfa_filename_noUnsupportedEdges, _inputDir, 0);
 		
 		
-		/*
+		
 		graphSimplify->clear(0);
 		
 		cout << "Collecting truth kminmers" << endl;
@@ -2287,7 +2419,7 @@ public:
 			cout << groundTruth_kminmers.size() << endl;
 		}
 		cout << "Nb nodes abundant: " << groundTruth_kminmers.size() << endl;
-		cout << "Founded: " << founded << endl;
+		cout << "Found: " << founded << endl;
 		GfaParser::rewriteGfa_withNodes(gfa_filename_noUnsupportedEdges, gfa_filename + "_groundTruth_hifiasm.gfa", groundTruth_kminmers);
 		file_groundTruth_hifiasm.close();
 		file_groundTruth_hifiasm_position.close();
@@ -2307,9 +2439,27 @@ public:
 		
 		gzclose(file_groundTruth_hifiasm_data);
 
-
+		u_int32_t startingNodeName = -1;
+		for(auto& it: _evaluation_hifiasmGroundTruth_nodeNamePosition){
+			if(it.second == 0){
+				startingNodeName = it.first;
+				break;
+			}
+		}
+		cout << "Position 0: " << startingNodeName << endl;
+		u_int32_t nodeIndex = graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(startingNodeName, true);
+		graphSimplify->debug_writeGfaErrorfree(5, 5, nodeIndex);
+		u_int32_t abundance = graphSimplify->getNodeUnitigAbundance(nodeIndex);
+		solveBin(nodeIndex, abundance, graphSimplify, 0, true);
+		gzclose(_outputContigFile);
 		exit(1);
-		*/
+
+		
+
+
+
+
+
 
 
 
@@ -2349,7 +2499,7 @@ public:
 
 
 		//562 (ecoli)
-		solveBin(graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(2505, true), 40, graphSimplify, 0, true);
+		//solveBin(graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(426182, true), 160, graphSimplify, 0, true);
 		//exit(1);
 
 
@@ -2673,10 +2823,15 @@ public:
 				UnitigData& unitigData = _unitigDatas[nodeName];
 				unitigData._readIndexes.push_back(readIndex);
 
-				
-				if(nodeName == 1009227){
+				/*
+				if(nodeName == 1839895){
 					cout << nodeName << " " << readIndex << endl;
-				}
+					cout << vec._kmers[0] << endl;
+					cout << vec._kmers[1] << endl;
+					cout << vec._kmers[2] << endl;
+					exit(1);
+				}*/
+				
 				//if(nodeName == 460064){
 				//	cout << nodeName << " " << readIndex << endl;
 				//}
@@ -2908,10 +3063,6 @@ public:
 		return a._prevRank > b._prevRank;
 	}
 
-	static bool SuccessorComparator_byAbundance(const SuccessorData &a, const SuccessorData &b){
-		return a._sourceAbundance < b._sourceAbundance;
-	}
-
 	static bool UnitigComparator_ByLength(const UnitigLength &a, const UnitigLength &b){
 		return a._length > b._length;
 	}
@@ -3018,15 +3169,15 @@ public:
 		cout << "Abundance cutoff min: " << abundanceCutoff_min << endl;
 		//if(abundanceCutoff_min < 30) return;
 
-		if(performCleaning){
+		//if(performCleaning){
 			cout << "Simplifying graph local" << endl;
 			//graph->clear();
 			graph->debug_writeGfaErrorfree(abundance, abundanceCutoff_min, source_nodeIndex);
-		}
-		else{
-			graph->clear(0);
-			graph->compact();
-		}
+		//}
+		//else{
+			//graph->clear(0);
+			//graph->compact();
+		//}
 		//graph->clear();
 		//graph->execute(abundanceCutoff_min);
 		//graph = graph->clone();
@@ -3040,6 +3191,7 @@ public:
 			return false; //????
 		}
 		u_int32_t source_abundance = graph->_unitigs[graph->_nodeToUnitig[source_nodeIndex]]._abundance;
+		//cout << source_abundance << endl;
 		cout << graph->_unitigs[graph->_nodeToUnitig[source_nodeIndex]]._abundance << endl;
 		//cout << "PAS BON CA: utiliser successeur puis predeesseur" << endl;
 			cout << endl << endl << endl << endl << endl << "----- Forward -------------------------------------------------------------------------------------------------------------------------------------" << endl;
@@ -3055,8 +3207,9 @@ public:
 		vector<u_int32_t> nodePath_forward = pathData.nodePath;
 		getSupportingReads(nodePath_forward, supportingReads_forward);
 
-		cout << "to remvoe exit" << endl;
-		exit(1);
+		//cout << "to remvoe exit" << endl;
+		//exit(1);
+		
 		vector<u_int32_t> nodePath_backward;
 		vector<u_int64_t> supportingReads_backward;
 
@@ -3275,7 +3428,19 @@ public:
 		binNode(current_nodeIndex, pathData.prevNodes, pathData.nodePath, graph, pathData._index);
 		visitedNodes.insert(BiGraph::nodeIndex_to_nodeName(current_nodeIndex));
 		unordered_set<u_int32_t> solvedUnitigs;
+		u_int32_t lastNodeIndex = current_nodeIndex;
 
+		int truthPath_indexDirection = -1;
+		long truth_pathIndex = -1;
+		if(_evaluation_hifiasmGroundTruth_path.size() > 0){
+			auto it = find(_evaluation_hifiasmGroundTruth_path.begin(), _evaluation_hifiasmGroundTruth_path.end(), BiGraph::nodeIndex_to_nodeName(lastNodeIndex));
+			truth_pathIndex = it - _evaluation_hifiasmGroundTruth_path.begin();
+		}
+		
+			//if(it != _evaluation_hifiasmGroundTruth_path.end()){
+			//	index += 1;
+			//}
+		
 		while(true){
 
 			unordered_set<u_int32_t> isPathAlreadyVisitedSourceNodes;
@@ -3283,7 +3448,7 @@ public:
 			//u_int32_t nextNodeIndex = pathExplorer.getNextNode( graph, _unitigDatas, 100000, forward, true);
 			
 			u_int32_t resultType;
-			vector<u_int32_t> nextNodes;
+			vector<SuccessorData> nextNodes;
 			current_nodeIndex = pathExplorer.getNextNode(current_nodeIndex, graph, forward, 0, resultType, nextNodes, true);
 			
 			if(resultType == 2){ //Banch solved
@@ -3296,37 +3461,136 @@ public:
 			//if(_binnedNodes.size() > 100) return false; //DEBUG assemble small fragment
 			if(current_nodeIndex == -1) return false; //No more successors, or no branching solution
 			
-			if(current_nodeIndex == pathData.source_nodeIndex){ //Path complete
-				pathData.nodePath.pop_back(); //if the path is solved, the source node exist as first and last element,thus we remove the last one
+			//if(current_nodeIndex == pathData.source_nodeIndex){ //Path complete
+			//	pathData.nodePath.pop_back(); //if the path is solved, the source node exist as first and last element,thus we remove the last one
 
-				cout << "Path complete!" << endl;
-				return true; 
-			}
+			//	cout << "Path complete!" << endl;
+			//	return true; 
+			//}
 			//if(current_nodeIndex == -2) return true; //Path complete
 
-			cout << "Add node: " << BiGraph::nodeIndex_to_nodeName(current_nodeIndex) << endl;
+
 			
-			if(current_nodeIndex == BiGraph::nodeName_to_nodeIndex(539588, true) || BiGraph::nodeIndex_to_nodeName(current_nodeIndex) == 539597){
+			for(size_t i=1; i<nextNodes[0]._path.size(); i++){
+				current_nodeIndex = nextNodes[0]._path[i];
+
+				if(current_nodeIndex == pathData.source_nodeIndex){ //Path complete
+					pathData.nodePath.pop_back(); //if the path is solved, the source node exist as first and last element,thus we remove the last one
+
+					cout << "Path complete!" << endl;
+					return true; 
+				}
+
+				//cout << "\t" << BiGraph::nodeIndex_to_nodeName(current_nodeIndex) << endl;
+				
+				u_int32_t nodeName =BiGraph::nodeIndex_to_nodeName(current_nodeIndex);
+				cout << "Add node: " << BiGraph::nodeToString(current_nodeIndex);
+				if(_evaluation_hifiasmGroundTruth_nodeNamePosition.find(nodeName) != _evaluation_hifiasmGroundTruth_nodeNamePosition.end()){
+					cout << "    " << _evaluation_hifiasmGroundTruth_nodeNamePosition[nodeName];
+				}
+
+
+				if(_evaluation_hifiasmGroundTruth_path.size() > 0){
+					long truth_pathIndex_tmp = truth_pathIndex + truthPath_indexDirection;
+					if(truth_pathIndex_tmp >= _evaluation_hifiasmGroundTruth_path.size()){
+						truth_pathIndex_tmp = 0;
+					}
+					else if(truth_pathIndex_tmp < 0){
+						truth_pathIndex_tmp = _evaluation_hifiasmGroundTruth_path.size()-1;
+					}
+
+					if(_evaluation_hifiasmGroundTruth_path[truth_pathIndex_tmp] == nodeName){
+						truth_pathIndex = truth_pathIndex_tmp;
+						cout << "    OK";
+					}
+					else{
+						if(std::find(_evaluation_hifiasmGroundTruth_path.begin(), _evaluation_hifiasmGroundTruth_path.end(), nodeName) != _evaluation_hifiasmGroundTruth_path.end()){
+							while(true){
+								//cout << truth_pathIndex << endl;
+								truth_pathIndex += truthPath_indexDirection;
+								//cout << truth_pathIndex << endl;
+								if(truth_pathIndex >= (long)_evaluation_hifiasmGroundTruth_path.size()){
+									//cout << "lala" << endl;
+									truth_pathIndex = 0;
+								}
+								else if(truth_pathIndex < 0){
+									truth_pathIndex = _evaluation_hifiasmGroundTruth_path.size()-1;
+								}
+
+								u_int32_t nodeNameTruth = _evaluation_hifiasmGroundTruth_path[truth_pathIndex];
+								if(graph->_isNodeValid2.find(BiGraph::nodeName_to_nodeIndex(nodeNameTruth, true)) != graph->_isNodeValid2.end()){
+									//cout << "    SKIPPED " << nodeNameTruth << endl;
+									//getchar();
+								}
+
+								//cout << truth_pathIndex << endl;
+								if(_evaluation_hifiasmGroundTruth_path[truth_pathIndex] == nodeName){
+									//cout << "    OK";
+									break;
+								}
+
+
+							}
+						}
+						else{
+							//cout << "    NOK";
+							//getchar();
+						}
+					}
+				}
+				/*
+				if(_evaluation_hifiasmGroundTruth_path.size() > 0){
+					auto it = find(_evaluation_hifiasmGroundTruth_path.begin(), _evaluation_hifiasmGroundTruth_path.end(), BiGraph::nodeIndex_to_nodeName(lastNodeIndex));
+					if(it != _evaluation_hifiasmGroundTruth_path.end()){
+						size_t index = it - _evaluation_hifiasmGroundTruth_path.begin();
+						index += 1;
+						if(index >= _evaluation_hifiasmGroundTruth_path.size()){
+							index = 0;
+						}
+						if(BiGraph::nodeIndex_to_nodeName(current_nodeIndex) == _evaluation_hifiasmGroundTruth_path[index]){
+							cout << "    " << "OK";
+						}
+						else{
+							cout << "    " << "NO";
+						}
+					}
+					else{
+						cout << "    " << "(not found)";
+					}
+				}
+				cout << "\t\ŧ" << BiGraph::nodeIndex_to_nodeName(lastNodeIndex) << endl;
+				*/
+				cout << endl;
+				//cout << "\t\t" << _evaluation_hifiasmGroundTruth_path[truth_pathIndex] << endl;
+
+				binNode(current_nodeIndex, pathData.prevNodes, pathData.nodePath, graph, pathData._index);
+				visitedNodes.insert(BiGraph::nodeIndex_to_nodeName(current_nodeIndex));
+
+				
+				//anti-bug, infinite loop
+				//if(_nbVisitedTimes.find(current_nodeIndex) != _nbVisitedTimes.end()){
+				//	if(_nbVisitedTimes[current_nodeIndex] > 1000){
+				//		return false;
+				//	}
+				//}
+
+				lastNodeIndex = current_nodeIndex;
+			}
+			//for(u_int32_t nodeIndex : nextNodes[0]._path){
+			//}
+			//if(current_nodeIndex == BiGraph::nodeName_to_nodeIndex(539588, true) || BiGraph::nodeIndex_to_nodeName(current_nodeIndex) == 539597){
 				//char str [80];
 				//scanf ("%79s",str);  
 				//cout << "haaaa " << BiGraph::nodeToString(current_nodeIndex) << endl;
 				//exit(1);
-			}
+			//}
 			
 
-			binNode(current_nodeIndex, pathData.prevNodes, pathData.nodePath, graph, pathData._index);
-			visitedNodes.insert(BiGraph::nodeIndex_to_nodeName(current_nodeIndex));
 
 			//if(BiGraph::nodeIndex_to_nodeName(current_nodeIndex) == 10026){
 			//	exit(1);
 			//}
 
-			//anti-bug, infinite loop
-			if(_nbVisitedTimes.find(current_nodeIndex) != _nbVisitedTimes.end()){
-				if(_nbVisitedTimes[current_nodeIndex] > 1000){
-					return false;
-				}
-			}
 			/*
 			for(size_t i=1; i<pathExplorer._exploredNodes.size(); i++){
 				u_int32_t nodeIndex = pathExplorer._exploredNodes[i];
@@ -3466,10 +3730,26 @@ public:
 					}
 
 					vec = vec.normalize();
+					
+					//cout << (mdbg->_dbg_nodes.find(vec) != mdbg->_dbg_nodes.end()) << endl;
+					//cout << (mdbg->_dbg_nodes.find(vec) != mdbg->_dbg_nodes.end()) << endl;
+					//if(mdbg->_dbg_nodes[vec]._index == 0){
+					//	cout << "lala " << position << endl;
+					//}
+
 
 					if(mdbg->_dbg_nodes.find(vec) != mdbg->_dbg_nodes.end()){
 						_evaluation_hifiasmGroundTruth_nodeName_to_unitigName[mdbg->_dbg_nodes[vec]._index].push_back(sequence.getComment());
+						_evaluation_hifiasmGroundTruth_path.push_back(mdbg->_dbg_nodes[vec]._index);
+
+						if(_evaluation_hifiasmGroundTruth_nodeNamePosition.find(mdbg->_dbg_nodes[vec]._index) == _evaluation_hifiasmGroundTruth_nodeNamePosition.end()){
+							_evaluation_hifiasmGroundTruth_nodeNamePosition[mdbg->_dbg_nodes[vec]._index] = position;
+						}
 						//cout << mdbg->_dbg_nodes[vec]._index << " " << sequence.getComment() << endl;
+					}
+					else{
+						//cout << "Not found position: " << position << endl;
+						_evaluation_hifiasmGroundTruth_path.push_back(-1);
 					}
 
 
@@ -3529,15 +3809,30 @@ public:
 		}
 		
 		cout << "Nb minimizers groundtruth: " << _evaluation_hifiasmGroundTruth.size() << endl;
+		//exit(1);
 		//gzclose(file);
 		
 		//exit(1);
 	}
 
 	unordered_map<u_int32_t, vector<string>> _evaluation_hifiasmGroundTruth_nodeName_to_unitigName;
+	vector<u_int32_t> _evaluation_hifiasmGroundTruth_path;
 
 	void asmDebug(){
 		
+
+
+		if(_truthInputFilename != ""){
+			string mdbg_filename = _inputDir + "/mdbg_nodes.gz";
+			MDBG* mdbg = new MDBG(_kminmerSize);
+			mdbg->load(mdbg_filename);
+
+			extract_truth_kminmers(mdbg);
+
+			delete mdbg;
+		}
+
+
 		string gfa_filename_noUnsupportedEdges = _inputDir + "/minimizer_graph_noUnsupportedEdges.gfa";
 		gfa_filename_noUnsupportedEdges += "_errorFree.gfa"; //Comment to redo cleaning process
 		cout << gfa_filename_noUnsupportedEdges << endl;
@@ -3573,14 +3868,63 @@ public:
 		gzclose(file_groundTruth_hifiasm_data);
 
 
+		_outputContigFile = gzopen(_outputFilename.c_str(),"wb");
 		file_groundTruth = ofstream(_inputDir + "/binning_results.csv");
 		file_groundTruth << "Name,Colour" << endl;
 
 		GraphSimplify* graphSimplify = new GraphSimplify(gfa_filename_noUnsupportedEdges, _inputDir, nbNodes);
 
-		solveBin(graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(954857, false), 40, graphSimplify, 0, false);
+		//C6
+		//solveBin(graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(954857, false), 40, graphSimplify, 0, false);
+		
+		//C2
+		//solveBin(graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(28286, true), 40, graphSimplify, 0, false);
+
+		//c3
+		//solveBin(graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(7685, true), 83, graphSimplify, 0, false);
+
+		//c4 = spaced high complexity area (need to identify long unitig + long contig, then check if BFS leeds to single sink) 
+		//solveBin(graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(25697, true), 650, graphSimplify, 0, false);
+
+		//c4 k10
+		//solveBin(graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(19971, true), 460, graphSimplify, 0, false);
+
+		//c5 (low abundant genome with gap)
+		//29885 (10 abundance max)
+
+		//c7 (complex region, 2 strains)
+		//solveBin(graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(2038, true), 70, graphSimplify, 0, true);
+		//solveBin(graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(302618, false), 70, graphSimplify, 0, true);
+		//solveBin(graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(537443, true), 70, graphSimplify, 0, true);
+
+		//c8
+		//solveBin(graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(426182, true), 160, graphSimplify, 0, true);
+
+		//c9 (low abundant genome ~10)
+		//Start node name: 42693
+
+		//c10
+		//solveBin(graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(236892, true), 20, graphSimplify, 0, true);
+
+		//c11
+		//solveBin(graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(83861, true), 41, graphSimplify, 0, true);
+
+		//c13
+		//Source: 3080 3080+
+		//Source abundance: 238
+
+		//c14
+		//solveBin(graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(163348, true), 500, graphSimplify, 0, true);
+
+		//c15
+		//Source: 91818 91818+
+		//Source abundance: 7
+
+		//c16
+		solveBin(graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(18437, true), 31, graphSimplify, 0, true);
 
 		file_groundTruth.close();
+		gzclose(_outputContigFile);
 	}
 
 };

@@ -99,7 +99,8 @@ public:
 		string contigFilename = _inputDir + "/minimizer_contigs.gz";
 
 		gzFile contigFile = gzopen(contigFilename.c_str(),"rb");
-
+		u_int64_t nbContigs = 0;
+		
 		while(true){
 
 			vector<u_int32_t> nodePath;
@@ -161,11 +162,14 @@ public:
 				}
 
 			}
+
+			nbContigs += 1;
 			//cout << nodePath.size() << endl;
 		}
 
 		gzclose(contigFile);
 
+		cout << "Nb contigs: " << nbContigs << endl;
 	}
 
 	void extractKminmerSequences (){
@@ -380,6 +384,7 @@ public:
 				//exit(1);
 				for(size_t i=0; i<kminmers.size(); i++){
 
+					if(_mdbg->_dbg_nodes.find(kminmers[i]) == _mdbg->_dbg_nodes.end()) continue;
 					//let read_offsets = (read_obj.minimizers_pos[i] as usize, (read_obj.minimizers_pos[i+k-1] as usize + l), (read_obj.minimizers_pos[i+k-1] + 1 - read_obj.minimizers_pos[i] + 1));
 
 					u_int32_t nodeName = _mdbg->_dbg_nodes[kminmers[i]]._index;
@@ -620,14 +625,15 @@ public:
 					found = _nodeName_left.find(contigNode);
 					if(found != _nodeName_left.end() && !found->second){
 						
-
+						
 
 						_nodeName_left[contigNode] = true;
 						extractKminmerSequence(sequenceOriginal, kminmerInfo, LoadType::Left, kminmerSequence);
 
-						if(nodeName == 4851){
+						if(nodeName == 83867){
 							cout << "AAAAAAAAAAAAAAAAAAAAAAAAAAAAaa 1" << endl;
 							cout << kminmerSequence << endl;
+							//exit(1);
 						}
 
 						writeKminmerSequence(nodeName, readIndex, kminmerSequence, outputFile_left);
@@ -647,9 +653,10 @@ public:
 						_nodeName_right[contigNode] = true;
 						extractKminmerSequence(sequenceOriginal, kminmerInfo, LoadType::Right, kminmerSequence);
 
-						if(nodeName == 4851){
-							cout << "AAAAAAAAAAAAAAAAAAAAAAAAAAAAaa 2" << endl;
+						if(nodeName == 83867){
+							cout << "AAAAAAAAAAAAAAAAAAAAAAAAAAAAaa 1" << endl;
 							cout << kminmerSequence << endl;
+							//exit(1);
 						}
 
 						writeKminmerSequence(nodeName, readIndex, kminmerSequence, outputFile_right);

@@ -56,7 +56,7 @@ struct GraphNode {
 
 struct AdjNode {
     u_int32_t _index;
-    float _overlap;
+    u_int16_t _overlap;
 };
 
 
@@ -735,6 +735,16 @@ public:
         //}
     }
 
+    u_int16_t getOverlap(u_int32_t nodeIndex_from, u_int32_t nodeIndex_to){
+        for(AdjNode& node : _nodes[nodeIndex_from]){
+            if(node._index == nodeIndex_to){
+                return node._overlap;
+            }
+        }
+        
+        return 0;
+    }
+
     static u_int32_t nodeName_to_nodeIndex(u_int32_t nodeName, bool isOrientationForward){
         if(isOrientationForward){
             return nodeName * 2;
@@ -754,12 +764,12 @@ public:
         return nodeIndex / 2;
     }
 
-    bool addEdge(u_int32_t from, bool fromOrient, u_int32_t to, bool toOrient, float weight){
+    bool addEdge(u_int32_t from, bool fromOrient, u_int32_t to, bool toOrient, u_int16_t overlap){
 
         u_int32_t nodeIndex_from = nodeName_to_nodeIndex(from, fromOrient);
         u_int32_t nodeIndex_to = nodeName_to_nodeIndex(to, toOrient);
 
-        _nodes[nodeIndex_from].push_back({nodeIndex_to, weight});//getAdjListNode(nodeIndex_to, weight, _nodes[nodeIndex_from]);
+        _nodes[nodeIndex_from].push_back({nodeIndex_to, overlap});//getAdjListNode(nodeIndex_to, weight, _nodes[nodeIndex_from]);
         _nbEdges += 1;
 
         return true;
