@@ -736,15 +736,40 @@ public:
     }
 
     u_int16_t getOverlap(u_int32_t nodeIndex_from, u_int32_t nodeIndex_to){
+        if(nodeIndex_from == nodeIndex_to) return 0;
         for(AdjNode& node : _nodes[nodeIndex_from]){
             if(node._index == nodeIndex_to){
                 return node._overlap;
             }
         }
         
+        for(AdjNode& node : _nodes[nodeIndex_to]){
+            if(node._index == nodeIndex_from){
+                return node._overlap;
+            }
+        }
+
+        //cout << "BiGraph::getOverlap : Overlap dosn't exist " << BiGraph::nodeIndex_to_nodeName(nodeIndex_from) << " " << BiGraph::nodeIndex_to_nodeName(nodeIndex_to) << endl;
+    
+        //getchar();
+
+
+
         return 0;
     }
-
+    /*
+    u_int16_t getOverlap_prev(u_int32_t nodeIndex_from, u_int32_t nodeIndex_to){
+        for(AdjNode& node : _nodes[nodeIndex_from]){
+            if(node._index == nodeIndex_to){
+                return node._overlap;
+            }
+        }
+        
+        cout << "BiGraph::getOverlap : Overlap dosn't exist " << BiGraph::nodeIndex_to_nodeName(nodeIndex_from) << " " << BiGraph::nodeIndex_to_nodeName(nodeIndex_to) << endl;
+        getchar();
+        return 0;
+    }
+    */
     static u_int32_t nodeName_to_nodeIndex(u_int32_t nodeName, bool isOrientationForward){
         if(isOrientationForward){
             return nodeName * 2;
