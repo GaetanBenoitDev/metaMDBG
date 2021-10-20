@@ -2,6 +2,8 @@ project(mdbgAsmMeta)
 
 cmake_minimum_required (VERSION 2.6)
 
+
+set(CMAKE_CXX_STANDARD 14)
 ################################################################################
 # The version number.
 ################################################################################
@@ -57,6 +59,7 @@ include (GatbCore)
 # TOOLS
 ################################################################################
 
+
 # We add the compilation options for the library
 add_definitions (${gatb-core-flags})
 
@@ -73,6 +76,12 @@ include_directories (${PROGRAM_SOURCE_DIR})
 file (GLOB_RECURSE  ProjectFiles  ${PROGRAM_SOURCE_DIR}/*)
 add_executable(${PROJECT_NAME} ${ProjectFiles})
 target_link_libraries(${PROJECT_NAME} ${gatb-core-libraries})
+
+
+if (NOT TARGET spoa)
+  add_subdirectory(src/utils/spoa EXCLUDE_FROM_ALL)
+endif ()
+target_link_libraries(${PROJECT_NAME} spoa::spoa)
 
 #add_custom_command(
 #    TARGET ${PROJECT_NAME} POST_BUILD

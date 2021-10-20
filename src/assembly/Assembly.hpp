@@ -20,6 +20,7 @@
 			- gap dû a un cutoff min trop élevé: ici le successeur est juste masqué par le isNodeValid2
 		"
 		Graph::getOverlap(): pas d'overlap parfois ou dans le mauvais sens, a check
+		- ToBasespace: mdbg_nodes: on en a besoin pour obtenir le nodeName des kminmer, mais dans ce MDBG, on peut enlever tous les nodes qui ne font pas parti d'un contig pour sauver de la mémoire
 */
 
 #define PRINT_DEBUT_ASM
@@ -201,7 +202,7 @@ public:
 		u_int32_t current_nodeName = graph->_graphSuccessors->nodeIndex_to_nodeName(current_nodeIndex, orient_dummy);
 		u_int32_t current_abundance = graph->_nodeAbundances[current_nodeName]; //_unitigDatas[current_unitigIndex]._meanAbundance;
 
-		//cout << "Current node: " << current_nodeName << endl;
+		cout << "Current node: " << current_nodeName << endl;
 		//if(_iter > 10000) return;
 
 		//cout << "----------- " << iter << endl;
