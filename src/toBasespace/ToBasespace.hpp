@@ -1315,12 +1315,14 @@ public:
 
 	void performErrorCorrection(u_int32_t nodeName, const DnaBitset* sequenceModel, VariantQueue& sequenceCopies, string& correctedSequence, const auto& alignment_engine, auto& graph){
 		
-		if(sequenceCopies.size() == 0){
+		//if(sequenceCopies.size() == 0){
 			char* seq = sequenceModel->to_string();
 			correctedSequence = string(seq);
 			free(seq);
 			return;
-		}
+		//}
+
+		
 		//cout << (sequenceModel == nullptr) << endl;
 		//cout << sequenceModel->to_string() << endl;
 		//correctedSequence = string(sequenceModel->to_string());
