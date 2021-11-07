@@ -1,6 +1,7 @@
 #include "Bloocoo.hpp"
 #include "assembly/Assembly.hpp"
 #include "toBasespace/ToBasespace.hpp"
+#include "toBasespace/ToMinspace.hpp"
 
 void displayHelp(){
 	cout << "Usage: ./simkaMin [option]" << endl;
@@ -70,6 +71,9 @@ int main (int argc, char* argv[])
     		}
     		else if(programName == "toBasespace"){
                 ToBasespace().run (argc, args);
+    		}
+    		else if(programName == "toMinspace"){
+                ToMinspace().run (argc, args);
     		}
     		else{
     			displayHelp();

@@ -41,6 +41,17 @@ typedef Kmer<>::ModelMinimizer<ModelCanonical> ModelMinimizer;
 
 typedef u_int32_t ReadIndexType;
 
+
+struct UnitigData{
+	u_int32_t _index;
+	vector<u_int32_t> _readIndexes;
+	//float _meanAbundance;
+	//u_int16_t _nbKminmers;
+    //vector<float> _compositionMean;
+    //u_int32_t _compositionNb;
+	//unordered_set<ReadIndexType> _readIndexes_exists;
+};
+
 struct ReadKminmer{
 	u_int32_t _read_pos_start;
 	u_int32_t _read_pos_end;
@@ -347,6 +358,109 @@ public:
 			sequence[i] = basemap[sequence[i]];
 		}
 	}
+
+	static u_int64_t computeSharedReads(const UnitigData& utg1, const UnitigData& utg2){
+
+		//cout << "------------------- " << utg1._index << endl;
+		//for(size_t i=0; i<utg1._readIndexes.size(); i++){
+		//	cout << "| " << utg1._readIndexes[i] << endl;
+		//}
+		//cout << "- " << utg2._index << endl;
+		//for(size_t i=0; i<utg2._readIndexes.size(); i++){
+		//	cout << "| " << utg2._readIndexes[i] << endl;
+		//}
+
+		size_t i=0;
+		size_t j=0;
+		u_int64_t nbShared = 0;
+
+		while(i < utg1._readIndexes.size() && j < utg2._readIndexes.size()){
+			if(utg1._readIndexes[i] == utg2._readIndexes[j]){
+				nbShared += 1;
+				i += 1;
+				j += 1;
+			}
+			else if(utg1._readIndexes[i] < utg2._readIndexes[j]){
+				i += 1;
+			}
+			else{
+				j += 1;
+			}
+
+		}
+
+		return nbShared;
+	}
+
+	static u_int64_t collectSharedReads(const UnitigData& utg1, const UnitigData& utg2, vector<u_int64_t>& sharedReads){
+
+		//cout << "------------------- " << utg1._index << endl;
+		//for(size_t i=0; i<utg1._readIndexes.size(); i++){
+		//	cout << "| " << utg1._readIndexes[i] << endl;
+		//}
+		//cout << "- " << utg2._index << endl;
+		//for(size_t i=0; i<utg2._readIndexes.size(); i++){
+		//	cout << "| " << utg2._readIndexes[i] << endl;
+		//}
+
+		sharedReads.clear();
+
+		size_t i=0;
+		size_t j=0;
+		u_int64_t nbShared = 0;
+
+		while(i < utg1._readIndexes.size() && j < utg2._readIndexes.size()){
+			if(utg1._readIndexes[i] == utg2._readIndexes[j]){
+				sharedReads.push_back(utg1._readIndexes[i]);
+				nbShared += 1;
+				i += 1;
+				j += 1;
+			}
+			else if(utg1._readIndexes[i] < utg2._readIndexes[j]){
+				i += 1;
+			}
+			else{
+				j += 1;
+			}
+
+		}
+
+		return nbShared;
+	}
+
+
+	static bool shareAnyRead(const UnitigData& utg1, const UnitigData& utg2){
+
+		//cout << "------------------- " << utg1._index << endl;
+		//for(size_t i=0; i<utg1._readIndexes.size(); i++){
+		//	cout << "| " << utg1._readIndexes[i] << endl;
+		//}
+		//cout << "- " << utg2._index << endl;
+		//for(size_t i=0; i<utg2._readIndexes.size(); i++){
+		//	cout << "| " << utg2._readIndexes[i] << endl;
+		//}
+
+		size_t i=0;
+		size_t j=0;
+
+		while(i < utg1._readIndexes.size() && j < utg2._readIndexes.size()){
+
+			//cout << i << " " << j << endl;
+			if(utg1._readIndexes[i] == utg2._readIndexes[j]){
+				return true;
+			}
+			else if(utg1._readIndexes[i] < utg2._readIndexes[j]){
+				i += 1;
+			}
+			else{
+				j += 1;
+			}
+
+		}
+
+		return false;
+	}
+
 };
 
 
@@ -789,6 +903,9 @@ public:
 								//cout << "HAAAA: " << length << endl;
                                 kminmersLength.push_back({read_pos_start, read_pos_end, length, isReversed, position_of_second_minimizer, position_of_second_to_last_minimizer, position_of_second_minimizer_seq, position_of_second_to_last_minimizer_seq, seq_length_start, seq_length_end});
                             }
+							else{
+                                kminmersLength.push_back({0, 0, 0, isReversed, 0, 0, 0, 0, 0, 0});
+							}
 
 							//if(readIndex == 30539){
 							//	cout << vec._kmers[0] << " " << vec._kmers[1] << " " << vec._kmers[2] << endl;

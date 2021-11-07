@@ -1125,8 +1125,29 @@ void Bloocoo::createMDBG (){
 			//cout << kminmersData[vec] << endl;
 
 			KminmerData& kminmerData = kminmersData[vec];
-			_mdbg->addNode(vec, kminmerData._length, kminmerData._overlapLength_start, kminmerData._overlapLength_end, kminmerData._isReversed);
 
+			
+
+			_mdbg->addNode(vec, kminmerData._length, kminmerData._overlapLength_start, kminmerData._overlapLength_end, kminmerData._isReversed);
+			/*
+			if(_mdbg->_dbg_nodes[vec]._index == 16494){
+				cout << "--------" << endl;
+				cout << vec._kmers[0] << endl;
+				cout << vec._kmers[1] << endl;
+				cout << vec._kmers[2] << endl;
+				cout << _mdbg->_dbg_nodes[vec]._index << ": " << kminmerData._length << " " << kminmerData._overlapLength_start << " " << kminmerData._overlapLength_end << " " << kminmerData._isReversed << endl;
+				//exit(1);
+			}
+
+			if(_mdbg->_dbg_nodes[vec]._index == 8581){
+				cout << "--------" << endl;
+				cout << vec._kmers[0] << endl;
+				cout << vec._kmers[1] << endl;
+				cout << vec._kmers[2] << endl;
+				cout << _mdbg->_dbg_nodes[vec]._index << ": " << kminmerData._length << " " << kminmerData._overlapLength_start << " " << kminmerData._overlapLength_end << " " << kminmerData._isReversed << endl;
+				//exit(1);
+			}
+			*/
 			/*
 			if(_mdbg->_dbg_nodes[vec]._index == 7837 || _mdbg->_dbg_nodes[vec]._index == 7836){
 				cout << "--------" << endl;
@@ -1260,25 +1281,25 @@ void Bloocoo::createGfa(){
 
 			if (vec.suffix() == v.prefix()) {
 				nbEdges += 1;
-				u_int16_t overlapLength = _mdbg->_dbg_nodes[vec]._overlapLength_end;
+				u_int16_t overlapLength = min(_mdbg->_dbg_nodes[v]._overlapLength_end, _mdbg->_dbg_nodes[vec]._overlapLength_end);
 				output_file_gfa << "L" << "\t" << id << "\t" << "+" << "\t" << _mdbg->_dbg_nodes[v]._index << "\t" << "+" << "\t" << overlapLength << "M" << endl;
 				//vec_add_edge("+", "+");
 			}
 			if (vec.suffix() == v_rev.prefix()) {
 				nbEdges += 1;
-				u_int16_t overlapLength = _mdbg->_dbg_nodes[vec]._overlapLength_end;
+				u_int16_t overlapLength = min(_mdbg->_dbg_nodes[v]._overlapLength_end, _mdbg->_dbg_nodes[vec]._overlapLength_end);
 				output_file_gfa << "L" << "\t" << id << "\t" << "+" << "\t" << _mdbg->_dbg_nodes[v]._index << "\t" << "-" << "\t" << overlapLength << "M" << endl;
 				//vec_add_edge("+", "-");
 			}
 			if (vec_rev.suffix() == v.prefix()) {
 				nbEdges += 1;
-				u_int16_t overlapLength = _mdbg->_dbg_nodes[vec]._overlapLength_start;
+				u_int16_t overlapLength = min(_mdbg->_dbg_nodes[v]._overlapLength_start, _mdbg->_dbg_nodes[vec]._overlapLength_start);
 				output_file_gfa << "L" << "\t" << id << "\t" << "-" << "\t" << _mdbg->_dbg_nodes[v]._index << "\t" << "+" << "\t" << overlapLength << "M" << endl;
 				//vec_add_edge("-", "+");
 			}
 			if (vec_rev.suffix() == v_rev.prefix()) {
 				nbEdges += 1;
-				u_int16_t overlapLength = _mdbg->_dbg_nodes[vec]._overlapLength_start;
+				u_int16_t overlapLength = min(_mdbg->_dbg_nodes[v]._overlapLength_start, _mdbg->_dbg_nodes[vec]._overlapLength_start);
 				output_file_gfa << "L" << "\t" << id << "\t" << "-" << "\t" << _mdbg->_dbg_nodes[v]._index << "\t" << "-" << "\t" << overlapLength << "M" << endl;
 				//vec_add_edge("-", "-");
 			}
@@ -1290,25 +1311,25 @@ void Bloocoo::createGfa(){
 
 			if (vec.suffix() == v.prefix()) {
 				nbEdges += 1;
-				u_int16_t overlapLength = _mdbg->_dbg_nodes[vec]._overlapLength_end;
+				u_int16_t overlapLength = min(_mdbg->_dbg_nodes[v]._overlapLength_end, _mdbg->_dbg_nodes[vec]._overlapLength_end);
 				output_file_gfa << "L" << "\t" << id << "\t" << "+" << "\t" << _mdbg->_dbg_nodes[v]._index << "\t" << "+" << "\t" << overlapLength << "M" << endl;
 				//vec_add_edge("+", "+");
 			}
 			if (vec.suffix() == v_rev.prefix()) {
 				nbEdges += 1;
-				u_int16_t overlapLength = _mdbg->_dbg_nodes[vec]._overlapLength_end;
+				u_int16_t overlapLength = min(_mdbg->_dbg_nodes[v]._overlapLength_end, _mdbg->_dbg_nodes[vec]._overlapLength_end);
 				output_file_gfa << "L" << "\t" << id << "\t" << "+" << "\t" << _mdbg->_dbg_nodes[v]._index << "\t" << "-" << "\t" << overlapLength << "M" << endl;
 				//vec_add_edge("+", "-");
 			}
 			if (vec_rev.suffix() == v.prefix()) {
 				nbEdges += 1;
-				u_int16_t overlapLength = _mdbg->_dbg_nodes[vec]._overlapLength_start;
+				u_int16_t overlapLength = min(_mdbg->_dbg_nodes[v]._overlapLength_start, _mdbg->_dbg_nodes[vec]._overlapLength_start);
 				output_file_gfa << "L" << "\t" << id << "\t" << "-" << "\t" << _mdbg->_dbg_nodes[v]._index << "\t" << "+" << "\t" << overlapLength << "M" << endl;
 				//vec_add_edge("-", "+");
 			}
 			if (vec_rev.suffix() == v_rev.prefix()) {
 				nbEdges += 1;
-				u_int16_t overlapLength = _mdbg->_dbg_nodes[vec]._overlapLength_start;
+				u_int16_t overlapLength = min(_mdbg->_dbg_nodes[v]._overlapLength_start, _mdbg->_dbg_nodes[vec]._overlapLength_start);
 				output_file_gfa << "L" << "\t" << id << "\t" << "-" << "\t" << _mdbg->_dbg_nodes[v]._index << "\t" << "-" << "\t" << overlapLength << "M" << endl;
 				//vec_add_edge("-", "-");
 			}

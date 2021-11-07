@@ -21,15 +21,6 @@ struct UnitigLength{
     u_int32_t _startNodeIndex;
 };
 
-struct UnitigData{
-	u_int32_t _index;
-	vector<u_int32_t> _readIndexes;
-	//float _meanAbundance;
-	//u_int16_t _nbKminmers;
-    //vector<float> _compositionMean;
-    //u_int32_t _compositionNb;
-	//unordered_set<ReadIndexType> _readIndexes_exists;
-};
 
 
 
