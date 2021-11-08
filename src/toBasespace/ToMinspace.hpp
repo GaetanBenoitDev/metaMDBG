@@ -145,6 +145,7 @@ public:
 
 		gzclose(contigFile);
 
+		cout << _nodeName_entire.size() << " " << _nodeName_left.size() << " " << _nodeName_right.size() << endl;
 		cout << "Nb contigs: " << nbContigs << endl;
 	}
 
@@ -260,7 +261,7 @@ public:
 	void createMinimizerContigs(){
 
 
-		string mdbg_filename = "/home/gats/workspace/run/overlap_test_562_k3/mdbg_nodes.gz";
+		string mdbg_filename = "/home/gats/workspace/run/overlap_test_AD/mdbg_nodes.gz";
 		MDBG* mdbg = new MDBG(3);
 		mdbg->load(mdbg_filename);
 

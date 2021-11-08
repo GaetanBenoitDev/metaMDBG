@@ -723,6 +723,7 @@ public:
 
 			}
 
+			/*
 			vector<u_int32_t> path;
 			u_int32_t sink = checkScc(current_nodeIndex, data_successors, graph, forward, false, path);
 			//if(sink == -1) sink = checkScc(current_nodeIndex, data_successors, graph, forward, true);
@@ -742,7 +743,7 @@ public:
 				//}
 				//getchar();
 				//exit(1);
-			}
+			}*/
 
 		}
 		else{
@@ -846,6 +847,7 @@ public:
 				}
 			}
 
+			/*
 			vector<u_int32_t> path;
 			u_int32_t sink = checkScc(current_nodeIndex, data_successors, graph, forward, false, path);
 			//if(sink == -1) sink = checkScc(current_nodeIndex, data_successors, graph, forward, true);
@@ -864,7 +866,7 @@ public:
 				//	cout << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
 				//}
 				//getchar();
-			}
+			}*/
 
 		}
 
@@ -5122,7 +5124,7 @@ public:
 		*/
 
 
-		
+		/*
 		//Simulation
 		ofstream file_groundTruth_hifiasm_position(_inputDir + "/groundtruth_hifiasm_position.csv");
 		ofstream file_groundTruth_hifiasm(_inputDir + "/groundtruth_hifiasm.csv");
@@ -5160,13 +5162,13 @@ public:
 		//gfaParser.rewriteGfa_withNodes(gfa_filename, gfa_filename + "_groundTruth_hifiasm.gfa", groundTruth_kminmers);
 		file_groundTruth_hifiasm.close();
 		file_groundTruth_hifiasm_position.close();
-		
+		*/
 
 		
 		GraphSimplify* graphSimplify = new GraphSimplify(gfa_filename_noUnsupportedEdges, _inputDir, 0);
 		
 		
-		/*
+		
 		graphSimplify->clear(0);
 		cout << "Collecting truth kminmers" << endl;
 		ofstream file_groundTruth_hifiasm_position(_inputDir + "/groundtruth_hifiasm_position.csv");
@@ -5248,7 +5250,7 @@ public:
 		solveBin(nodeIndex, abundance, graphSimplify, 0, true);
 		gzclose(_outputContigFile);
 		exit(1);
-		*/
+		
 		
 
 
@@ -5902,8 +5904,8 @@ public:
 					continue;
 				}
 
-				//if(Utils::shareAnyRead(_unitigDatas[utg], _unitigDatas[utg_n])){
-				if(Utils::computeSharedReads(_unitigDatas[utg], _unitigDatas[utg_n]) > 2){
+				if(Utils::shareAnyRead(_unitigDatas[utg], _unitigDatas[utg_n])){
+				//if(Utils::computeSharedReads(_unitigDatas[utg], _unitigDatas[utg_n]) > 2){
 					node = node->next;
 					continue;
 				}
@@ -6819,7 +6821,7 @@ public:
 			cout << "Path is solve forward (" << pathData_forward.nodePath.size() << ")" << endl;
 		}
 		
-		getchar();
+		//getchar();
 		//vector<u_int64_t> supportingReads_forward;
 		vector<u_int32_t> nodePath_forward = pathData_forward.nodePath;
 		//getSupportingReads(nodePath_forward, supportingReads_forward);
@@ -6835,7 +6837,7 @@ public:
 		
 		if(!pathSolved){
 			cout << endl << endl << endl << endl << endl << "----- Backward -------------------------------------------------------------------------------------------------------------------------------------" << endl;
-			getchar();
+			//getchar();
 			//_iter = 0;
 			pathSolved = solveBin_path(pathData_backward, graph, false, assemblyState, visitedNodes);
 			if(pathSolved){ 
@@ -6874,6 +6876,21 @@ public:
 			gzwrite(_outputContigFile, (const char*)&nodePath_supportingReads[0], size * sizeof(u_int64_t));
 		}
 
+		if(pathSolved){
+			if(_truthInputFilename != ""){
+				for(u_int32_t nodeIndex : nodePath){
+					u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
+					if(_evaluation_hifiasmGroundTruth_nodeName_to_unitigName.find(nodeName) != _evaluation_hifiasmGroundTruth_nodeName_to_unitigName.end()){
+						for(string& unitigName : _evaluation_hifiasmGroundTruth_nodeName_to_unitigName[nodeName]){
+							file_groundTruth_hifiasmContigs << unitigName << "," << pathIndex << endl;
+						}
+						//cout << _evaluation_hifiasmGroundTruth_nodeName_to_unitigName[nodeName] << " " << pathIndex << endl;
+					}
+				}
+			}
+		}
+
+		cout << "Contig size: " << nodePath.size() << endl;
 		/*
 		extendedPathData._index = pathIndex;
 		extendedPathData._nodePath = nodePath;

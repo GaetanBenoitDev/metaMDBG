@@ -1657,19 +1657,29 @@ push s into S
         */
     }
 
+    float _prevAbudanceCutoff;
+
     void debug_writeGfaErrorfree(u_int32_t currentAbundance, float abundanceCutoff_min, u_int32_t nodeIndex_source){
 
         //if(currentAbundance == _lastAbundanceCutoff) return;
         //_lastAbundanceCutoff = currentAbundance;
         
-        //if(currentAbundance < 30){
-        //    abundanceCutoff_min = 0;
-        //}
+        //bool needCleaning = true;
+        bool useConnectComponent = true;
+        if(abundanceCutoff_min < 6){
+            useConnectComponent = false;
+            if(((u_int64_t)_prevAbudanceCutoff) == ((u_int64_t)abundanceCutoff_min)) return;
+            //useConnectComponent = true;
+            //abundanceCutoff_min = 1;
+        }
 
         clear(abundanceCutoff_min);
 		//loadState();
 
-        
+
+
+        _prevAbudanceCutoff = abundanceCutoff_min;
+
         while(true){
 
             u_int64_t nbTipsRemoved = 0;
@@ -1681,8 +1691,10 @@ push s into S
 
             //cout << "Nb nodes valid: " << _isNodeValid2.size() << endl;
 
-            compact();
-            removeUnconnectedNodes(nodeIndex_source);
+            if(useConnectComponent){
+                compact();
+                removeUnconnectedNodes(nodeIndex_source);
+            }
 
             //u_int32_t loulou = BiGraph::nodeName_to_nodeIndex(214, false);
 
@@ -1712,7 +1724,9 @@ push s into S
 
             //cout << "Nb nodes valid: " << _isNodeValid2.size() << endl;
 
-            removeUnconnectedNodes(nodeIndex_source);
+            if(useConnectComponent){
+                removeUnconnectedNodes(nodeIndex_source);
+            }
 
             //cout << "Error: " << _isNodeRemoved[loulou] << endl;
             //compact();
@@ -1843,7 +1857,7 @@ push s into S
         //superbubble(50000);
         
         
-        
+        /*
         //Debug gfa
         unordered_set<u_int32_t> validNodes;
         for (auto& nodeIndex : _isNodeValid2){
@@ -1851,7 +1865,7 @@ push s into S
             validNodes.insert(nodeName);
         }
         GfaParser::rewriteGfa_withoutNodes(_inputGfaFilename, _inputGfaFilename + "_errorFree.gfa", validNodes, _isEdgeRemoved, _graphSuccessors);
-        
+        */
 
         //exit(1);
         /*

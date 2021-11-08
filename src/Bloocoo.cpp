@@ -1116,6 +1116,8 @@ void Bloocoo::createMDBG (){
 		//}
 
 		for(KmerVec& vec : kminmers){
+
+			if(kminmersData[vec]._count == 1) continue; //ATTENTION, ON ENELEVE TOUS LES KMINMER VU UNE FOIS
 			//if(kminmerCounts[vec] > 1000) cout << kminmerCounts[vec] << endl;
 			if(kminmersData[vec]._count <= 2){
 				if(kminmersData[vec]._count <= minAbundance_cutoff) continue;
