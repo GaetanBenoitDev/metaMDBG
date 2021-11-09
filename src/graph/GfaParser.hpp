@@ -17,7 +17,7 @@ struct UnitigLength{
     u_int32_t _length;
     //u_int32_t _nodeIndex;
     
-    u_int32_t _abundance;
+    float _abundance;
     u_int32_t _startNodeIndex;
 };
 

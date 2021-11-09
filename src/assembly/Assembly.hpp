@@ -31,6 +31,8 @@
 Gros changement non testé:
 	- attention on a ajouter les visitedNodes dans nodeExplored collectpossiblesuccessor (ça va etre a test) qu'on explore bien tout malgré ça"
 
+	- cutoff onthe fly = assemblyAbundance / 2, remettre superbubble detection, isTip on he fly egalement ?"
+	- dans detection superbubble classique, on pourrait jouter la gestion des cycle des la phase de cleaning
 */
 
 #define PRINT_DEBUG_COMPLEX_AREA
@@ -71,7 +73,7 @@ struct PathData{
 	unordered_set<DbgEdge, hash_pair> isEdgeVisited;
 	vector<u_int32_t> nodePath;
 	vector<u_int32_t> prevNodes;
-	u_int32_t source_abundance;
+	float source_abundance;
 	u_int32_t source_nodeIndex;
 	u_int32_t source_nodeIndex_path;
 	float _abundanceCutoff_min;
@@ -5124,7 +5126,7 @@ public:
 		*/
 
 
-		/*
+		
 		//Simulation
 		ofstream file_groundTruth_hifiasm_position(_inputDir + "/groundtruth_hifiasm_position.csv");
 		ofstream file_groundTruth_hifiasm(_inputDir + "/groundtruth_hifiasm.csv");
@@ -5162,13 +5164,13 @@ public:
 		//gfaParser.rewriteGfa_withNodes(gfa_filename, gfa_filename + "_groundTruth_hifiasm.gfa", groundTruth_kminmers);
 		file_groundTruth_hifiasm.close();
 		file_groundTruth_hifiasm_position.close();
-		*/
+		
 
 		
 		GraphSimplify* graphSimplify = new GraphSimplify(gfa_filename_noUnsupportedEdges, _inputDir, 0);
 		
 		
-		
+		/*
 		graphSimplify->clear(0);
 		cout << "Collecting truth kminmers" << endl;
 		ofstream file_groundTruth_hifiasm_position(_inputDir + "/groundtruth_hifiasm_position.csv");
@@ -5245,12 +5247,12 @@ public:
 		}
 		cout << "Position 0: " << startingNodeName << endl;
 		u_int32_t nodeIndex = graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(startingNodeName, true);
-		graphSimplify->debug_writeGfaErrorfree(5, 5, nodeIndex);
+		graphSimplify->debug_writeGfaErrorfree(5, 5, nodeIndex, _kminmerSize);
 		u_int32_t abundance = graphSimplify->getNodeUnitigAbundance(nodeIndex);
 		solveBin(nodeIndex, abundance, graphSimplify, 0, true);
 		gzclose(_outputContigFile);
 		exit(1);
-		
+		*/
 		
 
 
@@ -5273,8 +5275,7 @@ public:
 
 
 		//cout << graphSimplify->_graphSuccessors->_nbEdges << endl;
-		graphSimplify->execute(5);
-		//graphSimplify->saveState();
+		graphSimplify->execute(5, _kminmerSize);
 		
 		//cout << "remettre initial cleaning" << endl;
 		//graphSimplify->compact();
@@ -5430,6 +5431,8 @@ public:
 
 
 
+		//graphSimplify->execute(0, _kminmerSize);
+		//graphSimplify->saveState();
 
 
 
@@ -5502,6 +5505,8 @@ public:
 
 
 
+		graphSimplify->debug_writeGfaErrorfree(0, 0, 0, _kminmerSize);
+		//graphSimplify->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize);
 
 
 
@@ -6075,6 +6080,7 @@ public:
 		vector<UnitigLength> startingUnitig;
 
 		for(Unitig& unitig : graph->_unitigs){
+            if(unitig._startNode == -1) continue;
 			//Unitig& unitig = graph->_unitigs[unitigIndex];
 			if(unitig._length < 5000) continue;
 
@@ -6260,7 +6266,7 @@ public:
 		return assemblyState._currentPathIndex;
 	}
 
-	bool solveBin(u_int32_t source_nodeIndex, u_int32_t abundance, GraphSimplify* graph, int pathIndex, bool performCleaning){
+	bool solveBin(u_int32_t source_nodeIndex, float abundance, GraphSimplify* graph, int pathIndex, bool performCleaning){
 
 
 		bool orient_dummy = false;
@@ -6284,9 +6290,9 @@ public:
 		//if(abundanceCutoff_min < 30) return;
 
 		//if(performCleaning){
-			cout << "Simplifying graph local" << endl;
+			//cout << "Simplifying graph local" << endl;
 			//graph->clear();
-			graph->debug_writeGfaErrorfree(abundance, abundanceCutoff_min, source_nodeIndex);
+			//graph->debug_writeGfaErrorfree(abundance, abundanceCutoff_min, source_nodeIndex, _kminmerSize);
 		//}
 		//else{
 			//graph->clear(0);
@@ -6304,7 +6310,7 @@ public:
 			cout << "Source node removed :(" << endl;
 			return false; //????
 		}
-		u_int32_t source_abundance = graph->_unitigs[graph->_nodeToUnitig[source_nodeIndex]]._abundance;
+		float source_abundance = graph->_unitigs[graph->_nodeToUnitig[source_nodeIndex]]._abundance;
 		//cout << source_abundance << endl;
 		cout << graph->_unitigs[graph->_nodeToUnitig[source_nodeIndex]]._abundance << endl;
 
@@ -6548,6 +6554,7 @@ public:
 
 	bool solveBin_path(PathData& pathData, GraphSimplify* graph, bool forward, AssemblyState& assemblyState, unordered_set<u_int32_t>& visitedNodes){
 
+		double assemblyAbundance = 1000000;
 		u_int32_t current_nodeIndex = pathData.source_nodeIndex;
 
 		cout << "Start solver: " << BiGraph::nodeToString(current_nodeIndex) << endl;
@@ -6625,6 +6632,7 @@ public:
 				cout << "Add node: " << BiGraph::nodeToString(current_nodeIndex) << " " << (visitedNodes.find(nodeName) != visitedNodes.end()) << " " << pathData.nodePath.size();
 				
 
+
 				//if(nodeName == 5957){
 				//	getchar();
 				//}
@@ -6694,6 +6702,28 @@ public:
 				
 				
 				cout << endl;
+
+				/*
+				Unitig& unitig = graph->nodeIndex_to_unitig(current_nodeIndex);
+				if(unitig._length > 2500){
+					float unitigAbundance = unitig._abundance;
+					unitigAbundance = min(unitigAbundance, pathData.source_abundance);
+
+					if(unitigAbundance != assemblyAbundance){
+
+						assemblyAbundance = unitigAbundance;
+						cout << unitigAbundance << endl;
+
+						getchar();
+					}
+
+					//if(unitigAbundance < assemblyAbundance){
+					//	assemblyAbundance = unitigAbundance;
+					//	cout << unitigAbundance << endl;
+					//	getchar();
+					//}
+				}*/
+
 				//cout << "\t\t" << _evaluation_hifiasmGroundTruth_path[truth_pathIndex] << endl;
 				/*
 				if(graph->_complexAreas_sink.find(current_nodeIndex) != graph->_complexAreas_sink.end()){
@@ -6805,7 +6835,7 @@ public:
 		}
 	}
 
-	bool extendPath(u_int32_t nodeIndex, u_int32_t abundance, GraphSimplify* graph, float abundanceCutoff_min, u_int32_t pathIndex, AssemblyState& assemblyState, ExtendedPathData& extendedPathData){
+	bool extendPath(u_int32_t nodeIndex, float abundance, GraphSimplify* graph, float abundanceCutoff_min, u_int32_t pathIndex, AssemblyState& assemblyState, ExtendedPathData& extendedPathData){
 
 		cout << "TODO: clean complex area..." << endl;
 		graph->_complexAreas_source.clear();
