@@ -135,7 +135,7 @@ public:
 	}
 
 	void loadContigs(){
-		string contigFilename = _inputDir + "/minimizer_contigs.gz";
+		string contigFilename = _inputDir + "/minimizer_contigs_complete.gz";
 
 		gzFile contigFile = gzopen(contigFilename.c_str(),"rb");
 		u_int64_t nbContigs = 0;
@@ -1147,7 +1147,7 @@ public:
 		cout << "Creating basespace contigs" << endl;
 		cout << endl;
 
-		string contigFilename = _inputDir + "/minimizer_contigs.gz";
+		string contigFilename = _inputDir + "/minimizer_contigs_complete.gz";
 
 		gzFile contigFile = gzopen(contigFilename.c_str(),"rb");
 
@@ -1315,12 +1315,12 @@ public:
 
 	void performErrorCorrection(u_int32_t nodeName, const DnaBitset* sequenceModel, VariantQueue& sequenceCopies, string& correctedSequence, const auto& alignment_engine, auto& graph){
 		
-		//if(sequenceCopies.size() == 0){
+		if(sequenceCopies.size() == 0){
 			char* seq = sequenceModel->to_string();
 			correctedSequence = string(seq);
 			free(seq);
 			return;
-		//}
+		}
 
 		
 		//cout << (sequenceModel == nullptr) << endl;
@@ -1416,10 +1416,10 @@ public:
 			//const KminmerSequenceVariant& variant = variant_reversed[i]; //sequenceCopies.top();
 			const KminmerSequenceVariant& variant = sequenceCopies.top();
 			
-			if(nodeName == 17326){
-				cout << variant._editDistance << endl;
+			//if(nodeName == 17326){
+			//	cout << variant._editDistance << endl;
 				//cout << variant._sequence << endl;
-			}
+			//}
 
 			
 			//if(nodeName == 17326){
@@ -1512,6 +1512,7 @@ public:
 			}
 		}
 
+		/*
 		if(nodeName == 17326){
 			cout << "T: " << t << endl;
 			for (const auto& it : msa) {
@@ -1525,6 +1526,7 @@ public:
 			}
 			cout << correctedSequence << endl;
 		}
+		*/
 
 		//correctedSequence.clear();
 		//correctedSequence = consensus;
