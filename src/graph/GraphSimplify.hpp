@@ -85,6 +85,7 @@ public:
     unordered_set<u_int32_t> _isNodeValid2;
     vector<bool> _isBubble;
     unordered_set<DbgEdge, hash_pair> _isEdgeRemoved;
+    unordered_set<DbgEdge, hash_pair> _isEdgeUnsupported;
 
     vector<Bubble> _bubbles;
     unordered_set<u_int32_t> _isNodeInvalid_tmp;
@@ -193,7 +194,8 @@ public:
         _complexAreas_source.clear();
         _complexAreas_sink.clear();
         
-
+        _isEdgeRemoved = _isEdgeUnsupported;
+        //cout << _isEdgeRemoved.size() << endl;
         //_isNodeValid2.erase(BiGraph::nodeName_to_nodeIndex(1009227, false));
         //_isNodeValid2.erase(BiGraph::nodeName_to_nodeIndex(1009227, true));
     }
@@ -255,7 +257,9 @@ public:
                 cout << "lala" << endl;
                 compact(true);
                 cout << "loulou" << endl;
-                nbTipsRemoved = tip(4*k);
+                unordered_set<u_int32_t> isTips;
+                nbTipsRemoved = tip(4*k, true, isTips);
+                nbTipsRemoved = tip(4*k, false, isTips);
                 cout << "lili" << endl;
                 #ifdef PRINT_DEBUG_SIMPLIFICATION
                     cout << "Nb tip removed: " << nbTipsRemoved << endl;
@@ -453,7 +457,7 @@ public:
 
     //unordered_map<u_int32_t, u_int32_t> _removedFrom;
 
-    u_int64_t tip(float maxLength){
+    u_int64_t tip(float maxLength, bool indexingTips, unordered_set<u_int32_t>& isTips){
 
         unordered_set<u_int32_t> removedNodes;
 
@@ -477,7 +481,19 @@ public:
             //if(isVisited[unitig._endNode]) continue;
 
             getPredecessors(unitig._startNode, 0, neighbors);
-            if(neighbors.size() != 1) continue;
+            if(indexingTips){
+                if(neighbors.size() == 0) continue;
+            }
+            else{
+
+                u_int64_t nbPredecessors = 0;
+                for(u_int32_t nodeIndex : neighbors){
+                    u_int32_t unitigIndex = nodeIndex_to_unitigIndex(nodeIndex);
+                    if(isTips.find(unitigIndex) == isTips.end()) nbPredecessors += 1;
+                }
+                
+                if(nbPredecessors != 1) continue;
+            }
 
 
 
@@ -497,6 +513,12 @@ public:
                 //_isNodeValid[node] = false;
             }
             */
+
+            if(indexingTips){
+                isTips.insert(unitig._index);
+                isTips.insert(unitigIndex_toReverseDirection(unitig._index));
+                continue;
+            }
 
             vector<u_int32_t> unitigNodes; 
             getUnitigNodes(unitig, unitigNodes);
@@ -543,7 +565,8 @@ public:
             nbRemoved += 1;
         }
 
-        
+        if(indexingTips) return 0;
+
         unordered_set<u_int32_t> removedUnitigs;
         for(u_int32_t nodeIndex : removedNodes){
             //if(_nodeToUnitig.find(nodeIndex) == _nodeToUnitig.end()){
@@ -584,6 +607,7 @@ public:
         vector<u_int32_t> neighbors;
 
         getSuccessors_unitig(unitigIndex, 0, neighbors);
+        
         for(u_int32_t unitigIndex_nn : neighbors){
             collectInvalidUnitig2(unitigIndex_nn, allInvalidUnitigs);
             //_rebuildInvalidUnitigs.insert(unitigIndex_toReverseDirection(unitigIndex));
@@ -1935,10 +1959,12 @@ push s into S
     
     void getSuccessors_unitig(u_int32_t unitigIndex, float abundanceCutoff, vector<u_int32_t>& successors){
 
+        //cout << unitigIndex << " " << _unitigs.size() << endl;
         successors.clear();
 
         Unitig& unitig = _unitigs[unitigIndex];
 
+        //cout << (unitig._endNode == -1)<< endl;
         //cout << BiGraph::nodeIndex_to_nodeName(unitig._endNode) << endl;
         vector<u_int32_t> successors_nodeIndex;
         getSuccessors(unitig._endNode, 0, successors_nodeIndex);
@@ -2209,16 +2235,18 @@ push s into S
                 removeUnconnectedNodes(nodeIndex_source);
             }
 
-            //cout << "Error: " << _isNodeRemoved[loulou] << endl;
-            //compact();
-            
+
             while(true){
 
                 bool isModSub = false;
 
                 while(true){
                     compact(true);
-                    nbTipsRemoved = tip(4*k);
+
+                    unordered_set<u_int32_t> isTips;
+                    nbTipsRemoved = tip(4*k, true, isTips);
+                    nbTipsRemoved = tip(4*k, false, isTips);
+
                     #ifdef PRINT_DEBUG_SIMPLIFICATION
                         cout << "Nb tip removed: " << nbTipsRemoved << endl;
                     #endif
@@ -2242,8 +2270,11 @@ push s into S
                 //cout << "Nb nodes valid: " << _isNodeValid2.size() << endl;
 
                 while(true){
+                    cout << "bubbulu 1" << endl;
                     compact(true);
+                    cout << "bubbulu 2" << endl;
                     nbBubblesRemoved = bubble(100000);
+                    cout << "bubbulu 3" << endl;
                     #ifdef PRINT_DEBUG_SIMPLIFICATION
                         cout << "Nb bubble removed: " << nbBubblesRemoved << endl;
                     #endif
@@ -2264,15 +2295,7 @@ push s into S
 
                 if(!isModSub) break;
             }
-
-
-            //cout << "Nb nodes valid: " << _isNodeValid2.size() << endl;
-
-            //exit(1);
-
-
-
-
+            
             //unordered_set<u_int32_t> 
             u_int64_t nbErrorsRemoved = 0;
             float localCutoffRate = 0.5;
@@ -2339,11 +2362,14 @@ push s into S
                     bubbleAdded += 1;
                 }
                 */
+
                 for(Unitig& unitig : _unitigs){
                     if(unitig._startNode == -1) continue;
                     //cout << unitig._nbNodes << " " << unitig._abundance << endl;
                     if(unitig._nbNodes >= 4*k) continue;
 
+                    //cout << "mioum: " << _unitigs[0]._startNode << endl;
+                    //cout << unitig._index << " " << _unitigs.size() << endl;
                     /*
                     vector<u_int32_t> successors;
                     getSuccessors_unitig(unitig._index, successors);
@@ -2452,6 +2478,21 @@ push s into S
                 t = t * (1+aplha);
             }
 
+            //cout << "Error: " << _isNodeRemoved[loulou] << endl;
+            //compact();
+            
+
+
+
+            //cout << "Nb nodes valid: " << _isNodeValid2.size() << endl;
+
+            //exit(1);
+
+
+
+
+
+
             /*
             unordered_set<u_int32_t> validNodes;
             for (auto& nodeIndex : _isNodeValid2){
@@ -2488,6 +2529,8 @@ push s into S
         //        cout << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
         //    }
         //}
+
+        /*
         cout << "inserting bubbles" << endl;
         while(true){
             vector<u_int32_t> neighbors;
@@ -2544,19 +2587,6 @@ push s into S
                     //cout << localabundance << endl;
                     double cutoff = localabundance*0.5;
 
-                    /*
-                    if(BiGraph::nodeIndex_to_nodeName(node._nodeIndex) == 2652){
-                        cout << BiGraph::nodeIndex_to_nodeName(node._nodeIndex) << " " << localabundance << " " << node._abundance << endl;
-                        getchar();
-                    }
-                    if(BiGraph::nodeIndex_to_nodeName(node._nodeIndex) == 39){
-                        cout << BiGraph::nodeIndex_to_nodeName(node._nodeIndex) << " " << localabundance << " " << node._abundance << endl;
-                        getchar();
-                    }
-                    if(BiGraph::nodeIndex_to_nodeName(node._nodeIndex) == 2651){
-                        cout << BiGraph::nodeIndex_to_nodeName(node._nodeIndex) << " " << localabundance << " " << node._abundance << endl;
-                        getchar();
-                    }*/
                     
                     //cout << "2" << endl;
                     if(node._abundance >= cutoff){
@@ -2584,11 +2614,26 @@ push s into S
             if(bubbleAdded == 0) break;
         }
         cout << "done" << endl;
+        */
+
         compact(false);
+
 
         //cout << (_isNodeValid2.find(BiGraph::nodeName_to_nodeIndex(1840, false)) != _isNodeValid2.end())<< endl;
         cout << "Nb nodes valid: " << _isNodeValid2.size() << endl;
-        getchar();
+        //getchar();
+
+
+        
+        unordered_set<u_int32_t> validNodes;
+        for (auto& nodeIndex : _isNodeValid2){
+            u_int32_t nodeName = _graphSuccessors->nodeIndex_to_nodeName(nodeIndex);
+            validNodes.insert(nodeName);
+        }
+        string outputFilename = _outputDir + "/minimizer_graph_cleaned.gfa";
+        GfaParser::rewriteGfa_withoutNodes(_inputGfaFilename, outputFilename, validNodes, _isEdgeRemoved, _graphSuccessors);
+        
+
         //compact();
         //superbubble(50000);
         
@@ -2882,7 +2927,12 @@ getStronglyConnectedComponent_node
             }
         }
 
-	    if(!System::file().doesExist (_outputDir + "/gfa")) System::file().mkdir(_outputDir + "/gfa", -1);
+
+        fs::path path(_outputDir + "/gfa");
+	    if(!fs::exists (path)){
+            fs::create_directory(path);
+        } 
+        //System::file().mkdir(_outputDir + "/gfa", -1);
 
         //fs::path p(_outputDir + "/gfa");
         //if(!fs::exists(p)){
@@ -3135,6 +3185,7 @@ getStronglyConnectedComponent_node
             getPredecessors_unitig(unitigIndex, 0, predecessors);
 
             lala += 1;
+            //if(lala > 30000) break;
             //cout << unitigIndex << " " << nbLongUnitigs << " " << totalLongUnitigLength << endl;
 
             for(u_int32_t unitigIndex_nn : successors){

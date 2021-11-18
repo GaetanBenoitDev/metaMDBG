@@ -34,6 +34,9 @@ Gros changement non testé:
 	- cutoff onthe fly = assemblyAbundance / 2, remettre superbubble detection, isTip on he fly egalement ?"
 	- dans detection superbubble classique, on pourrait jouter la gestion des cycle des la phase de cleaning
 	- minimizer contig: pas besoin de recuperer/ecrire les supporting reads
+	- ToBasespace: recuperer les sequenceModel et variant en une seule passes sur les data, peut etre plus encessaire avec l'approche multi k?
+	- Kminmer / kmer parser: verifier qu'on a la taille de seuqnece suffisante (pour les kmer) et nb minimizers suffisant (pour kminmer) pour les générer (k+1)
+	- Gfa format: créer notre propre format binaire, mais attention gfa est pratique pour debug
 */
 
 #define PRINT_DEBUG_COMPLEX_AREA
@@ -4664,12 +4667,16 @@ public:
 	string _truthInputFilename;
 	string _outputFilename;
 	string _outputFilename_complete;
-	
+	bool _debug;
+
 	float _minimizerDensity;
     size_t _minimizerSize;
     size_t _kminmerSize;
 	vector<UnitigData> _unitigDatas;
 
+	string _filename_solidKminmers;
+	string _filename_inputContigs;
+	string _filename_outputContigs;
 	string _filename_readMinimizers;
 	string _filename_hifiasmGroundtruth;
 	unordered_map<KmerVec, u_int16_t> _evaluation_hifiasmGroundTruth;
@@ -4678,9 +4685,9 @@ public:
 	gzFile _outputContigFile;
 	gzFile _outputContigFile_complete;
 
-	Assembly(): Tool ("asm"){
+	Assembly(): Tool (){
 
-
+		/*
 		getParser()->push_back (new OptionOneParam (STR_INPUT_DIR, "input dir", true));
 		//getParser()->push_back (new OptionOneParam (STR_OUTPUT, "output contig filename", true));
 		//getParser()->push_back (new OptionOneParam (STR_MINIM_SIZE, "minimizer length", false, "16"));
@@ -4689,7 +4696,7 @@ public:
 		//getParser()->push_back (new OptionOneParam (STR_INPUT_DIR, "input dir", false, ""));
 		getParser()->push_back (new OptionOneParam (STR_INPUT_TRUTH, "", false, ""));
 		getParser()->push_back (new OptionNoParam (STR_HIFIASM_DEBUG, "", false, false));
-
+		*/
 	}
 
 	~Assembly(){
@@ -4698,45 +4705,8 @@ public:
 
 	void execute (){
 
-		/*
-        BiGraph* graph = new BiGraph(8);
-		graph->addEdge_debug(0, 1); //a, b
-		graph->addEdge_debug(1, 2); //b, c
-		graph->addEdge_debug(1, 4); //b, e
-		graph->addEdge_debug(1, 5); //b, f
-		graph->addEdge_debug(4, 0); //e, a
-		graph->addEdge_debug(4, 5); //e, f
-		graph->addEdge_debug(5, 6); //f, g
-		graph->addEdge_debug(6, 5); //g, f
-		graph->addEdge_debug(2, 6); //c, g
-		graph->addEdge_debug(2, 3); //c, d
-		graph->addEdge_debug(3, 2); //d, c
-		graph->addEdge_debug(3, 7); //d, h
-		graph->addEdge_debug(7, 3); //h, d
-		graph->addEdge_debug(7, 6); //h, g
 
-		GraphSimplify* g = new GraphSimplify(graph);
-		vector<vector<u_int32_t>> sccs;
-		g->getStronglyConnectedComponents(sccs);
-		cout << sccs.size() << endl;
-
-		for(vector<u_int32_t>& scc : sccs){
-			cout << "----" << endl;
-			for(u_int32_t unitigIndex : scc){
-				vector<u_int32_t> nodes;
-				g->getUnitigNodes(g->_unitigs[unitigIndex], nodes);
-				for(u_int32_t nodeIndex : nodes){
-					cout << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
-				}
-			}
-		}
-
-		exit(1);
-		*/
-
-		parseArgs();
-
-		if(getInput()->get(STR_HIFIASM_DEBUG)){
+		if(_debug){
 			asmDebug();
 			exit(0);
 		}
@@ -4751,9 +4721,45 @@ public:
 		gzclose(_outputContigFile_complete);
 	}
 
-	void parseArgs(){
+	void parseArgs(int argc, char* argv[]){
+		/*
 		_inputDir = getInput()->getStr(STR_INPUT_DIR);
 		_truthInputFilename = getInput()->get(STR_INPUT_TRUTH) ? getInput()->getStr(STR_INPUT_TRUTH) : "";
+		*/
+
+
+		cxxopts::Options options("Assembly", "");
+		options.add_options()
+		(ARG_OUTPUT_DIR, "", cxxopts::value<string>())
+		(ARG_INPUT_FILENAME_CONTIG, "", cxxopts::value<string>()->default_value(""))
+		(ARG_INPUT_FILENAME_TRUTH, "", cxxopts::value<string>()->default_value(""))
+		(ARG_DEBUG, "", cxxopts::value<bool>()->default_value("false"));
+
+		//("k,kminmerSize", "File name", cxxopts::value<std::string>())
+		//("v,verbose", "Verbose output", cxxopts::value<bool>()->default_value("false"))
+		//;
+
+		if(argc <= 1){
+			cout << options.help() << endl;
+			exit(0);
+		}
+
+		cxxopts::ParseResult result;
+
+		try{
+			result = options.parse(argc, argv);
+
+			_inputDir = result[ARG_OUTPUT_DIR].as<string>();
+			_filename_inputContigs = result[ARG_INPUT_FILENAME_CONTIG].as<string>();
+			_truthInputFilename = result[ARG_INPUT_FILENAME_TRUTH].as<string>();
+			_debug = result[ARG_DEBUG].as<bool>();
+		}
+		catch (const std::exception& e){
+			std::cout << options.help() << std::endl;
+			std::cerr << e.what() << std::endl;
+			std::exit(EXIT_FAILURE);
+		}
+
 
 		string filename_parameters = _inputDir + "/parameters.gz";
 		gzFile file_parameters = gzopen(filename_parameters.c_str(),"rb");
@@ -4774,6 +4780,8 @@ public:
 		_outputFilename_complete = _inputDir + "/minimizer_contigs_complete.gz";
 		_filename_readMinimizers = _inputDir + "/read_data.gz";
 		_filename_hifiasmGroundtruth = _inputDir + "/hifiasmGroundtruth.gz";
+		_filename_outputContigs = _inputDir + "/contigs.min.gz";
+		_filename_solidKminmers = _inputDir + "/solid.min.gz";
 
 	}
 
@@ -4817,14 +4825,14 @@ public:
 
 		
 		cout << gfa_filename << endl;
-		MDBG* mdbg = new MDBG(_kminmerSize);
-		mdbg->load(mdbg_filename);
+		_mdbg = new MDBG(_kminmerSize);
+		_mdbg->load(mdbg_filename);
+		cout << "Nb nodes: " <<  _mdbg->_dbg_nodes.size() << endl;
 		
 
-		cout << "Nb nodes: " <<  mdbg->_dbg_nodes.size() << endl;
 
 		if(_truthInputFilename != ""){
-			extract_truth_kminmers(mdbg);
+			extract_truth_kminmers();
 		}
 
 
@@ -4971,9 +4979,16 @@ public:
 		file_groundTruth_hifiasm_position.close();
 		*/
 
+		file_groundTruth = ofstream(_inputDir + "/binning_results.csv");
+		file_groundTruth << "Name,Colour" << endl;
+
+		file_groundTruth_hifiasmContigs = ofstream(_inputDir + "/binning_results_hifiasm.csv");
+		file_groundTruth_hifiasmContigs << "Name,Colour" << endl;
+
+
 		
 		GraphSimplify* graphSimplify = new GraphSimplify(gfa_filename, _inputDir, 0);
-		
+		_graph = graphSimplify;
 		
 		/*
 		graphSimplify->clear(0);
@@ -5060,12 +5075,85 @@ public:
 		*/
 		
 
+		cout << "Nb edges: " << graphSimplify->_graphSuccessors->_nbEdges << endl;
+		cout << "Removing unsupported edges" << endl;
+        //graphSimplify->clear(0);
+        //graphSimplify->compact(false);
+		//removeUnsupportedEdges(gfa_filename, gfa_filename_noUnsupportedEdges, graphSimplify);
+		cout << "done" << endl;
+		
+		graphSimplify->debug_writeGfaErrorfree(0, 0, 0, _kminmerSize);
 
 
+		
+		if(_filename_inputContigs == ""){ //First pass
+			gzFile solidFile = gzopen(_filename_solidKminmers.c_str(), "wb");
+
+			unordered_set<u_int32_t> writtenNodeNames;
+
+			for(Unitig& unitig : graphSimplify->_unitigs){
+				for(u_int32_t nodeIndex : unitig._nodes){
+					u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
+					writtenNodeNames.insert(nodeName);
+					gzwrite(solidFile, (const char*)&nodeName, sizeof(nodeName));
+				}
+			}
+
+			gzclose(solidFile);
+		}
+
+		//exit(1);
+
+		u_int64_t nbUnitigs = 0;
+		unordered_set<u_int32_t> writtenNodeNames;
 
 
+		for(Unitig& unitig : graphSimplify->_unitigs){
 
+			//if(unitig._length < 10000) continue;
 
+			if(writtenNodeNames.find(BiGraph::nodeIndex_to_nodeName(unitig._startNode)) != writtenNodeNames.end()) continue;
+			if(writtenNodeNames.find(BiGraph::nodeIndex_to_nodeName(unitig._endNode)) != writtenNodeNames.end()) continue;
+
+			writtenNodeNames.insert(BiGraph::nodeIndex_to_nodeName(unitig._startNode));
+			writtenNodeNames.insert(BiGraph::nodeIndex_to_nodeName(unitig._endNode));
+
+			if(unitig._nbNodes == 1) continue;
+			//if(unitig._nbNodes < 300) continue;
+
+			if(unitig._startNode == unitig._endNode){ //Circular unitig
+				//unitig._nodes.pop_back();
+				//unitig._nodes.push_back(GraphSimplify::nodeIndex_toReverseDirection(unitig._nodes[0]));
+				//unitig._nodes.push_back(unitig._nodes[0]);
+				//cout << "mdr" << endl;
+				//getchar();
+				//for(size_t i=0; i<30; i++){
+				//	unitig._nodes.push_back(unitig._nodes[i]);
+				//}
+			}
+			u_int8_t isCircular = (unitig._startNode == unitig._endNode);
+
+			u_int64_t size = unitig._nodes.size();
+			gzwrite(_outputContigFile, (const char*)&size, sizeof(size));
+			gzwrite(_outputContigFile, (const char*)&isCircular, sizeof(isCircular));
+			gzwrite(_outputContigFile, (const char*)&unitig._nodes[0], size * sizeof(u_int32_t));
+
+			if(unitig._nbNodes > 3000){
+				cout << unitig._nbNodes << " " << BiGraph::nodeIndex_to_nodeName(unitig._startNode) << " " << BiGraph::nodeIndex_to_nodeName(unitig._endNode) << endl;
+			}
+			nbUnitigs += 1;
+			//if(unitig._nb)
+		}
+
+		cout << "Nb unitigs: " << nbUnitigs << endl;
+		//getchar();
+
+		file_groundTruth.close();
+		file_groundTruth_hifiasmContigs.close();
+		file_kminmersContigs.close();
+
+		return;
+		
 
 
 		/*
@@ -5094,11 +5182,6 @@ public:
 
 		//exit(1);
 		
-		file_groundTruth = ofstream(_inputDir + "/binning_results.csv");
-		file_groundTruth << "Name,Colour" << endl;
-
-		file_groundTruth_hifiasmContigs = ofstream(_inputDir + "/binning_results_hifiasm.csv");
-		file_groundTruth_hifiasmContigs << "Name,Colour" << endl;
 
 
 		//562 (ecoli)
@@ -5315,9 +5398,9 @@ public:
 		//graphSimplify->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize);
 
 		cout << "Indexing reads" << endl;
-		_unitigDatas.resize(mdbg->_dbg_nodes.size());
-		removeUnsupportedEdges(mdbg, gfa_filename, gfa_filename_noUnsupportedEdges, graphSimplify);
-		delete mdbg;
+		_unitigDatas.resize(_mdbg->_dbg_nodes.size());
+		removeUnsupportedEdges(gfa_filename, gfa_filename_noUnsupportedEdges, graphSimplify);
+		delete _mdbg;
 		cout << "done" << endl;
 
 
@@ -5471,20 +5554,200 @@ public:
 
 
 
-	void removeUnsupportedEdges(MDBG* mdbg, const string& gfaFilename, const string& gfa_filename_noUnsupportedEdges, GraphSimplify* graph){
-		//cout << "Removing unsupported edges" << endl;
+	void indexReads_read(const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex){
 
+		vector<ReadIndexType> unitigIndexex;
+
+		for(const KmerVec& vec : kminmers){
+			//if(mdbg->_dbg_nodes[vec]._index == 55479) cout << "AAAAA" << endl;
+
+			//cout << mdbg->_dbg_nodes[vec]._index << endl;
+			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()) continue;
+
+			
+
+
+			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
+			//u_int32_t nodeIndex = BiGraph::nodeName_to_nodeIndex(nodeName, true);
+			//if(_graph->_isNodeValid2.find(nodeIndex) == _graph->_isNodeValid2.end()) continue;
+			if(_nodeData.find(nodeName) == _nodeData.end()) continue;
+
+			UnitigData& unitigData = _nodeData[nodeName];
+			unitigData._readIndexes.push_back(readIndex);
+			//cout << "indexing : " << readIndex << endl;
+		}
+
+
+
+	}
+
+	void indexReads_contigs(const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex){
+
+		vector<ReadIndexType> unitigIndexex;
+
+		for(const KmerVec& vec : kminmers){
+			//if(mdbg->_dbg_nodes[vec]._index == 55479) cout << "AAAAA" << endl;
+
+			//cout << mdbg->_dbg_nodes[vec]._index << endl;
+			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()) continue;
+
+			
+
+
+			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
+			//u_int32_t nodeIndex = BiGraph::nodeName_to_nodeIndex(nodeName, true);
+			//if(_graph->_isNodeValid2.find(nodeIndex) == _graph->_isNodeValid2.end()) continue;
+			if(_nodeData.find(nodeName) == _nodeData.end()) continue;
+
+			UnitigData& unitigData = _nodeData[nodeName];
+			unitigData._readIndexes.push_back(readIndex);
+			//cout << "indexing : " << readIndex << endl;
+		}
+
+
+
+	}
+
+	unordered_map<u_int32_t, UnitigData> _nodeData;
+
+	void removeUnsupportedEdges(const string& gfaFilename, const string& gfa_filename_noUnsupportedEdges, GraphSimplify* graph){
+		//cout << "Removing unsupported edges" << endl;
+		//cout << "1" << endl;
 		//GraphSimplify* graphSimplify = new GraphSimplify(gfaFilename, _inputDir);
 		//graphSimplify->compact();
+		for(Unitig& unitig : graph->_unitigs){
+			_nodeData[BiGraph::nodeIndex_to_nodeName(unitig._startNode)] = {0, {}};
+			_nodeData[BiGraph::nodeIndex_to_nodeName(unitig._endNode)] = {0, {}};
+		}
+
+		KminmerParser parser(_filename_readMinimizers, _minimizerSize, _kminmerSize);
+		auto fp = std::bind(&Assembly::indexReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+		parser.parse(fp);
+
+		if(_filename_inputContigs != ""){
+			KminmerParser contigParser(_filename_inputContigs, _minimizerSize, _kminmerSize);
+			auto fp2 = std::bind(&Assembly::indexReads_contigs, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+			contigParser.parse_mContigs(fp2);
+		}
+
+		for(Unitig& unitig : graph->_unitigs){
+
+			u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(unitig._endNode);
+
+			vector<u_int32_t> successors;
+			graph->getSuccessors(unitig._endNode, 0, successors);
+
+			for(u_int32_t successor : successors){
+				
+				u_int32_t nodeName_succ = BiGraph::nodeIndex_to_nodeName(successor);
+
+				if(Utils::shareAnyRead(_nodeData[nodeName], _nodeData[nodeName_succ])){
+					continue;
+				}
 
 
+				DbgEdge edge = {unitig._endNode, successor};
+				edge = edge.normalize();
+				graph->_isEdgeUnsupported.insert(edge);
+
+			}
+
+			/*
+			vector<u_int32_t> predecessors;
+			graph->getPredecessors(unitig._startNode, 0, predecessors);
+
+			for(u_int32_t predecessor : predecessors){
+				
+				u_int32_t nodeName_pred = BiGraph::nodeIndex_to_nodeName(predecessor);
+
+				if(Utils::shareAnyRead(_nodeData[nodeName], _nodeData[nodeName_pred])){
+					continue;
+				}
+
+
+				DbgEdge edge = {predecessor, unitig._startNode};
+				edge = edge.normalize();
+				graph->_isEdgeUnsupported.insert(edge);
+
+			}*/
+
+		}
+
+		
+		cout << "Nb unsupported edges: " << graph->_isEdgeUnsupported.size() << endl;
+		//getchar(); //3808
+		_nodeData.clear();
+		//_unitigDatas.resize(_mdbg->_dbg_nodes.size());
+
+		//AdjGraph* graph = GfaParser::createGraph_lol(gfaFilename);
+		/*
+		for(u_int32_t nodeIndex : _graph->_isNodeValid2){
+
+			vector<u_int32_t> successors;
+			_graph->getSuccessors(nodeIndex, 0, successors);
+
+			for(u_int32_t nodeIndex_succ : successors){
+				if(Utils::shareAnyRead(_unitigDatas[BiGraph::nodeIndex_to_nodeName(nodeIndex)], _unitigDatas[BiGraph::nodeIndex_to_nodeName(nodeIndex_succ)])) continue;
+			
+
+				//unsupportedEdges.insert({utg, utg_n});
+				//unsupportedEdges.insert({utg_n, utg});
+			}
+		}*/
+
+		/*
+		for(size_t utg=0; utg<_graph->_nbNodes; utg++){
+
+			//u_int32_t unitigIndex = graphSimplify->nodeIndex_to_unitigIndex(nodeIndex);
+			//cout << utg << " " << graph->_nbNodes << endl;
+
+			//int nbNeighbors = 0;
+			//adjNode* node = graph->_nodes[utg];
+			//while (node != nullptr) {
+			//	nbNeighbors += 1;
+			//}
+
+
+			adjNode* node = _graph->_nodes[utg];
+			while (node != nullptr) {
+				
+				ReadIndexType utg_n = node->val;
+
+				if(unsupportedEdges.find({utg, utg_n}) != unsupportedEdges.end() || unsupportedEdges.find({utg_n, utg}) != unsupportedEdges.end()) {	
+					node = node->next;
+					continue;
+				}
+
+				if(Utils::shareAnyRead(_unitigDatas[utg], _unitigDatas[utg_n])){
+				//if(Utils::computeSharedReads(_unitigDatas[utg], _unitigDatas[utg_n]) > 2){
+					node = node->next;
+					continue;
+				}
+
+				//if(shareAnyRead(unitigDatas[utg], unitigDatas[utg_n])){
+				unsupportedEdges.insert({utg, utg_n});
+				unsupportedEdges.insert({utg_n, utg});
+
+				//if(nbNeighbors == 2){
+				//	lala += 1;
+				//}
+				//}
+
+				node = node->next;
+			}
+
+		}*/
+		
+		
+		//delete graph;
+
+		/*
 		gzFile file_readData = gzopen(_filename_readMinimizers.c_str(),"rb");
 		ReadIndexType readIndex = 0;
 
 		while(true){
 			
 			//cout << readIndex << endl;
-			//"reprise: essayer avec gfatools unitigs"
 			u_int16_t size;
 			vector<u_int64_t> minimizers;
 			gzread(file_readData, (char*)&size, sizeof(size));
@@ -5501,7 +5764,7 @@ public:
 			vector<u_int64_t> rlePositions;
 			MDBG::getKminmers(_minimizerSize, _kminmerSize, minimizers, minimizersPos, kminmers, kminmersInfo, rlePositions, readIndex);
 
-			/*
+			
 			if(readIndex == 75286){
 				cout << "-------------------------- " << size << endl;
 				for(u_int64_t m : minimizers){
@@ -5513,7 +5776,7 @@ public:
 				for(u_int64_t m : minimizers){
 					cout << m << endl;
 				}
-			}*/
+			}
 
 			vector<ReadIndexType> unitigIndexex;
 		
@@ -5533,7 +5796,7 @@ public:
 
 				UnitigData& unitigData = _unitigDatas[nodeName];
 				unitigData._readIndexes.push_back(readIndex);
-
+				*/
 				/*
 				if(nodeName == 1839895){
 					cout << nodeName << " " << readIndex << endl;
@@ -5564,7 +5827,7 @@ public:
 
 				//unitigIndexex.push_back(unitigIndex1);
 				//if(unitigIndexex.size() >= 2) break;
-			}
+			//}
 
 			/*
 			if(unitigIndexex.size() >= 2){
@@ -5596,8 +5859,8 @@ public:
 
 
 			
-			readIndex += 1;
-		}
+			//readIndex += 1;
+		//}
 
 		/*
 		unordered_set<DbgEdge, hash_pair> unsupportedEdges;
@@ -6071,7 +6334,7 @@ public:
 
     	//graph->saveCurrentGfa(source_nodeIndex, source_abundance, pathIndex);
 
-		AssemblyState assemblyState = {2000, {}, {}, false, 0, {}, false, source_abundance};
+		AssemblyState assemblyState = {5000, {}, {}, false, 0, {}, false, source_abundance};
 		ExtendedPathData extendedPathData;
 		bool pathSolved = extendPath(source_nodeIndex, source_abundance, graph, pathIndex, pathIndex_complete, assemblyState, extendedPathData);
 
@@ -6589,6 +6852,13 @@ public:
 		//bool pathSolved = solveBin_path(pathData, graph, true, dummu);
 		if(pathSolved){
 			cout << "Path is solve forward (" << pathData_forward.nodePath.size() << ")" << endl;
+			//cout << BiGraph::nodeIndex_to_nodeName(pathData_forward.nodePath[0]) << endl;
+			//getchar();
+			//getchar();
+			//for(size_t i=0; i<_kminmerSize*3; i++){
+			//	pathData_forward.nodePath.pop_back();
+			//	pathData_forward.nodePath.push_back(pathData_forward.nodePath[i]);
+			//}
 			//getchar();
 		}
 		
@@ -6809,33 +7079,76 @@ public:
 
 	}*/
 
-	void extract_truth_kminmers(MDBG* mdbg){
+	MinimizerParser* _minimizerParser;
+	u_int32_t _extract_truth_kminmers_read_position;
+	MDBG* _mdbg;
+	GraphSimplify* _graph;
+
+	void extract_truth_kminmers_read(kseq_t* read, u_int64_t readIndex){
+		//ottalSize += strlen(read->seq.s);
+								
+		string rleSequence;
+		vector<u_int64_t> rlePositions;
+		Encoder::encode_rle(read->seq.s, strlen(read->seq.s), rleSequence, rlePositions);
+
+		vector<u_int64_t> minimizers;
+		vector<u_int64_t> minimizers_pos;
+		_minimizerParser->parse(rleSequence, minimizers, minimizers_pos);
+
+		vector<KmerVec> kminmers; 
+		vector<ReadKminmer> kminmersInfo;
+		MDBG::getKminmers(_minimizerSize, _kminmerSize, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex);
+
+		for(size_t i=0; i<kminmers.size(); i++){
+
+			KmerVec& vec = kminmers[i];
+			//if(_mdbg->_dbg_nodes.find(kminmers[i]) == _mdbg->_dbg_nodes.end()) continue;
+
+			//u_int32_t nodeName = _mdbg->_dbg_nodes[kminmers[i]]._index;
+			if(_mdbg->_dbg_nodes.find(vec) != _mdbg->_dbg_nodes.end()){
+				_evaluation_hifiasmGroundTruth_nodeName_to_unitigName[_mdbg->_dbg_nodes[vec]._index].push_back(string(read->name.s));
+				_evaluation_hifiasmGroundTruth_path.push_back(_mdbg->_dbg_nodes[vec]._index);
+
+				if(_evaluation_hifiasmGroundTruth_nodeNamePosition.find(_mdbg->_dbg_nodes[vec]._index) == _evaluation_hifiasmGroundTruth_nodeNamePosition.end()){
+					_evaluation_hifiasmGroundTruth_nodeNamePosition[_mdbg->_dbg_nodes[vec]._index] = _extract_truth_kminmers_read_position;
+				}
+				//cout << mdbg->_dbg_nodes[vec]._index << " " << sequence.getComment() << endl;
+			}
+			else{
+				//cout << "Not found position: " << position << endl;
+				_evaluation_hifiasmGroundTruth_path.push_back(-1);
+			}
+
+
+			if(_evaluation_hifiasmGroundTruth.find(vec) != _evaluation_hifiasmGroundTruth.end()){
+				//cout << position << endl;
+				continue;
+			}
+
+			//_evaluation_hifiasmGroundTruth[vec] = datasetID;
+			_evaluation_hifiasmGroundTruth_position[vec] = _extract_truth_kminmers_read_position;
+			_extract_truth_kminmers_read_position += 1;
+
+		}
+
+
+	}
+
+
+	void extract_truth_kminmers(){
+
+		_extract_truth_kminmers_read_position = 0;
+		_minimizerParser = new MinimizerParser(_minimizerSize, _minimizerDensity);
+		
+		auto fp = std::bind(&Assembly::extract_truth_kminmers_read, this, std::placeholders::_1, std::placeholders::_2);
+		ReadParser readParser(_truthInputFilename, true);
+		readParser.parse(fp);
+
+		delete _minimizerParser;
+
 
 		
-		u_int64_t maxHashValue = -1;
-
-		u_int64_t _hash_otpt[2];
-		int _seed = 42;
-		setDispatcher (new SerialDispatcher());
-
-
-		IBank* inbank = Bank::open(_truthInputFilename);
-
-		
-		Iterator<Sequence>* itSeq = createIterator<Sequence> (
-															inbank->iterator(),
-															inbank->estimateNbItems(),
-															"Parsing reads"
-															);
-
-		LOCAL (itSeq);
-			
-		std::vector<Iterator<Sequence>*> itBanks =  itSeq->getComposition();
-		u_int32_t readIndex = 0;
-		u_int32_t datasetID = 0;
-
-		
-
+		/*
 		ModelCanonical model (_minimizerSize);
 		ModelCanonical::Iterator itKmer (model);
 
@@ -6859,67 +7172,45 @@ public:
 				Encoder::encode_rle(sequence.getDataBuffer(), sequence.getDataSize(), rleSequence, rlePositions);
 
 
-				Data buf((char*)rleSequence.c_str());
-				itKmer.setData (buf);
-
-				/*
-				string sequence_str;
-
-				char lastChar = '0';
-				for(size_t i=0; i<sequence.getDataSize(); i++){
-					if(readseq[i] == lastChar) continue;
-					sequence_str += readseq[i];
-					lastChar = readseq[i];
-				}
-
-
-				size_t nbMinimizersPerRead = 0;
-
-				Data buf((char*)sequence_str.c_str());
 
 
 
-				itKmer.setData (buf);
-				*/
-
-				//u_int64_t lastMinimizer = -1;
 				vector<u_int64_t> minimizers;
-				//vector<u_int64_t> minimizers_pos;
-				//u_int64_t nbMinizersRead = 0;
+				vector<u_int64_t> minimizers_pos;
+				u_int64_t pos = 0;
 
-				//vector<MinimizerPair> minimizerPairs;
-				
+				ntHashIterator ntHashIt(rleSequence, 1, _minimizerSize);
 
-				//u_int64_t pos = 0;
-				//u_int32_t lastMinimizerPos = -1;
-				for (itKmer.first(); !itKmer.isDone(); itKmer.next()){
+				while (ntHashIt != ntHashIt.end()) {
 
-					kmer_type kmerMin = itKmer->value();
-					u_int64_t kmerValue = kmerMin.getVal();
-					u_int64_t minimizer;
-					MurmurHash3_x64_128 ((const char*)&kmerValue, sizeof(kmerValue), _seed, &_hash_otpt);
-					minimizer = _hash_otpt[0];
-
-
-
-					//if(minimizerCounts[minimizer] > 1000) cout << minimizer << endl;
-					double kmerHashed_norm = ((double) minimizer) / maxHashValue;
-					if(kmerHashed_norm < _minimizerDensity){
-
-
-						minimizers.push_back(minimizer);
-						//minimizers_pos.push_back(pos);
-
-						//cout << pos << endl;
-
-						//minimizerCounts[minimizer] += 1;
-						
-
+					if(pos == 0){
+						pos += 1;
+						++ntHashIt;
+						continue;
+					}
+					else if(pos == rleSequence.size()-_minimizerSize){
+						++ntHashIt;
+						continue;
 					}
 
-					//cout << kmerHashed << endl;
-					//pos += 1;
+					u_int64_t minimizer = (*ntHashIt)[0];
+
+					double kmerHashed_norm = ((double) minimizer) / maxHashValue;
+					if(kmerHashed_norm < (_minimizerDensity*0.5)){
+						minimizers.push_back(minimizer);
+						minimizers_pos.push_back(pos);
+
+						//cout << pos << endl;
+						//cout << rlePositions[pos] << endl; 
+						
+						//minimizerCounts[minimizer] += 1;
+					}
+
+					//bloom.insert(*itr);
+					++ntHashIt;
+					pos += 1;
 				}
+
 
 				
 				int i_max = ((int)minimizers.size()) - (int)_kminmerSize + 1;
@@ -6981,29 +7272,6 @@ public:
 				//	cout << minimizers[i] << endl;
 				//}
 
-				/*
-				vector<KmerVec> kminmers; 
-				vector<ReadKminmer> kminmersInfo;
-				vector<u_int64_t> minimizersPos; 
-				//vector<u_int64_t> rlePositions;
-				MDBG::getKminmers(_minimizerSize, _kminmerSize, minimizers, minimizersPos, kminmers, kminmersInfo, rlePositions, 0);
-				
-
-				for(size_t i=0; i<kminmers.size(); i++){
-					KmerVec& vec = kminmers[i];
-
-					if(_evaluation_hifiasmGroundTruth.find(vec) != _evaluation_hifiasmGroundTruth.end()){
-						//cout << endl << "HI: " << position << endl;
-						continue;
-					}
-					_evaluation_hifiasmGroundTruth[vec] = datasetID;
-					_evaluation_hifiasmGroundTruth_position[vec] = position;
-
-				
-					
-					position += 1;
-				}
-				*/
 
 				readIndex += 1;
 			}
@@ -7012,7 +7280,8 @@ public:
 
 			datasetID += 1;
 		}
-		
+		*/
+
 		cout << "Nb minimizers groundtruth: " << _evaluation_hifiasmGroundTruth.size() << endl;
 		//exit(1);
 		//gzclose(file);
@@ -7029,12 +7298,12 @@ public:
 
 		if(_truthInputFilename != ""){
 			string mdbg_filename = _inputDir + "/mdbg_nodes.gz";
-			MDBG* mdbg = new MDBG(_kminmerSize);
-			mdbg->load(mdbg_filename);
+			_mdbg = new MDBG(_kminmerSize);
+			_mdbg->load(mdbg_filename);
 
-			extract_truth_kminmers(mdbg);
+			extract_truth_kminmers();
 
-			delete mdbg;
+			delete _mdbg;
 		}
 
 
@@ -7081,7 +7350,7 @@ public:
 		file_kminmersContigs << "Name,Colour" << endl;
 		
 		GraphSimplify* graphSimplify = new GraphSimplify(gfa_filename_noUnsupportedEdges, _inputDir, nbNodes);
-
+		_graph = graphSimplify;
 		//C6
 		//solveBin(graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(189356, false), 36, graphSimplify, 0, false);
 		

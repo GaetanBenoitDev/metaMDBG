@@ -13,6 +13,7 @@
 //#include "graph/Graph.hpp"
 #include "graph/GfaParser.hpp"
 #include "graph/GraphSimplify.hpp"
+//#include "./utils/ntHashIterator.hpp"
 
 //#include <boost/graph/adjacency_list.hpp>
 //#include <boost/graph/graph_utility.hpp>
@@ -22,9 +23,6 @@
 
 
 
-#define BLOOCOO_VERSION_MAJOR 1
-#define BLOOCOO_VERSION_MINOR 0
-#define BLOOCOO_VERSION_PATCH 6
 
 
 
@@ -44,22 +42,30 @@ class Bloocoo : public Tool{
 		bool _isReversed;
 	};
 
+	struct KminmerAbundance{
+		KmerVec _vec;
+		u_int32_t _count;
+	};
+
 public:
 
-	string _inputFilename;
+	//string _inputFilename;
 	string _outputDir;
 	float _minimizerDensity;
     size_t _minimizerSize;
     size_t _kminmerSize;
-    IBank* _inputBank;
+    //IBank* _inputBank;
 
 	//vector<ReadData> _readData;
 	//CompositionManager* _compositionManager;
 	//AdjGraph* _overlapGraph;
 	//string _inputDir;
 	//string _input_extractKminmers;
-	
+	KmerVec _lala;
+
 	string _filename_readMinimizers;
+	string _filename_inputContigs;
+	string _filename_solidKminmers;
 	//string _filename_filteredMinimizers;
 	//string _filename_readCompositions;
 
@@ -71,13 +77,32 @@ public:
     void execute ();
 	void createGroundTruth();
 	void createMDBG();
+	//void createMDBG_read(kseq_t* read, u_int64_t readIndex);
+	void createMDBG_collectKminmers(const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex);
+	void createMDBG_collectKminmers_contigs(const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex);
+	void removeErroneousKminmers(const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex);
+	void loadSolidKminmers();
+
+	void createMDBG_index(const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex);
 	void createGfa();
-	void parseArgs();
+	void parseArgs(int argc, char* argv[]);
+	void parseContigs();
+	float computeKmerVecAbundance(const vector<u_int64_t>& minimizers, bool isContig);
+	void computeContigAbundance();
 	//void createSimilarityGraph(GraphInfo* graphInfo);
 	//void execute_binning();
 	//void execute_binning_cleanGraph();
 	//void extract_kminmers();
 
+	u_int64_t _debug_nbMinimizers;
+	unordered_map<u_int64_t, u_int64_t> _minimizerCounts;
+	//unordered_map<KmerVec, u_int32_t> kminmerCounts;
+	unordered_map<KmerVec, KminmerData> _kminmersData;
+	gzFile _file_readData;
+	MinimizerParser* _minimizerParser;
+	unordered_map<KmerVec, vector<u_int32_t>> _contigIndex;
+	unordered_map<u_int32_t, u_int32_t> _contigAbundances;
+	unordered_map<KmerVec, u_int32_t> _solidKminmerAbundances;
 
 	void print_stats(vector<float>& elems){
 

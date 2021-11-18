@@ -2,6 +2,8 @@
 #include "assembly/Assembly.hpp"
 #include "toBasespace/ToBasespace.hpp"
 #include "toBasespace/ToMinspace.hpp"
+#include "pipeline/AssemblyPipeline.hpp"
+#include "readSelection/ReadSelection.hpp"
 
 void displayHelp(){
 	cout << "Usage: ./simkaMin [option]" << endl;
@@ -62,9 +64,14 @@ int main (int argc, char* argv[])
 
     		string programName = string(argv[1]);
 
-    		if(programName == "graph"){
+			if(programName == "pipeline"){
+                AssemblyPipeline().run (argc, args);
+    		}
+			else if(programName == "readSelection"){
+                ReadSelection().run (argc, args);
+    		}
+    		else if(programName == "graph"){
                 Bloocoo().run (argc, args);
-    			//Simka2ComputeKmerSpectrum().run (argc, args);
     		}
     		else if(programName == "asm"){
                 Assembly().run (argc, args);
@@ -85,9 +92,9 @@ int main (int argc, char* argv[])
     	//cout << argv[2] << endl;
     	//
     }
-    catch (Exception& e)
+    catch (int e)
     {
-        std::cout << "EXCEPTION: " << e.getMessage() << std::endl;
+        cout << "EXCEPTION: " << e << endl;
         return EXIT_FAILURE;
     }
 

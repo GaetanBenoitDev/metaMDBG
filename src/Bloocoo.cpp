@@ -2,16 +2,16 @@
 
 #include <Bloocoo.hpp>
 
-
-Bloocoo::Bloocoo () : Tool("bloocoo")
+Bloocoo::Bloocoo () : Tool()
 {
 
 
+	/*
 	getParser()->push_back (new OptionOneParam (STR_INPUT, "input file", true));
 	getParser()->push_back (new OptionOneParam (STR_OUTPUT, "output dir", true));
 	getParser()->push_back (new OptionOneParam (STR_MINIM_SIZE, "minimizer length", false, "21"));
 	getParser()->push_back (new OptionOneParam (STR_KMINMER_SIZE, "k-min-mer length", false, "3"));
-	getParser()->push_back (new OptionOneParam (STR_DENSITY, "density of minimizers", false, "0.005"));
+	getParser()->push_back (new OptionOneParam (STR_DENSITY, "density of minimizers", false, "0.005"));*/
 	//getParser()->push_back (new OptionOneParam (STR_INPUT_DIR, "input dir", false, ""));
 	//getParser()->push_back (new OptionOneParam (STR_INPUT_EXTRACT_KMINMERS, "", false, ""));
 
@@ -22,26 +22,76 @@ Bloocoo::Bloocoo () : Tool("bloocoo")
 
 
 void Bloocoo::execute (){
-	parseArgs();
+	//parseArgs();
 	createMDBG();
 	createGfa();
 }
 
-void Bloocoo::parseArgs(){
+void Bloocoo::parseArgs(int argc, char* argv[]){
+
+
+
+	cxxopts::Options options("Graph", "Create MDBG");
+	options.add_options()
+	//("d,debug", "Enable debugging") // a bool parameter
+	(ARG_OUTPUT_DIR, "", cxxopts::value<string>())
+	(ARG_INPUT_FILENAME_CONTIG, "", cxxopts::value<string>()->default_value(""));
+	//(ARG_KMINMER_LENGTH, "", cxxopts::value<int>()->default_value("3"))
+	//(ARG_MINIMIZER_LENGTH, "", cxxopts::value<int>()->default_value("21"))
+	//(ARG_MINIMIZER_DENSITY, "", cxxopts::value<float>()->default_value("0.005"));
+	//("k,kminmerSize", "File name", cxxopts::value<std::string>())
+	//("v,verbose", "Verbose output", cxxopts::value<bool>()->default_value("false"))
+	//;
+
+	if(argc <= 1){
+		std::cout << options.help() << std::endl;
+		exit(0);
+	}
+
+
+	cxxopts::ParseResult result;
+
+    try{
+		result = options.parse(argc, argv);
+
+		_outputDir = result[ARG_OUTPUT_DIR].as<string>(); 
+		_filename_inputContigs = result[ARG_INPUT_FILENAME_CONTIG].as<string>();
+
+    }
+    catch (const std::exception& e){
+		std::cout << options.help() << std::endl;
+    	std::cerr << e.what() << std::endl;
+    	std::exit(EXIT_FAILURE);
+    }
+
+
+
+
+    //T exception{text};
+
+
+
+
+	//_inputFilename = result[STR_INPUT].as<string>();
 
 	//_compositionManager = new CompositionManager(4);
 
 	//int w = 80;
-	_kminmerSize = getInput()->getInt(STR_KMINMER_SIZE);
-	_inputFilename = getInput()->getStr(STR_INPUT);
-	_minimizerSize = getInput()->getInt(STR_MINIM_SIZE);
-	_outputDir = getInput()->getStr(STR_OUTPUT);
-	_minimizerDensity = getInput()->getDouble(STR_DENSITY);
+	
 
-	if(!System::file().doesExist (_outputDir)) System::file().mkdir(_outputDir, -1);
+
+	//if(!System::file().doesExist (_outputDir)) System::file().mkdir(_outputDir, -1);
+	
+	string filename_parameters = _outputDir + "/parameters.gz";
+	gzFile file_parameters = gzopen(filename_parameters.c_str(),"rb");
+	gzread(file_parameters, (char*)&_minimizerSize, sizeof(_minimizerSize));
+	gzread(file_parameters, (char*)&_kminmerSize, sizeof(_kminmerSize));
+	gzread(file_parameters, (char*)&_minimizerDensity, sizeof(_minimizerDensity));
+	gzclose(file_parameters);
+
 
 	cout << endl;
-	cout << "Input: " << _inputFilename << endl;
+	cout << "Contig filename: " << _filename_inputContigs << endl;
 	cout << "Output dir: " << _outputDir << endl;
 	cout << "Minimizer length: " << _minimizerSize << endl;
 	cout << "Kminmer length: " << _kminmerSize << endl;
@@ -52,23 +102,364 @@ void Bloocoo::parseArgs(){
 	//_input_extractKminmers= getInput()->get(STR_INPUT_EXTRACT_KMINMERS) ? getInput()->getStr(STR_INPUT_EXTRACT_KMINMERS) : "";
 
 	_filename_readMinimizers = _outputDir + "/read_data.gz";
+	//_filename_outputContigs = _inputDir + "/contigs.min.gz";
 	//_filename_readCompositions = _outputDir + "/read_compositions.gz";
 	//_filename_filteredMinimizers = _outputDir + "/filteredMinimizers.gz";
 	//_filename_hifiasmGroundtruth = _outputDir + "/hifiasmGroundtruth.gz";
 
 
-	string filename_parameters = _outputDir + "/parameters.gz";
-	gzFile file_parameters = gzopen(filename_parameters.c_str(),"wb");
-	gzwrite(file_parameters, (const char*)&_minimizerSize, sizeof(_minimizerSize));
-	gzwrite(file_parameters, (const char*)&_kminmerSize, sizeof(_kminmerSize));
-	gzwrite(file_parameters, (const char*)&_minimizerDensity, sizeof(_minimizerDensity));
-	gzclose(file_parameters);
 
+
+}
+
+/*
+void Bloocoo::createMDBG_read(kseq_t* read, u_int64_t readIndex){
+	
+	if(readIndex % 100000 == 0) cout << readIndex << " " << _debug_nbMinimizers << endl;
+
+	string rleSequence;
+	vector<u_int64_t> rlePositions;
+	Encoder::encode_rle(read->seq.s, strlen(read->seq.s), rleSequence, rlePositions);
+
+	vector<u_int64_t> minimizers;
+	vector<u_int64_t> minimizers_pos;
+	_minimizerParser->parse(rleSequence, minimizers, minimizers_pos);
+	_debug_nbMinimizers += minimizers.size();
+
+	//for(u_int64_t minimizer : minimizers){
+	//	_minimizerCounts[minimizer] += 1;
+	//}
+	for(size_t i=0; i<rlePositions.size(); i++){
+		rlePositions[i] = i;
+	}
+
+	vector<KmerVec> kminmers; 
+	vector<ReadKminmer> kminmersInfo;
+	MDBG::getKminmers(_minimizerSize, _kminmerSize, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex);
+
+	for(size_t i=0; i<kminmers.size(); i++){
+
+		if(_kminmersData.find(kminmers[i]) == _kminmersData.end()){
+			_kminmersData[kminmers[i]] = {0, kminmersInfo[i]._length - _minimizerSize, kminmersInfo[i]._seq_length_start, kminmersInfo[i]._seq_length_end, kminmersInfo[i]._isReversed};
+		}
+
+		_kminmersData[kminmers[i]]._count += 1;
+
+	}
+
+	u_int16_t size = minimizers.size();
+	gzwrite(_file_readData, (const char*)&size, sizeof(size));
+	gzwrite(_file_readData, (const char*)&minimizers[0], size * sizeof(u_int64_t));
+
+}
+*/
+
+
+
+void Bloocoo::createMDBG_collectKminmers(const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex){
+	
+	for(size_t i=0; i<kminmers.size(); i++){
+		if(_kminmersData.find(kminmers[i]) == _kminmersData.end()){
+			_kminmersData[kminmers[i]] = {0, kminmersInfos[i]._length - _minimizerSize, kminmersInfos[i]._seq_length_start, kminmersInfos[i]._seq_length_end, kminmersInfos[i]._isReversed};
+		}
+
+		_kminmersData[kminmers[i]]._count += 1;
+	}
+}
+/*
+void Bloocoo::createMDBG_index(const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex){
+
+	
+	if(readIndex == 0){
+		cout << _lala._kmers.size() << endl;
+		if(_lala._kmers.size() != 0){
+			for(u_int64_t minimizer : _lala._kmers) cout << minimizer << " ";
+			cout << endl;
+		}
+		//cout << _lala._kmers[0] << " " << _lala._kmers[1] << " " << _lala._kmers[2] << endl;
+		getchar(); 
+	}
+	vector<u_int32_t> abundances;
+
+	for(const KmerVec& vec : kminmers){
+		abundances.push_back(_kminmersData[vec]._count);
+	}
+
+	float minAbundance_cutoff = compute_median(abundances) / 2;
+	u_int32_t nodeNameLala = -1;
+
+	for(size_t i=0; i<kminmers.size(); i++){
+
+		const KmerVec& vec = kminmers[i];
+		if (vec.h() == _lala.h()){
+			nodeNameLala = _mdbg->_dbg_nodes[vec]._index;
+			cout << _mdbg->_dbg_nodes[vec]._index << endl;
+			getchar();
+		}
+
+		if(_kminmersData[vec]._count == 1) continue; //ATTENTION, ON ENELEVE TOUS LES KMINMER VU UNE FOIS
+		//if(kminmerCounts[vec] > 1000) cout << kminmerCounts[vec] << endl;
+		if(_kminmersData[vec]._count <= 2){
+			//if(_kminmersData[vec]._count <= minAbundance_cutoff) continue;
+		}
+
+
+		//cout << kminmersData[vec] << endl;
+
+		KminmerData& kminmerData = _kminmersData[vec];
+		//cout << kminmerData._length << endl;
+		_mdbg->addNode(vec, kminmerData._length, kminmerData._overlapLength_start, kminmerData._overlapLength_end, kminmerData._isReversed);
+	
+		if (vec.h() == _lala.h()){
+			nodeNameLala = _mdbg->_dbg_nodes[vec]._index;
+			cout << _mdbg->_dbg_nodes[vec]._index << endl;
+			getchar();
+		}
+	}
+
+	if(nodeNameLala != -1){
+		cout << nodeNameLala << endl;
+		getchar();
+		nodeNameLala = -1;
+	}
+
+}
+*/
+void Bloocoo::createMDBG_collectKminmers_contigs(const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex){
+
+	u_int32_t minContigAbundance = -1;
+
+	vector<u_int32_t> abundances;
+
+
+	bool requireIndexing = kminmers.size() > (10000*_minimizerDensity*2);
+	u_int64_t nbExistingKminmers = 0;
+
+	for(size_t i=0; i<kminmers.size(); i++){
+
+		const KmerVec& vec = kminmers[i];
+
+		if(requireIndexing){
+			_contigIndex[vec].push_back(readIndex);
+		}
+
+		if(_kminmersData.find(vec) == _kminmersData.end()){
+			_kminmersData[vec] = {0, kminmersInfos[i]._length - _minimizerSize, kminmersInfos[i]._seq_length_start, kminmersInfos[i]._seq_length_end, kminmersInfos[i]._isReversed};
+			_kminmersData[vec]._count += 1; //bypass abundance filter
+			
+		}
+		else{
+			nbExistingKminmers += 1;
+		}
+		
+
+		_kminmersData[vec]._count += 1;
+		
+		if(_kminmersData[vec]._count < minContigAbundance){
+			minContigAbundance = _kminmersData[vec]._count;
+		}
+		abundances.push_back(_kminmersData[vec]._count);
+	}
+		
+	if(requireIndexing){
+		u_int32_t abundance = compute_median(abundances);
+		cout << "Contig abundance: " << minContigAbundance << " (nb kminmers: " << kminmers.size() << ")" << endl;
+		_contigAbundances[readIndex] = minContigAbundance;
+	}
+	
+}
+
+void Bloocoo::removeErroneousKminmers(const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex){
+	
+	vector<u_int32_t> contigAbundances;
+
+	//cout << "----" << endl;
+	vector<u_int32_t> mappingContigs;
+	u_int32_t minContigAbundance = -1;
+
+	for(size_t i=0; i<kminmers.size(); i++){
+		const KmerVec& vec = kminmers[i];
+
+		if(_contigIndex.find(vec) != _contigIndex.end()){
+			vector<u_int32_t> contigIndexes = _contigIndex[vec];
+
+			for(u_int32_t contigIndex : contigIndexes){
+
+				u_int32_t abundance = _contigAbundances[contigIndex];
+				if(abundance < minContigAbundance){
+					minContigAbundance = abundance;
+				}
+				//if(std::find(mappingContigs.begin(), mappingContigs.end(), contigIndex) == mappingContigs.end()){
+				//	mappingContigs.push_back(contigIndex);
+				//	contigAbundances.push_back(_contigAbundances[contigIndex]);
+				//}
+			}
+			//cout << "Kminmers filter: " << kminmerData._count << " (Nb contigs:  " << contigIndexes.size() << ")    ";
+			//if(contigIndexes.size() == 1){
+				//mappingContigs.push_back(contigIndexes[0] - 2000000000 + 1);
+				//cout << _contigAbundances[contigIndexes[0]];
+			//}
+			mappingContigs.push_back(contigIndexes[0] - 2000000000 + 1);
+
+			//cout << endl;
+
+			//float cutoff = ((float) _contigAbundances[contigIndexes[0]]) / 2.0;
+			//if(kminmerData._count < cutoff) continue;
+		}
+		else{
+			mappingContigs.push_back(0);
+		}
+	}
+
+
+	//cout << "Contig abundance: " << minContigAbundance << endl;
+
+	/*
+	if(_contigIndex.find(vec) != _contigIndex.end()){
+		vector<u_int32_t> contigIndexes = _contigIndex[vec];
+		cout << "Kminmers filter: " << kminmerData._count << " (Nb contigs:  " << contigIndexes.size() << ")    ";
+		if(contigIndexes.size() == 1){
+			cout << _contigAbundances[contigIndexes[0]];
+		}
+		cout << endl;
+
+		float cutoff = ((float) _contigAbundances[contigIndexes[0]]) / 2.0;
+		if(kminmerData._count < cutoff) continue;
+	}*/
+
+	/*
+	for(size_t i=0; i<kminmers.size(); i++){
+		const KmerVec& vec = kminmers[i];
+
+		if(_kminmersData.find(vec) == _kminmersData.end()){ //Already removed
+			cout << "0" << " ";
+			continue; 
+		} 
+
+		const KminmerData& kminmerData = _kminmersData[vec];
+
+
+
+
+		cout << kminmerData._count << " ";
+		
+		if(kminmerData._count == 1){//ATTENTION, ON ENELEVE TOUS LES KMINMER VU UNE FOIS
+			_kminmersData.erase(vec);
+			continue; 
+		}
+
+	}
+	cout << endl;
+
+	for(size_t i=0; i<mappingContigs.size() ;i++){
+		cout << mappingContigs[i] << " ";
+	}
+	cout << endl;
+	*/
+
+	float cutoff = ((float) minContigAbundance) /2.0;
+
+	for(size_t i=0; i<kminmers.size(); i++){
+		const KmerVec& vec = kminmers[i];
+		
+		if(_kminmersData.find(vec) == _kminmersData.end()) continue; //Already removed
+
+
+		const KminmerData& kminmerData = _kminmersData[vec];
+
+		//cout << kminmerData._count << endl;
+		
+		if(kminmerData._count == 1){//ATTENTION, ON ENELEVE TOUS LES KMINMER VU UNE FOIS
+			_kminmersData.erase(vec);
+			//cout << "Erased" << endl;
+			continue; 
+		}
+		/*
+		if(minContigAbundance != -1){
+
+			if(kminmerData._count < cutoff){//ATTENTION, ON ENELEVE TOUS LES KMINMER VU UNE FOIS
+				//cout << "Erased" << endl;
+				_kminmersData.erase(vec);
+				continue; 
+			}
+		}*/
+
+	}
 }
 
 void Bloocoo::createMDBG (){
 
+	cout << "Extracting kminmers (read)" << endl;
+	KminmerParser parser(_filename_readMinimizers, _minimizerSize, _kminmerSize);
+	auto fp = std::bind(&Bloocoo::createMDBG_collectKminmers, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+	parser.parse(fp);
 
+	cout << "Nb kminmers (reads): " << _kminmersData.size() << endl;
+
+	if(_filename_inputContigs != ""){
+		cout << "Extracting kminmers (contigs)" << endl;
+		KminmerParser contigParser(_filename_inputContigs, _minimizerSize, _kminmerSize);
+		auto fp2 = std::bind(&Bloocoo::createMDBG_collectKminmers_contigs, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+		contigParser.parse_mContigs(fp2);
+
+		cout << "Nb kminmers (Contigs): " << _kminmersData.size() << endl;
+
+		cout << "Removing erroneous kminmers" << endl;
+		KminmerParser readParser(_filename_readMinimizers, _minimizerSize, _kminmerSize);
+		auto fp3 = std::bind(&Bloocoo::removeErroneousKminmers, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+		readParser.parse(fp3);
+	}
+
+	_mdbg = new MDBG(_kminmerSize);
+
+	//unordered_map<KmerVec, KminmerData> _kminmersData;
+	//auto fp2 = std::bind(&Bloocoo::createMDBG_index, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+	//parser.parse(fp2);
+	for(const auto& it : _kminmersData){
+
+		const KmerVec& vec = it.first;
+		const KminmerData& kminmerData = it.second;
+
+
+		if(kminmerData._count == 1) continue;
+
+		//if(kminmerCounts[vec] > 1000) cout << kminmerCounts[vec] << endl;
+		//if(kminmerData._count <= 2){
+			//if(_kminmersData[vec]._count <= minAbundance_cutoff) continue;
+		//}
+
+
+		//cout << kminmersData[vec] << endl;
+
+		//KminmerData& kminmerData = _kminmersData[vec];
+		//cout << kminmerData._length << endl;
+		_mdbg->addNode(vec, kminmerData._length, kminmerData._overlapLength_start, kminmerData._overlapLength_end, kminmerData._isReversed);
+		_mdbg->_dbg_nodes[vec]._abundance = kminmerData._count;
+
+
+	}
+
+
+
+	cout << "Nb solid kminmers: " << _mdbg->_dbg_nodes.size() << endl;
+	
+	_minimizerCounts.clear();
+	_kminmersData.clear();
+	_contigIndex.clear();
+	_contigAbundances.clear();
+
+	//exit(1);
+	/*
+	_debug_nbMinimizers = 0;
+	_minimizerParser = new MinimizerParser(_minimizerSize, _minimizerDensity);
+	_file_readData = gzopen(_filename_readMinimizers.c_str(),"wb");
+	
+	auto fp = std::bind(&Bloocoo::createMDBG_read, this, std::placeholders::_1, std::placeholders::_2);
+	ReadParser readParser(_inputFilename, false);
+	readParser.parse(fp);
+
+	delete _minimizerParser;
+	*/
 
 	/*
 	if(_input_extractKminmers != ""){
@@ -82,22 +473,135 @@ void Bloocoo::createMDBG (){
 	}
 	*/
 
-	unordered_map<MinimizerPair, vector<u_int32_t>> minimizerPairs_to_reads;
+	//unordered_map<MinimizerPair, vector<u_int32_t>> minimizerPairs_to_reads;
 
-	vector<string> read_headers;
+	//vector<string> read_headers;
 
 	//float minimizerDensity = 0.005; // 0.004; 0.0008
-	u_int64_t maxHashValue = -1;
+	//u_int64_t maxHashValue = -1;
 	//cout << maxHashValue << endl;
 	//u_int64_t nbMinimizers = 0;
 
-	u_int64_t _hash_otpt[2];
-	int _seed = 42;
-	setDispatcher (new SerialDispatcher());
+	//setDispatcher (new SerialDispatcher());
 
 
 
-	cout << _inputFilename << endl;
+	//cout << _inputFilename << endl;
+
+	//u_int32_t readIndex = 0;
+	//u_int32_t datasetID = 0;
+
+	//gzFile file_readComposition = gzopen(_filename_readCompositions.c_str(),"wb");
+	
+	//TCACATACTATCTGCACTGAC
+	//KmerModel kmerModel(_minimizerSize);
+	//MinimizerParser minimizerParser(_minimizerSize, _minimizerDensity);
+
+
+
+	/*
+	std::ifstream infile(_inputFilename.c_str());
+	std::string line;
+	int total_kminmers = 0;
+
+	//double minimizerBound = maxHashValue * ((double)_minimizerDensity);
+	u_int32_t nbMinimizers = 0;
+
+	while (std::getline(infile, line))
+	{
+		cout << line << endl;
+
+		gzFile fp;
+		kseq_t *seq;
+		int slen = 0, qlen = 0;
+		fp = gzopen(line.c_str(), "r");
+		seq = kseq_init(fp);
+
+		while (kseq_read(seq) >= 0){
+			
+			if(readIndex % 100000 == 0) cout << readIndex << " " << nbMinimizers << endl;
+ 			//cout << readIndex << " " << strlen(seq->seq.s) << " " << nbMinimizers << endl;
+
+			//cout << "--------------" << endl;
+			//string sequence_str = "";
+			//char lastChar = '0';
+
+			//cout << strlen(seq->seq.s) << endl;
+
+			u_int64_t pos = 0;
+			//if(readIndex > 100000){
+			//	cout << "HAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" << endl;
+			//	break;
+			//}
+
+			//cout << "-" << endl;
+			//Sequence& sequence = itSeq->item();
+
+			//cout << sequence.toString() << endl;
+			string rleSequence;
+			vector<u_int64_t> rlePositions;
+
+			//u_int64_t lastMinimizer = -1;
+			vector<u_int64_t> minimizers;
+			vector<u_int64_t> minimizers_pos;
+			u_int64_t nbMinizersRead = 0;
+
+			size_t nbMinimizersPerRead = 0;
+			size_t nbHashsLala = 0;
+
+			Encoder::encode_rle(seq->seq.s, strlen(seq->seq.s), rleSequence, rlePositions);
+			//cout << rleSequence << endl;
+
+			minimizerParser.parse(rleSequence, minimizers, minimizers_pos);
+			nbMinimizers += minimizers.size();
+			
+			
+
+			for(u_int64_t minimizer : minimizers){
+				minimizerCounts[minimizer] += 1;
+			}
+			for(size_t i=0; i<rlePositions.size(); i++){
+				rlePositions[i] = i;
+			}
+
+			vector<KmerVec> kminmers; 
+			vector<ReadKminmer> kminmersInfo;
+			MDBG::getKminmers(_minimizerSize, _kminmerSize, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex);
+
+			bool isLala = false;
+			bool isLoulou = false;
+
+			for(size_t i=0; i<kminmers.size(); i++){
+
+				if(kminmersData.find(kminmers[i]) == kminmersData.end()){
+					kminmersData[kminmers[i]] = {0, kminmersInfo[i]._length - _minimizerSize, kminmersInfo[i]._seq_length_start, kminmersInfo[i]._seq_length_end, kminmersInfo[i]._isReversed};
+				}
+
+				kminmersData[kminmers[i]]._count += 1;
+
+			}
+
+			u_int16_t size = minimizers.size();
+			gzwrite(file_readData, (const char*)&size, sizeof(size));
+			gzwrite(file_readData, (const char*)&minimizers[0], size * sizeof(u_int64_t));
+			
+
+			readIndex += 1;
+		}
+
+		datasetID += 1;
+
+	}
+	*/
+	
+	//gzclose(_file_readData);
+	
+	//exit(1);
+	//unordered_map<u_int64_t, u_int64_t> minimizerCounts;
+	//unordered_map<KmerVec, KminmerData> kminmersData;
+
+
+	/*
 	IBank* inbank = Bank::open(_inputFilename);
 
 	
@@ -110,292 +614,10 @@ void Bloocoo::createMDBG (){
 	LOCAL (itSeq);
 		
 	std::vector<Iterator<Sequence>*> itBanks =  itSeq->getComposition();
-	u_int32_t readIndex = 0;
-	u_int32_t datasetID = 0;
-
-	gzFile file_readData = gzopen(_filename_readMinimizers.c_str(),"wb");
-	//gzFile file_readComposition = gzopen(_filename_readCompositions.c_str(),"wb");
-	
-	/*
-	ModelCanonical model (_kmerSize);
-	ModelCanonical::Iterator itKmer (model);
-
-	//ModelMinimizer model (63, 14);
-    //const ModelCanonical& modelMinimizer = model.getMmersModel();
-	vector<u_int64_t> kmers;
-	vector<u_int64_t> minimizers_0;
-	vector<u_int64_t> minimizers_1;
-	vector<u_int64_t> minimizers_2;
-
-	//unordered_map<u_int64_t, u_int64_t> minimCount;
-	for (size_t i=0; i<itBanks.size(); i++)
-	{
-		itSeq = createIterator<Sequence> (itBanks[i], inbank->estimateNbItemsBanki(i), "lala");
-
-		for (itSeq->first(); !itSeq->isDone(); itSeq->next()){
-
-
-			Sequence& sequence = itSeq->item();
-
-			ReadData readData = {sequence.getDataSize(), {}, NULL, false};
-			_compositionManager->readToComposition(sequence, readData._composition);
-			_readData.push_back(readData);
-
-			//set<u_int64_t> minimizers_0_set;
-			kmers.clear();
-			minimizers_0.clear();
-			minimizers_1.clear();
-			minimizers_2.clear();
-			//cout << "------------" << endl;
-			read_headers.push_back(sequence.getComment());
-
-			char* readseq = sequence.getDataBuffer();
-			string sequence_str;
-
-			char lastChar = '0';
-			for(size_t i=0; i<sequence.getDataSize(); i++){
-				if(readseq[i] == lastChar) continue;
-				sequence_str += readseq[i];
-				lastChar = readseq[i];
-			}
-
-
-
-			//exit(1);
-			size_t nbMinimizersPerRead = 0;
-
-			//u_int64_t lastMinimizer = -1;
-			Data buf((char*)sequence_str.c_str());
-			
-
-			itKmer.setData (buf);
-
-			vector<MinimizerPair> minimizerPairs;
-
-			//cout << "----------" << endl;
-			u_int64_t pos = 0;
-			for (itKmer.first(); !itKmer.isDone(); itKmer.next()){
-
-				kmer_type kmerMin = itKmer->value();
-				//if(!itKmer->value().isValid()) continue;
-				//kmer_type kmerMin = min(itKmer->value(), revcomp(itKmer->value(), _kmerSize));
-				//if(lala < 100 ) cout << model.toString(itKmer->value()) << endl;
-				//lala += 1;
-				u_int64_t kmerValue = kmerMin.getVal();
-				u_int64_t kmerHashed;
-				MurmurHash3_x64_128 ((const char*)&kmerValue, sizeof(kmerValue), _seed, &_hash_otpt);
-				kmerHashed = _hash_otpt[0];
-
-				//cout << kmerHashed << endl;
-				kmers.push_back(kmerHashed);
-				//minimizers_0_set.insert(kmerHashed);
-
-				if(pos >= w){
-					u_int64_t minimizer = -1; //(*minimizers_0_set.begin());
-					for(u_int64_t kmer : kmers){
-						if(kmer < minimizer){
-							minimizer = kmer;
-						}
-					}
-					//cout << kmers[0] << endl;
-					//auto it = minimizers_0_set.find(kmers[0]);
-					//minimizers_0_set.erase(it);
-
-					kmers.erase(kmers.begin());
-
-					if(minimizers_0.size() == 0 || minimizer != minimizers_0[minimizers_0.size()-1]){
-						minimizers_0.push_back(minimizer);
-					}
-					//cout << "Min: " << (*minimizers_0_set.begin()) << endl;
-				}
-
-				pos += 1;
-			}
-
-			//cout << minimizers_0.size() << endl;
-			for(size_t w=0; w<minimizers_0.size()-windowSize; w++){
-				u_int64_t m = -1;
-				for(size_t i=0; i<windowSize; i++){
-					if(minimizers_0[w+i] < m){
-						m = minimizers_0[w+i];
-					}
-				}
-				if(std::find(minimizers_1.begin(), minimizers_1.end(), m) == minimizers_1.end()){
-					minimizers_1.push_back(m);
-				}
-			}
-
-			//cout << minimizers_1.size() << endl;
-
-			for(size_t w=0; w<minimizers_1.size()-windowSize; w++){
-				u_int64_t m = -1;
-				for(size_t i=0; i<windowSize; i++){
-					if(minimizers_1[w+i] < m){
-						m = minimizers_1[w+i];
-					}
-				}
-				if(std::find(minimizers_2.begin(), minimizers_2.end(), m) == minimizers_2.end()){
-					minimizers_2.push_back(m);
-				}
-			}
-
-			cout << minimizers_2.size() << endl;
-
-			u_int64_t lastMinimizer = -1;
-			for(u_int64_t minimizer : minimizers_2){
-
-
-
-				if(lastMinimizer != -1){
-
-					//nbMinizersRead += 1;
-
-					MinimizerPair minimizerPair1 = {lastMinimizer, minimizer};
-					MinimizerPair minimizerPair2 = {minimizer, lastMinimizer};
-
-					bool pair1_exists = minimizerPairs_to_reads.find(minimizerPair1) != minimizerPairs_to_reads.end();
-					bool pair2_exists = minimizerPairs_to_reads.find(minimizerPair2) != minimizerPairs_to_reads.end();
-					if(pair1_exists){
-						minimizerPairs.push_back(minimizerPair1);
-						//minimizerPairs_to_reads[minimizerPair1].push_back(readIndex);
-					}
-					else if(pair2_exists){
-						minimizerPairs.push_back(minimizerPair2);
-						//minimizerPairs_to_reads[minimizerPair2].push_back(readIndex);
-					}
-					else{
-						minimizerPairs.push_back(minimizerPair1);
-						//minimizerPairs_to_reads[minimizerPair1] = vector<u_int32_t>();
-						//minimizerPairs_to_reads[minimizerPair1].push_back(readIndex);
-					}
-
-					//if(minimCount.find(minimizer) == minimCount.end()){
-					//	minimCount[minimizer] = 0;
-					//}
-
-					//minimCount[minimizer] += 1;
-
-					//if(minimCount[minimizer] > 1000){
-						//cout << model.toString(itKmer->value()) << endl;
-					//}
-
-
-
-				}
-				
-				lastMinimizer = minimizer;
-			}
-
-
-
-
-
-
-			//---------------------------------------------------------------------------------
-			//cout << minimizerPairs.size() << endl;
-			unordered_map<u_int64_t, u_int64_t> minimizerPairCount;
-			for(MinimizerPair& minimizerPair : minimizerPairs){
-				if(minimizerPairs_to_reads.find(minimizerPair) == minimizerPairs_to_reads.end()) continue;
-				
-				
-				for(u_int64_t r : minimizerPairs_to_reads[minimizerPair]) {
-
-					if(minimizerPairCount.find(r) == minimizerPairCount.end()){
-						minimizerPairCount[r] = 0;
-					}
-					minimizerPairCount[r] += 1;
-				}
-			}
-
-			//cout << minimizerPairCount.size() << endl;
-
-			//cout << "----------------" << endl;
-			//for (auto& it: minimizerPairCount) {
-			//	cout << it.first << " " << it.second << endl;
-			//}
-
-			std::vector<std::pair<u_int64_t, u_int64_t>> elems(minimizerPairCount.begin(), minimizerPairCount.end());
-			std::sort(elems.begin(), elems.end(), Ralalalala);
-			
-			//cout << "-" << endl;
-
-			u_int64_t readIndex_merged = -1;
-			for (size_t i=0; i<elems.size(); i++) {
-				
-
-				u_int64_t read = elems[i].first;
-				float dist = computeDistanceTNF(_readData[readIndex], _readData[read]);
-
-				
-				//cout << elems[i].first << " " << elems[i].second << " " << dist << endl;
-
-				if(dist < 0.002){ //0.05
-					//readIndex_merged = read; //! disabled
-					//break;
-				}
-			}
-
-			if(readIndex_merged == -1){
-				for(MinimizerPair& minimizerPair : minimizerPairs){
-					minimizerPairs_to_reads[minimizerPair].push_back(readIndex);
-				}
-			}
-			else{
-				for(MinimizerPair& minimizerPair : minimizerPairs){
-
-					if(minimizerPairs_to_reads.find(minimizerPair) == minimizerPairs_to_reads.end()){
-						minimizerPairs_to_reads[minimizerPair].push_back(readIndex_merged);
-					}
-					else{
-						vector<u_int32_t>& minimizerPairReads = minimizerPairs_to_reads[minimizerPair];
-						if(std::find(minimizerPairReads.begin(), minimizerPairReads.end(), readIndex_merged) == minimizerPairReads.end()){
-							minimizerPairReads.push_back(readIndex_merged);
-						}
-					}
-
-
-				}
-				_readData[readIndex]._composition.clear();
-			}
-
-			//cout << minimizerPairs.size() << endl;
-			//if(read_headers[readIndex] == "G3_0 S1_1"){
-				//cout << minimizerPairs.size() << " " << _readData[readIndex]._length << endl;
-			//}
-
-
-
-			//---------------------------------------------------------------------------------
-
-
-
-			read_to_dataset.push_back(datasetID);
-			readIndex += 1;
-		}
-		
-		datasetID += 1;
-	}
-	*/
-
-
-
-	//_minimizerPairMap = new MinimizerPairMap();
-	//_overlapGraph = new AdjGraph();
-	
-	//unordered_map<u_int64_t, u_int64_t> minimCount;
-	//set<MinimizerPair> _minimizerPairs;
-	//vector<MinimizerPair_Edge> _minimizerPairs_edges;
-
-	//unordered_map<MinimizerPair, u_int16_t> minimizerCounts;
-	unordered_map<u_int64_t, u_int64_t> minimizerCounts;
-	//unordered_map<KmerVec, u_int32_t> kminmerCounts;
-	unordered_map<KmerVec, KminmerData> kminmersData;
-
-
 
 	ModelCanonical model (_minimizerSize);
 	ModelCanonical::Iterator itKmer (model);
-	vector<u_int32_t> neighbors;
+	//vector<u_int32_t> neighbors;
 
 	hash<KmerVec> h;
 	//_node_id = 0;
@@ -406,6 +628,7 @@ void Bloocoo::createMDBG (){
 	vector<u_int64_t> minim2;
 	vector<ReadData> comps;
 
+	u_int32_t nbMinimizers = 0;
 	int lol = 0;
 
 	for (size_t i=0; i<itBanks.size(); i++)
@@ -414,6 +637,8 @@ void Bloocoo::createMDBG (){
 
 		for (itSeq->first(); !itSeq->isDone(); itSeq->next()){
 
+			if(readIndex % 100000 == 0) cout << readIndex << " " << nbMinimizers << endl;
+			u_int64_t pos = 0;
 			//if(readIndex > 100000){
 			//	cout << "HAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" << endl;
 			//	break;
@@ -426,18 +651,20 @@ void Bloocoo::createMDBG (){
 			string rleSequence;
 			vector<u_int64_t> rlePositions;
 
-			/*
-			string testseq = "AAAGGTCGTTTTA";
-			encode_rle(testseq.c_str(), testseq.size(), rleSequence, rlePositions);
-			cout << testseq << endl;
-			cout << rleSequence << endl; 
-			for(size_t i=0; i<rlePositions.size(); i++){
-				cout << rlePositions[i] << " ";
-			}
-			cout << endl;
-			*/
+
+
+			//u_int64_t lastMinimizer = -1;
+			vector<u_int64_t> minimizers;
+			vector<u_int64_t> minimizers_pos;
+			u_int64_t nbMinizersRead = 0;
+
+			size_t nbMinimizersPerRead = 0;
+			size_t nbHashsLala = 0;
 
 			Encoder::encode_rle(sequence.getDataBuffer(), sequence.getDataSize(), rleSequence, rlePositions);
+
+			
+
 			
 			//for(size_t i=0; i<rlePositions.size(); i++) {
 			//	cout << i << ": " << rlePositions[i] << " " << endl;
@@ -457,8 +684,7 @@ void Bloocoo::createMDBG (){
 			//cout << ((readseq[2]>>1)&3) << endl;
 
 			//exit(1);
-			size_t nbMinimizersPerRead = 0;
-
+			
 			//u_int64_t lastMinimizer = -1;
 			Data buf((char*)rleSequence.c_str());
 			//u_int32_t sequenceLength = rleSequence.size();
@@ -478,20 +704,25 @@ void Bloocoo::createMDBG (){
 			//cout << sequence.getDataSize() << endl;
 			itKmer.setData (buf);
 
-			u_int64_t lastMinimizer = -1;
-			vector<u_int64_t> minimizers;
-			vector<u_int64_t> minimizers_pos;
-			u_int64_t nbMinizersRead = 0;
+			//u_int64_t lastMinimizer = -1;
+			//vector<u_int64_t> minimizers;
+			//vector<u_int64_t> minimizers_pos;
+			//u_int64_t nbMinizersRead = 0;
 
-			vector<MinimizerPair> minimizerPairs;
+			//vector<MinimizerPair> minimizerPairs;
 			
 			//cout << "---------------" << endl;
 
 			//int lala = 0;
-			u_int64_t pos = 0;
+			//cout << rleSequence << endl;
 			u_int32_t lastMinimizerPos = -1;
+			pos = 0;
 			for (itKmer.first(); !itKmer.isDone(); itKmer.next()){
 
+				kmer_type kmerMin = itKmer->value();
+
+				//cout << itKmer->value().getVal() << endl;
+				//cout << itKmer->value() << endl;
 				//cout << pos << " " << (rleSequence.size()-_minimizerSize) << endl;
 
 				if(pos == 0){
@@ -504,7 +735,6 @@ void Bloocoo::createMDBG (){
 					continue;
 				}
 
-				kmer_type kmerMin = itKmer->value();
 				//if(!itKmer->value().isValid()) continue;
 				//kmer_type kmerMin = min(itKmer->value(), revcomp(itKmer->value(), _kmerSize));
 				//if(lala < 100 ) cout << model.toString(itKmer->value()) << endl;
@@ -520,216 +750,20 @@ void Bloocoo::createMDBG (){
 				double kmerHashed_norm = ((double) minimizer) / maxHashValue;
 				if(kmerHashed_norm < _minimizerDensity){
 
-					/*
-					if(lastMinimizerPos == -1){
-						lastMinimizerPos = pos;
-					}
-					else{
-						u_int16_t distance = pos - lastMinimizerPos;
-						if(distance < 100) continue;
-						lastMinimizerPos = pos;
-					}*/
+
 					minimizers.push_back(minimizer);
 					minimizers_pos.push_back(pos);
 
-					//cout << pos << endl;
-					//cout << rlePositions[pos] << endl; 
 					
 					minimizerCounts[minimizer] += 1;
-					
-					//cout << pos << endl;
-					//_readData[readIndex]._minimizers.push_back(minimizer);
-					//readData << minimizer << endl;
+					nbMinimizers += 1;
 
-					//if(readIndex == 0){
-						//cout << minimizer << endl;
-						//gzwrite(file_readData, (char*)&minimizer, 8);
-						//cout << () << endl;
-						//cout << readData.str().size() << endl;
-					//}
-					//nbMinimizers += 1;
-					//minimizers.push_back(kmerHashed);
-					/*
-					if(lastMinimizer != -1){
-						nbMinizersRead += 1;
-
-						MinimizerPair minimizerPair1 = {lastMinimizer, minimizer};
-						MinimizerPair minimizerPair2 = {minimizer, lastMinimizer};
-
-						bool pair1_exists = minimizerPairs_to_reads.find(minimizerPair1) != minimizerPairs_to_reads.end();
-						bool pair2_exists = minimizerPairs_to_reads.find(minimizerPair2) != minimizerPairs_to_reads.end();
-						if(pair1_exists){
-
-							//u_int16_t minimizerCount = minimizerCounts[minimizerPair1];
-							//if(minimizerCount > 10000){
-							//	continue;
-							//}
-							//else{
-							//	minimizerCounts[minimizerPair1] += 1;
-							//}
-
-							minimizerPairs.push_back(minimizerPair1);
-							//minimizerPairs_to_reads[minimizerPair1].push_back(readIndex);
-						}
-						else if(pair2_exists){
-
-							//u_int16_t minimizerCount = minimizerCounts[minimizerPair2];
-							//if(minimizerCount > 10000){
-							//	continue;
-							//}
-							//else{
-							//	minimizerCounts[minimizerPair2] += 1;
-							//}
-
-							minimizerPairs.push_back(minimizerPair2);
-							//minimizerPairs_to_reads[minimizerPair2].push_back(readIndex);
-						}
-						else{
-
-							//u_int16_t minimizerCount = minimizerCounts[minimizerPair1];
-							//if(minimizerCount > 10000){
-							//	continue;
-							//}
-							//else{
-							//	minimizerCounts[minimizerPair2] += 1;
-							//}
-
-							minimizerPairs.push_back(minimizerPair1);
-							//minimizerPairs_to_reads[minimizerPair1] = vector<u_int32_t>();
-							//minimizerPairs_to_reads[minimizerPair1].push_back(readIndex);
-						}
-
-						//if(minimCount.find(minimizer) == minimCount.end()){
-						//	minimCount[minimizer] = 0;
-						//}
-
-						//minimCount[minimizer] += 1;
-
-						//if(minimCount[minimizer] > 1000){
-							//cout << model.toString(itKmer->value()) << endl;
-						//}
-					}
-
-					lastMinimizer = minimizer;
-					*/
 				}
 
 				//cout << kmerHashed << endl;
 				pos += 1;
 			}
-
-			//cout << endl;
-			//for(u_int64_t m : minimizers){
-			//	cout << m << endl;
-			//}
-			//cout << endl;
-			/*
-			vector<bool> bannedPositions(minimizers.size(), false);
-
-			//cout << "-------" << endl;
-			while(true){
-
-				//cout << "w" << endl;
-
-				bool hasPalindrome = false;
-
-				int i_max = ((int)minimizers.size()) - (int)_kminmerSize + 1;
-				for(int i=0; i<i_max; i++){
-					if(bannedPositions[i]) continue;
-
-					//cout << i << "/" << minimizers.size() << endl;
-					KmerVec vec;
-
-					vector<u_int32_t> currentMinimizerIndex;
-					int j=i;
-					while(true){
-						
-						if(j >= minimizers.size()){
-							break;
-						}
-						if(bannedPositions[j]){
-							//cout << "    is banned " << j << endl;
-							j += 1;
-
-							continue;
-						}
-
-						u_int64_t minimizer = minimizers[j];
-						//if(bannedMinimizers.find(minimizer) != bannedMinimizers.end()) continue;
-
-						currentMinimizerIndex.push_back(j);
-						vec._kmers.push_back(minimizer);
-
-						if(vec._kmers.size() == _kminmerSize){
-							if(vec.isPalindrome()){
-
-								for(size_t m=0; m<_kminmerSize-1; m++){
-									bannedPositions[currentMinimizerIndex[m]] = true;
-									//cout << "Banned: " << currentMinimizerIndex[m] << endl;
-								}
-
-								//exit(1);
-
-								//cout << j << endl;
-								//cout << j-1 << endl;
-								//cout << j-2 << endl;
-								//bannedPositions[j] = true;
-								//bannedPositions[j-1] = true;
-								//bannedPositions[j-2] = true;
-								hasPalindrome = true;
-								break;
-							}
-							else{
-								//kminmers.push_back(vec.normalize());
-								//cout << i << " " << j << endl;
-								u_int32_t length = minimizers_pos[j] - minimizers_pos[i]; //minimizers_pos[i+windowSize-1] - minimizers_pos[i];
-								kminmersData[vec.normalize()] = length;
-								//cout << vec.toString() << endl;
-								break;
-							}
-						}
-
-						j += 1;
-					}
-
-					if(hasPalindrome) break;
-				}
-
-				
-				if(!hasPalindrome) break;
-			}
-			*/
-
-
-			/*
-			vector<KmerVec> kminmers; 
-			getKminmers(minimizers, filteredMinimizers, kminmers);
-
-			foreach(KmerVec& vec : kminmers){
-
-			}
 			
-
-			int i_max = ((int)minimizers.size()) - (int)_kminmerSize + 1;
-			for(int i=0; i<i_max; i++){
-
-				KmerVec vec;
-
-				for(int j=i; j<i+_kminmerSize; j++){
-					u_int64_t minimizer = minimizers[j];
-
-					vec._kmers.push_back(minimizer);
-				}
-
-				u_int32_t length = minimizers_pos[i+_kminmerSize-1] - minimizers_pos[i]; //minimizers_pos[i+windowSize-1] - minimizers_pos[i];
-				//kminmers.push_back(vec.normalize());
-
-				//cout << "\t" << length << endl;
-				kminmersData[vec.normalize()] = length;
-				//mdbg_repeatFree->addNode(vec.normalize());
-				//kminmers.push_back(vec.normalize());
-			}
-			*/
 
 			//Small hack to disable rle positions mapping, the mdbg work on compressed positions
 			for(size_t i=0; i<rlePositions.size(); i++){
@@ -770,199 +804,20 @@ void Bloocoo::createMDBG (){
 			//}
 
 
-
+			//cout << minimizers.size() << endl;
 			u_int16_t size = minimizers.size();
 			gzwrite(file_readData, (const char*)&size, sizeof(size));
 			gzwrite(file_readData, (const char*)&minimizers[0], size * sizeof(u_int64_t));
 			
 			//comps.push_back({sequenceLength, composition});
-			/*
-			if(readIndex == 2229){
-				cout << sequence_str.size() << endl;
-				lala1 = {sequenceLength, composition};
-				cout << "-------------------------- " << size << endl;
-				for(u_int64_t m : minimizers){
-					cout << m << endl;
-				}
-			}
-			else if(readIndex == 3426){
-				cout << sequence_str.size() << endl;
-				lala2 = {sequenceLength, composition};
-				cout << "-------------------------- " << size << endl;
-				for(u_int64_t m : minimizers){
-					cout << m << endl;
-				}
-				cout << "-------------------------- " << size << endl;
-				cout << computeDistanceTNF(lala1, lala2) << endl;;
-				cout << euclidianDistance(lala1._composition, lala2._composition) << endl;;
-				cout << lala1._length << " " << lala2._length << endl;;
-			}
-			*/
-			/*
-			//cout << "-------------------------- " << size << endl;
-
-			//gzwrite(file_readData, "\n", 1);
-			//readData << endl;
-			//string readData_str = readData.str();
-			//gzwrite(file_readData, readData_str.c_str(), readData_str.size());
-
-			//cout << minimizers.size() << endl;
-			//if(minimizers.size() >= windowSize)
-			int i_max = ((int)minimizers.size()) - (int)_kminmerSize + 1;
-			//cout << minimizers.size() << " " << i_max << endl;
-			for(int i=0; i<i_max; i++){
-
-				//cout << i << " " << i_max << endl;
-				KmerVec vec;
-
-				for(int j=i; j<i+_kminmerSize; j++){
-					//cout << minimizers.size() << " " << (j) << endl;
-					vec._kmers.push_back(minimizers[j]);
-				}
-				
-				//cout << vec._kmers.size() << endl;
-				u_int32_t length = minimizers_pos[i+_kminmerSize-1] - minimizers_pos[i]; //minimizers_pos[i+windowSize-1] - minimizers_pos[i];
-				//cout << "L: " << length << endl;
-				//mdbg->addNode(vec.normalize(), length);
-
-
-
-			}*/
-
-			/*
-			for(MinimizerPair& minimizerPair : minimizerPairs){
-				
-				minimizerPairs_to_reads[minimizerPair].push_back(readIndex);
-
-				minimizerCounts[minimizerPair] += 1;
-
-				_minimizerPairMap->addNode(minimizerPair);
-				bool added = _overlapGraph->addNode(_minimizerPairMap->pair_to_id(minimizerPair));
-
-				if(added){
-					//output_file_gfa << "S" << "\t" << _minimizerPairMap->pair_to_id(minimizerPair) << "\t" << "*" << "\t" << "LN:i:" << 0 << endl;
-				}
-			}
-
-			if(minimizerPairs.size() >= 2){
-				
-				MinimizerPair lastPair = minimizerPairs[0];
-				for(size_t i=1; i<minimizerPairs.size(); i++){
-					bool added = _overlapGraph->addEdge_checkDuplicate(_minimizerPairMap->pair_to_id(lastPair), _minimizerPairMap->pair_to_id(minimizerPairs[i]), 0);
-					
-					if(added){
-						//output_file_gfa << "L" << "\t" << _minimizerPairMap->pair_to_id(lastPair) << "\t" << "+" << "\t" << _minimizerPairMap->pair_to_id(minimizerPairs[i]) << "\t" << "+" << "\t" << "0M" << endl;
-					}
-					
-					//_overlapGraph->addEdge_checkDuplicate(_minimizerPairMap->pair_to_id(minimizerPairs[i]), _minimizerPairMap->pair_to_id(lastPair), 0);
-
-					lastPair = minimizerPairs[i];
-				}
-				
-			}
-			*/
-
-			/*
-			//---------------------------------------------------------------------------------
-			//cout << minimizerPairs.size() << endl;
-			unordered_map<u_int64_t, u_int64_t> minimizerPairCount;
-			for(MinimizerPair& minimizerPair : minimizerPairs){
-				if(minimizerPairs_to_reads.find(minimizerPair) == minimizerPairs_to_reads.end()) continue;
-				
-				
-				for(u_int64_t r : minimizerPairs_to_reads[minimizerPair]) {
-
-					if(minimizerPairCount.find(r) == minimizerPairCount.end()){
-						minimizerPairCount[r] = 0;
-					}
-					minimizerPairCount[r] += 1;
-				}
-			}
-
-			//cout << minimizerPairCount.size() << endl;
-
-			//cout << "----------------" << endl;
-			//for (auto& it: minimizerPairCount) {
-			//	cout << it.first << " " << it.second << endl;
-			//}
-
-			std::vector<std::pair<u_int64_t, u_int64_t>> elems(minimizerPairCount.begin(), minimizerPairCount.end());
-			std::sort(elems.begin(), elems.end(), Ralalalala);
-			
-			//if(elems.size() > 1000){
-				//cout << elems.size() << endl;
-			//}
-			//cout << "-" << endl;
-			//cout << elems.size() << endl;
-			u_int64_t readIndex_merged = -1;
-			for (size_t i=0; i<elems.size(); i++) {
-				
-
-				u_int64_t read = elems[i].first;
-				float dist = computeDistanceTNF(_readData[readIndex], _readData[read]);
-
-				
-				//cout << elems[i].first << " " << elems[i].second << " " << dist << endl;
-
-				if(dist < 0.0005){ //0.05 0.002 0.0005
-					readIndex_merged = read; //! disabled
-					break;
-				}
-			}
-
-			if(readIndex_merged == -1){
-				for(MinimizerPair& minimizerPair : minimizerPairs){
-					minimizerPairs_to_reads[minimizerPair].push_back(readIndex);
-				}
-			}
-			else{
-				for(MinimizerPair& minimizerPair : minimizerPairs){
-
-					if(minimizerPairs_to_reads.find(minimizerPair) == minimizerPairs_to_reads.end()){
-						minimizerPairs_to_reads[minimizerPair].push_back(readIndex_merged);
-					}
-					else{
-						vector<u_int32_t>& minimizerPairReads = minimizerPairs_to_reads[minimizerPair];
-						if(std::find(minimizerPairReads.begin(), minimizerPairReads.end(), readIndex_merged) == minimizerPairReads.end()){
-							minimizerPairReads.push_back(readIndex_merged);
-						}
-					}
-
-
-				}
-				_readData[readIndex]._composition.clear();
-			}
-			*/
-			//cout << minimizerPairs.size() << endl;
-			//if(read_headers[readIndex] == "G3_0 S1_1"){
-				//cout << minimizerPairs.size() << " " << _readData[readIndex]._length << endl;
-			//}
-
-			/*
-			//S1_2132 S1_4386
-			string str2 = sequence.getComment();
-			//cout << str2 << endl;
-			if (str2.find("S1_2132") != std::string::npos || str2.find("S1_4386") != std::string::npos) {
-				cout << str2 << endl;
-				cout << sequence.getDataSize() << endl;
-
-				for(MinimizerPair& minimizerPair : minimizerPairs){
-					cout << minimizerPair._first << " " << minimizerPair._second << endl;
-				}
-			}
-			*/
-
-			//---------------------------------------------------------------------------------
-
-
-			//cout << "Nb minimizers: " << nbMinizersRead << endl;
-			//_evaluation_readToDataset.push_back(datasetID);
+		
 			readIndex += 1;
 		}
 
 
 		datasetID += 1;
 	}
+	*/
 	/*
 	for(size_t i=0; i<comps.size(); i++){
 		for(size_t j=i+1; j<comps.size(); j++){
@@ -970,7 +825,6 @@ void Bloocoo::createMDBG (){
 		}
 	}
 	*/
-	gzclose(file_readData);
 	//gzclose(file_readComposition);
 
 
@@ -1062,16 +916,17 @@ void Bloocoo::createMDBG (){
 
 	//gzclose(file_readData);
 
-	cout << "Nb kminmers: " << kminmersData.size() << endl;
 
-	file_readData = gzopen(_filename_readMinimizers.c_str(),"rb");
+	/*
+	cout << "Nb kminmers: " << _kminmersData.size() << endl;
+
+	_file_readData = gzopen(_filename_readMinimizers.c_str(),"rb");
 	//cout << "Nb edges: " << nbEdges << endl;
 
 	//cout << "Cleaning errors..." << endl;
 
 	//delete mdbg;
 	
-
 	_mdbg = new MDBG(_kminmerSize);
 
 	//for(size_t readIndex=0; readIndex<_readData.size(); readIndex++) {
@@ -1083,12 +938,12 @@ void Bloocoo::createMDBG (){
 		
 		u_int16_t size;
 		vector<u_int64_t> minimizers;
-		gzread(file_readData, (char*)&size, sizeof(size));
+		gzread(_file_readData, (char*)&size, sizeof(size));
 
-		if(gzeof(file_readData)) break;
+		if(gzeof(_file_readData)) break;
 		
 		minimizers.resize(size);
-		gzread(file_readData, (char*)&minimizers[0], size * sizeof(u_int64_t));
+		gzread(_file_readData, (char*)&minimizers[0], size * sizeof(u_int64_t));
 
 
 		vector<KmerVec> kminmers; 
@@ -1102,7 +957,7 @@ void Bloocoo::createMDBG (){
 		vector<u_int32_t> abundances;
 
 		for(KmerVec& vec : kminmers){
-			abundances.push_back(kminmersData[vec]._count);
+			abundances.push_back(_kminmersData[vec]._count);
 		}
 
 		float minAbundance_cutoff = compute_median(abundances) / 2;
@@ -1117,20 +972,21 @@ void Bloocoo::createMDBG (){
 
 		for(KmerVec& vec : kminmers){
 
-			if(kminmersData[vec]._count == 1) continue; //ATTENTION, ON ENELEVE TOUS LES KMINMER VU UNE FOIS
+			if(_kminmersData[vec]._count == 1) continue; //ATTENTION, ON ENELEVE TOUS LES KMINMER VU UNE FOIS
 			//if(kminmerCounts[vec] > 1000) cout << kminmerCounts[vec] << endl;
-			if(kminmersData[vec]._count <= 2){
-				if(kminmersData[vec]._count <= minAbundance_cutoff) continue;
+			if(_kminmersData[vec]._count <= 2){
+				if(_kminmersData[vec]._count <= minAbundance_cutoff) continue;
 			}
 
 
 			//cout << kminmersData[vec] << endl;
 
-			KminmerData& kminmerData = kminmersData[vec];
+			KminmerData& kminmerData = _kminmersData[vec];
 
 			
 
 			_mdbg->addNode(vec, kminmerData._length, kminmerData._overlapLength_start, kminmerData._overlapLength_end, kminmerData._isReversed);
+			*/
 			/*
 			if(_mdbg->_dbg_nodes[vec]._index == 16494){
 				cout << "--------" << endl;
@@ -1183,8 +1039,9 @@ void Bloocoo::createMDBG (){
 			}*/
 
 			//mdbg->_dbg_nodes[vec]._abundance = kminmerCounts[vec]._abundance;
+		/*
 		}
-
+*/
 		/*
 		vector<u_int16_t> abundances;
 
@@ -1249,11 +1106,13 @@ void Bloocoo::createMDBG (){
 		}
 		*/
 
+	/*
 	}
 
 	cout << "Nb solid kminmers: " << _mdbg->_dbg_nodes.size() << endl;
-
-
+	
+	_minimizerCounts.clear();
+	_kminmersData.clear();*/
 }
 
 void Bloocoo::createGfa(){

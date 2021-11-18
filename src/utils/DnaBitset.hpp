@@ -103,7 +103,7 @@ public:
     }
  
     u_int16_t m_len;
+    uint8_t* m_data;
     
 private:
-    uint8_t* m_data;
 };
