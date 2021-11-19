@@ -414,8 +414,8 @@ public:
 		cout << "Creating mContigs" << endl;
 		cout << endl;
 
-		string mdbg_filename = "/home/gats/workspace/run/overlap_test_201_multik/mdbg_nodes.gz";
-		MDBG* mdbg = new MDBG(_kminmerSize);
+		string mdbg_filename =  _inputDir + "/mdbg_nodes_init.gz";
+		MDBG* mdbg = new MDBG(3);
 		mdbg->load(mdbg_filename);
 
 		ofstream testCsv(_inputDir + "/minimizerContigsDebug.csv");
@@ -461,7 +461,10 @@ public:
 				//u_int64_t readIndex = supportingReads[i];
 				//ContigNode contigNode = {nodeName, readIndex};
 
-				
+				//if(12524 == nodeName){
+				//	cout << BiGraph::nodeIndex_to_nodeName(nodePath[i+1], orientation) << endl;
+				//	getchar();
+				//}
 				if(i == 0){
 					
 					//cout << endl << endl << endl << endl << "Entire" << endl;
@@ -483,6 +486,13 @@ public:
 				}
 				else {
 					if(orientation){
+						//if(i > 490 && i < 510){
+						//	cout << "HIHIHI: " << i << " " << _nodeName_right[nodeName]._minimizer << endl;
+						//}
+						if(_nodeName_right.find(nodeName) == _nodeName_right.end()){
+							 cout << "omg: " << nodeName << endl;
+							 getchar();
+						}
 						u_int64_t minimizer = _nodeName_right[nodeName]._minimizer;
 						contigSequence.push_back(minimizer);
 
@@ -490,6 +500,13 @@ public:
 						//cout << "Add minimizer (right): " << minimizer << endl;
 					}
 					else{
+						//if(i > 490 && i < 510){
+						//	cout << "HIHIHI: " << i << " " << _nodeName_left[nodeName]._minimizer << endl;
+						//}
+						if(_nodeName_left.find(nodeName) == _nodeName_left.end()){
+							 cout << "omg: " << nodeName << endl;
+							 getchar();
+						}
 						u_int64_t minimizer = _nodeName_left[nodeName]._minimizer;
 						//if(minimizer == 0){ cout <<"HAAAAAAAAAAAAAAAAAAAA" << endl; exit(1);}
 						contigSequence.push_back(minimizer);
@@ -567,9 +584,9 @@ public:
 
 			if(isCircular){
 				//cout << "blurp: " << contigSequence[_kminmerSize-1] << endl;
-				contigSequence.pop_back();
-				contigSequence.push_back(contigSequence[_kminmerSize-1]);
-				//contigSequence.push_back(contigSequence[_kminmerSize]);
+				//contigSequence.pop_back();
+				//contigSequence.push_back(contigSequence[_kminmerSize-1]); //k += 1
+				//contigSequence.push_back(contigSequence[_kminmerSize]); //k += 2
 			}
 			//exit(1);
 			//cout << contigSequence.substr(362170, 100) << endl;
@@ -601,18 +618,19 @@ public:
 				//getchar();
 			}*/
 			
-			/*
+			
 			vector<KmerVec> kminmers; 
 			vector<ReadKminmer> kminmersInfo;
 			vector<u_int64_t> minimizersPos; 
 			vector<u_int64_t> rlePositions;
-			MDBG::getKminmers(_minimizerSize, _kminmerSize, contigSequence, minimizersPos, kminmers, kminmersInfo, rlePositions, -1);
+			MDBG::getKminmers(_minimizerSize, 3, contigSequence, minimizersPos, kminmers, kminmersInfo, rlePositions, -1, false);
 
 			cout << "Nb kminmers: " << kminmers.size() << endl;
 			u_int64_t nbFoundMinimizers = 0;
 			for(size_t i=0; i<kminmers.size(); i++){
 				KmerVec& vec = kminmers[i];
 				
+				/*
 				if(i  == 0){
 					cout << "---" << endl;
 					for(size_t i=0; i<vec._kmers.size(); i++){
@@ -626,7 +644,7 @@ public:
 						cout << vec._kmers[i] << " ";
 					}
 					cout << endl;
-				}
+				}*/
 				//if(i==0){
 				//	cout << vec._kmers[0] << " " << vec._kmers[1] << " " << vec._kmers[2] << endl;
 				//}
@@ -634,14 +652,31 @@ public:
 				//cout << vec._kmers[0] << " " << vec._kmers[1] << " " << vec._kmers[2] << endl;
 	
 				//if(i>5) break;
+				//cout << _kminmerSize << endl;
+				if(i > 490 && i < 500){
+					cout << vec._kmers[0] << " " << vec._kmers[1] << " " << vec._kmers[2] << endl;
+				}
+
 				if(mdbg->_dbg_nodes.find(vec) == mdbg->_dbg_nodes.end()){
-					if(i==2){ nbFailed += 1; }
+					//if(i==2){ nbFailed += 1; }
 					cout << "Not good: " << i << endl;
-					//cout << vec._kmers[0] << " " << vec._kmers[1] << " " << vec._kmers[2] << endl;
+					cout << vec._kmers[0] << " " << vec._kmers[1] << " " << vec._kmers[2] << endl;
+
+					if(mdbg->_dbg_nodes.find(kminmers[i-1]) != mdbg->_dbg_nodes.end()){
+						cout << mdbg->_dbg_nodes[kminmers[i-1]]._index << endl;
+						cout << kminmers[i-1]._kmers[0] << " " << kminmers[i-1]._kmers[1] << " " << kminmers[i-1]._kmers[2] << endl;
+					}
+					if(mdbg->_dbg_nodes.find(kminmers[i+1]) != mdbg->_dbg_nodes.end()){
+						cout << mdbg->_dbg_nodes[kminmers[i+1]]._index << endl;
+						cout << kminmers[i-1]._kmers[0] << " " << kminmers[i-1]._kmers[1] << " " << kminmers[i-1]._kmers[2] << endl;
+					}
+
+					getchar();
 					continue;	
 				}
 
 				u_int32_t nodeName = mdbg->_dbg_nodes[vec]._index;
+				//cout << nodeName << endl;
 				//cout << vec._kmers[0] << " " << vec._kmers[1] << " " << vec._kmers[2] << "     " << nodeName << endl;
 				//cout << nodeName << endl;
 
@@ -652,13 +687,13 @@ public:
 
 			}
 
-			cout << "Is circular: " << ((int)isCircular) << endl;
+			//cout << "Is circular: " << ((int)isCircular) << endl;
 			cout << "Found nodes: " << nbFoundMinimizers << endl;
 			//if(nbFoundMinimizers != kminmers.size()) getchar();
 
 			//if(contigSequence.size() > 10000)
 			//getchar();
-			*/
+			
 
 
 

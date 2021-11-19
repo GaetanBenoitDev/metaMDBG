@@ -298,7 +298,7 @@ public:
 
 		vector<KmerVec> kminmers; 
 		vector<ReadKminmer> kminmersInfo;
-		MDBG::getKminmers(_minimizerSize, _kminmerSize, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex);
+		MDBG::getKminmers(_minimizerSize, _kminmerSize, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex, false);
 
 		for(size_t i=0; i<kminmers.size(); i++){
 			if(_mdbg->_dbg_nodes.find(kminmers[i]) == _mdbg->_dbg_nodes.end()) continue;
@@ -601,7 +601,7 @@ public:
 
 		vector<KmerVec> kminmers; 
 		vector<ReadKminmer> kminmersInfo;
-		MDBG::getKminmers(_minimizerSize, _kminmerSize, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex);
+		MDBG::getKminmers(_minimizerSize, _kminmerSize, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex, false);
 
 		for(size_t i=0; i<kminmers.size(); i++){
 			if(_mdbg->_dbg_nodes.find(kminmers[i]) == _mdbg->_dbg_nodes.end()) continue;

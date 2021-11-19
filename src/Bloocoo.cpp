@@ -436,7 +436,23 @@ void Bloocoo::createMDBG (){
 		_mdbg->addNode(vec, kminmerData._length, kminmerData._overlapLength_start, kminmerData._overlapLength_end, kminmerData._isReversed);
 		_mdbg->_dbg_nodes[vec]._abundance = kminmerData._count;
 
-
+		if(_mdbg->_dbg_nodes[vec]._index == 11912){
+			cout << "lol: " <<  vec._kmers[0] << " " << vec._kmers[1] << " " << vec._kmers[2] << endl;
+			getchar();
+		}
+		else if(_mdbg->_dbg_nodes[vec]._index == 3036){
+			cout << _mdbg->_dbg_nodes[vec]._index << " " << vec._kmers[0] << " " << vec._kmers[1] << " " << vec._kmers[2] << endl;
+			getchar();
+		}
+		else if(_mdbg->_dbg_nodes[vec]._index == 3037){
+			cout << _mdbg->_dbg_nodes[vec]._index << " " << vec._kmers[0] << " " << vec._kmers[1] << " " << vec._kmers[2] << endl;
+			getchar();
+		}
+		else if(_mdbg->_dbg_nodes[vec]._index == 3035){
+			cout << _mdbg->_dbg_nodes[vec]._index << " " << vec._kmers[0] << " " << vec._kmers[1] << " " << vec._kmers[2] << endl;
+			getchar();
+		}
+	
 	}
 
 
@@ -1251,6 +1267,10 @@ void Bloocoo::createGfa(){
 
 
 
+	if(_filename_inputContigs == ""){
+		_mdbg->dump(_outputDir + "/mdbg_nodes_init.gz");
+	}
+	
 	_mdbg->dump(_outputDir + "/mdbg_nodes.gz");
 	//_mdbg->_dbg_nodes.clear();
 	//_mdbg->_dbg_edges.clear();

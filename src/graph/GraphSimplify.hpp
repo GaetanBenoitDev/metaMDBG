@@ -2530,7 +2530,7 @@ push s into S
         //    }
         //}
 
-        /*
+        
         cout << "inserting bubbles" << endl;
         while(true){
             vector<u_int32_t> neighbors;
@@ -2614,7 +2614,7 @@ push s into S
             if(bubbleAdded == 0) break;
         }
         cout << "done" << endl;
-        */
+        
 
         compact(false);
 

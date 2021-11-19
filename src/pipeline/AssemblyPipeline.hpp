@@ -122,7 +122,7 @@ public:
 
 		//Read selection
 		command = _filename_exe + " readSelection -i " + _inputFilename + " -o " + _inputDir;
-		//executeCommand(command);
+		executeCommand(command);
 
 
 
@@ -146,6 +146,7 @@ public:
 			command = _filename_exe + " toMinspace -o " + _inputDir;
 			if(pass > 0) command += " -c " +  _inputDir + "/contigs.min.gz";
 			executeCommand(command);
+			getchar();
 			//getchar();
 			pass += 1;
 			//if(pass == 2) break;

@@ -37,6 +37,7 @@ Gros changement non testé:
 	- ToBasespace: recuperer les sequenceModel et variant en une seule passes sur les data, peut etre plus encessaire avec l'approche multi k?
 	- Kminmer / kmer parser: verifier qu'on a la taille de seuqnece suffisante (pour les kmer) et nb minimizers suffisant (pour kminmer) pour les générer (k+1)
 	- Gfa format: créer notre propre format binaire, mais attention gfa est pratique pour debug
+	- Palindrome: augmenter la densité au endroit des positions bannis, pour conserver la meme taille d'overlaps (idée seb)
 */
 
 #define PRINT_DEBUG_COMPLEX_AREA
@@ -1891,12 +1892,13 @@ public:
 
 				u_int32_t successor_nodeName = BiGraph::nodeIndex_to_nodeName(successor._nodeIndexSuccessor);
 				
+				bool isContigNode = _unitigDatas[prev_nodeName]._readIndexes.size() == 0;
 				u_int32_t nbSharedReads = Utils::computeSharedReads(_unitigDatas[prev_nodeName], _unitigDatas[successor_nodeName]);
 				//cout << prev_nodeName << " " << successor_nodeName << " " << nbSharedReads << endl;
 				//if(nbSharedReads > _abundanceCutoff_min/2){
 				//if(nbSharedReads > successor._abundance/5){
 				//if(nbSharedReads > 0){
-				if(nbSharedReads > 0 && nbSharedReads > abundanceCutoff_min){
+				if(prevRank < 200 && (isContigNode || (nbSharedReads > 0 && nbSharedReads > abundanceCutoff_min))){
 
 					//if(successor._nbSharedReadsPrev != -1 && _assemblyState._cutoff_backtrackLength == 0 && nbSharedReads > successor._nbSharedReadsPrev){
 					//	successor._prevRankFinished = true;
@@ -5074,6 +5076,7 @@ public:
 		exit(1);
 		*/
 		
+		/*
 
 		cout << "Nb edges: " << graphSimplify->_graphSuccessors->_nbEdges << endl;
 		cout << "Removing unsupported edges" << endl;
@@ -5103,7 +5106,6 @@ public:
 		}
 
 		//exit(1);
-
 		u_int64_t nbUnitigs = 0;
 		unordered_set<u_int32_t> writtenNodeNames;
 
@@ -5153,7 +5155,7 @@ public:
 		file_kminmersContigs.close();
 
 		return;
-		
+		*/
 
 
 		/*
@@ -5554,9 +5556,74 @@ public:
 
 
 
-	void indexReads_read(const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex){
+	void indexReads_read(const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex){//}, const vector<KmerVec>& kminmers_k3, const vector<ReadKminmer>& kminmersInfos_k3){
 
-		vector<ReadIndexType> unitigIndexex;
+		//vector<ReadIndexType> unitigIndexex;
+
+		for(const KmerVec& vec : kminmers){
+			//if(mdbg->_dbg_nodes[vec]._index == 55479) cout << "AAAAA" << endl;
+
+			//cout << mdbg->_dbg_nodes[vec]._index << endl;
+			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()) continue;
+
+			//if(vec.isPalindrome()) cout << _mdbg->_dbg_nodes[vec]._index << endl;
+			//getchar();
+
+
+			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
+			u_int32_t nodeIndex = BiGraph::nodeName_to_nodeIndex(nodeName, true);
+			if(_graph->_isNodeValid2.find(nodeIndex) == _graph->_isNodeValid2.end()) continue;
+			//if(_nodeData.find(nodeName) == _nodeData.end()) continue;
+
+			//UnitigData& unitigData = _nodeData[nodeName];
+			UnitigData& unitigData = _unitigDatas[nodeName];
+			if(std::find(unitigData._readIndexes.begin(), unitigData._readIndexes.end(), readIndex) != unitigData._readIndexes.end()) continue;
+			unitigData._readIndexes.push_back(readIndex);
+			//cout << "indexing : " << readIndex << endl;
+		}
+
+		/*
+		for(const KmerVec& vec : kminmers_k3){
+			//if(mdbg->_dbg_nodes[vec]._index == 55479) cout << "AAAAA" << endl;
+
+			//cout << mdbg->_dbg_nodes[vec]._index << endl;
+			//if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()) continue;
+
+			if(_contigNodeNames.find(vec) == _contigNodeNames.end()) continue;
+
+			vector<u_int32_t> nodeNames = _contigNodeNames[vec];
+			cout << nodeNames.size() << endl;
+			for(u_int32_t nodeName : nodeNames){
+
+				
+				u_int32_t nodeIndex = BiGraph::nodeName_to_nodeIndex(nodeName, true);
+				if(_graph->_isNodeValid2.find(nodeIndex) == _graph->_isNodeValid2.end()) continue;
+
+				UnitigData& unitigData = _unitigDatas[nodeName];
+				if(std::find(unitigData._readIndexes.begin(), unitigData._readIndexes.end(), readIndex) != unitigData._readIndexes.end()) continue;
+				unitigData._readIndexes.push_back(readIndex);
+			}
+			//if(vec.isPalindrome()) cout << _mdbg->_dbg_nodes[vec]._index << endl;
+			//getchar();
+
+
+			//u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
+			//u_int32_t nodeIndex = BiGraph::nodeName_to_nodeIndex(nodeName, true);
+			//if(_graph->_isNodeValid2.find(nodeIndex) == _graph->_isNodeValid2.end()) continue;
+			//if(_nodeData.find(nodeName) == _nodeData.end()) continue;
+
+			//UnitigData& unitigData = _nodeData[nodeName];
+			//UnitigData& unitigData = _unitigDatas[nodeName];
+			//unitigData._readIndexes.push_back(readIndex);
+			//cout << "indexing : " << readIndex << endl;
+		}*/
+
+	}
+
+	
+	void indexReads_contig(const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex){
+
+		//vector<ReadIndexType> unitigIndexex;
 
 		for(const KmerVec& vec : kminmers){
 			//if(mdbg->_dbg_nodes[vec]._index == 55479) cout << "AAAAA" << endl;
@@ -5568,68 +5635,78 @@ public:
 
 
 			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
-			//u_int32_t nodeIndex = BiGraph::nodeName_to_nodeIndex(nodeName, true);
-			//if(_graph->_isNodeValid2.find(nodeIndex) == _graph->_isNodeValid2.end()) continue;
-			if(_nodeData.find(nodeName) == _nodeData.end()) continue;
-
-			UnitigData& unitigData = _nodeData[nodeName];
-			unitigData._readIndexes.push_back(readIndex);
-			//cout << "indexing : " << readIndex << endl;
-		}
-
-
-
-	}
-
-	void indexReads_contigs(const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex){
-
-		vector<ReadIndexType> unitigIndexex;
-
-		for(const KmerVec& vec : kminmers){
-			//if(mdbg->_dbg_nodes[vec]._index == 55479) cout << "AAAAA" << endl;
-
-			//cout << mdbg->_dbg_nodes[vec]._index << endl;
-			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()) continue;
 
 			
+			vector<KmerVec> kminmers2; 
+			vector<ReadKminmer> kminmersInfo2;
+			vector<u_int64_t> minimizersPos2; 
+			vector<u_int64_t> rlePositions2;
+			MDBG::getKminmers(_minimizerSize, 3, vec._kmers, minimizersPos2, kminmers2, kminmersInfo2, rlePositions2, -1, false);
+			//cout << kminmers2.size() << endl;
 
+			for(const KmerVec& vec2 : kminmers2){
 
-			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
-			//u_int32_t nodeIndex = BiGraph::nodeName_to_nodeIndex(nodeName, true);
-			//if(_graph->_isNodeValid2.find(nodeIndex) == _graph->_isNodeValid2.end()) continue;
-			if(_nodeData.find(nodeName) == _nodeData.end()) continue;
+				vector<u_int32_t>& nodeNames = _contigNodeNames[vec2];
+				if(std::find(nodeNames.begin(), nodeNames.end(), nodeName) == nodeNames.end()){
+					nodeNames.push_back(nodeName);
+				}
+				//_contigNodeNames[vec2].push_back(nodeName);
+			}
 
-			UnitigData& unitigData = _nodeData[nodeName];
+			/*
+			u_int32_t nodeIndex = BiGraph::nodeName_to_nodeIndex(nodeName, true);
+			if(_graph->_isNodeValid2.find(nodeIndex) == _graph->_isNodeValid2.end()) continue;
+			//if(_nodeData.find(nodeName) == _nodeData.end()) continue;
+
+			//UnitigData& unitigData = _nodeData[nodeName];
+			UnitigData& unitigData = _unitigDatas[nodeName];
 			unitigData._readIndexes.push_back(readIndex);
-			//cout << "indexing : " << readIndex << endl;
+			cout << "indexing : " << readIndex << endl;
+			*/
 		}
 
 
 
 	}
+	
 
-	unordered_map<u_int32_t, UnitigData> _nodeData;
+
+
+	unordered_map<KmerVec, vector<u_int32_t>> _contigNodeNames;
 
 	void removeUnsupportedEdges(const string& gfaFilename, const string& gfa_filename_noUnsupportedEdges, GraphSimplify* graph){
 		//cout << "Removing unsupported edges" << endl;
 		//cout << "1" << endl;
 		//GraphSimplify* graphSimplify = new GraphSimplify(gfaFilename, _inputDir);
 		//graphSimplify->compact();
+		/*
 		for(Unitig& unitig : graph->_unitigs){
 			_nodeData[BiGraph::nodeIndex_to_nodeName(unitig._startNode)] = {0, {}};
 			_nodeData[BiGraph::nodeIndex_to_nodeName(unitig._endNode)] = {0, {}};
-		}
-
-		KminmerParser parser(_filename_readMinimizers, _minimizerSize, _kminmerSize);
-		auto fp = std::bind(&Assembly::indexReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-		parser.parse(fp);
-
+		}*/
+		/*
 		if(_filename_inputContigs != ""){
 			KminmerParser contigParser(_filename_inputContigs, _minimizerSize, _kminmerSize);
-			auto fp2 = std::bind(&Assembly::indexReads_contigs, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+			auto fp2 = std::bind(&Assembly::indexReads_contig, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 			contigParser.parse_mContigs(fp2);
-		}
+		}*/
+		
+		KminmerParser parser(_filename_readMinimizers, _minimizerSize, _kminmerSize);
+		//auto fp = std::bind(&Assembly::indexReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5);
+		auto fp = std::bind(&Assembly::indexReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+		parser.parse(fp);
+		/*
+		for(UnitigData& unitigData : _unitigDatas){
+			if(unitigData._readIndexes.size() <= 1) continue;
+			//cout << unitigData._readIndexes.size() << endl;
+			std::sort(unitigData._readIndexes.begin(), unitigData._readIndexes.end());
+			//for(u_int32_t readIndex : unitigData._readIndexes){
+			//	cout << readIndex << endl;
+			//}
+			//if(unitigData._readIndexes.size() > 0) exit(1);
+		}*/
 
+		/*
 		for(Unitig& unitig : graph->_unitigs){
 
 			u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(unitig._endNode);
@@ -5641,7 +5718,7 @@ public:
 				
 				u_int32_t nodeName_succ = BiGraph::nodeIndex_to_nodeName(successor);
 
-				if(Utils::shareAnyRead(_nodeData[nodeName], _nodeData[nodeName_succ])){
+				if(Utils::shareAnyRead(_unitigDatas[nodeName], _unitigDatas[nodeName_succ])){
 					continue;
 				}
 
@@ -5652,6 +5729,8 @@ public:
 
 			}
 
+
+		}*/
 			/*
 			vector<u_int32_t> predecessors;
 			graph->getPredecessors(unitig._startNode, 0, predecessors);
@@ -5669,14 +5748,12 @@ public:
 				edge = edge.normalize();
 				graph->_isEdgeUnsupported.insert(edge);
 
-			}*/
-
-		}
-
+			}
+			*/
 		
 		cout << "Nb unsupported edges: " << graph->_isEdgeUnsupported.size() << endl;
 		//getchar(); //3808
-		_nodeData.clear();
+		_contigNodeNames.clear();
 		//_unitigDatas.resize(_mdbg->_dbg_nodes.size());
 
 		//AdjGraph* graph = GfaParser::createGraph_lol(gfaFilename);
@@ -6915,9 +6992,12 @@ public:
 			//nodePath_supportingReads.resize(nodePath.size(), 0);
 		}
 
+		u_int8_t isCircular = pathSolved;
+
 		if(nodePath.size() > 0){
 			u_int64_t size = nodePath.size();
 			gzwrite(_outputContigFile, (const char*)&size, sizeof(size));
+			gzwrite(_outputContigFile, (const char*)&isCircular, sizeof(isCircular));
 			gzwrite(_outputContigFile, (const char*)&nodePath[0], size * sizeof(u_int32_t));
 			//gzwrite(_outputContigFile, (const char*)&nodePath_supportingReads[0], size * sizeof(u_int64_t));
 		}
@@ -7097,7 +7177,7 @@ public:
 
 		vector<KmerVec> kminmers; 
 		vector<ReadKminmer> kminmersInfo;
-		MDBG::getKminmers(_minimizerSize, _kminmerSize, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex);
+		MDBG::getKminmers(_minimizerSize, _kminmerSize, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex, false);
 
 		for(size_t i=0; i<kminmers.size(); i++){
 

@@ -496,7 +496,8 @@ struct KmerVec{
 	}
 
 	bool isPalindrome() const{
-		return suffix() == prefix().reverse();
+		//vector<u_int64_t> kmers = _kmers;
+		return  equal(_kmers.begin(), _kmers.begin() + _kmers.size()/2, _kmers.rbegin()); //suffix() == prefix().reverse();
 	}
 
 	size_t h() const{
@@ -653,6 +654,7 @@ public:
 
 	static u_int64_t computeSharedReads(const UnitigData& utg1, const UnitigData& utg2){
 
+		//if(utg1._readIndexes.size() == 0 || utg2._readIndexes.size() == 0) return 1;
 		//cout << "------------------- " << utg1._index << endl;
 		//for(size_t i=0; i<utg1._readIndexes.size(); i++){
 		//	cout << "| " << utg1._readIndexes[i] << endl;
@@ -684,8 +686,12 @@ public:
 		return nbShared;
 	}
 
+	
 	static u_int64_t collectSharedReads(const UnitigData& utg1, const UnitigData& utg2, vector<u_int64_t>& sharedReads){
 
+		sharedReads.clear();
+
+		//if(utg1._readIndexes.size() == 0 || utg2._readIndexes.size() == 0) return;
 		//cout << "------------------- " << utg1._index << endl;
 		//for(size_t i=0; i<utg1._readIndexes.size(); i++){
 		//	cout << "| " << utg1._readIndexes[i] << endl;
@@ -695,7 +701,6 @@ public:
 		//	cout << "| " << utg2._readIndexes[i] << endl;
 		//}
 
-		sharedReads.clear();
 
 		size_t i=0;
 		size_t j=0;
@@ -719,10 +724,11 @@ public:
 
 		return nbShared;
 	}
-
+	
 
 	static bool shareAnyRead(const UnitigData& utg1, const UnitigData& utg2){
 
+		if(utg1._readIndexes.size() == 0 || utg2._readIndexes.size() == 0) return true;
 		//cout << "------------------- " << utg1._index << endl;
 		//for(size_t i=0; i<utg1._readIndexes.size(); i++){
 		//	cout << "| " << utg1._readIndexes[i] << endl;
@@ -922,9 +928,12 @@ public:
 
 
 
-	static void getKminmers(const size_t l, const size_t k, const vector<u_int64_t>& minimizers, const vector<u_int64_t>& minimizersPos, vector<KmerVec>& kminmers, vector<ReadKminmer>& kminmersLength, const vector<u_int64_t>& rlePositions, int readIndex){
+	static void getKminmers(const size_t l, const size_t k, const vector<u_int64_t>& minimizers, const vector<u_int64_t>& minimizersPos, vector<KmerVec>& kminmers, vector<ReadKminmer>& kminmersLength, const vector<u_int64_t>& rlePositions, int readIndex, bool allowPalindrome){
 
-
+		bool isLala = false;
+		if(std::find(minimizers.begin(), minimizers.end(), 56801217747741349) !=  minimizers.end()){
+			isLala = true;
+		}
         kminmersLength.clear();
         bool doesComputeLength = minimizersPos.size() > 0;
 		/*
@@ -974,6 +983,14 @@ public:
 		//unordered_set<u_int64_t> bannedMinimizers;
 		vector<bool> bannedPositions(minimizers.size(), false);
 
+
+
+
+
+
+
+		size_t banned_k = 3;
+
 		while(true){
 
 			//if(readIndex == 39679){
@@ -983,7 +1000,7 @@ public:
 			bool hasPalindrome = false;
 			KmerVec prevVec;
 
-			int i_max = ((int)minimizers.size()) - (int)k + 1;
+			int i_max = ((int)minimizers.size()) - (int)banned_k + 1;
 			for(int i=0; i<i_max; i++){
 
 				//if(readIndex == 94931){
@@ -1007,6 +1024,106 @@ public:
 					u_int64_t minimizer = minimizers[j];
 
 
+					vec._kmers.push_back(minimizer);
+					currentMinimizerIndex.push_back(j);
+
+					if(vec._kmers.size() == banned_k){
+
+						
+						if((vec.isPalindrome() || (i > 0 && vec.normalize() == prevVec.normalize()))){ //Palindrome: 121 (créé un cycle), Large palindrome = 122 221 (créé une tip)
+
+							for(size_t m=0; m<banned_k; m++){
+								bannedPositions[currentMinimizerIndex[m]] = true;
+								cout << "Banned: " << currentMinimizerIndex[m] << endl;
+							}
+							
+							/*
+							for(size_t i=0; i<bannedPositions.size()-banned_k+1; i++){
+								if(bannedPositions[i]) continue;
+								bool isBanned = false;
+								for(size_t j=i; j<i+banned_k; j++){
+									if(bannedPositions[j]){
+										isBanned = true;
+									}
+								}
+
+								if(isBanned){
+									for(size_t j=i; j<i+banned_k; j++){
+										cout << "Banned: " << j << endl;
+										bannedPositions[j] = true;
+									}
+								}
+							}
+							*/
+							
+
+							hasPalindrome = true;
+							break;
+						}
+					}
+
+					j += 1;
+				}
+
+				if(hasPalindrome) break;
+			}
+
+			
+			if(!hasPalindrome) break;
+			//kminmers.clear();
+        	//kminmersLength.clear();
+		}
+
+		if(isLala){
+			for(size_t i=0; i<minimizers.size(); i++){
+				cout << i << " " << minimizers[i] << "     " << bannedPositions[i] << endl;
+				if(minimizers[i] == 56801217747741349){
+					cout << "\tb" << endl; 
+				}
+				//if(bannedPositions[i]){
+				//	cout << "Banned: " << i << endl;
+				//}
+			}
+			getchar();
+		}
+
+
+		while(true){
+
+			//if(readIndex == 39679){
+			//	cout << "------------------------" << endl;
+			//}
+
+			bool hasPalindrome = false;
+			KmerVec prevVec;
+
+			int i_max = ((int)minimizers.size()) - (int)k + 1;
+			for(int i=0; i<i_max; i++){
+
+				//if(readIndex == 94931){
+				//	cout << i << ": " << minimizers[i] << endl;
+				//}
+
+				if(bannedPositions[i]){
+					//cout << "ban i" << endl;
+					continue;
+				}
+				KmerVec vec;
+				vector<u_int32_t> currentMinimizerIndex;
+
+				int j=i;
+				while(true){
+					
+					if(j >= minimizers.size()) break;
+					if(bannedPositions[j]){
+						//cout << "ban j" << " " << j << endl;
+						j += 1;
+						continue;
+					}
+
+					u_int64_t minimizer = minimizers[j];
+					//cout << "MU: " << j << " " << minimizer << endl;
+
 					//if(bannedMinimizers.find(minimizer) != bannedMinimizers.end()) continue;
 
 					vec._kmers.push_back(minimizer);
@@ -1023,6 +1140,7 @@ public:
 						}
 						*/
 
+						
 						if(vec.isPalindrome() || (i > 0 && vec.normalize() == prevVec.normalize())){ //Palindrome: 121 (créé un cycle), Large palindrome = 122 221 (créé une tip)
 
 							//if(readIndex == 96573){
@@ -1039,7 +1157,7 @@ public:
 								//if(readIndex == 39679){
 								//	cout << "Banned: " << currentMinimizerIndex[m] << endl;
 								//}
-								//cout << "Banned: " << currentMinimizerIndex[m] << endl;
+								cout << "Banned 2: " << currentMinimizerIndex[m] << endl;
 							}
 							/*
 							for(size_t i=0; i<bannedPositions.size()-k+1; i++){
@@ -1056,8 +1174,8 @@ public:
 										bannedPositions[j] = true;
 									}
 								}
-							}
-							*/
+							}*/
+							
 
 							hasPalindrome = true;
 							break;
@@ -1711,6 +1829,7 @@ public:
 };
 
 
+
 class KminmerParser{
 
 public:
@@ -1762,9 +1881,65 @@ public:
 			vector<KmerVec> kminmers; 
 			vector<ReadKminmer> kminmersInfo;
 			vector<u_int64_t> rlePositions;
-			MDBG::getKminmers(_l, _k, minimizers, minimizersPos, kminmers, kminmersInfo, rlePositions, 0);
+			MDBG::getKminmers(_l, _k, minimizers, minimizersPos, kminmers, kminmersInfo, rlePositions, 0, false);
 
 			fun(kminmers, kminmersInfo, readIndex);
+
+			readIndex += 1;
+		}
+
+		gzclose(file_readData);
+
+	}
+
+	void parseDuo(const std::function<void(vector<KmerVec>, vector<ReadKminmer>, u_int64_t, vector<KmerVec>, vector<ReadKminmer>)>& fun){
+
+		gzFile file_readData = gzopen(_inputFilename.c_str(),"rb");
+
+		u_int64_t readIndex = 0;
+
+		while(true){
+			
+			u_int16_t size;
+			vector<u_int64_t> minimizers;
+			vector<u_int16_t> minimizersPosOffsets; 
+			gzread(file_readData, (char*)&size, sizeof(size));
+
+			if(gzeof(file_readData)) break;
+			
+			minimizers.resize(size);
+			minimizersPosOffsets.resize(size);
+			gzread(file_readData, (char*)&minimizers[0], size * sizeof(u_int64_t));
+			gzread(file_readData, (char*)&minimizersPosOffsets[0], size * sizeof(u_int16_t));
+
+			
+			//cout << "----" << endl;
+			vector<u_int64_t> minimizersPos; 
+			if(size > 0){
+				u_int64_t pos = minimizersPosOffsets[0];
+				minimizersPos.push_back(pos);
+				for(size_t i=1; i<minimizersPosOffsets.size(); i++){
+					pos += minimizersPosOffsets[i];
+					minimizersPos.push_back(pos);
+					//cout << minimizersPosOffsets[i] << " " << pos << endl;
+				}
+			}
+
+
+
+			vector<KmerVec> kminmers; 
+			vector<ReadKminmer> kminmersInfo;
+			vector<u_int64_t> rlePositions;
+			MDBG::getKminmers(_l, _k, minimizers, minimizersPos, kminmers, kminmersInfo, rlePositions, 0, false);
+
+
+			vector<KmerVec> kminmers2; 
+			vector<ReadKminmer> kminmersInfo2;
+			vector<u_int64_t> rlePositions2;
+			vector<u_int64_t> minimizersPos2; 
+			MDBG::getKminmers(_l, 3, minimizers, minimizersPos2, kminmers2, kminmersInfo2, rlePositions2, 0, false);
+
+			fun(kminmers, kminmersInfo, readIndex, kminmers2, kminmersInfo2);
 
 			readIndex += 1;
 		}
@@ -1802,7 +1977,7 @@ public:
 			vector<KmerVec> kminmers; 
 			vector<ReadKminmer> kminmersInfos;
 			vector<u_int64_t> rlePositions;
-			MDBG::getKminmers(_l, _k, minimizers, minimizersPos, kminmers, kminmersInfos, rlePositions, 0);
+			MDBG::getKminmers(_l, _k, minimizers, minimizersPos, kminmers, kminmersInfos, rlePositions, 0, false);
 
 			fun(kminmers, kminmersInfos, readIndex);
 
