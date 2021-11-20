@@ -428,6 +428,10 @@ void Bloocoo::createMDBG (){
 			//if(_kminmersData[vec]._count <= minAbundance_cutoff) continue;
 		//}
 
+		if(vec.isPalindrome()){
+			cout << "Palindrome:" << _mdbg->_dbg_nodes[vec]._index << endl;
+			continue;
+		}
 
 		//cout << kminmersData[vec] << endl;
 
@@ -436,6 +440,8 @@ void Bloocoo::createMDBG (){
 		_mdbg->addNode(vec, kminmerData._length, kminmerData._overlapLength_start, kminmerData._overlapLength_end, kminmerData._isReversed);
 		_mdbg->_dbg_nodes[vec]._abundance = kminmerData._count;
 
+
+		/*
 		if(_mdbg->_dbg_nodes[vec]._index == 11912){
 			cout << "lol: " <<  vec._kmers[0] << " " << vec._kmers[1] << " " << vec._kmers[2] << endl;
 			getchar();
@@ -451,7 +457,7 @@ void Bloocoo::createMDBG (){
 		else if(_mdbg->_dbg_nodes[vec]._index == 3035){
 			cout << _mdbg->_dbg_nodes[vec]._index << " " << vec._kmers[0] << " " << vec._kmers[1] << " " << vec._kmers[2] << endl;
 			getchar();
-		}
+		}*/
 	
 	}
 

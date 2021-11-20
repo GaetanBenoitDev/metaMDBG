@@ -930,10 +930,12 @@ public:
 
 	static void getKminmers(const size_t l, const size_t k, const vector<u_int64_t>& minimizers, const vector<u_int64_t>& minimizersPos, vector<KmerVec>& kminmers, vector<ReadKminmer>& kminmersLength, const vector<u_int64_t>& rlePositions, int readIndex, bool allowPalindrome){
 
+		/*
 		bool isLala = false;
 		if(std::find(minimizers.begin(), minimizers.end(), 56801217747741349) !=  minimizers.end()){
 			isLala = true;
-		}
+		}*/
+		
         kminmersLength.clear();
         bool doesComputeLength = minimizersPos.size() > 0;
 		/*
@@ -1034,7 +1036,7 @@ public:
 
 							for(size_t m=0; m<banned_k; m++){
 								bannedPositions[currentMinimizerIndex[m]] = true;
-								cout << "Banned: " << currentMinimizerIndex[m] << endl;
+								//cout << "Banned: " << currentMinimizerIndex[m] << endl;
 							}
 							
 							/*
@@ -1073,7 +1075,7 @@ public:
 			//kminmers.clear();
         	//kminmersLength.clear();
 		}
-
+		/*
 		if(isLala){
 			for(size_t i=0; i<minimizers.size(); i++){
 				cout << i << " " << minimizers[i] << "     " << bannedPositions[i] << endl;
@@ -1085,7 +1087,7 @@ public:
 				//}
 			}
 			getchar();
-		}
+		}*/
 
 
 		while(true){
@@ -1140,7 +1142,7 @@ public:
 						}
 						*/
 
-						
+						/*
 						if(vec.isPalindrome() || (i > 0 && vec.normalize() == prevVec.normalize())){ //Palindrome: 121 (créé un cycle), Large palindrome = 122 221 (créé une tip)
 
 							//if(readIndex == 96573){
@@ -1159,7 +1161,7 @@ public:
 								//}
 								cout << "Banned 2: " << currentMinimizerIndex[m] << endl;
 							}
-							/*
+							
 							for(size_t i=0; i<bannedPositions.size()-k+1; i++){
 								if(bannedPositions[i]) continue;
 								bool isBanned = false;
@@ -1174,13 +1176,13 @@ public:
 										bannedPositions[j] = true;
 									}
 								}
-							}*/
+							}
 							
 
 							hasPalindrome = true;
 							break;
 						}
-						else{
+						else{*/
 
 							bool isReversed;
 							vec = vec.normalize(isReversed);
@@ -1341,7 +1343,7 @@ public:
 							prevVec = vec;
 							kminmers.push_back(vec);
 							break;
-						}
+						//}
 					}
 
 					j += 1;

@@ -2154,7 +2154,7 @@ push s into S
         float _abundance;
     };
 
-    void debug_writeGfaErrorfree(u_int32_t currentAbundance, float abundanceCutoff_min, u_int32_t nodeIndex_source, u_int64_t k){
+    void debug_writeGfaErrorfree(u_int32_t currentAbundance, float abundanceCutoff_min, u_int32_t nodeIndex_source, u_int64_t k, vector<UnitigData>& _unitigDatas){
 
 
         unordered_map<u_int32_t, vector<LongNeighbor>> nodeLongNeighbors;
@@ -2427,6 +2427,13 @@ push s into S
                         for(u_int32_t node : unitigNodes){
                             removedNodes.insert(node);
                             removedNodes.insert(nodeIndex_toReverseDirection(node));
+
+                            //bool isContigNode = _unitigDatas[BiGraph::nodeIndex_to_nodeName(node)]._readIndexes.size() == 0;
+                            //if(isContigNode){
+                            //    cout << "Removing contig node: " << localabundance << endl;
+                            //    getchar();
+                            //}
+
                             //_isNodeValid2.erase(node);
                             nbErrorsRemoved += 1;
                         }
@@ -2465,6 +2472,8 @@ push s into S
                     //    cout << "KOUERK" << endl;
                     //}
                     //_unitigs[_nodeToUnitig[nodeIndex]]._index
+
+
 
                     removedUnitigs.insert(nodeIndex_to_unitigIndex(nodeIndex));
                 }

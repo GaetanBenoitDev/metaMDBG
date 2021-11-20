@@ -653,25 +653,25 @@ public:
 	
 				//if(i>5) break;
 				//cout << _kminmerSize << endl;
-				if(i > 490 && i < 500){
-					cout << vec._kmers[0] << " " << vec._kmers[1] << " " << vec._kmers[2] << endl;
-				}
+				//if(i > 490 && i < 500){
+				//	cout << vec._kmers[0] << " " << vec._kmers[1] << " " << vec._kmers[2] << endl;
+				//}
 
 				if(mdbg->_dbg_nodes.find(vec) == mdbg->_dbg_nodes.end()){
 					//if(i==2){ nbFailed += 1; }
 					cout << "Not good: " << i << endl;
 					cout << vec._kmers[0] << " " << vec._kmers[1] << " " << vec._kmers[2] << endl;
+					
+					//if(mdbg->_dbg_nodes.find(kminmers[i-1]) != mdbg->_dbg_nodes.end()){
+					//	cout << mdbg->_dbg_nodes[kminmers[i-1]]._index << endl;
+					//	cout << kminmers[i-1]._kmers[0] << " " << kminmers[i-1]._kmers[1] << " " << kminmers[i-1]._kmers[2] << endl;
+					//}
+					//if(mdbg->_dbg_nodes.find(kminmers[i+1]) != mdbg->_dbg_nodes.end()){
+					//	cout << mdbg->_dbg_nodes[kminmers[i+1]]._index << endl;
+					//	cout << kminmers[i-1]._kmers[0] << " " << kminmers[i-1]._kmers[1] << " " << kminmers[i-1]._kmers[2] << endl;
+					//}
 
-					if(mdbg->_dbg_nodes.find(kminmers[i-1]) != mdbg->_dbg_nodes.end()){
-						cout << mdbg->_dbg_nodes[kminmers[i-1]]._index << endl;
-						cout << kminmers[i-1]._kmers[0] << " " << kminmers[i-1]._kmers[1] << " " << kminmers[i-1]._kmers[2] << endl;
-					}
-					if(mdbg->_dbg_nodes.find(kminmers[i+1]) != mdbg->_dbg_nodes.end()){
-						cout << mdbg->_dbg_nodes[kminmers[i+1]]._index << endl;
-						cout << kminmers[i-1]._kmers[0] << " " << kminmers[i-1]._kmers[1] << " " << kminmers[i-1]._kmers[2] << endl;
-					}
-
-					getchar();
+					//getchar();
 					continue;	
 				}
 

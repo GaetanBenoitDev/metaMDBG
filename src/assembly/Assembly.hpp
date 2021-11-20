@@ -4950,7 +4950,7 @@ public:
 
 		//unordered_set<u_int32_t> groundTruth_kminmers;
 		int founded = 0;
-		for(auto it : mdbg->_dbg_nodes){
+		for(auto it : _mdbg->_dbg_nodes){
 			const KmerVec& vec = it.first;
 
 			//vec = vec.normalize();
@@ -5170,7 +5170,8 @@ public:
 
 
 		//cout << graphSimplify->_graphSuccessors->_nbEdges << endl;
-		graphSimplify->execute(5, _kminmerSize);
+		//graphSimplify->execute(5, _kminmerSize);
+		graphSimplify->debug_writeGfaErrorfree(0, 0, 0, _kminmerSize, _unitigDatas);
 		
 		//cout << "remettre initial cleaning" << endl;
 		//graphSimplify->compact();
@@ -5251,6 +5252,7 @@ public:
 				
 				graphSimplify->getUnitigNodes(unitig, nodes);
 
+				u_int32_t startNodeIndex = nodes[nodes.size()/2];
 				/*
 				cout << endl << "----" << endl;
 				for(u_int32_t nIndex : nodes){
@@ -5262,7 +5264,7 @@ public:
 
 
 				//std::shuffle(nodes.begin(), nodes.end(), rng);
-				
+				/*
 				bool isValid = true;
 				u_int32_t maxAbundance = 0;
 				u_int32_t startNodeIndex = -1;
@@ -5290,6 +5292,7 @@ public:
 				}
 
 				if(!isValid) continue;
+				*/
 
 				/*
 				if(BiGraph::nodeIndex_to_nodeName(startNodeIndex) == 2246258){
@@ -5315,7 +5318,6 @@ public:
 			cout << "Nb starting unitigs: " << unitigLengths.size() << endl;
 		}
 		usedNodeNames.clear();
-
 
 
 
@@ -5396,8 +5398,6 @@ public:
 
 
 
-		graphSimplify->debug_writeGfaErrorfree(0, 0, 0, _kminmerSize);
-		//graphSimplify->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize);
 
 		cout << "Indexing reads" << endl;
 		_unitigDatas.resize(_mdbg->_dbg_nodes.size());
@@ -5405,6 +5405,18 @@ public:
 		delete _mdbg;
 		cout << "done" << endl;
 
+		//graphSimplify->debug_writeGfaErrorfree(0, 0, 0, _kminmerSize, _unitigDatas);
+
+		//int lala = 0;
+		//for(u_int32_t nodeIndex : graphSimplify->_isNodeValid2){
+			
+		//	bool isContigNode = _unitigDatas[BiGraph::nodeIndex_to_nodeName(nodeIndex)]._readIndexes.size() == 0;
+		//	if(isContigNode) {
+		//		_contigNodeNames.insert(BiGraph::nodeIndex_to_nodeName(nodeIndex));
+		//	}
+		//}
+		//cout << "Nb contig nodes: " << _contigNodeNames.size() << endl;
+		//getchar();
 
 		for(const vector<UnitigLength>& startingUnitig : startingUnitigs){	
 
@@ -5412,7 +5424,7 @@ public:
 
 			for(const UnitigLength& unitigLength : startingUnitig){
 
-				cout << unitigLength._length << " " << unitigLength._abundance << " " << BiGraph::nodeIndex_to_nodeName(unitigLength._startNodeIndex) << endl;
+				cout << unitigLength._length << " " << unitigLength._abundance << " " << BiGraph::nodeIndex_to_nodeName(unitigLength._startNodeIndex) << " " << graphSimplify->nodeIndex_to_unitig(unitigLength._startNodeIndex)._nbNodes << " " << BiGraph::nodeIndex_to_nodeName(graphSimplify->nodeIndex_to_unitig(unitigLength._startNodeIndex)._startNode) << " " << BiGraph::nodeIndex_to_nodeName(graphSimplify->nodeIndex_to_unitig(unitigLength._startNodeIndex)._endNode) << endl;
 				//cout << "Try asm: " << unitigLength._startNodeIndex << endl;
 				//if(unitigLength._index % 2 == 1) continue;
 
@@ -5507,6 +5519,10 @@ public:
 		cout << "Nb bins: " << binIndex << endl;
 		cout << "Nb bins complete: " << binIndex_complete << endl;
 
+		//for(u_int32_t nodeName : _contigNodeNames){
+		//	cout << nodeName << endl;
+		//}
+		//getchar();
 
 		file_groundTruth.close();
 		file_groundTruth_hifiasmContigs.close();
@@ -5572,12 +5588,12 @@ public:
 
 			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
 			u_int32_t nodeIndex = BiGraph::nodeName_to_nodeIndex(nodeName, true);
-			if(_graph->_isNodeValid2.find(nodeIndex) == _graph->_isNodeValid2.end()) continue;
+			//if(_graph->_isNodeValid2.find(nodeIndex) == _graph->_isNodeValid2.end()) continue;
 			//if(_nodeData.find(nodeName) == _nodeData.end()) continue;
 
 			//UnitigData& unitigData = _nodeData[nodeName];
 			UnitigData& unitigData = _unitigDatas[nodeName];
-			if(std::find(unitigData._readIndexes.begin(), unitigData._readIndexes.end(), readIndex) != unitigData._readIndexes.end()) continue;
+			//if(std::find(unitigData._readIndexes.begin(), unitigData._readIndexes.end(), readIndex) != unitigData._readIndexes.end()) continue;
 			unitigData._readIndexes.push_back(readIndex);
 			//cout << "indexing : " << readIndex << endl;
 		}
@@ -5643,7 +5659,7 @@ public:
 			vector<u_int64_t> rlePositions2;
 			MDBG::getKminmers(_minimizerSize, 3, vec._kmers, minimizersPos2, kminmers2, kminmersInfo2, rlePositions2, -1, false);
 			//cout << kminmers2.size() << endl;
-
+			/*
 			for(const KmerVec& vec2 : kminmers2){
 
 				vector<u_int32_t>& nodeNames = _contigNodeNames[vec2];
@@ -5651,7 +5667,7 @@ public:
 					nodeNames.push_back(nodeName);
 				}
 				//_contigNodeNames[vec2].push_back(nodeName);
-			}
+			}*/
 
 			/*
 			u_int32_t nodeIndex = BiGraph::nodeName_to_nodeIndex(nodeName, true);
@@ -5672,7 +5688,7 @@ public:
 
 
 
-	unordered_map<KmerVec, vector<u_int32_t>> _contigNodeNames;
+	//unordered_map<KmerVec, vector<u_int32_t>> _contigNodeNames;
 
 	void removeUnsupportedEdges(const string& gfaFilename, const string& gfa_filename_noUnsupportedEdges, GraphSimplify* graph){
 		//cout << "Removing unsupported edges" << endl;
@@ -5705,6 +5721,32 @@ public:
 			//}
 			//if(unitigData._readIndexes.size() > 0) exit(1);
 		}*/
+
+		/*
+		for(Unitig& unitig : graph->_unitigs){
+			if(BiGraph::nodeIndex_to_nodeName(unitig._startNode) == 18507){
+				
+				vector<u_int32_t> successors;
+				graph->getSuccessors(unitig._endNode, 0, successors);
+				cout << successors.size() << endl;
+				for(u_int32_t successor : successors){
+					cout << "Succ: " << BiGraph::nodeIndex_to_nodeName(successor) << endl;
+				}
+
+				
+				vector<u_int32_t> predecessors;
+				graph->getPredecessors(unitig._startNode, 0, predecessors);
+				cout << predecessors.size() << endl;
+
+				for(u_int32_t predecessor : predecessors){
+					cout << "Pred: " << BiGraph::nodeIndex_to_nodeName(predecessor) << endl;
+				}
+
+				getchar();
+			}
+		}*/
+
+		
 
 		/*
 		for(Unitig& unitig : graph->_unitigs){
@@ -5753,7 +5795,7 @@ public:
 		
 		cout << "Nb unsupported edges: " << graph->_isEdgeUnsupported.size() << endl;
 		//getchar(); //3808
-		_contigNodeNames.clear();
+		//_contigNodeNames.clear();
 		//_unitigDatas.resize(_mdbg->_dbg_nodes.size());
 
 		//AdjGraph* graph = GfaParser::createGraph_lol(gfaFilename);
@@ -6411,7 +6453,7 @@ public:
 
     	//graph->saveCurrentGfa(source_nodeIndex, source_abundance, pathIndex);
 
-		AssemblyState assemblyState = {5000, {}, {}, false, 0, {}, false, source_abundance};
+		AssemblyState assemblyState = {2000, {}, {}, false, 0, {}, false, source_abundance};
 		ExtendedPathData extendedPathData;
 		bool pathSolved = extendPath(source_nodeIndex, source_abundance, graph, pathIndex, pathIndex_complete, assemblyState, extendedPathData);
 
@@ -6922,6 +6964,15 @@ public:
 		graph->_complexAreas_sink.clear();
 		unordered_set<u_int32_t> visitedNodes;
 
+		int lala = 0;
+		for(u_int32_t nodeIndex : graph->_isNodeValid2){
+			
+			bool isContigNode = _unitigDatas[BiGraph::nodeIndex_to_nodeName(nodeIndex)]._readIndexes.size() == 0;
+			if(isContigNode) {
+				visitedNodes.insert(BiGraph::nodeIndex_to_nodeName(nodeIndex));
+			}
+		}
+
 		PathData pathData_forward = {pathIndex, {}, {}, {}, abundance, nodeIndex, nodeIndex, 0, {}};
 		bool pathSolved = solveBin_path(pathData_forward, graph, true, assemblyState, visitedNodes);
 
@@ -6995,6 +7046,13 @@ public:
 		u_int8_t isCircular = pathSolved;
 
 		if(nodePath.size() > 0){
+
+			for(u_int32_t nodeIndex : nodePath){
+				if(_contigNodeNames.find(BiGraph::nodeIndex_to_nodeName(nodeIndex)) != _contigNodeNames.end()){
+					_contigNodeNames.erase(BiGraph::nodeIndex_to_nodeName(nodeIndex));
+				}
+			}
+
 			u_int64_t size = nodePath.size();
 			gzwrite(_outputContigFile, (const char*)&size, sizeof(size));
 			gzwrite(_outputContigFile, (const char*)&isCircular, sizeof(isCircular));
@@ -7075,6 +7133,7 @@ public:
 
 	}
 
+	unordered_set<u_int32_t> _contigNodeNames;
 	void cleanPathOverlaps(ExtendedPathData& newPathData, AssemblyState& assemblyState){
 
 		unordered_set<u_int32_t> newPathIndex;

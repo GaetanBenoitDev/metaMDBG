@@ -17,6 +17,7 @@ public:
     size_t _kminmerSize;
 	string _filename_readMinimizers;
 	string _filename_exe;
+	string _truthInputFilename;
 
 
 	AssemblyPipeline(): Tool (){
@@ -32,7 +33,8 @@ public:
 		options.add_options()
 		//("d,debug", "Enable debugging") // a bool parameter
 		(ARG_INPUT_FILENAME, "", cxxopts::value<string>())
-		(ARG_OUTPUT_DIR, "", cxxopts::value<string>());
+		(ARG_OUTPUT_DIR, "", cxxopts::value<string>())
+		(ARG_INPUT_FILENAME_TRUTH, "", cxxopts::value<string>()->default_value(""));
 		//(ARG_KMINMER_LENGTH, "", cxxopts::value<int>()->default_value("3"))
 		//(ARG_MINIMIZER_LENGTH, "", cxxopts::value<int>()->default_value("21"))
 		//(ARG_MINIMIZER_DENSITY, "", cxxopts::value<float>()->default_value("0.005"));
@@ -55,6 +57,7 @@ public:
 			_inputFilename = result[ARG_INPUT_FILENAME].as<string>(); //getInput()->getStr(STR_INPUT);
 			//_minimizerSize = result[ARG_MINIMIZER_LENGTH].as<int>(); //getInput()->getInt(STR_MINIM_SIZE);
 			_inputDir = result[ARG_OUTPUT_DIR].as<string>(); //getInput()->getStr(STR_OUTPUT);
+			_truthInputFilename = result[ARG_INPUT_FILENAME_TRUTH].as<string>();
 			//_minimizerDensity = result[ARG_MINIMIZER_DENSITY].as<float>(); //getInput()->getDouble(STR_DENSITY);
 
 		}
@@ -118,7 +121,7 @@ public:
 
 		string command = "";
 
-		writeParameters(minimizerSize, 3, density);
+		writeParameters(minimizerSize, 7, density);
 
 		//Read selection
 		command = _filename_exe + " readSelection -i " + _inputFilename + " -o " + _inputDir;
@@ -127,32 +130,33 @@ public:
 
 
 
-		u_int64_t pass = 0;
+		//u_int64_t pass = 0;
 
-		for(size_t k=3; k<31; k+=1){
-			cout << "Start asm: " << k << endl;
+		//for(size_t k=3; k<31; k+=1){
+		//	cout << "Start asm: " << k << endl;
 
-			writeParameters(minimizerSize, k, density);
+		//	writeParameters(minimizerSize, k, density);
 
 			command = _filename_exe + " graph -o " + _inputDir;
-			if(pass > 0) command += " -c " +  _inputDir + "/contigs.min.gz";
+		//	if(pass > 0) command += " -c " +  _inputDir + "/contigs.min.gz";
 			executeCommand(command);
-			//getchar();
+		//	getchar();
 
 			command = _filename_exe + " asm -o " + _inputDir;
-			if(pass > 0) command += " -c " +  _inputDir + "/contigs.min.gz";
+			if(_truthInputFilename != "") command += " --itruth " + _truthInputFilename;
+		//	if(pass > 0) command += " -c " +  _inputDir + "/contigs.min.gz";
 			executeCommand(command);
 
-			command = _filename_exe + " toMinspace -o " + _inputDir;
-			if(pass > 0) command += " -c " +  _inputDir + "/contigs.min.gz";
-			executeCommand(command);
-			getchar();
+		//	command = _filename_exe + " toMinspace -o " + _inputDir;
+		//	if(pass > 0) command += " -c " +  _inputDir + "/contigs.min.gz";
+		//	executeCommand(command);
+		//	getchar();
 			//getchar();
-			pass += 1;
+		//	pass += 1;
 			//if(pass == 2) break;
 			//if(k >= 21) break;
 			//exit(1);
-		}
+		//}
 
     }
 
