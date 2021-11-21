@@ -920,7 +920,7 @@ push s into S
         u_int64_t nbBubblesRemoved = 0;
         //vector<u_int32_t> removedUnitigs;
 
-        //vector<bool> isVisited(_graphSuccessors->_nbNodes, false);
+        vector<bool> isVisited(_graphSuccessors->_nbNodes, false);
         vector<u_int32_t> unitigNodes;
         bool dummy = false;
 
@@ -932,9 +932,9 @@ push s into S
 
             //u_int32_t startNodeName = _graphSuccessors->nodeIndex_to_nodeName(unitig._startNode, dummy);
             //u_int32_t visitedNodeIndex = unitig._startNode;
-            //if(isVisited[unitig._startNode]) continue;
-            if(_isBubble[unitig._startNode]) continue;
-            if(_isBubble[nodeIndex_toReverseDirection(unitig._startNode)]) continue;
+            if(isVisited[unitig._startNode] || isVisited[nodeIndex_toReverseDirection(unitig._startNode)]) continue;
+            //if(_isBubble[unitig._startNode]) continue;
+            //if(_isBubble[nodeIndex_toReverseDirection(unitig._startNode)]) continue;
             
 
             //cout << "--------------" << endl;
@@ -960,7 +960,8 @@ push s into S
             //}
             
             if(neighbors_utg1.size() <= 1) continue;
-                
+            if(neighbors_utg1.size() > 5) continue;
+
             bool isBubble = false;
 
             for(size_t i=0; i<neighbors_utg1.size(); i++) {
@@ -968,9 +969,9 @@ push s into S
 
                 Unitig& utg_2 = _unitigs[_nodeToUnitig[neighbors_utg1[i]]];
                 //visitedNodeIndex = _graphSuccessors->nodeIndex_to_nodeName(utg_2._startNode, dummy);
-                if(_isBubble[utg_2._startNode]) continue;
-                if(_isBubble[nodeIndex_toReverseDirection(utg_2._startNode)]) continue;
-                //if(isVisited[utg_2._startNode]) continue;
+                //if(_isBubble[utg_2._startNode]) continue;
+                //if(_isBubble[nodeIndex_toReverseDirection(utg_2._startNode)]) continue;
+                if(isVisited[utg_2._startNode] || isVisited[nodeIndex_toReverseDirection(utg_2._startNode)]) continue;
                 //isVisited[startNodeName] = true;
 
 
@@ -978,9 +979,9 @@ push s into S
                 for(size_t j=i+1; j<neighbors_utg1.size(); j++){
                     Unitig& utg_3 = _unitigs[_nodeToUnitig[neighbors_utg1[j]]];
                     //startNodeName = _graphSuccessors->nodeIndex_to_nodeName(utg_3._startNode, dummy);
-                    //if(isVisited[utg_3._startNode]) continue;
-                    if(_isBubble[utg_3._startNode]) continue;
-                    if(_isBubble[nodeIndex_toReverseDirection(utg_3._startNode)]) continue;
+                    if(isVisited[utg_3._startNode] || isVisited[nodeIndex_toReverseDirection(utg_3._startNode)]) continue;
+                    //if(_isBubble[utg_3._startNode]) continue;
+                    //if(_isBubble[nodeIndex_toReverseDirection(utg_3._startNode)]) continue;
                     //isVisited[startNodeName] = true;
 
 
@@ -993,9 +994,9 @@ push s into S
                     Unitig& utg_4 = _unitigs[_nodeToUnitig[neighbors_utg2[0]]];
 
                     //startNodeName = _graphSuccessors->nodeIndex_to_nodeName(utg_4._startNode, dummy);
-                    //if(isVisited[utg_4._startNode]) continue;
-                    if(_isBubble[utg_4._startNode]) continue;
-                    if(_isBubble[nodeIndex_toReverseDirection(utg_4._startNode)]) continue;
+                    if(isVisited[utg_4._startNode] || isVisited[nodeIndex_toReverseDirection(utg_4._startNode)]) continue;
+                    //if(_isBubble[utg_4._startNode]) continue;
+                    //if(_isBubble[nodeIndex_toReverseDirection(utg_4._startNode)]) continue;
                     //isVisited[startNodeName] = true;
 
 
@@ -1031,7 +1032,10 @@ push s into S
                     if(utg_2._abundance > utg_3._abundance){
                         getUnitigNodes(utg_3, unitigNodes);
 
-                        //isVisited[utg_3._startNode] = true;
+                        isVisited[utg_3._startNode] = true;
+                        isVisited[utg_3._endNode] = true;
+                        isVisited[nodeIndex_toReverseDirection(utg_3._startNode)] = true;
+                        isVisited[nodeIndex_toReverseDirection(utg_3._endNode)] = true;
                         //isVisited[utg_3._endNode] = true;
                         //isVisited[nodeIndex_toReverseDirection(utg_3._startNode)] = true;
                         //isVisited[nodeIndex_toReverseDirection(utg_3._endNode)] = true;
@@ -1044,6 +1048,12 @@ push s into S
                     }
                     else{
                         getUnitigNodes(utg_2, unitigNodes);
+
+
+                        isVisited[utg_2._startNode] = true;
+                        isVisited[utg_2._endNode] = true;
+                        isVisited[nodeIndex_toReverseDirection(utg_2._startNode)] = true;
+                        isVisited[nodeIndex_toReverseDirection(utg_2._endNode)] = true;
 
                         //isVisited[utg_2._startNode] = true;
                         //isVisited[utg_2._endNode] = true;
@@ -1146,6 +1156,7 @@ push s into S
             */
 
             if(neighbors.size() < 2) continue;
+            if(neighbors.size() > 4) continue;
 
             bool foundSmallLoop = false;
 
@@ -3194,7 +3205,7 @@ getStronglyConnectedComponent_node
             getPredecessors_unitig(unitigIndex, 0, predecessors);
 
             lala += 1;
-            //if(lala > 30000) break;
+            if(lala > 100) return 0;
             //cout << unitigIndex << " " << nbLongUnitigs << " " << totalLongUnitigLength << endl;
 
             for(u_int32_t unitigIndex_nn : successors){

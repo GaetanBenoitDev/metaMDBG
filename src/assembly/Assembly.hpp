@@ -4984,7 +4984,7 @@ public:
 		file_groundTruth = ofstream(_inputDir + "/binning_results.csv");
 		file_groundTruth << "Name,Colour" << endl;
 
-		file_groundTruth_hifiasmContigs = ofstream(_inputDir + "/binning_results_hifiasm.csv");
+		file_groundTruth_hifiasmContigs = ofstream(_inputDir + "/binning_results_hifiasm_" + to_string(_kminmerSize) + ".csv");
 		file_groundTruth_hifiasmContigs << "Name,Colour" << endl;
 
 
@@ -5167,12 +5167,27 @@ public:
 		cout << "Simplifying graph" << endl;
 		//graphSimplify->debug_writeGfaErrorfree(0, 0, BiGraph::nodeName_to_nodeIndex(5643, true));
 		//exit(1);
-
-
+		/*
+		cout << "Indexing reads" << endl;
+		graphSimplify->clear(0);
+		graphSimplify->compact(false);
+		_unitigDatas.resize(_mdbg->_dbg_nodes.size());
+		removeUnsupportedEdges(gfa_filename, gfa_filename_noUnsupportedEdges, graphSimplify);
+		delete _mdbg;
+		cout << "done" << endl;
+		*/
 		//cout << graphSimplify->_graphSuccessors->_nbEdges << endl;
 		//graphSimplify->execute(5, _kminmerSize);
 		graphSimplify->debug_writeGfaErrorfree(0, 0, 0, _kminmerSize, _unitigDatas);
 		
+		cout << "Indexing reads" << endl;
+		//graphSimplify->clear(0);
+		//graphSimplify->compact(false);
+		_unitigDatas.resize(_mdbg->_dbg_nodes.size());
+		removeUnsupportedEdges(gfa_filename, gfa_filename_noUnsupportedEdges, graphSimplify);
+		delete _mdbg;
+		cout << "done" << endl;
+
 		//cout << "remettre initial cleaning" << endl;
 		//graphSimplify->compact();
 		
@@ -5399,11 +5414,7 @@ public:
 
 
 
-		cout << "Indexing reads" << endl;
-		_unitigDatas.resize(_mdbg->_dbg_nodes.size());
-		removeUnsupportedEdges(gfa_filename, gfa_filename_noUnsupportedEdges, graphSimplify);
-		delete _mdbg;
-		cout << "done" << endl;
+
 
 		//graphSimplify->debug_writeGfaErrorfree(0, 0, 0, _kminmerSize, _unitigDatas);
 

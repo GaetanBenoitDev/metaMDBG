@@ -125,20 +125,20 @@ public:
 
 		//Read selection
 		command = _filename_exe + " readSelection -i " + _inputFilename + " -o " + _inputDir;
-		executeCommand(command);
+		//executeCommand(command);
 
 
 
 
 		//u_int64_t pass = 0;
 
-		//for(size_t k=3; k<31; k+=1){
-		//	cout << "Start asm: " << k << endl;
+		for(size_t k=3; k<31; k+=1){
+			cout << "Start asm: " << k << endl;
 
-		//	writeParameters(minimizerSize, k, density);
+			writeParameters(minimizerSize, k, density);
 
 			command = _filename_exe + " graph -o " + _inputDir;
-		//	if(pass > 0) command += " -c " +  _inputDir + "/contigs.min.gz";
+			//if(pass > 0) command += " -c " +  _inputDir + "/contigs.min.gz";
 			executeCommand(command);
 		//	getchar();
 
@@ -156,7 +156,7 @@ public:
 			//if(pass == 2) break;
 			//if(k >= 21) break;
 			//exit(1);
-		//}
+		}
 
     }
 
