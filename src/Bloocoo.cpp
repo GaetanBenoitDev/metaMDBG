@@ -158,12 +158,23 @@ void Bloocoo::createMDBG_read(kseq_t* read, u_int64_t readIndex){
 
 void Bloocoo::createMDBG_collectKminmers(const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex){
 	
+
+
 	for(size_t i=0; i<kminmers.size(); i++){
+
+		//if(kminmers[i].isPalindrome()){
+		//	cout << kminmers[i]._kmers[0] << " " << kminmers[i]._kmers[1] << " " << kminmers[i]._kmers[2] << " " << kminmers[i]._kmers[3] << endl;
+ 			//getchar();
+		//}
+
 		if(_kminmersData.find(kminmers[i]) == _kminmersData.end()){
 			_kminmersData[kminmers[i]] = {0, kminmersInfos[i]._length - _minimizerSize, kminmersInfos[i]._seq_length_start, kminmersInfos[i]._seq_length_end, kminmersInfos[i]._isReversed};
 		}
 
 		_kminmersData[kminmers[i]]._count += 1;
+
+
+
 	}
 }
 /*
@@ -428,10 +439,9 @@ void Bloocoo::createMDBG (){
 			//if(_kminmersData[vec]._count <= minAbundance_cutoff) continue;
 		//}
 
-		if(vec.isPalindrome()){
-			cout << "Palindrome:" << _mdbg->_dbg_nodes[vec]._index << endl;
-			continue;
-		}
+		//if(vec.isPalindrome()){
+		//	cout << "Palindrome:" << _mdbg->_dbg_nodes[vec]._index << endl;
+		//}
 
 		//cout << kminmersData[vec] << endl;
 
@@ -1274,7 +1284,7 @@ void Bloocoo::createGfa(){
 
 
 	if(_filename_inputContigs == ""){
-		_mdbg->dump(_outputDir + "/mdbg_nodes_init.gz");
+		//_mdbg->dump(_outputDir + "/mdbg_nodes_init.gz");
 	}
 	
 	_mdbg->dump(_outputDir + "/mdbg_nodes.gz");

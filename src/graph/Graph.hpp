@@ -804,6 +804,7 @@ public:
         return true;
     }
 
+
     bool addEdge_debug(u_int32_t from, u_int32_t to){
 
         u_int32_t nodeIndex_from = nodeName_to_nodeIndex(from, true);
@@ -819,7 +820,7 @@ public:
         return true;
     }
 
-    void removeEdge(u_int32_t from, bool fromOrient, u_int32_t to, bool toOrient){
+    bool removeEdge(u_int32_t from, bool fromOrient, u_int32_t to, bool toOrient){
 
         u_int32_t nodeIndex_from = nodeName_to_nodeIndex(from, fromOrient);
         u_int32_t nodeIndex_to = nodeName_to_nodeIndex(to, toOrient);
@@ -830,10 +831,41 @@ public:
         for (size_t i=0; i < successors.size(); i++) {
             if (successors[i]._index == nodeIndex_to) {
                 successors.erase(successors.begin() + i);
-                break;
+                return true;
             }
         }
     
+        return false;
+    }
+
+    bool removeEdge(u_int32_t nodeIndex_from, u_int32_t nodeIndex_to){
+
+        vector<AdjNode>& successors = _nodes[nodeIndex_from];
+        // Traversing through the first vector list
+        // and removing the second element from it
+        for (size_t i=0; i < successors.size(); i++) {
+            if (successors[i]._index == nodeIndex_to) {
+                successors.erase(successors.begin() + i);
+                _nbEdges -= 1;
+                return true;
+            }
+        }
+    
+        return false;
+    }
+
+    bool edgeExists(u_int32_t nodeIndex_from, u_int32_t nodeIndex_to){
+
+        vector<AdjNode>& successors = _nodes[nodeIndex_from];
+        // Traversing through the first vector list
+        // and removing the second element from it
+        for (size_t i=0; i < successors.size(); i++) {
+            if (successors[i]._index == nodeIndex_to) {
+                return true;
+            }
+        }
+    
+        return false;
     }
 
     static string nodeToString(u_int32_t nodeIndex){

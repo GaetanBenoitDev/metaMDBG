@@ -671,7 +671,7 @@ public:
 					//	cout << kminmers[i-1]._kmers[0] << " " << kminmers[i-1]._kmers[1] << " " << kminmers[i-1]._kmers[2] << endl;
 					//}
 
-					//getchar();
+					getchar();
 					continue;	
 				}
 

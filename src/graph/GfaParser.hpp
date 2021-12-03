@@ -707,9 +707,10 @@ public:
                 u_int32_t nodeIndex_from = graph->nodeName_to_nodeIndex(from, from_orient);
                 u_int32_t nodeIndex_to = graph->nodeName_to_nodeIndex(to, to_orient);
                 
-                DbgEdge edge = {nodeIndex_from, nodeIndex_to};
-                edge = edge.normalize();
-                if(edges.find(edge) != edges.end()) continue;
+                if(!graph->edgeExists(nodeIndex_from, nodeIndex_to)) continue;
+                //DbgEdge edge = {nodeIndex_from, nodeIndex_to};
+                //edge = edge.normalize();
+                //if(edges.find(edge) != edges.end()) continue;
 
                 outputFile << line << endl;
             }

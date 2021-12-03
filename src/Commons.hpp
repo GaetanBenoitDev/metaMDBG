@@ -652,7 +652,7 @@ public:
 		}
 	}
 
-	static u_int64_t computeSharedReads(const UnitigData& utg1, const UnitigData& utg2){
+	static u_int64_t computeSharedReads(const UnitigData& utg1, const UnitigData& utg2, unordered_set<u_int64_t>& removedReadIndex){
 
 		//if(utg1._readIndexes.size() == 0 || utg2._readIndexes.size() == 0) return 1;
 		//cout << "------------------- " << utg1._index << endl;
@@ -669,6 +669,15 @@ public:
 		u_int64_t nbShared = 0;
 
 		while(i < utg1._readIndexes.size() && j < utg2._readIndexes.size()){
+			if(removedReadIndex.find(utg1._readIndexes[i]) != removedReadIndex.end()){
+				i += 1;
+				continue;
+			}
+			if(removedReadIndex.find(utg2._readIndexes[j]) != removedReadIndex.end()){
+				j += 1;
+				continue;
+			}
+
 			if(utg1._readIndexes[i] == utg2._readIndexes[j]){
 				nbShared += 1;
 				i += 1;
@@ -990,7 +999,7 @@ public:
 
 
 
-
+		/*
 		size_t banned_k = 3;
 
 		while(true){
@@ -1039,7 +1048,7 @@ public:
 								//cout << "Banned: " << currentMinimizerIndex[m] << endl;
 							}
 							
-							/*
+							
 							for(size_t i=0; i<bannedPositions.size()-banned_k+1; i++){
 								if(bannedPositions[i]) continue;
 								bool isBanned = false;
@@ -1056,7 +1065,7 @@ public:
 									}
 								}
 							}
-							*/
+							
 							
 
 							hasPalindrome = true;
@@ -1075,6 +1084,7 @@ public:
 			//kminmers.clear();
         	//kminmersLength.clear();
 		}
+		*/
 		/*
 		if(isLala){
 			for(size_t i=0; i<minimizers.size(); i++){
@@ -1142,7 +1152,7 @@ public:
 						}
 						*/
 
-						/*
+						
 						if(vec.isPalindrome() || (i > 0 && vec.normalize() == prevVec.normalize())){ //Palindrome: 121 (créé un cycle), Large palindrome = 122 221 (créé une tip)
 
 							//if(readIndex == 96573){
@@ -1159,9 +1169,9 @@ public:
 								//if(readIndex == 39679){
 								//	cout << "Banned: " << currentMinimizerIndex[m] << endl;
 								//}
-								cout << "Banned 2: " << currentMinimizerIndex[m] << endl;
+								//cout << "Banned: " << currentMinimizerIndex[m] << endl;
 							}
-							
+							/*
 							for(size_t i=0; i<bannedPositions.size()-k+1; i++){
 								if(bannedPositions[i]) continue;
 								bool isBanned = false;
@@ -1176,13 +1186,13 @@ public:
 										bannedPositions[j] = true;
 									}
 								}
-							}
+							}*/
 							
 
 							hasPalindrome = true;
 							break;
 						}
-						else{*/
+						else{
 
 							bool isReversed;
 							vec = vec.normalize(isReversed);
@@ -1336,6 +1346,9 @@ public:
                                 kminmersLength.push_back({0, 0, 0, isReversed, 0, 0, 0, 0, 0, 0});
 							}
 
+							if(currentMinimizerIndex[0] + 1 != currentMinimizerIndex[1] || currentMinimizerIndex[1] + 1 != currentMinimizerIndex[2]){
+								cout << vec._kmers[0] << " " << vec._kmers[1] << " " << vec._kmers[2] << endl;
+							}
 							//if(readIndex == 30539){
 							//	cout << vec._kmers[0] << " " << vec._kmers[1] << " " << vec._kmers[2] << endl;
 							//}
@@ -1343,7 +1356,7 @@ public:
 							prevVec = vec;
 							kminmers.push_back(vec);
 							break;
-						//}
+						}
 					}
 
 					j += 1;
