@@ -41,6 +41,8 @@ Gros changement non testé:
 	- essayer open syncmer a la place de minimzier ?
 	- Superbubble qui n'a qu'une branche variante (l'autre coté va direct de la source vers sink), actuellement on supprime la branche variante mais on pourrait voir laquel garder en fonction du score checkm ou quast
 	- Chimeric reads: a mettre dans readselection direct
+	- graphSImplify: indexer des nodeNames plutot que des nodeIndex (_isNodeValid), car on ne conserve jamais qu'un seul des deux coté d'un nodename
+	- metaflye: plein de bonne idée a check (identification superbubble, roundabout)
 */
 
 #define PRINT_DEBUG_COMPLEX_AREA
@@ -290,13 +292,14 @@ public:
 
 		if(saveState){
 			//float abundanceMin = assemblyState._sourceAbundance - assemblyState._sourceAbundance*0.33;
-			graph->debug_writeGfaErrorfree(abundanceMin, computeAbundanceCutoff(abundanceMin, 0, assemblyState._cutoffType), current_nodeIndex, k, false, saveState, loadState, unitigDatas);
+			graph->debug_writeGfaErrorfree(abundanceMax, computeAbundanceCutoff(abundanceMax, 0, CutoffType::STRAIN_HIGH), current_nodeIndex, k, false, saveState, loadState, unitigDatas);
 			return 0;
 		}
 		else if(cutoffChanged){
 			cout << "Cutoff type changed" << endl;
+			graph->loadState2(computeAbundanceCutoff(currentAbundance, 0, assemblyState._cutoffType), current_nodeIndex);
 			//getchar();
-			graph->debug_writeGfaErrorfree(currentAbundance, computeAbundanceCutoff(currentAbundance, 0, assemblyState._cutoffType), current_nodeIndex, k, false, saveState, loadState, unitigDatas);
+			//graph->debug_writeGfaErrorfree(currentAbundance, computeAbundanceCutoff(currentAbundance, 0, assemblyState._cutoffType), current_nodeIndex, k, false, saveState, loadState, unitigDatas);
 			return currentAbundance;
 		}
 
@@ -336,7 +339,8 @@ public:
 
 				cout << "Current abundance changed: " << unitigAbundance << endl;
 				cout << "Prev nodes abundance: " << graph->compute_median_float(abundances) << endl;
-				graph->debug_writeGfaErrorfree(unitigAbundance, computeAbundanceCutoff(unitigAbundance, 0, assemblyState._cutoffType), current_nodeIndex, k, false, saveState, loadState, unitigDatas);
+				graph->loadState2(computeAbundanceCutoff(unitigAbundance, 0, assemblyState._cutoffType), current_nodeIndex);
+				//graph->debug_writeGfaErrorfree(unitigAbundance, computeAbundanceCutoff(unitigAbundance, 0, assemblyState._cutoffType), current_nodeIndex, k, false, saveState, loadState, unitigDatas);
 				//assemblyState._currentAbundance = unitigAbundance;
 				//cout << "Current abundance changed: " << unitigAbundance << " " << unitig._abundance << " " << currentAbundance << endl;
 
@@ -2301,7 +2305,7 @@ public:
 			}
 
 			//if(!print_debug){
-			if(pathLength > 8900 && abundanceCutoff_min != 0){
+			if(pathLength > 12000 && abundanceCutoff_min != 0){
 				break;
 			}
 			//}
@@ -5412,7 +5416,7 @@ public:
 		*/
 
 
-		/*
+		
 		//Simulation
 		ofstream file_groundTruth_hifiasm_position(_inputDir + "/groundtruth_hifiasm_position.csv");
 		ofstream file_groundTruth_hifiasm(_inputDir + "/groundtruth_hifiasm.csv");
@@ -5450,7 +5454,27 @@ public:
 		//gfaParser.rewriteGfa_withNodes(gfa_filename, gfa_filename + "_groundTruth_hifiasm.gfa", groundTruth_kminmers);
 		file_groundTruth_hifiasm.close();
 		file_groundTruth_hifiasm_position.close();
-		*/
+		
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 		file_groundTruth = ofstream(_inputDir + "/binning_results.csv");
 		file_groundTruth << "Name,Colour" << endl;
@@ -5500,7 +5524,7 @@ public:
 
 
 
-		/*
+		
 		//AD_components
 		graphSimplify->clear(0);
 		
@@ -5546,6 +5570,7 @@ public:
 			cout << "done" << endl;
 			
 			
+			graphSimplify->debug_writeGfaErrorfree(500, PathExplorer::computeAbundanceCutoff(500, 0, CutoffType::STRAIN_HIGH), -1, _kminmerSize, false, true, false, _unitigDatas);
 			//removeChimericReads();
 			//vector<u_int64_t> sharedReads;
 			//Utils::collectSharedReads(_unitigDatas[3062181], _unitigDatas[239124], sharedReads);	
@@ -5555,7 +5580,7 @@ public:
 
 
 			//1718612   26     1867132,false  (k7: 1536791) (k4 cor: 1595079)
-			solveBin(BiGraph::nodeName_to_nodeIndex(1595079, true), 26, graphSimplify, 0, 0, true);
+			solveBin(BiGraph::nodeName_to_nodeIndex(1718612, true), 26, graphSimplify, 0, 0, true);
 
 
 
@@ -5654,7 +5679,7 @@ public:
 		}
 		gzclose(_outputContigFile);
 		exit(1);
-		*/
+		
 		
 
 
@@ -5769,7 +5794,8 @@ public:
 
 		//cout << graphSimplify->_graphSuccessors->_nbEdges << endl;
 		//graphSimplify->execute(5, _kminmerSize);
-		graphSimplify->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, true, false, false, _unitigDatas);
+		graphSimplify->debug_writeGfaErrorfree(1000, PathExplorer::computeAbundanceCutoff(1000, 0, CutoffType::STRAIN_HIGH), -1, _kminmerSize, false, true, false, _unitigDatas);
+		//graphSimplify->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, true, false, false, _unitigDatas);
 		/*
 		cout << "Indexing reads" << endl;
 		//graphSimplify->clear(0);
@@ -6148,11 +6174,11 @@ public:
 			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
 
 			
-			vector<KmerVec> kminmers2; 
-			vector<ReadKminmer> kminmersInfo2;
-			vector<u_int64_t> minimizersPos2; 
-			vector<u_int64_t> rlePositions2;
-			MDBG::getKminmers(_minimizerSize, 3, vec._kmers, minimizersPos2, kminmers2, kminmersInfo2, rlePositions2, -1, false);
+			//vector<KmerVec> kminmers2; 
+			//vector<ReadKminmer> kminmersInfo2;
+			//vector<u_int64_t> minimizersPos2; 
+			//vector<u_int64_t> rlePositions2;
+			//MDBG::getKminmers(_minimizerSize, 3, vec._kmers, minimizersPos2, kminmers2, kminmersInfo2, rlePositions2, -1, false);
 			//cout << kminmers2.size() << endl;
 			/*
 			for(const KmerVec& vec2 : kminmers2){
@@ -6195,12 +6221,12 @@ public:
 			_nodeData[BiGraph::nodeIndex_to_nodeName(unitig._startNode)] = {0, {}};
 			_nodeData[BiGraph::nodeIndex_to_nodeName(unitig._endNode)] = {0, {}};
 		}*/
-		/*
-		if(_filename_inputContigs != ""){
-			KminmerParser contigParser(_filename_inputContigs, _minimizerSize, _kminmerSize);
-			auto fp2 = std::bind(&Assembly::indexReads_contig, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-			contigParser.parse_mContigs(fp2);
-		}*/
+		
+		//if(_filename_inputContigs != ""){
+		//	KminmerParser contigParser(_filename_inputContigs, _minimizerSize, _kminmerSize);
+		//	auto fp2 = std::bind(&Assembly::indexReads_contig, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+		//	contigParser.parse_mContigs(fp2);
+		//}
 		
 		KminmerParser parser(_filename_readMinimizers, _minimizerSize, _kminmerSize);
 		//auto fp = std::bind(&Assembly::indexReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5);
@@ -7155,6 +7181,7 @@ public:
 
 	bool solveBin(u_int32_t source_nodeIndex, float abundance, GraphSimplify* graph, int pathIndex, int pathIndex_complete, bool performCleaning){
 
+		//graph->_cachedGraphStates.clear();
 
 		u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(source_nodeIndex);
 
@@ -7204,6 +7231,12 @@ public:
 
 		AssemblyState assemblyState = {1, {}, {}, false, 0, {}, false, source_abundance, CutoffType::ERROR};
 		ExtendedPathData extendedPathData;
+
+		//assemblyState._cutoffType = CutoffType::ERROR;
+		//float currentAbundance = 0;//pathData.source_abundance;
+		//double assemblyAbundance = 1000000;
+		//PathExplorer::updateCurrentAbundance(source_nodeIndex, 0, graph, assemblyState, _kminmerSize, {}, true, false, false, _unitigDatas);
+
 		bool pathSolved = extendPath(source_nodeIndex, source_abundance, graph, pathIndex, pathIndex_complete, assemblyState, extendedPathData);
 
 	
@@ -7432,14 +7465,17 @@ public:
 	bool solveBin_path(PathData& pathData, GraphSimplify* graph, bool forward, AssemblyState& assemblyState, unordered_set<u_int32_t>& visitedNodes){
 
 		assemblyState._cutoffType = CutoffType::ERROR;
-		float currentAbundance = 0;//pathData.source_abundance;
+		//float currentAbundance = 0;//pathData.source_abundance;
 		//double assemblyAbundance = 1000000;
 		u_int32_t current_nodeIndex = pathData.source_nodeIndex;
-		PathExplorer::updateCurrentAbundance(current_nodeIndex, currentAbundance, graph, assemblyState, _kminmerSize, {}, true, false, false, _unitigDatas);
-		//cout << "ici on peut polish la source abundance apres cleaning initial ?" << endl;
-		currentAbundance = PathExplorer::updateCurrentAbundance(current_nodeIndex, currentAbundance, graph, assemblyState, _kminmerSize, {}, false, true, false, _unitigDatas);
-		
 		cout << "Start solver: " << BiGraph::nodeToString(current_nodeIndex) << endl;
+		
+		float currentAbundance = pathData.source_abundance;
+		graph->loadState2(PathExplorer::computeAbundanceCutoff(currentAbundance, 0, assemblyState._cutoffType), current_nodeIndex);
+		//PathExplorer::updateCurrentAbundance(current_nodeIndex, currentAbundance, graph, assemblyState, _kminmerSize, {}, true, false, false, _unitigDatas);
+		//cout << "ici on peut polish la source abundance apres cleaning initial ?" << endl;
+		//currentAbundance = PathExplorer::updateCurrentAbundance(current_nodeIndex, currentAbundance, graph, assemblyState, _kminmerSize, {}, false, true, false, _unitigDatas);
+		
 		assemblyState._currentPathIndex = -1;
 
 		binNode(current_nodeIndex, pathData.prevNodes, pathData.nodePath, graph, pathData._index, assemblyState, false, pathData);

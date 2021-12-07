@@ -130,34 +130,33 @@ public:
 
 
 
-		//u_int64_t pass = 0;
+		u_int64_t pass = 0;
 
-		//for(size_t k=3; k<31; k+=1){
+		for(size_t k=3; k<21; k+=1){
 			//cout << "Start asm: " << k << endl;
 
-			//writeParameters(minimizerSize, k, density);
+			writeParameters(minimizerSize, k, density);
 
 
 			command = _filename_exe + " graph -o " + _inputDir;
-			//if(pass > 0) command += " -c " +  _inputDir + "/contigs.min.gz";
+			if(pass > 0) command += " -c " +  _inputDir + "/contigs.min.gz";
 			executeCommand(command);
 			//getchar();
 
 			command = _filename_exe + " asm -o " + _inputDir;
 			if(_truthInputFilename != "") command += " --itruth " + _truthInputFilename;
-			//if(pass > 0) command += " -c " +  _inputDir + "/contigs.min.gz";
+			if(pass > 0) command += " -c " +  _inputDir + "/contigs.min.gz";
 			executeCommand(command);
 
 			command = _filename_exe + " toMinspace -o " + _inputDir;
-			//if(pass > 0) command += " -c " +  _inputDir + "/contigs.min.gz";
+			if(pass > 0) command += " -c " +  _inputDir + "/contigs.min.gz";
 			executeCommand(command);
-			getchar();
 			//getchar();
-		//	pass += 1;
+			pass += 1;
 			//if(pass == 2) break;
 			//if(k >= 21) break;
 			//exit(1);
-		//}
+		}
 
     }
 

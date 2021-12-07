@@ -20,6 +20,7 @@
 #include <cmath>
 #include "./utils/ArgParse.hpp"
 #include <random>
+#include <chrono>
 namespace fs = std::filesystem;
 //namespace fs = std::filesystem;
 
@@ -357,6 +358,7 @@ struct ReadKminmer{
 	u_int16_t _seq_length_end;
 };
 
+
 struct DbgEdge{
 	u_int32_t _from;
 	u_int32_t _to;
@@ -520,6 +522,15 @@ struct KmerVec{
 
 
   
+struct ReadKminmerComplete{
+	KmerVec _vec;
+	bool _isReversed;
+	u_int32_t _read_pos_start;
+	u_int32_t _read_pos_end;
+	u_int32_t _seq_length_start;
+	u_int32_t _seq_length_end;
+	u_int32_t _length;
+};
 
 struct ContigNode{
 	u_int32_t _nodeIndex;
@@ -1346,9 +1357,9 @@ public:
                                 kminmersLength.push_back({0, 0, 0, isReversed, 0, 0, 0, 0, 0, 0});
 							}
 
-							if(currentMinimizerIndex[0] + 1 != currentMinimizerIndex[1] || currentMinimizerIndex[1] + 1 != currentMinimizerIndex[2]){
-								cout << vec._kmers[0] << " " << vec._kmers[1] << " " << vec._kmers[2] << endl;
-							}
+							//if(currentMinimizerIndex[0] + 1 != currentMinimizerIndex[1] || currentMinimizerIndex[1] + 1 != currentMinimizerIndex[2]){
+							//	cout << vec._kmers[0] << " " << vec._kmers[1] << " " << vec._kmers[2] << endl;
+							//}
 							//if(readIndex == 30539){
 							//	cout << vec._kmers[0] << " " << vec._kmers[1] << " " << vec._kmers[2] << endl;
 							//}
@@ -1372,6 +1383,136 @@ public:
 		}
 
 
+	}
+
+	static void getKminmers_complete(const size_t k, const vector<u_int64_t>& minimizers, const vector<u_int64_t>& minimizersPos, vector<ReadKminmerComplete>& kminmers, int readIndex){
+
+		bool hasPalindromeTotal = false;
+
+        kminmers.clear();
+
+		if(minimizers.size() < k) return;
+
+		vector<bool> bannedPositions(minimizers.size(), false);
+
+
+
+		while(true){
+
+
+			bool hasPalindrome = false;
+			KmerVec prevVec;
+
+			int i_max = ((int)minimizers.size()) - (int)k + 1;
+			for(int i=0; i<i_max; i++){
+
+
+				if(bannedPositions[i]){
+					continue;
+				}
+				KmerVec vec;
+				vector<u_int32_t> currentMinimizerIndex;
+
+				int j=i;
+				while(true){
+					
+					if(j >= minimizers.size()) break;
+					if(bannedPositions[j]){
+						j += 1;
+						continue;
+					}
+
+					u_int64_t minimizer = minimizers[j];
+
+					vec._kmers.push_back(minimizer);
+					currentMinimizerIndex.push_back(j);
+
+					if(vec._kmers.size() == k){
+
+	
+
+						
+						if(vec.isPalindrome() || (i > 0 && vec.normalize() == prevVec.normalize())){ //Palindrome: 121 (créé un cycle), Large palindrome = 122 221 (créé une tip)
+
+							for(size_t m=0; m<k; m++){
+								bannedPositions[currentMinimizerIndex[m]] = true;
+								hasPalindromeTotal = true;
+								//cout << "banned " << currentMinimizerIndex[m] << endl;
+							}
+
+							hasPalindrome = true;
+							break;
+						}
+						else{
+
+							bool isReversed;
+							vec = vec.normalize(isReversed);
+
+							u_int32_t indexFirstMinimizer = currentMinimizerIndex[0];
+							u_int32_t indexSecondMinimizer = currentMinimizerIndex[1];
+							u_int32_t indexSecondLastMinimizer = currentMinimizerIndex[currentMinimizerIndex.size()-2];
+							u_int32_t indexLastMinimizer = currentMinimizerIndex[currentMinimizerIndex.size()-1];
+
+
+							u_int32_t read_pos_start = indexFirstMinimizer;
+							u_int32_t read_pos_end = indexLastMinimizer;
+							u_int32_t length = read_pos_end - read_pos_start + 1;
+
+							
+							u_int32_t seq_length_start = 0;
+							u_int32_t seq_length_end = 0;
+
+							if(isReversed){
+
+								u_int32_t pos_last_minimizer = indexSecondLastMinimizer;
+								seq_length_start = read_pos_end - pos_last_minimizer;
+							}
+							else{
+
+								u_int32_t pos_last_minimizer = indexSecondMinimizer;
+								seq_length_start = pos_last_minimizer - read_pos_start;
+							}
+
+							if(isReversed){
+								
+								u_int32_t pos_last_minimizer = indexSecondMinimizer;
+								seq_length_end = pos_last_minimizer - read_pos_start;
+
+							}
+							else{
+								u_int32_t pos_last_minimizer = indexSecondLastMinimizer;
+								seq_length_end = read_pos_end - pos_last_minimizer; 
+							}
+
+							//cout << read_pos_start << " " << read_pos_end << " " << isReversed << "     " << seq_length_start << " " << seq_length_end << endl;
+							//vector<u_int64_t> kminmerMinimizers;
+
+							//for(size_t i=indexFirstMinimizer; i<=indexLastMinimizer; i++){
+							//	kminmerMinimizers.push_back(minimizers[i]);
+							//}
+
+
+							prevVec = vec;
+							kminmers.push_back({vec, isReversed, read_pos_start, read_pos_end, seq_length_start, seq_length_end, length});
+							break;
+						}
+					}
+
+					j += 1;
+				}
+
+				if(hasPalindrome) break;
+			}
+
+			
+			if(!hasPalindrome) break;
+        	kminmers.clear();
+		}
+
+		//if(hasPalindromeTotal){
+		//	cout << "mioum" << endl;
+		//	getchar();
+		//}
 	}
 
 };
@@ -1907,6 +2048,52 @@ public:
 
 	}
 
+	void parseMinspace(const std::function<void(vector<u_int64_t>, vector<ReadKminmerComplete>, u_int64_t)>& fun){
+
+		gzFile file_readData = gzopen(_inputFilename.c_str(),"rb");
+
+		u_int64_t readIndex = 0;
+
+		while(true){
+			
+			u_int16_t size;
+			vector<u_int64_t> minimizers;
+			vector<u_int16_t> minimizersPosOffsets; 
+			gzread(file_readData, (char*)&size, sizeof(size));
+
+			if(gzeof(file_readData)) break;
+			
+			minimizers.resize(size);
+			minimizersPosOffsets.resize(size);
+			gzread(file_readData, (char*)&minimizers[0], size * sizeof(u_int64_t));
+			gzread(file_readData, (char*)&minimizersPosOffsets[0], size * sizeof(u_int16_t));
+
+			
+			//cout << "----" << endl;
+			vector<u_int64_t> minimizersPos; 
+			if(size > 0){
+				u_int64_t pos = minimizersPosOffsets[0];
+				minimizersPos.push_back(pos);
+				for(size_t i=1; i<minimizersPosOffsets.size(); i++){
+					pos += minimizersPosOffsets[i];
+					minimizersPos.push_back(pos);
+					//cout << minimizersPosOffsets[i] << " " << pos << endl;
+				}
+			}
+
+
+			vector<ReadKminmerComplete> kminmersInfo;
+			MDBG::getKminmers_complete(_k, minimizers, minimizersPos, kminmersInfo, readIndex);
+
+			fun(minimizers, kminmersInfo, readIndex);
+
+			readIndex += 1;
+		}
+
+		gzclose(file_readData);
+
+	}
+
 	void parseDuo(const std::function<void(vector<KmerVec>, vector<ReadKminmer>, u_int64_t, vector<KmerVec>, vector<ReadKminmer>)>& fun){
 
 		gzFile file_readData = gzopen(_inputFilename.c_str(),"rb");
@@ -2002,6 +2189,44 @@ public:
 		gzclose(file_mContigs);
 	
 	}
+
+	void parse_mContigs_minSpace(const std::function<void(vector<u_int64_t>, vector<ReadKminmerComplete>, u_int64_t)>& fun){
+
+		gzFile file_mContigs = gzopen(_inputFilename.c_str(), "rb");
+
+		u_int64_t readIndex = 2000000000;
+
+		while(true){
+			
+			//cout << readIndex << endl;
+			u_int64_t size;
+			gzread(file_mContigs, (char*)&size, sizeof(size));
+			
+			if(gzeof(file_mContigs)) break;
+
+			vector<u_int64_t> minimizers;
+			minimizers.resize(size);
+			gzread(file_mContigs, (char*)&minimizers[0], size * sizeof(u_int64_t));
+
+			//if(minimizers.size() < 50) continue;
+
+			vector<u_int64_t> minimizersPos(minimizers.size(), 0);
+			for(size_t i=0; i<minimizersPos.size(); i++){
+				minimizersPos[i] = 200 +i*200;
+			}
+
+
+
+			vector<ReadKminmerComplete> kminmersInfo;
+			MDBG::getKminmers_complete(_k, minimizers, minimizersPos, kminmersInfo, readIndex);
+
+			fun(minimizers, kminmersInfo, readIndex);
+		}
+
+		gzclose(file_mContigs);
+	
+	}
+
 };
 
 class Tool{

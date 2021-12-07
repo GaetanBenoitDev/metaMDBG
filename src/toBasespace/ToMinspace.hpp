@@ -18,7 +18,7 @@ struct KminmerSequenceEntire{
 };
 
 struct KminmerSequenceLeftRight{
-	u_int64_t _minimizer;
+	vector<u_int64_t> _minimizer;
 	bool _loaded;
 };
 
@@ -66,7 +66,6 @@ public:
 		_mdbg = new MDBG(_kminmerSize);
 		_mdbg->load(mdbg_filename);
 		cout << "MDBG nodes: " << _mdbg->_dbg_nodes.size() << endl;
-
 
 		extractKminmerSequences();
 		//cout << "delete mdbg a remetre !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << endl;
@@ -181,10 +180,10 @@ public:
 					//if(i==1) cout << orientation << endl;
 
 					if(orientation){ //+
-						_nodeName_right[nodeName] = {0, false};
+						_nodeName_right[nodeName] = {{}, false};
 					}
 					else{ //-
-						_nodeName_left[nodeName] = {0, false};
+						_nodeName_left[nodeName] = {{}, false};
 					}
 				}
 
@@ -196,21 +195,37 @@ public:
 
 		gzclose(contigFile);
 
-		//cout << _nodeName_entire.size() << " " << _nodeName_left.size() << " " << _nodeName_right.size() << endl;
+		cout << _nodeName_entire.size() << " " << _nodeName_left.size() << " " << _nodeName_right.size() << endl;
 		cout << "Nb contigs: " << nbContigs << endl;
+		
 	}
 
-	void extractKminmerSequences_read(const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex){
+	void extractKminmerSequences_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
+
+		//cout << "------" << endl;
 
 		//cout << readIndex << endl;
-		for(size_t i=0; i<kminmers.size(); i++){
-			KmerVec vec = kminmers[i];
+		for(size_t i=0; i<kminmersInfos.size(); i++){
+			
+			const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
+
+			KmerVec vec = kminmerInfo._vec;
 			//for(KmerVec& vec : kminmers){
 			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()) continue;
 
 			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
-			const ReadKminmer& kminmerInfo = kminmersInfos[i];
 
+			
+			//cout << nodeName << " " << kminmerInfo._length << endl;
+			
+			vector<u_int64_t> minimizerSeq;
+			
+			for(size_t i=kminmerInfo._read_pos_start; i<=kminmerInfo._read_pos_end; i++){
+				minimizerSeq.push_back(readMinimizers[i]);
+			}
+			//if(kminmerInfo._length != 3){
+			//	getchar();
+			//}
 			/*
 			if(12424 == nodeName){
 				for(u_int64_t minimizer : vec._kmers){
@@ -221,7 +236,7 @@ public:
 			
 
 			if(kminmerInfo._isReversed){
-				std::reverse(vec._kmers.begin(), vec._kmers.end());
+				std::reverse(minimizerSeq.begin(), minimizerSeq.end());
 			}
 
 			/*
@@ -240,13 +255,26 @@ public:
 			auto found = _nodeName_entire.find(nodeName);
 			if(found != _nodeName_entire.end() && !found->second._loaded){
 
+				
+				u_int32_t startPosition = kminmerInfo._read_pos_start;
+				u_int32_t len = startPosition + kminmerInfo._read_pos_end - kminmerInfo._read_pos_start;
+				
+
+				vector<u_int64_t> minimizerSeq_sub;
+				for(size_t i=startPosition; i<=len; i++){
+					minimizerSeq_sub.push_back(minimizerSeq[i]);
+					//cout << minimizerSeq[i] << " ";
+				}
+			
+				//cout << startPosition << " " << len << " " << minimizerSeq_sub.size() << endl;
+
 				//if(kminmerInfo._isReversed){
 				//	std::reverse(vec._kmers.begin(), vec._kmers.end());
 				//}
 				if(kminmerInfo._isReversed){
-					std::reverse(vec._kmers.begin(), vec._kmers.end());
+					std::reverse(minimizerSeq.begin(), minimizerSeq.end());
 				}
-				_nodeName_entire[nodeName] = {vec._kmers, true};
+				_nodeName_entire[nodeName] = {minimizerSeq, true};
 			}
 			
 			/*
@@ -261,26 +289,63 @@ public:
 
 			auto found2 = _nodeName_left.find(nodeName);
 			if(_nodeName_left.find(nodeName) != _nodeName_left.end() && !found2->second._loaded){
+				
 				//std::reverse(vec._kmers.begin(), vec._kmers.end());
 				//if(12424 == nodeName){
 				//	cout << "left: " <<  vec._kmers[0] << " " << vec._kmers[vec._kmers.size()-1] << endl;
 				//}
+
+				/*
 				if(kminmerInfo._isReversed){
-					_nodeName_left[nodeName] = {vec._kmers[vec._kmers.size()-1], true};
+					_nodeName_left[nodeName] = {{vec._kmers[vec._kmers.size()-1]}, true};
 				}
 				else{
-					_nodeName_left[nodeName] = {vec._kmers[0], true};
+					_nodeName_left[nodeName] = {{vec._kmers[0]}, true};
 				}
+				*/
+				vector<u_int64_t> minimizerSeq_sub;
+
+				u_int32_t startPosition = 0; //kminmerInfo._read_pos_start;
+				u_int32_t len = startPosition+kminmerInfo._seq_length_start;
+
+				//cout << "left: " << startPosition << " " << len << endl;
+				
+				for(size_t i=startPosition; i<len; i++){
+					minimizerSeq_sub.push_back(minimizerSeq[i]);
+					//cout << minimizerSeq[i] << " ";
+				}
+				//cout << endl;
+
+				_nodeName_left[nodeName] = {minimizerSeq_sub, true};
 			}
 			
 			found2 = _nodeName_right.find(nodeName);
 			if(_nodeName_right.find(nodeName) != _nodeName_right.end() && !found2->second._loaded){
+
+				/*
 				if(kminmerInfo._isReversed){
-					_nodeName_right[nodeName] = {vec._kmers[0], true};
+					_nodeName_right[nodeName] = {{vec._kmers[0]}, true};
 				}
 				else{
-					_nodeName_right[nodeName] = {vec._kmers[vec._kmers.size()-1], true};
+					_nodeName_right[nodeName] = {{vec._kmers[vec._kmers.size()-1]}, true};
 				}
+				*/
+			
+				vector<u_int64_t> minimizerSeq_sub;
+
+				u_int32_t startPosition = minimizerSeq.size() - kminmerInfo._seq_length_end;  //kminmerInfo._position_of_second_to_last_minimizer_seq;
+				u_int32_t len = startPosition+kminmerInfo._seq_length_end; //kminmerInfo._read_pos_end
+
+				//cout << "right: " << startPosition << " " << len << endl;
+
+				for(size_t i=startPosition; i<len; i++){
+					minimizerSeq_sub.push_back(minimizerSeq[i]);
+					//cout << minimizerSeq[i] << " ";
+				}
+				//cout << endl;
+
+				_nodeName_right[nodeName] = {minimizerSeq_sub, true};
+
 			}
 
 			//if(12424 == nodeName){
@@ -297,14 +362,14 @@ public:
 		cout << "Extracting kminmers (reads)" << endl;
 		KminmerParser parser(_filename_readMinimizers, _minimizerSize, _kminmerSize);
 		auto fp = std::bind(&ToMinspace::extractKminmerSequences_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-		parser.parse(fp);
+		parser.parseMinspace(fp);
 
-
+		
 		if(_filename_inputContigs != ""){
 			cout << "Extracting kminmers (contigs)" << endl;
 			KminmerParser contigParser(_filename_inputContigs, _minimizerSize, _kminmerSize);
 			auto fp2 = std::bind(&ToMinspace::extractKminmerSequences_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-			contigParser.parse_mContigs(fp2);
+			contigParser.parse_mContigs_minSpace(fp2);
 		}
 		
 		/*
@@ -493,8 +558,9 @@ public:
 							 cout << "omg: " << nodeName << endl;
 							 getchar();
 						}
-						u_int64_t minimizer = _nodeName_right[nodeName]._minimizer;
-						contigSequence.push_back(minimizer);
+						vector<u_int64_t> minimizers = _nodeName_right[nodeName]._minimizer;
+						for(u_int64_t minimizer : minimizers) contigSequence.push_back(minimizer);
+						//contigSequence.push_back(minimizer);
 
 						//if(minimizer == 0){ cout <<"HAAAAAAAAAAAAAAAAAAAA" << endl; exit(1);}
 						//cout << "Add minimizer (right): " << minimizer << endl;
@@ -507,9 +573,10 @@ public:
 							 cout << "omg: " << nodeName << endl;
 							 getchar();
 						}
-						u_int64_t minimizer = _nodeName_left[nodeName]._minimizer;
+						vector<u_int64_t> minimizers = _nodeName_left[nodeName]._minimizer;
+						for(u_int64_t minimizer : minimizers) contigSequence.push_back(minimizer);
 						//if(minimizer == 0){ cout <<"HAAAAAAAAAAAAAAAAAAAA" << endl; exit(1);}
-						contigSequence.push_back(minimizer);
+						//contigSequence.push_back(minimizer);
 						//cout << "Add minimizer (left): " << minimizer << endl;
 					}
 				}
@@ -671,7 +738,7 @@ public:
 					//	cout << kminmers[i-1]._kmers[0] << " " << kminmers[i-1]._kmers[1] << " " << kminmers[i-1]._kmers[2] << endl;
 					//}
 
-					getchar();
+					//getchar();
 					continue;	
 				}
 
