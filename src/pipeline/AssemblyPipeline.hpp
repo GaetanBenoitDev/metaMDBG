@@ -132,7 +132,7 @@ public:
 
 		u_int64_t pass = 0;
 
-		for(size_t k=3; k<21; k+=1){
+		for(size_t k=3; k<4; k+=1){
 			//cout << "Start asm: " << k << endl;
 
 			writeParameters(minimizerSize, k, density);

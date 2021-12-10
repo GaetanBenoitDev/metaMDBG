@@ -66,6 +66,7 @@ Gros changement non testé:
 //#include "graph/Graph.hpp"
 #include "graph/GfaParser.hpp"
 #include "graph/GraphSimplify.hpp"
+#include "eval/ContigStatistics.hpp"
 
 enum CutoffType {
 	NONE,
@@ -297,7 +298,7 @@ public:
 		}
 		else if(cutoffChanged){
 			cout << "Cutoff type changed" << endl;
-			graph->loadState2(computeAbundanceCutoff(currentAbundance, 0, assemblyState._cutoffType), current_nodeIndex);
+			graph->loadState2(computeAbundanceCutoff(currentAbundance, 0, assemblyState._cutoffType), current_nodeIndex, unitigDatas);
 			//getchar();
 			//graph->debug_writeGfaErrorfree(currentAbundance, computeAbundanceCutoff(currentAbundance, 0, assemblyState._cutoffType), current_nodeIndex, k, false, saveState, loadState, unitigDatas);
 			return currentAbundance;
@@ -339,7 +340,7 @@ public:
 
 				cout << "Current abundance changed: " << unitigAbundance << endl;
 				cout << "Prev nodes abundance: " << graph->compute_median_float(abundances) << endl;
-				graph->loadState2(computeAbundanceCutoff(unitigAbundance, 0, assemblyState._cutoffType), current_nodeIndex);
+				graph->loadState2(computeAbundanceCutoff(unitigAbundance, 0, assemblyState._cutoffType), current_nodeIndex, unitigDatas);
 				//graph->debug_writeGfaErrorfree(unitigAbundance, computeAbundanceCutoff(unitigAbundance, 0, assemblyState._cutoffType), current_nodeIndex, k, false, saveState, loadState, unitigDatas);
 				//assemblyState._currentAbundance = unitigAbundance;
 				//cout << "Current abundance changed: " << unitigAbundance << " " << unitig._abundance << " " << currentAbundance << endl;
@@ -849,7 +850,7 @@ public:
 					for(SuccessorData& successor : data_successors){
 						u_int32_t utg_n = successor._nodeIndex;
 						//for(size_t i=0; i<currentDepth; i++) cout << "  ";
-						cout << "\t" << graph->_graphSuccessors->nodeToString(current_nodeIndex) << " " << " -> " <<  graph->_graphSuccessors->nodeToString(utg_n) << " " << graph->getNodeUnitigAbundance(utg_n) << " " << Utils::computeSharedReads(_unitigDatas[current_nodeName], _unitigDatas[graph->_graphSuccessors->nodeIndex_to_nodeName(utg_n, orient_dummy)], graph->_removedReadIndex) << endl;
+						cout << "\t" << graph->_graphSuccessors->nodeToString(current_nodeIndex) << " " << " -> " <<  graph->_graphSuccessors->nodeToString(utg_n) << " " << graph->getNodeUnitigAbundance(utg_n) << " " << Utils::computeSharedReads(_unitigDatas[current_nodeName], _unitigDatas[graph->_graphSuccessors->nodeIndex_to_nodeName(utg_n, orient_dummy)], graph->_rareReads) << endl;
 					
 					}
 				}
@@ -2340,7 +2341,7 @@ public:
 				bool isContigNode = _unitigDatas[prev_nodeName]._readIndexes.size() == 0;
 				//u_int32_t nbSharedReads = Utils::computeSharedReads(_unitigDatas[prev_nodeName], _unitigDatas[successor_nodeName]);
 				//vector<u_int64_t> sharedReads;
-				u_int32_t nbSharedReads = Utils::computeSharedReads(_unitigDatas[prev_nodeName], _unitigDatas[successor_nodeName], graph->_removedReadIndex);
+				u_int32_t nbSharedReads = Utils::computeSharedReads(_unitigDatas[prev_nodeName], _unitigDatas[successor_nodeName], graph->_rareReads);
 				//cout << prev_nodeName << " " << successor_nodeName << " " << nbSharedReads << endl;
 				//if(nbSharedReads > _abundanceCutoff_min/2){
 				//if(nbSharedReads > successor._abundance/5){
@@ -5416,7 +5417,7 @@ public:
 		*/
 
 
-		
+		/*
 		//Simulation
 		ofstream file_groundTruth_hifiasm_position(_inputDir + "/groundtruth_hifiasm_position.csv");
 		ofstream file_groundTruth_hifiasm(_inputDir + "/groundtruth_hifiasm.csv");
@@ -5454,7 +5455,7 @@ public:
 		//gfaParser.rewriteGfa_withNodes(gfa_filename, gfa_filename + "_groundTruth_hifiasm.gfa", groundTruth_kminmers);
 		file_groundTruth_hifiasm.close();
 		file_groundTruth_hifiasm_position.close();
-		
+		*/
 
 
 
@@ -5524,10 +5525,8 @@ public:
 
 
 
-		
+		/*
 		//AD_components
-		graphSimplify->clear(0);
-		
 		if(_debug){
 			gzFile file_groundTruth_hifiasm_data = gzopen((_inputDir + "/groundtruth_hifiasm_data.gz").c_str(),"rb");
 		
@@ -5560,30 +5559,13 @@ public:
 		}
 		else{
 
-
 			cout << "Indexing reads" << endl;
-			graphSimplify->clear(0);
-			graphSimplify->compact(false);
 			_unitigDatas.resize(_mdbg->_dbg_nodes.size());
+			graphSimplify->clear(0);
+			graphSimplify->compact(false, _unitigDatas);
 			removeUnsupportedEdges(gfa_filename, gfa_filename_noUnsupportedEdges, graphSimplify);
 			//delete _mdbg;
 			cout << "done" << endl;
-			
-			
-			graphSimplify->debug_writeGfaErrorfree(500, PathExplorer::computeAbundanceCutoff(500, 0, CutoffType::STRAIN_HIGH), -1, _kminmerSize, false, true, false, _unitigDatas);
-			//removeChimericReads();
-			//vector<u_int64_t> sharedReads;
-			//Utils::collectSharedReads(_unitigDatas[3062181], _unitigDatas[239124], sharedReads);	
-			//for(u_int64_t readIndex : sharedReads){
-			//	cout << readIndex << endl;
-			//}
-
-
-			//1718612   26     1867132,false  (k7: 1536791) (k4 cor: 1595079)
-			solveBin(BiGraph::nodeName_to_nodeIndex(1718612, true), 26, graphSimplify, 0, 0, true);
-
-
-
 
 			cout << "Collecting truth kminmers" << endl;
 			ofstream file_groundTruth_hifiasm_position(_inputDir + "/groundtruth_hifiasm_position.csv");
@@ -5636,56 +5618,81 @@ public:
 			file_groundTruth_hifiasm.close();
 			file_groundTruth_hifiasm_position.close();
 			
+			graphSimplify->_debug_groundTruthNodeNames = groundTruth_kminmers;
 			
-			u_int32_t startingNodeName = -1;
-			for(auto& it: _evaluation_hifiasmGroundTruth_nodeNamePosition){
-				if(it.second == 0){
-					startingNodeName = it.first;
-					break;
-				}
-			}
-			cout << "Position 0: " << startingNodeName << endl;
-
-			gzFile file_groundTruth_hifiasm_data = gzopen((_inputDir + "/groundtruth_hifiasm_data.gz").c_str(),"wb");
 			
-			u_int32_t nbNodes = _unitigDatas.size();
-			gzwrite(file_groundTruth_hifiasm_data, (const char*)&nbNodes, sizeof(nbNodes));
 
-			for(u_int32_t nodeName : groundTruth_kminmers){
-				gzwrite(file_groundTruth_hifiasm_data, (const char*)&nodeName, sizeof(nodeName));
-				u_int32_t nbReads = _unitigDatas[nodeName]._readIndexes.size();
-				gzwrite(file_groundTruth_hifiasm_data, (const char*)&nbReads, sizeof(nbReads));
-				gzwrite(file_groundTruth_hifiasm_data, (const char*)&_unitigDatas[nodeName]._readIndexes[0], nbReads * sizeof(u_int32_t));
-				
-			}
-			
-			gzclose(file_groundTruth_hifiasm_data);
 
-            unordered_set<u_int32_t> validNodes;
-            for (auto& nodeIndex : graphSimplify->_isNodeValid2){
-                u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
-                validNodes.insert(nodeName);
-            }
-            string outputFilename = _inputDir + "/minimizer_graph_debug.gfa";
-            GfaParser::rewriteGfa_withoutNodes(gfa_filename, outputFilename, validNodes, {}, graphSimplify->_graphSuccessors);
-		
-			u_int32_t nodeIndex = graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(startingNodeName, true);
-			//u_int32_t nodeIndex = graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(startingNodeName, true);
-			graphSimplify->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, true, false, false, _unitigDatas);
-			u_int32_t abundance = graphSimplify->getNodeUnitigAbundance(nodeIndex);
-			cout << "Asm info: " << BiGraph::nodeToString(nodeIndex) << " " << abundance << endl;
-			getchar();
-			solveBin(nodeIndex, abundance, graphSimplify, 0, 0, true);
+
+
+
+			graphSimplify->debug_writeGfaErrorfree(50, PathExplorer::computeAbundanceCutoff(50, 0, CutoffType::STRAIN_HIGH), -1, _kminmerSize, false, true, false, _unitigDatas);
+			//removeChimericReads();
+			//vector<u_int64_t> sharedReads;
+			//Utils::collectSharedReads(_unitigDatas[3062181], _unitigDatas[239124], sharedReads);	
+			//for(u_int64_t readIndex : sharedReads){
+			//	cout << readIndex << endl;
+			//}
+
+
+			//1718612   26     1867132,false  (k7: 1536791) (k4 cor: 1595079)
+			solveBin(BiGraph::nodeName_to_nodeIndex(1718612, true), 26, graphSimplify, 0, 0, true);
+
+
 		}
-		gzclose(_outputContigFile);
-		exit(1);
+		//gzclose(_outputContigFile);
+		file_groundTruth.close();
+		file_groundTruth_hifiasmContigs.close();
+		file_kminmersContigs.close();
+		return;
+		*/
 		
+
+
+
+
+		/*
+		u_int32_t startingNodeName = -1;
+		for(auto& it: _evaluation_hifiasmGroundTruth_nodeNamePosition){
+			if(it.second == 0){
+				startingNodeName = it.first;
+				break;
+			}
+		}
+		cout << "Position 0: " << startingNodeName << endl;
+
+		gzFile file_groundTruth_hifiasm_data = gzopen((_inputDir + "/groundtruth_hifiasm_data.gz").c_str(),"wb");
 		
+		u_int32_t nbNodes = _unitigDatas.size();
+		gzwrite(file_groundTruth_hifiasm_data, (const char*)&nbNodes, sizeof(nbNodes));
 
-
-
-
+		for(u_int32_t nodeName : groundTruth_kminmers){
+			gzwrite(file_groundTruth_hifiasm_data, (const char*)&nodeName, sizeof(nodeName));
+			u_int32_t nbReads = _unitigDatas[nodeName]._readIndexes.size();
+			gzwrite(file_groundTruth_hifiasm_data, (const char*)&nbReads, sizeof(nbReads));
+			gzwrite(file_groundTruth_hifiasm_data, (const char*)&_unitigDatas[nodeName]._readIndexes[0], nbReads * sizeof(u_int32_t));
+			
+		}
 		
+		gzclose(file_groundTruth_hifiasm_data);
+
+		unordered_set<u_int32_t> validNodes;
+		for (auto& nodeIndex : graphSimplify->_isNodeValid2){
+			u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
+			validNodes.insert(nodeName);
+		}
+		string outputFilename = _inputDir + "/minimizer_graph_debug.gfa";
+		GfaParser::rewriteGfa_withoutNodes(gfa_filename, outputFilename, validNodes, {}, graphSimplify->_graphSuccessors);
+	
+		u_int32_t nodeIndex = graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(startingNodeName, true);
+		//u_int32_t nodeIndex = graphSimplify->_graphSuccessors->nodeName_to_nodeIndex(startingNodeName, true);
+		graphSimplify->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, true, false, false, _unitigDatas);
+		u_int32_t abundance = graphSimplify->getNodeUnitigAbundance(nodeIndex);
+		cout << "Asm info: " << BiGraph::nodeToString(nodeIndex) << " " << abundance << endl;
+		getchar();
+		solveBin(nodeIndex, abundance, graphSimplify, 0, 0, true);
+		*/
+
 		
 		/*
 
@@ -5781,9 +5788,9 @@ public:
 		
 		
 		cout << "Indexing reads" << endl;
-		graphSimplify->clear(0);
-		graphSimplify->compact(false);
 		_unitigDatas.resize(_mdbg->_dbg_nodes.size());
+		graphSimplify->clear(0);
+		graphSimplify->compact(false, _unitigDatas);
 		removeUnsupportedEdges(gfa_filename, gfa_filename_noUnsupportedEdges, graphSimplify);
 		delete _mdbg;
 		cout << "done" << endl;
@@ -7471,7 +7478,7 @@ public:
 		cout << "Start solver: " << BiGraph::nodeToString(current_nodeIndex) << endl;
 		
 		float currentAbundance = pathData.source_abundance;
-		graph->loadState2(PathExplorer::computeAbundanceCutoff(currentAbundance, 0, assemblyState._cutoffType), current_nodeIndex);
+		graph->loadState2(PathExplorer::computeAbundanceCutoff(currentAbundance, 0, assemblyState._cutoffType), current_nodeIndex, _unitigDatas);
 		//PathExplorer::updateCurrentAbundance(current_nodeIndex, currentAbundance, graph, assemblyState, _kminmerSize, {}, true, false, false, _unitigDatas);
 		//cout << "ici on peut polish la source abundance apres cleaning initial ?" << endl;
 		//currentAbundance = PathExplorer::updateCurrentAbundance(current_nodeIndex, currentAbundance, graph, assemblyState, _kminmerSize, {}, false, true, false, _unitigDatas);
@@ -7902,6 +7909,9 @@ public:
 					}
 				}
 			}
+
+			ContigStatistics contigStats(_inputDir, graph->_nodeAbundances, nodePath, pathIndex_complete);
+			contigStats.execute();
 		}
 
 		cout << "Contig size: " << nodePath.size() << endl;

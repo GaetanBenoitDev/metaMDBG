@@ -337,7 +337,7 @@ const string ARG_INPUT_FILENAME_CONTIG = "c";
 
 struct UnitigData{
 	u_int32_t _index;
-	vector<u_int32_t> _readIndexes;
+	vector<u_int64_t> _readIndexes;
 	//float _meanAbundance;
 	//u_int16_t _nbKminmers;
     //vector<float> _compositionMean;
@@ -654,6 +654,23 @@ class Utils{
 
 public:
 
+	static double compute_median(vector<u_int32_t> scores){
+		size_t size = scores.size();
+
+		if (size == 0){
+			return 0;  // Undefined, really.
+		}
+		else{
+			sort(scores.begin(), scores.end());
+			if (size % 2 == 0){
+				return (scores[size / 2 - 1] + scores[size / 2]) / 2; //scores[size / 2 - 1];
+			}
+			else {
+				return scores[size / 2];
+			}
+		}
+	}
+
 	static void revcomp(string& sequence){
 
 		std::reverse(sequence.begin(), sequence.end());
@@ -680,14 +697,14 @@ public:
 		u_int64_t nbShared = 0;
 
 		while(i < utg1._readIndexes.size() && j < utg2._readIndexes.size()){
-			if(removedReadIndex.find(utg1._readIndexes[i]) != removedReadIndex.end()){
-				i += 1;
-				continue;
-			}
-			if(removedReadIndex.find(utg2._readIndexes[j]) != removedReadIndex.end()){
-				j += 1;
-				continue;
-			}
+			//if(removedReadIndex.find(utg1._readIndexes[i]) != removedReadIndex.end()){
+			//	i += 1;
+			//	continue;
+			//}
+			//if(removedReadIndex.find(utg2._readIndexes[j]) != removedReadIndex.end()){
+			//	j += 1;
+			//	continue;
+			//}
 
 			if(utg1._readIndexes[i] == utg2._readIndexes[j]){
 				nbShared += 1;
