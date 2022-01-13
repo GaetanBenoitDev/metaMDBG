@@ -1,5 +1,5 @@
 #include "Bloocoo.hpp"
-#include "assembly/Assembly.hpp"
+#include "assembly/Assembly2.hpp"
 #include "toBasespace/ToBasespace.hpp"
 #include "toBasespace/ToMinspace.hpp"
 #include "pipeline/AssemblyPipeline.hpp"
@@ -74,7 +74,7 @@ int main (int argc, char* argv[])
                 Bloocoo().run (argc, args);
     		}
     		else if(programName == "asm"){
-                Assembly().run (argc, args);
+                Assembly2().run (argc, args);
     		}
     		else if(programName == "toBasespace"){
                 ToBasespace().run (argc, args);

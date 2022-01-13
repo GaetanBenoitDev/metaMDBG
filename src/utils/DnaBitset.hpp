@@ -1,4 +1,8 @@
 
+
+#ifndef MDBG_METAG_DNABITSET
+#define MDBG_METAG_DNABITSET
+
 #include <string.h>
 #include <unistd.h>
 #include <string>
@@ -107,3 +111,6 @@ public:
     
 private:
 };
+
+
+#endif

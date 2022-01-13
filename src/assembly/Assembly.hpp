@@ -43,6 +43,12 @@ Gros changement non testé:
 	- Chimeric reads: a mettre dans readselection direct
 	- graphSImplify: indexer des nodeNames plutot que des nodeIndex (_isNodeValid), car on ne conserve jamais qu'un seul des deux coté d'un nodename
 	- metaflye: plein de bonne idée a check (identification superbubble, roundabout)
+	- ToBasespace: correction: on peut appliquer la correction d'un kminmer dés qu'on a atteint les 20 variants, comme ça on peut free la mémoire de ces variants dés que possible 
+	- Unsupported edges: on peut distinguer les fake edges (qui n'existe dans aucun reads), des bons (provenant des especes rares), en chackant l'abondance de l'edge. Les fakes edge devrait avoir une abondance extrement elevé
+
+	REPRISE:
+		- on veut detecter le plus de bubble possible
+		- on veut verifier qu'un branchement est une bubble avant quoi que ce soit pour accelerer le processus d'assemblage
 */
 
 #define PRINT_DEBUG_COMPLEX_AREA
@@ -67,6 +73,7 @@ Gros changement non testé:
 #include "graph/GfaParser.hpp"
 #include "graph/GraphSimplify.hpp"
 #include "eval/ContigStatistics.hpp"
+#include "toBasespace/ToBasespaceOnTheFly.hpp";
 
 enum CutoffType {
 	NONE,
@@ -237,6 +244,7 @@ class SourceSinkSolver{
 class PathExplorer{
 
 public: 
+
 
 
 
@@ -850,7 +858,7 @@ public:
 					for(SuccessorData& successor : data_successors){
 						u_int32_t utg_n = successor._nodeIndex;
 						//for(size_t i=0; i<currentDepth; i++) cout << "  ";
-						cout << "\t" << graph->_graphSuccessors->nodeToString(current_nodeIndex) << " " << " -> " <<  graph->_graphSuccessors->nodeToString(utg_n) << " " << graph->getNodeUnitigAbundance(utg_n) << " " << Utils::computeSharedReads(_unitigDatas[current_nodeName], _unitigDatas[graph->_graphSuccessors->nodeIndex_to_nodeName(utg_n, orient_dummy)], graph->_rareReads) << endl;
+						cout << "\t" << graph->_graphSuccessors->nodeToString(current_nodeIndex) << " " << " -> " <<  graph->_graphSuccessors->nodeToString(utg_n) << " " << graph->getNodeUnitigAbundance(utg_n) << " " << Utils::computeSharedReads(_unitigDatas[current_nodeName], _unitigDatas[graph->_graphSuccessors->nodeIndex_to_nodeName(utg_n, orient_dummy)]) << endl;
 					
 					}
 				}
@@ -2306,7 +2314,7 @@ public:
 			}
 
 			//if(!print_debug){
-			if(pathLength > 12000 && abundanceCutoff_min != 0){
+			if(pathLength > 9000 && abundanceCutoff_min != 0){
 				break;
 			}
 			//}
@@ -2341,7 +2349,7 @@ public:
 				bool isContigNode = _unitigDatas[prev_nodeName]._readIndexes.size() == 0;
 				//u_int32_t nbSharedReads = Utils::computeSharedReads(_unitigDatas[prev_nodeName], _unitigDatas[successor_nodeName]);
 				//vector<u_int64_t> sharedReads;
-				u_int32_t nbSharedReads = Utils::computeSharedReads(_unitigDatas[prev_nodeName], _unitigDatas[successor_nodeName], graph->_rareReads);
+				u_int32_t nbSharedReads = Utils::computeSharedReads(_unitigDatas[prev_nodeName], _unitigDatas[successor_nodeName]);
 				//cout << prev_nodeName << " " << successor_nodeName << " " << nbSharedReads << endl;
 				//if(nbSharedReads > _abundanceCutoff_min/2){
 				//if(nbSharedReads > successor._abundance/5){
@@ -5141,6 +5149,8 @@ public:
 	string _outputFilename;
 	string _outputFilename_complete;
 	bool _debug;
+	string _inputFilename_unitigNt;
+	string _inputFilename_unitigCluster;
 
 	float _minimizerDensity;
     size_t _minimizerSize;
@@ -5206,7 +5216,9 @@ public:
 		(ARG_OUTPUT_DIR, "", cxxopts::value<string>())
 		(ARG_INPUT_FILENAME_CONTIG, "", cxxopts::value<string>()->default_value(""))
 		(ARG_INPUT_FILENAME_TRUTH, "", cxxopts::value<string>()->default_value(""))
-		(ARG_DEBUG, "", cxxopts::value<bool>()->default_value("false"));
+		(ARG_DEBUG, "", cxxopts::value<bool>()->default_value("false"))
+		(ARG_INPUT_FILENAME_UNITIG_NT, "", cxxopts::value<string>()->default_value(""))
+		(ARG_INPUT_FILENAME_UNITIG_CLUSTER, "", cxxopts::value<string>()->default_value(""));
 
 		//("k,kminmerSize", "File name", cxxopts::value<std::string>())
 		//("v,verbose", "Verbose output", cxxopts::value<bool>()->default_value("false"))
@@ -5225,6 +5237,8 @@ public:
 			_inputDir = result[ARG_OUTPUT_DIR].as<string>();
 			_filename_inputContigs = result[ARG_INPUT_FILENAME_CONTIG].as<string>();
 			_truthInputFilename = result[ARG_INPUT_FILENAME_TRUTH].as<string>();
+			_inputFilename_unitigNt = result[ARG_INPUT_FILENAME_UNITIG_NT].as<string>();
+			_inputFilename_unitigCluster = result[ARG_INPUT_FILENAME_UNITIG_CLUSTER].as<string>();
 			_debug = result[ARG_DEBUG].as<bool>();
 		}
 		catch (const std::exception& e){
@@ -5313,7 +5327,13 @@ public:
 		if(_truthInputFilename != ""){
 			extract_truth_kminmers();
 		}
-
+		//if(_inputFilename_unitigNt != ""){
+		//	extract_unitigNt_kminmers();
+		//}
+		//if(_inputFilename_unitigCluster != ""){
+		//	extract_unitigCluster();
+		//	exit(1);
+		//}
 
 
 
@@ -5527,119 +5547,95 @@ public:
 
 		/*
 		//AD_components
-		if(_debug){
-			gzFile file_groundTruth_hifiasm_data = gzopen((_inputDir + "/groundtruth_hifiasm_data.gz").c_str(),"rb");
+		cout << "Indexing reads" << endl;
+		_unitigDatas.resize(_mdbg->_dbg_nodes.size());
+		graphSimplify->clear(0);
+		graphSimplify->compact(false, _unitigDatas);
+		removeUnsupportedEdges(gfa_filename, gfa_filename_noUnsupportedEdges, graphSimplify);
+		//delete _mdbg;
+		cout << "done" << endl;
+
+		cout << "Collecting truth kminmers" << endl;
+		ofstream file_groundTruth_hifiasm_position(_inputDir + "/groundtruth_hifiasm_position.csv");
+		ofstream file_groundTruth_hifiasm(_inputDir + "/groundtruth_hifiasm.csv");
+		file_groundTruth_hifiasm << "Name,Colour" << endl;
+		file_groundTruth_hifiasm_position << "Name,Position" << endl;
+
+		//unordered_set<u_int32_t> visitedNodes;
+		//for(auto it : mdbg->_dbg_nodes){
+		//	if(_evaluation_hifiasmGroundTruth.find(it.first) == _evaluation_hifiasmGroundTruth.end()) continue;
+		//	visitedNodes.insert(it.second._index);
+		//}
+
+		unordered_set<u_int32_t> groundTruth_kminmers;
+		int founded = 0;
+		for(auto it : _mdbg->_dbg_nodes){
+
+			const KmerVec& vec = it.first;
+
+			//vec = vec.normalize();
+			if(_evaluation_hifiasmGroundTruth_position.find(vec) == _evaluation_hifiasmGroundTruth_position.end()) continue;
+
+			founded += 1;
+			groundTruth_kminmers.insert(it.second._index);
+
+			//file_groundTruth_hifiasm << it.second._index << "," << _evaluation_hifiasmGroundTruth[vec] << endl;
+			file_groundTruth_hifiasm_position << it.second._index << "," << _evaluation_hifiasmGroundTruth_position[vec] << endl;
+
+			unordered_set<u_int32_t> neighbors;
+			graphSimplify->collectNeighbors(BiGraph::nodeName_to_nodeIndex(it.second._index, true), 100, 100, neighbors);
+			//graph->collectNeighbors(it.second._index, 100, neighbors, 100, visitedNodes);
+			for(u_int32_t nn : neighbors){
+				//cout << nn << endl;
+				groundTruth_kminmers.insert(BiGraph::nodeIndex_to_nodeName(nn));
+			}
+			//cout << "n: " << neighbors.size() << endl;
+			//cout << n << endl;
+
+			graphSimplify->collectNeighbors(BiGraph::nodeName_to_nodeIndex(it.second._index, false), 100, 100, neighbors);
+			//cout << neighbors.size() << endl;
+			for(u_int32_t nn : neighbors){
+				groundTruth_kminmers.insert(BiGraph::nodeIndex_to_nodeName(nn));
+			}
+
+			cout << groundTruth_kminmers.size() << endl;
+		}
+		cout << "Nb nodes abundant: " << groundTruth_kminmers.size() << endl;
+		cout << "Found: " << founded << endl;
+		GfaParser::rewriteGfa_withNodes(gfa_filename, gfa_filename + "_groundTruth_hifiasm.gfa", groundTruth_kminmers);
+		file_groundTruth_hifiasm.close();
+		file_groundTruth_hifiasm_position.close();
 		
-			u_int32_t nbNodes;
-			gzread(file_groundTruth_hifiasm_data, (char*)&nbNodes, sizeof(nbNodes));
-			_unitigDatas.resize(nbNodes);
-
-			while(true){
-				
-				u_int32_t nodeName;
-				gzread(file_groundTruth_hifiasm_data, (char*)&nodeName, sizeof(nodeName));
-
-				if(gzeof(file_groundTruth_hifiasm_data)) break;
-
-				u_int32_t nbReads;
-				vector<u_int64_t> readIndexes;
-				gzread(file_groundTruth_hifiasm_data, (char*)&nbReads, sizeof(nbReads));
-
-				
-				_unitigDatas[nodeName]._readIndexes.resize(nbReads);
-				gzread(file_groundTruth_hifiasm_data, (char*)&_unitigDatas[nodeName]._readIndexes[0], nbReads * sizeof(u_int32_t));
-				//_unitigDatas[nodeName] = readIndexes;
-
+		graphSimplify->_debug_groundTruthNodeNames = groundTruth_kminmers;
+		
+		
+		u_int32_t startingNodeName = -1;
+		for(auto& it: _evaluation_hifiasmGroundTruth_nodeNamePosition){
+			if(it.second == 0){
+				startingNodeName = it.first;
+				break;
 			}
-
-			gzclose(file_groundTruth_hifiasm_data);
-			
-			//1718612  
-			solveBin(BiGraph::nodeName_to_nodeIndex(1867132, true), 26, graphSimplify, 0, 0, true);
 		}
-		else{
-
-			cout << "Indexing reads" << endl;
-			_unitigDatas.resize(_mdbg->_dbg_nodes.size());
-			graphSimplify->clear(0);
-			graphSimplify->compact(false, _unitigDatas);
-			removeUnsupportedEdges(gfa_filename, gfa_filename_noUnsupportedEdges, graphSimplify);
-			//delete _mdbg;
-			cout << "done" << endl;
-
-			cout << "Collecting truth kminmers" << endl;
-			ofstream file_groundTruth_hifiasm_position(_inputDir + "/groundtruth_hifiasm_position.csv");
-			ofstream file_groundTruth_hifiasm(_inputDir + "/groundtruth_hifiasm.csv");
-			file_groundTruth_hifiasm << "Name,Colour" << endl;
-			file_groundTruth_hifiasm_position << "Name,Position" << endl;
-
-			//unordered_set<u_int32_t> visitedNodes;
-			//for(auto it : mdbg->_dbg_nodes){
-			//	if(_evaluation_hifiasmGroundTruth.find(it.first) == _evaluation_hifiasmGroundTruth.end()) continue;
-			//	visitedNodes.insert(it.second._index);
-			//}
-
-			unordered_set<u_int32_t> groundTruth_kminmers;
-			int founded = 0;
-			for(auto it : _mdbg->_dbg_nodes){
-
-				const KmerVec& vec = it.first;
-
-				//vec = vec.normalize();
-				if(_evaluation_hifiasmGroundTruth_position.find(vec) == _evaluation_hifiasmGroundTruth_position.end()) continue;
-
-				founded += 1;
-				groundTruth_kminmers.insert(it.second._index);
-
-				//file_groundTruth_hifiasm << it.second._index << "," << _evaluation_hifiasmGroundTruth[vec] << endl;
-				file_groundTruth_hifiasm_position << it.second._index << "," << _evaluation_hifiasmGroundTruth_position[vec] << endl;
-
-				unordered_set<u_int32_t> neighbors;
-				graphSimplify->collectNeighbors(BiGraph::nodeName_to_nodeIndex(it.second._index, true), 100, 100, neighbors);
-				//graph->collectNeighbors(it.second._index, 100, neighbors, 100, visitedNodes);
-				for(u_int32_t nn : neighbors){
-					//cout << nn << endl;
-					groundTruth_kminmers.insert(BiGraph::nodeIndex_to_nodeName(nn));
-				}
-				//cout << "n: " << neighbors.size() << endl;
-				//cout << n << endl;
-
-				graphSimplify->collectNeighbors(BiGraph::nodeName_to_nodeIndex(it.second._index, false), 100, 100, neighbors);
-				//cout << neighbors.size() << endl;
-				for(u_int32_t nn : neighbors){
-					groundTruth_kminmers.insert(BiGraph::nodeIndex_to_nodeName(nn));
-				}
-
-				cout << groundTruth_kminmers.size() << endl;
-			}
-			cout << "Nb nodes abundant: " << groundTruth_kminmers.size() << endl;
-			cout << "Found: " << founded << endl;
-			GfaParser::rewriteGfa_withNodes(gfa_filename, gfa_filename + "_groundTruth_hifiasm.gfa", groundTruth_kminmers);
-			file_groundTruth_hifiasm.close();
-			file_groundTruth_hifiasm_position.close();
-			
-			graphSimplify->_debug_groundTruthNodeNames = groundTruth_kminmers;
-			
-			
+		cout << "Position 0: " << startingNodeName << endl;
 
 
 
 
-
-			graphSimplify->debug_writeGfaErrorfree(50, PathExplorer::computeAbundanceCutoff(50, 0, CutoffType::STRAIN_HIGH), -1, _kminmerSize, false, true, false, _unitigDatas);
-			//removeChimericReads();
-			//vector<u_int64_t> sharedReads;
-			//Utils::collectSharedReads(_unitigDatas[3062181], _unitigDatas[239124], sharedReads);	
-			//for(u_int64_t readIndex : sharedReads){
-			//	cout << readIndex << endl;
-			//}
-
-
-			//1718612   26     1867132,false  (k7: 1536791) (k4 cor: 1595079)
-			solveBin(BiGraph::nodeName_to_nodeIndex(1718612, true), 26, graphSimplify, 0, 0, true);
+		graphSimplify->debug_writeGfaErrorfree(50, PathExplorer::computeAbundanceCutoff(50, 0, CutoffType::STRAIN_HIGH), -1, _kminmerSize, false, true, false, _unitigDatas);
+		//removeChimericReads();
+		//vector<u_int64_t> sharedReads;
+		//Utils::collectSharedReads(_unitigDatas[3062181], _unitigDatas[239124], sharedReads);	
+		//for(u_int64_t readIndex : sharedReads){
+		//	cout << readIndex << endl;
+		//}
 
 
-		}
+		//1718612   26     1867132,false  (k7: 1536791) (k4 cor: 1595079)
+		//solveBin(BiGraph::nodeName_to_nodeIndex(1718612, true), 26, graphSimplify, 0, 0, true);
+		u_int32_t nodeIndex = BiGraph::nodeName_to_nodeIndex(startingNodeName, true);
+		solveBin(nodeIndex, graphSimplify->getNodeUnitigAbundance(nodeIndex), graphSimplify, 0, 0, true);
+
+
 		//gzclose(_outputContigFile);
 		file_groundTruth.close();
 		file_groundTruth_hifiasmContigs.close();
@@ -5694,41 +5690,49 @@ public:
 		*/
 
 		
-		/*
-
-		cout << "Nb edges: " << graphSimplify->_graphSuccessors->_nbEdges << endl;
-		cout << "Removing unsupported edges" << endl;
-        //graphSimplify->clear(0);
-        //graphSimplify->compact(false);
-		//removeUnsupportedEdges(gfa_filename, gfa_filename_noUnsupportedEdges, graphSimplify);
+		//Generate unitigs
+		cout << "Indexing reads" << endl;
+		_unitigDatas.resize(_mdbg->_dbg_nodes.size());
+		graphSimplify->clear(0);
+		graphSimplify->compact(false, _unitigDatas);
+		removeUnsupportedEdges(gfa_filename, gfa_filename_noUnsupportedEdges, graphSimplify);
+		delete _mdbg;
 		cout << "done" << endl;
-		
-		graphSimplify->debug_writeGfaErrorfree(0, 0, 0, _kminmerSize);
+	
+		//cout << graphSimplify->_graphSuccessors->_nbEdges << endl;
+		//graphSimplify->execute(5, _kminmerSize);
+		//graphSimplify->debug_writeGfaErrorfree(1000, PathExplorer::computeAbundanceCutoff(1000, 0, CutoffType::ERROR), -1, _kminmerSize, false, true, false, _unitigDatas);
+		graphSimplify->debug_writeGfaErrorfree(100, 100, -1, _kminmerSize, false, true, false, _unitigDatas);
 
 
-		
-		if(_filename_inputContigs == ""){ //First pass
-			gzFile solidFile = gzopen(_filename_solidKminmers.c_str(), "wb");
 
-			unordered_set<u_int32_t> writtenNodeNames;
 
-			for(Unitig& unitig : graphSimplify->_unitigs){
-				for(u_int32_t nodeIndex : unitig._nodes){
-					u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
-					writtenNodeNames.insert(nodeName);
-					gzwrite(solidFile, (const char*)&nodeName, sizeof(nodeName));
-				}
-			}
 
-			gzclose(solidFile);
-		}
 
-		//exit(1);
+
+
+
+
+
+
+
+
+
 		u_int64_t nbUnitigs = 0;
 		unordered_set<u_int32_t> writtenNodeNames;
+		unordered_map<u_int32_t, u_int32_t> nodeName_to_unitigName;
 
+		/* Generate unitigs
+		graphSimplify->loadState2(0, -1, _unitigDatas);
+		//ofstream output_file_gfa(_inputDir + "/minimizer_graph_u.gfa");
+		//unordered_set<u_int32_t> isEdgeNode;
+		u_int32_t unitigName = 0;
 
-		for(Unitig& unitig : graphSimplify->_unitigs){
+		for(Unitig& unitig : graphSimplify->_startingUnitigstest){
+
+			
+			//isEdgeNode.insert(BiGraph::nodeIndex_to_nodeName(unitig._startNode));
+			//isEdgeNode.insert(BiGraph::nodeIndex_to_nodeName(unitig._endNode));
 
 			//if(unitig._length < 10000) continue;
 
@@ -5738,42 +5742,331 @@ public:
 			writtenNodeNames.insert(BiGraph::nodeIndex_to_nodeName(unitig._startNode));
 			writtenNodeNames.insert(BiGraph::nodeIndex_to_nodeName(unitig._endNode));
 
-			if(unitig._nbNodes == 1) continue;
-			//if(unitig._nbNodes < 300) continue;
+			//output_file_gfa << "S" << "\t" << unitig._index << "\t" << "*" << "\t" << "LN:i:" << unitig._length << "\t" << "dp:i:" << unitig._abundance << endl;
 
-			if(unitig._startNode == unitig._endNode){ //Circular unitig
-				//unitig._nodes.pop_back();
-				//unitig._nodes.push_back(GraphSimplify::nodeIndex_toReverseDirection(unitig._nodes[0]));
-				//unitig._nodes.push_back(unitig._nodes[0]);
-				//cout << "mdr" << endl;
-				//getchar();
-				//for(size_t i=0; i<30; i++){
-				//	unitig._nodes.push_back(unitig._nodes[i]);
-				//}
+
+			//if(unitig._nbNodes == 1) continue;
+			//if(unitig._nbNodes < 300) continue;
+			//if(unitig._length < 10000) continue;
+
+
+			vector<u_int64_t> supportingReads;
+			for(u_int32_t nodeIndex : unitig._nodes){
+				u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
+				u_int64_t readIndex = _unitigDatas[nodeName]._readIndexes[0];
+				supportingReads.push_back(readIndex);
+
+				//nodeName_to_unitigName[nodeName] = unitigName;
 			}
-			u_int8_t isCircular = (unitig._startNode == unitig._endNode);
 
 			u_int64_t size = unitig._nodes.size();
 			gzwrite(_outputContigFile, (const char*)&size, sizeof(size));
-			gzwrite(_outputContigFile, (const char*)&isCircular, sizeof(isCircular));
 			gzwrite(_outputContigFile, (const char*)&unitig._nodes[0], size * sizeof(u_int32_t));
+			gzwrite(_outputContigFile, (const char*)&supportingReads[0], size * sizeof(u_int64_t));
 
-			if(unitig._nbNodes > 3000){
-				cout << unitig._nbNodes << " " << BiGraph::nodeIndex_to_nodeName(unitig._startNode) << " " << BiGraph::nodeIndex_to_nodeName(unitig._endNode) << endl;
-			}
+			//if(unitig._length){
+			//	cout << unitig._nbNodes << " " << BiGraph::nodeIndex_to_nodeName(unitig._startNode) << " " << BiGraph::nodeIndex_to_nodeName(unitig._endNode) << endl;
+			//}
+			unitigName += 1;
 			nbUnitigs += 1;
 			//if(unitig._nb)
 		}
 
 		cout << "Nb unitigs: " << nbUnitigs << endl;
+		*/
+
+		ToBasespaceOnTheFly toBasespace(_inputDir);
+
+		//unordered_map<u_int32_t, u_int32_t> nodeName_to_cluster;
+
+		/*
+		for(Unitig& unitig : graphSimplify->_startingUnitigstest){
+
+			for(u_int32_t nodeIndex : unitig._nodes){
+				
+				u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
+				
+				if(nodeName_to_unitigIndex.find(nodeName) != nodeName_to_unitigIndex.end()) continue;
+
+				nodeName_to_unitigIndex[nodeName] = unitig._index;
+			}
+		}
+		*/
+
+		string clusterDir = _inputDir + "/" + "components";
+		fs::path path(clusterDir);
+	    if(!fs::exists (path)){
+            fs::create_directory(path);
+        } 
+
+		u_int32_t clusterIndex = 0;
+		unordered_set<string> written_unitigName;
+		float prevCutoff = -1;
+
+		vector<vector<u_int32_t>> clusters;
+
+		for(Unitig& unitig : graphSimplify->_startingUnitigstest){
+
+			u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(unitig._startNode);
+			//if(nodeName_to_cluster.find(nodeName) != nodeName_to_cluster.end()) continue;
+
+			float cutoff = unitig._abundance*0.2;
+
+			//float minUnitigAbundance = unitig._abundance*0.8;
+
+			float realCutoff = 0;
+			for(const SaveState2& saveState : graphSimplify->_cachedGraphStates){
+				//cout << saveState._abundanceCutoff_min << endl;
+				if(saveState._abundanceCutoff_min > cutoff) break;
+				realCutoff = saveState._abundanceCutoff_min;
+			}
+
+
+			if(realCutoff != prevCutoff){
+				graphSimplify->loadState2(cutoff, unitig._startNode, _unitigDatas);
+				prevCutoff = realCutoff;
+			}
+
+        	unordered_set<u_int32_t> component;
+        	graphSimplify->getConnectedComponent(unitig._startNode, component);
+
+			if(component.size() <= 1) continue;
+
+			vector<u_int32_t> cluster;
+			unordered_set<u_int32_t> validNodes;
+			//unordered_set<u_int32_t> clusterUnitigNames;
+
+			for(u_int32_t unitigIndex : component){
+				
+				//if(graphSimplify->_unitigs[unitigIndex]._length < 10000) continue;
+				//if(graphSimplify->_unitigs[unitigIndex]._abundance < minUnitigAbundance) continue;
+
+				for(u_int32_t nodeIndex : graphSimplify->_unitigs[unitigIndex]._nodes){
+					u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
+					//if(nodeName_to_cluster.find(nodeName) != nodeName_to_cluster.end()) continue;
+					cluster.push_back(nodeName);
+					//nodeName_to_cluster[nodeName] = clusterIndex;
+					validNodes.insert(nodeName);
+
+					/*
+					if(_debug_nodeName_to_unitigName.find(nodeName) != _debug_nodeName_to_unitigName.end()){
+						clusterUnitigNames.insert(_debug_nodeName_to_unitigName[nodeName]);
+					}
+
+					if(_truthInputFilename != ""){
+						if(_evaluation_hifiasmGroundTruth_nodeName_to_unitigName.find(nodeName) != _evaluation_hifiasmGroundTruth_nodeName_to_unitigName.end()){
+							for(string& unitigName : _evaluation_hifiasmGroundTruth_nodeName_to_unitigName[nodeName]){
+								if(written_unitigName.find(unitigName) != written_unitigName.end()) continue;
+								file_groundTruth_hifiasmContigs << unitigName << "," << clusterIndex << endl;
+								written_unitigName.insert(unitigName);
+							}
+						}
+					}
+					*/
+				}
+			}
+
+			bool isNewCluster = true;
+			std::sort(cluster.begin(), cluster.end());
+
+			//if(clusters.size() == 0){
+				//isNewCluster = true;
+			//}
+			//else{
+			for(const vector<u_int32_t>& existingCluster : clusters){
+				u_int64_t nbSharedNodes = Utils::computeSharedElements(existingCluster, cluster);
+				float sharedRate = ((float) nbSharedNodes) / ((float)cluster.size());
+				cout << sharedRate << endl;
+				if(sharedRate > 0.9){
+					isNewCluster = false;
+					break;
+				}
+			}
+			//}
+			if(!isNewCluster) continue;
+
+			cout << clusterIndex << " " << component.size() << endl;
+			
+			if(component.size() > 50 && validNodes.size() > 0){
+
+				clusters.push_back(cluster);
+				
+				string outputFilename = clusterDir + "/component_" + to_string(clusterIndex) + ".gfa";
+				GfaParser::rewriteGfa_withoutNodes(gfa_filename, outputFilename, validNodes, graphSimplify->_isEdgeRemoved, graphSimplify->_graphSuccessors);
+			
+				//string filename = clusterDir + "/component_" + to_string(clusterIndex) + "_cluster.txt";
+				//ofstream fCluster(filename);
+				//for(u_int32_t unitigName : clusterUnitigNames){
+				//	fCluster << unitigName << endl;
+				//}
+				//fCluster.close();
+
+
+				//filename = clusterDir + "/component_" + to_string(clusterIndex) + "_unitigNames.csv";
+				//ofstream fUnitigName(filename);
+				//fUnitigName << "Name,Colour" << endl;
+				//for(u_int32_t nodeName : validNodes){
+				//	if(_debug_nodeName_to_unitigName.find(nodeName) != _debug_nodeName_to_unitigName.end()){
+				//		fUnitigName << nodeName << "," << _debug_nodeName_to_unitigName[nodeName] << endl;
+				//	}
+				//}
+				//fUnitigName.close();
+
+
+				const string& filenameUnitigColor= clusterDir + "/component_" + to_string(clusterIndex) + "_unitigColor.csv";
+				ofstream fUnitigColor(filenameUnitigColor);
+				fUnitigColor << "Name,Colour" << endl;
+
+				cout << "Generate contigs" << endl;
+				const string& basespaceUnitigFilename = clusterDir + "/component_" + to_string(clusterIndex) + "_unitigs.fasta";
+				//gzFile basespaceUnitigFile = gzopen(basespaceUnitigFilename.c_str(),"wb");
+				ofstream basespaceUnitigFile = ofstream(basespaceUnitigFilename);
+
+				u_int32_t contigIndex = 0;
+				unordered_set<u_int32_t> writtenUnitigs;
+				for(u_int32_t unitigIndex :component ){
+					
+					const Unitig& u = graphSimplify->_unitigs[unitigIndex];
+					
+					//if(u._length < 10000) continue;
+					
+					if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
+					if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
+
+					writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._startNode));
+					writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
+
+					string unitigSequence;
+					toBasespace.createSequence(u._nodes, unitigSequence);
+
+					string header = ">ctg" + to_string(contigIndex) + '\n';
+					basespaceUnitigFile << header << endl;
+					//gzwrite(basespaceUnitigFile, (const char*)&header[0], header.size());
+					unitigSequence +=  '\n';
+					basespaceUnitigFile << unitigSequence << endl;
+					//gzwrite(basespaceUnitigFile, (const char*)&unitigSequence[0], unitigSequence.size());
+					
+					for(u_int32_t nodeIndex : u._nodes){
+						u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
+						fUnitigColor << nodeName << "," << contigIndex << endl;
+					}
+
+
+
+					contigIndex += 1;
+				}
+
+				fUnitigColor.close();
+				//gzclose(basespaceUnitigFile);
+				basespaceUnitigFile.close();
+
+				
+				string command_annotation = "python3 /home/gats/workspace/tools/binner/thirdparty/scg/metacoag_main.py " + basespaceUnitigFilename + " " + filenameUnitigColor;
+				cout << command_annotation << endl;
+				int ret = system(command_annotation.c_str());
+				if(ret != 0){
+					cerr << "Command failed: " << ret << endl;
+					exit(ret);
+				}
+
+			}
+
+			clusterIndex += 1;
+		}
+
+
+
+
+
 		//getchar();
 
 		file_groundTruth.close();
 		file_groundTruth_hifiasmContigs.close();
 		file_kminmersContigs.close();
 
-		return;
+
+
+
+
+
+		/*
+        ifstream infile(gfa_filename);
+
+        std::string line;
+        vector<string>* fields = new vector<string>();
+        vector<string>* fields_optional = new vector<string>();
+
+        while (std::getline(infile, line)){
+            
+            GfaParser::tokenize(line, fields, '\t');
+            
+            //cout << (*fields)[0] << endl;
+
+            if((*fields)[0] == "S"){
+                //u_int32_t node = std::stoull((*fields)[1]);
+                //if(node == 214){
+                //    cout << "FOUNDED" << endl;
+                //    cout << (nodes.find(node) != nodes.end()) << endl;
+                //}
+                //if(nodes.find(node) == nodes.end()) continue;
+                //outputFile << line << endl;
+            }
+            else if((*fields)[0] == "L"){
+                u_int32_t from = std::stoull((*fields)[1]);
+                bool from_orient = (*fields)[2] == "+";
+                u_int32_t to = std::stoull((*fields)[3]);
+                bool to_orient = (*fields)[4] == "+";
+
+				string overlap = (*fields)[5];
+				overlap.pop_back();
+                u_int64_t overlapLength = std::stoull(overlap);
+
+				u_int32_t nodeIndex_from = BiGraph::nodeName_to_nodeIndex(from, from_orient);
+				u_int32_t nodeIndex_to = BiGraph::nodeName_to_nodeIndex(to, to_orient);
+
+				if(graphSimplify->_isNodeValid2.find(nodeIndex_from) == graphSimplify->_isNodeValid2.end()) continue;
+				if(graphSimplify->_isNodeValid2.find(nodeIndex_to) == graphSimplify->_isNodeValid2.end()) continue;
+				if(isEdgeNode.find(from) == isEdgeNode.end()) continue;
+				if(isEdgeNode.find(to) == isEdgeNode.end()) continue;
+
+				u_int32_t unitigIndex_from = graphSimplify->nodeIndex_to_unitigIndex(nodeIndex_from);
+				u_int32_t unitigIndex_to = graphSimplify->nodeIndex_to_unitigIndex(nodeIndex_to);
+
+				output_file_gfa << "L" << "\t" << unitigIndex_from << "\t" << (*fields)[2] << "\t" << unitigIndex_to << "\t" << (*fields)[4] << "\t" << overlapLength << "M" << endl;
+			
+				string ori2;
+				if(to_orient) ori2 = "-";
+				else ori2 = "+";
+
+				string ori3;
+				if(from_orient) ori3 = "-";
+				else ori3 = "+";
+
+
+				output_file_gfa << "L" << "\t" << unitigIndex_to << "\t" << ori2 << "\t" << unitigIndex_from << "\t" << ori3 << "\t" << overlapLength << "M" << endl;
+			
+
+            }
+            //else {
+            //    outputFile << line << endl;
+            //}
+            
+        }
+
+
+        delete fields;
+        delete fields_optional;
+
+
+		output_file_gfa.close();
 		*/
+		return;
+		//Generate unitigs end
+
+
+
+
+
 
 
 		/*
@@ -6792,8 +7085,8 @@ public:
 					u_int32_t nodeName4 = _mdbg->_dbg_nodes[vec4]._index;
 					UnitigData& unitigData4 = _unitigDatas[nodeName4];
 
-					cout << "    " << Utils::computeSharedReads(unitigData1, unitigData4, dummy);
-					if(Utils::computeSharedReads(unitigData1, unitigData4, dummy) == 1) _nbChimericReads_20 += 1;
+					cout << "    " << Utils::computeSharedReads(unitigData1, unitigData4);
+					if(Utils::computeSharedReads(unitigData1, unitigData4) == 1) _nbChimericReads_20 += 1;
 				}
 
 				cout << endl;
@@ -7521,6 +7814,8 @@ public:
 			//cout << current_nodeIndex << endl;
 			//if(_binnedNodes.size() > 100) return false; //DEBUG assemble small fragment
 
+			if(current_nodeIndex == -1) return false;
+			/* CUTOFF
 			//No more successors, or no branching solution
 			if(current_nodeIndex == -1){
 				if(assemblyState._cutoffType == CutoffType::ERROR){
@@ -7539,7 +7834,8 @@ public:
 					return false; 
 				}
 			}
-			
+			*/
+
 			//if(current_nodeIndex == pathData.source_nodeIndex){ //Path complete
 			//	pathData.nodePath.pop_back(); //if the path is solved, the source node exist as first and last element,thus we remove the last one
 
@@ -7565,7 +7861,7 @@ public:
 				if(current_nodeIndex == pathData.source_nodeIndex){ //Path complete
 					pathData.nodePath.pop_back(); //if the path is solved, the source node exist as first and last element,thus we remove the last one
 
-					cout << "Path complete!" << endl;
+					cout << "Path complete! (" << pathData.nodePath.size() << ")" << endl;
 					return true; 
 				}
 
@@ -7732,7 +8028,7 @@ public:
 				binNode(current_nodeIndex, pathData.prevNodes, pathData.nodePath, graph, pathData._index, assemblyState, false, pathData);
 				visitedNodes.insert(BiGraph::nodeIndex_to_nodeName(current_nodeIndex));
 				
-				
+				/* CUTOFF
 				if(assemblyState._cutoffType != CutoffType::ERROR){
 					assemblyState._cutoffType = CutoffType::ERROR;
 					currentAbundance = PathExplorer::updateCurrentAbundance(current_nodeIndex, currentAbundance, graph, assemblyState, _kminmerSize, pathData.prevNodes, false, true, true, _unitigDatas);
@@ -7741,6 +8037,8 @@ public:
 				if(graph->_currentUnitigNodes.find(BiGraph::nodeIndex_to_nodeName(current_nodeIndex)) == graph->_currentUnitigNodes.end()){
 					currentAbundance = PathExplorer::updateCurrentAbundance(current_nodeIndex, currentAbundance, graph, assemblyState, _kminmerSize, pathData.prevNodes, false, true, false, _unitigDatas);
 				}
+				*/
+
 				//lastUnitigIndex = graph->nodeIndex_to_unitigIndex(current_nodeIndex);
 				//binNode(current_nodeIndex, pathData.prevNodes, pathData.nodePath, graph, pathData._index, assemblyState, false, pathData);
 				//visitedNodes.insert(BiGraph::nodeIndex_to_nodeName(current_nodeIndex));
@@ -7823,7 +8121,8 @@ public:
 		//getchar();
 		vector<u_int64_t> supportingReads_forward;
 		vector<u_int32_t> nodePath_forward = pathData_forward.nodePath;
-		if(pathSolved) getSupportingReads(nodePath_forward, supportingReads_forward);
+		//if(pathSolved)
+		getSupportingReads(nodePath_forward, supportingReads_forward);
 
 		//cout << "to remvoe exit" << endl;
 		//exit(1);
@@ -7847,47 +8146,51 @@ public:
 			}
 
 			nodePath_backward = pathData_backward.nodePath;
-			if(pathSolved) getSupportingReads(nodePath_backward, supportingReads_backward);
+			//if(pathSolved) 
+			getSupportingReads(nodePath_backward, supportingReads_backward);
 		}
 		
 		
-        
 		vector<u_int32_t> nodePath;
 		vector<u_int64_t> nodePath_supportingReads;
 
 		if(nodePath_backward.size() > 1){
 			std::reverse(nodePath_backward.begin(), nodePath_backward.end());
-			if(pathSolved) std::reverse(supportingReads_backward.begin(), supportingReads_backward.end());
+			//if(pathSolved)
+			std::reverse(supportingReads_backward.begin(), supportingReads_backward.end());
 			nodePath_backward.pop_back(); //Remove source node
-			if(pathSolved) supportingReads_backward.pop_back(); //Remove source node
+			//if(pathSolved)
+			supportingReads_backward.pop_back(); //Remove source node
 			nodePath = nodePath_backward;
-			if(pathSolved) nodePath_supportingReads = supportingReads_backward;
+			//if(pathSolved)
+			nodePath_supportingReads = supportingReads_backward;
 		}
+
 
 		nodePath.insert(nodePath.end(), nodePath_forward.begin(), nodePath_forward.end());
 
-		if(pathSolved){
-			nodePath_supportingReads.insert(nodePath_supportingReads.end(), supportingReads_forward.begin(), supportingReads_forward.end());
-		}
-		else{
+		//if(pathSolved){
+		nodePath_supportingReads.insert(nodePath_supportingReads.end(), supportingReads_forward.begin(), supportingReads_forward.end());
+		//}
+		//else{
 			//nodePath_supportingReads.resize(nodePath.size(), 0);
-		}
+		//}
 
-		u_int8_t isCircular = pathSolved;
+		//u_int8_t isCircular = pathSolved;
 
 		if(nodePath.size() > 0){
 
-			for(u_int32_t nodeIndex : nodePath){
-				if(_contigNodeNames.find(BiGraph::nodeIndex_to_nodeName(nodeIndex)) != _contigNodeNames.end()){
-					_contigNodeNames.erase(BiGraph::nodeIndex_to_nodeName(nodeIndex));
-				}
-			}
+			//for(u_int32_t nodeIndex : nodePath){
+			//	if(_contigNodeNames.find(BiGraph::nodeIndex_to_nodeName(nodeIndex)) != _contigNodeNames.end()){
+			//		_contigNodeNames.erase(BiGraph::nodeIndex_to_nodeName(nodeIndex));
+			//	}
+			//}
 
 			u_int64_t size = nodePath.size();
 			gzwrite(_outputContigFile, (const char*)&size, sizeof(size));
-			gzwrite(_outputContigFile, (const char*)&isCircular, sizeof(isCircular));
+			//gzwrite(_outputContigFile, (const char*)&isCircular, sizeof(isCircular));
 			gzwrite(_outputContigFile, (const char*)&nodePath[0], size * sizeof(u_int32_t));
-			//gzwrite(_outputContigFile, (const char*)&nodePath_supportingReads[0], size * sizeof(u_int64_t));
+			gzwrite(_outputContigFile, (const char*)&nodePath_supportingReads[0], size * sizeof(u_int64_t));
 		}
 
 		if(pathSolved){
@@ -7896,6 +8199,7 @@ public:
 			gzwrite(_outputContigFile_complete, (const char*)&nodePath[0], size * sizeof(u_int32_t));
 			gzwrite(_outputContigFile_complete, (const char*)&nodePath_supportingReads[0], size * sizeof(u_int64_t));
 		}
+
 
 		if(pathSolved){
 			if(_truthInputFilename != ""){
@@ -7910,11 +8214,214 @@ public:
 				}
 			}
 
+			/*
 			ContigStatistics contigStats(_inputDir, graph->_nodeAbundances, nodePath, pathIndex_complete);
 			contigStats.execute();
+
+			string outputDir = _inputDir + "/eval";
+			fs::path path(outputDir);
+			if(!fs::exists (path)){
+				fs::create_directory(path);
+			}
+
+			outputDir += "/composition";
+			fs::path path2(outputDir);
+			if(!fs::exists (path2)){
+				fs::create_directory(path2);
+			}
+
+			outputDir += "/" + to_string(pathIndex_complete);
+			fs::path path3(outputDir);
+			if(!fs::exists (path3)){
+				fs::create_directory(path3);
+			}
+
+			cout << "lala1" << endl;
+			//graph->loadState2(0, nodePath[0], _unitigDatas);
+			vector<u_int32_t> unitigIndex_intra;
+			for(u_int32_t nodeIndex : nodePath){
+				u_int32_t unitigIndex = graph->nodeIndex_to_unitigIndex(nodeIndex);
+				//if(longUnitigs.find(graph->unitigIndex_toReverseDirection(unitigIndex)) != longUnitigs.end()) continue;
+				if(graph->_unitigs[unitigIndex]._length > 8000){
+					if(std::find(unitigIndex_intra.begin(), unitigIndex_intra.end(), unitigIndex) != unitigIndex_intra.end()) continue;
+					if(std::find(unitigIndex_intra.begin(), unitigIndex_intra.end(), graph->unitigIndex_toReverseDirection(unitigIndex)) != unitigIndex_intra.end()) continue;
+					unitigIndex_intra.push_back(unitigIndex);
+				}
+			}
+			*/
+			/*
+			cout << "lala2" << endl;
+			unordered_set<u_int32_t> longUnitigsNeighbors;
+			for(u_int32_t nodeIndex : nodePath){
+
+				unordered_set<u_int32_t> neighbors;
+				graph->collectNeighbors(nodeIndex, 1000, 1000, neighbors);
+				for(u_int32_t nn : neighbors){
+					u_int32_t unitigIndex = graph->nodeIndex_to_unitigIndex(nn);
+					if(longUnitigs.find(unitigIndex) != longUnitigs.end()) continue;
+					if(longUnitigs.find(graph->unitigIndex_toReverseDirection(unitigIndex)) != longUnitigs.end()) continue;
+					if(longUnitigsNeighbors.find(graph->unitigIndex_toReverseDirection(unitigIndex)) != longUnitigsNeighbors.end()) continue;
+					if(graph->_unitigs[unitigIndex]._length > 8000){
+						longUnitigsNeighbors.insert(unitigIndex);
+					}
+
+				}
+
+
+			}
+			*/
+			/*
+			gzFile file_longUnitigs = gzopen((outputDir + "/debug_longUnitigs.gz").c_str(),"wb");
+			//gzFile file_longUnitigsNeighbors = gzopen((outputDir + "/debug_longUnitigsNeighbors.gz").c_str(),"wb");
+			gzFile file_contigGraphDistance_intra = gzopen((outputDir + "/debug_contigGraphDistances_intra.gz").c_str(),"wb");
+			//gzFile file_contigGraphDistance_inter = gzopen((outputDir + "/debug_contigGraphDistances_inter.gz").c_str(),"wb");
+		
+			//cout << longUnitigs.size() << " " << longUnitigsNeighbors.size() << endl;
+			cout << unitigIndex_intra.size() << endl;
+			
+			for(u_int32_t unitigIndex : unitigIndex_intra){
+				vector<u_int64_t> nodePath_supportingReads;
+				vector<u_int32_t> nodePath = graph->_unitigs[unitigIndex]._nodes;
+				getSupportingReads(nodePath, nodePath_supportingReads);
+
+				u_int64_t size = nodePath.size();
+				gzwrite(file_longUnitigs, (const char*)&size, sizeof(size));
+				gzwrite(file_longUnitigs, (const char*)&nodePath[0], size * sizeof(u_int32_t));
+				gzwrite(file_longUnitigs, (const char*)&nodePath_supportingReads[0], size * sizeof(u_int64_t));
+
+				//unitigIndex_intra.push_back(unitigIndex);
+			}
+			*/
+			/*
+			vector<u_int32_t> unitigIndex_inter;
+			for(u_int32_t unitigIndex : longUnitigsNeighbors){
+				vector<u_int64_t> nodePath_supportingReads;
+				vector<u_int32_t> nodePath = graph->_unitigs[unitigIndex]._nodes;
+				getSupportingReads(nodePath, nodePath_supportingReads);
+
+				u_int64_t size = nodePath.size();
+				gzwrite(file_longUnitigsNeighbors, (const char*)&size, sizeof(size));
+				gzwrite(file_longUnitigsNeighbors, (const char*)&nodePath[0], size * sizeof(u_int32_t));
+				gzwrite(file_longUnitigsNeighbors, (const char*)&nodePath_supportingReads[0], size * sizeof(u_int64_t));
+
+				unitigIndex_inter.push_back(unitigIndex);
+			}*/
+
+			/*
+			vector<vector<u_int32_t>> distanceMatrix_intra(unitigIndex_intra.size(), vector<u_int32_t>(unitigIndex_intra.size()));
+			for(size_t i=0; i<unitigIndex_intra.size(); i++){
+				cout << "--" << endl;
+				for(size_t j=i+1; j<unitigIndex_intra.size(); j++){
+
+					u_int32_t nodeIndex_source = graph->_unitigs[unitigIndex_intra[i]]._endNode;
+					u_int32_t nodeIndex_sink = graph->_unitigs[unitigIndex_intra[j]]._startNode;
+
+					auto it = find(nodePath.begin(), nodePath.end(), nodeIndex_source);
+        			int index_nodeIndex = it - nodePath.begin();
+
+					u_int32_t distance_right = 0;
+					u_int32_t nodeIndex = nodeIndex_source;
+					int index = index_nodeIndex;
+					while(nodeIndex != nodeIndex_sink){
+						index += 1;
+						if(index >= nodePath.size()) index = 0;
+						distance_right += 1;
+						nodeIndex = nodePath[index];
+
+						if(distance_right > nodePath.size()){
+							distance_right = -1;
+							break;
+						}
+					}
+					
+					nodeIndex_source = graph->_unitigs[unitigIndex_intra[i]]._startNode;
+					nodeIndex_sink = graph->_unitigs[unitigIndex_intra[j]]._endNode;
+					it = find(nodePath.begin(), nodePath.end(), nodeIndex_source);
+        			index_nodeIndex = it - nodePath.begin();
+					u_int32_t distance_left = 0;
+					nodeIndex = nodeIndex_source;
+					index = index_nodeIndex;
+					while(nodeIndex != nodeIndex_sink){
+						index -= 1;
+						if(index < 0) index = nodePath.size() - 1;
+						distance_left += 1;
+						nodeIndex = nodePath[index];
+
+						if(distance_left > nodePath.size()){
+							distance_left = -1;
+							break;
+						}
+					}
+					cout << distance_left << " " << distance_right << endl;
+					u_int32_t dist = min(distance_left, distance_right);
+					distanceMatrix_intra[i][j] = dist;
+					distanceMatrix_intra[j][i] = dist;
+					
+					vector<u_int32_t> path;
+					u_int32_t dist1 = graph->shortestPath(graph->_unitigs[unitigIndex_intra[i]]._endNode, graph->_unitigs[unitigIndex_intra[j]]._startNode, path, false, false, true);
+					//u_int32_t dist2 = graph->shortestPath(graph->_unitigs[unitigIndex_intra[i]]._endNode, graph->_unitigs[unitigIndex_intra[j]]._endNode, path, false, false, true);
+					//u_int32_t dist3 = graph->shortestPath(graph->_unitigs[unitigIndex_intra[i]]._startNode, graph->_unitigs[unitigIndex_intra[j]]._startNode, path, false, false, true);
+					//u_int32_t dist4 = graph->shortestPath(graph->_unitigs[unitigIndex_intra[i]]._startNode, graph->_unitigs[unitigIndex_intra[j]]._endNode, path, false, false, true);
+					//u_int32_t dist5 = graph->shortestPath(graph->_unitigs[unitigIndex_intra[i]]._endNode, graph->_unitigs[unitigIndex_intra[j]]._startNode, path, false, false, false);
+					//u_int32_t dist6 = graph->shortestPath(graph->_unitigs[unitigIndex_intra[i]]._endNode, graph->_unitigs[unitigIndex_intra[j]]._endNode, path, false, false, false);
+					//u_int32_t dist7 = graph->shortestPath(graph->_unitigs[unitigIndex_intra[i]]._startNode, graph->_unitigs[unitigIndex_intra[j]]._startNode, path, false, false, false);
+					u_int32_t dist8 = graph->shortestPath(graph->_unitigs[unitigIndex_intra[i]]._startNode, graph->_unitigs[unitigIndex_intra[j]]._endNode, path, false, false, false);
+					//cout << dist1 << " " << dist8 << endl;
+					//cout << dist1 << " " << dist2 << " " << dist3 << " " << dist4 << " " << dist5 << " " << dist6 << " " << dist7 << " " << dist8 << " " << endl;
+				
+					u_int32_t dist = min(dist1, dist8);
+					distanceMatrix_intra[i][j] = dist;
+					distanceMatrix_intra[j][i] = dist;
+					
+				}
+			}
+			*/
+			
+			/*
+			vector<vector<u_int32_t>> distanceMatrix_inter(unitigIndex_intra.size(), vector<u_int32_t>(unitigIndex_inter.size()));
+			for(size_t i=0; i<unitigIndex_intra.size(); i++){
+				for(size_t j=0; j<unitigIndex_inter.size(); j++){
+
+					vector<u_int32_t> path;
+					u_int32_t dist1 = graph->shortestPath(graph->_unitigs[unitigIndex_intra[i]]._endNode, graph->_unitigs[unitigIndex_inter[j]]._startNode, path, false, false, true);
+					//u_int32_t dist2 = graph->shortestPath(graph->_unitigs[unitigIndex_intra[i]]._endNode, graph->_unitigs[unitigIndex_intra[j]]._endNode, path, false, false, true);
+					//u_int32_t dist3 = graph->shortestPath(graph->_unitigs[unitigIndex_intra[i]]._startNode, graph->_unitigs[unitigIndex_intra[j]]._startNode, path, false, false, true);
+					//u_int32_t dist4 = graph->shortestPath(graph->_unitigs[unitigIndex_intra[i]]._startNode, graph->_unitigs[unitigIndex_intra[j]]._endNode, path, false, false, true);
+					//u_int32_t dist5 = graph->shortestPath(graph->_unitigs[unitigIndex_intra[i]]._endNode, graph->_unitigs[unitigIndex_intra[j]]._startNode, path, false, false, false);
+					//u_int32_t dist6 = graph->shortestPath(graph->_unitigs[unitigIndex_intra[i]]._endNode, graph->_unitigs[unitigIndex_intra[j]]._endNode, path, false, false, false);
+					//u_int32_t dist7 = graph->shortestPath(graph->_unitigs[unitigIndex_intra[i]]._startNode, graph->_unitigs[unitigIndex_intra[j]]._startNode, path, false, false, false);
+					u_int32_t dist8 = graph->shortestPath(graph->_unitigs[unitigIndex_intra[i]]._startNode, graph->_unitigs[unitigIndex_inter[j]]._endNode, path, false, false, false);
+					//cout << dist1 << " " << dist8 << endl;
+					//cout << dist1 << " " << dist2 << " " << dist3 << " " << dist4 << " " << dist5 << " " << dist6 << " " << dist7 << " " << dist8 << " " << endl;
+				
+					u_int32_t dist = min(dist1, dist8);
+					distanceMatrix_inter[i][j] = dist;
+				}
+			}*/
+
+			/*
+			for(const vector<u_int32_t>& distances : distanceMatrix_intra){
+				u_int64_t size = distances.size();
+				gzwrite(file_contigGraphDistance_intra, (const char*)&size, sizeof(size));
+				gzwrite(file_contigGraphDistance_intra, (const char*)&distances[0], size * sizeof(u_int32_t));
+			}*/
+
+			/*
+			for(const vector<u_int32_t>& distances : distanceMatrix_inter){
+				u_int64_t size = distances.size();
+				gzwrite(file_contigGraphDistance_inter, (const char*)&size, sizeof(size));
+				gzwrite(file_contigGraphDistance_inter, (const char*)&distances[0], size * sizeof(u_int32_t));
+			}*/
+
+			//gzclose(file_longUnitigs);
+			//gzclose(file_longUnitigsNeighbors);
+			//gzclose(file_contigGraphDistance_intra);
+			//gzclose(file_contigGraphDistance_inter);
 		}
 
 		cout << "Contig size: " << nodePath.size() << endl;
+		
+	
 		/*
 		extendedPathData._index = pathIndex;
 		extendedPathData._nodePath = nodePath;
@@ -8056,9 +8563,11 @@ public:
 	MDBG* _mdbg;
 	GraphSimplify* _graph;
 
+
 	void extract_truth_kminmers_read(kseq_t* read, u_int64_t readIndex){
 		//ottalSize += strlen(read->seq.s);
-								
+
+
 		string rleSequence;
 		vector<u_int64_t> rlePositions;
 		Encoder::encode_rle(read->seq.s, strlen(read->seq.s), rleSequence, rlePositions);
@@ -8107,6 +8616,99 @@ public:
 
 
 	}
+
+
+	/*
+	void extract_unitigCluster(){
+
+
+		ofstream file_output(_inputDir + "/cluster.csv");
+		file_output << "Name,Colour" << endl;
+
+		std::string line;
+		ifstream infile(_inputFilename_unitigCluster);
+
+		int nbLines = 0;
+
+        vector<string>* fields = new vector<string>();
+		
+		while (std::getline(infile, line)){
+
+			if(nbLines == 0){
+				nbLines += 1;
+				continue;
+			}
+			
+			cout << line << endl;
+			GfaParser::tokenize(line, fields, ',');
+
+			u_int32_t unitigName = std::stoull((*fields)[0]);
+			u_int32_t clusterIndex = std::stoull((*fields)[1]);
+			
+			for(auto& it : _debug_nodeName_to_unitigName){
+				u_int32_t nodeName = it.first;
+				u_int32_t unitigName2 = it.second;
+
+				if(unitigName == unitigName2){
+					file_output << nodeName << "," << clusterIndex << endl;
+				}
+			}
+			
+			nbLines += 1;
+		}
+
+		file_output.close();
+	}
+
+	unordered_map<u_int32_t, u_int32_t> _debug_nodeName_to_unitigName;
+	*/
+	/*
+
+	void extract_unitigNt_kminmers_read(kseq_t* read, u_int64_t readIndex){
+		//ottalSize += strlen(read->seq.s);
+								
+		string rleSequence;
+		vector<u_int64_t> rlePositions;
+		Encoder::encode_rle(read->seq.s, strlen(read->seq.s), rleSequence, rlePositions);
+
+		vector<u_int64_t> minimizers;
+		vector<u_int64_t> minimizers_pos;
+		_minimizerParser->parse(rleSequence, minimizers, minimizers_pos);
+
+		vector<KmerVec> kminmers; 
+		vector<ReadKminmer> kminmersInfo;
+		MDBG::getKminmers(_minimizerSize, _kminmerSize, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex, false);
+
+		for(size_t i=0; i<kminmers.size(); i++){
+
+			KmerVec& vec = kminmers[i];
+			//if(_mdbg->_dbg_nodes.find(kminmers[i]) == _mdbg->_dbg_nodes.end()) continue;
+
+			if(_mdbg->_dbg_nodes.find(vec) != _mdbg->_dbg_nodes.end()){
+				u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
+				_debug_nodeName_to_unitigName[nodeName] = readIndex;
+			}
+
+		}
+
+
+	}
+
+
+	void extract_unitigNt_kminmers(){
+
+		_minimizerParser = new MinimizerParser(_minimizerSize, _minimizerDensity);
+		
+		auto fp = std::bind(&Assembly::extract_unitigNt_kminmers_read, this, std::placeholders::_1, std::placeholders::_2);
+		ReadParser readParser(_inputFilename_unitigNt, true);
+		readParser.parse(fp);
+
+		delete _minimizerParser;
+
+
+		cout << "Unitig names: " << _debug_nodeName_to_unitigName.size() << endl;
+	}
+	*/
 
 
 	void extract_truth_kminmers(){

@@ -334,6 +334,8 @@ const string ARG_KMINMER_LENGTH = "k";
 const string ARG_MINIMIZER_DENSITY = "d";
 const string ARG_DEBUG = "debug";
 const string ARG_INPUT_FILENAME_CONTIG = "c";
+const string ARG_INPUT_FILENAME_UNITIG_NT = "unitigNt";
+const string ARG_INPUT_FILENAME_UNITIG_CLUSTER = "cluster";
 
 struct UnitigData{
 	u_int32_t _index;
@@ -680,7 +682,33 @@ public:
 		}
 	}
 
-	static u_int64_t computeSharedReads(const UnitigData& utg1, const UnitigData& utg2, unordered_set<u_int64_t>& removedReadIndex){
+	static u_int64_t computeSharedElements(const vector<u_int32_t>& v1, const vector<u_int32_t>& v2){
+
+		size_t i=0;
+		size_t j=0;
+		u_int64_t nbShared = 0;
+
+		while(i < v1.size() && j < v2.size()){
+
+
+			if(v1[i] == v2[j]){
+				nbShared += 1;
+				i += 1;
+				j += 1;
+			}
+			else if(v1[i] < v2[j]){
+				i += 1;
+			}
+			else{
+				j += 1;
+			}
+
+		}
+
+		return nbShared;
+	}
+
+	static u_int64_t computeSharedReads(const UnitigData& utg1, const UnitigData& utg2){
 
 		//if(utg1._readIndexes.size() == 0 || utg2._readIndexes.size() == 0) return 1;
 		//cout << "------------------- " << utg1._index << endl;
