@@ -682,11 +682,13 @@ public:
 		}
 	}
 
-	static u_int64_t computeSharedElements(const vector<u_int32_t>& v1, const vector<u_int32_t>& v2){
+	static float computeJaccardDistance(const vector<u_int32_t>& v1, const vector<u_int32_t>& v2){
 
 		size_t i=0;
 		size_t j=0;
 		u_int64_t nbShared = 0;
+		u_int64_t nbElements = 0;
+
 
 		while(i < v1.size() && j < v2.size()){
 
@@ -695,17 +697,20 @@ public:
 				nbShared += 1;
 				i += 1;
 				j += 1;
+				nbElements += 1;
 			}
 			else if(v1[i] < v2[j]){
 				i += 1;
+				nbElements += 1;
 			}
 			else{
 				j += 1;
+				nbElements += 1;
 			}
 
 		}
 
-		return nbShared;
+		return 1 - ((float)nbShared) / nbElements;
 	}
 
 	static u_int64_t computeSharedReads(const UnitigData& utg1, const UnitigData& utg2){

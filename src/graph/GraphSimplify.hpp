@@ -2114,6 +2114,7 @@ public:
         unordered_set<u_int64_t> readIndexes_unique;
         for(u_int32_t nodeIndex : nodes){
             const UnitigData& unitigData = unitigDatas[BiGraph::nodeIndex_to_nodeName(nodeIndex)];
+            //cout << unitigData._readIndexes.size() << endl;
             for(u_int64_t readIndex : unitigData._readIndexes){
                 readIndexes_unique.insert(readIndex);
             }
@@ -2760,12 +2761,12 @@ public:
         unordered_set<u_int32_t> validNodes;
         for (auto& nodeIndex : _isNodeValid2){
             u_int32_t nodeName = _graphSuccessors->nodeIndex_to_nodeName(nodeIndex);
-            if(_debug_groundTruthNodeNames.find(nodeName) == _debug_groundTruthNodeNames.end()) continue;
+            //if(_debug_groundTruthNodeNames.find(nodeName) == _debug_groundTruthNodeNames.end()) continue;
             validNodes.insert(nodeName);
         }
         string outputFilename = _outputDir + "/minimizer_graph_sub.gfa";
         GfaParser::rewriteGfa_withoutNodes(_inputGfaFilename, outputFilename, validNodes, _isEdgeRemoved, _graphSuccessors);
-        */         
+        */   
 
 
         _currentUnitigNodes.clear();
@@ -3730,7 +3731,7 @@ getStronglyConnectedComponent_node
         for(const Unitig& unitig : _unitigs){
             //cout << unitig._length << " " << unitig._abundance << endl;
             //if(unitig._index % 2 == 1) continue;
-            if(unitig._length < 100000) continue;
+            if(unitig._length < 10000) continue;
             //if(unitig._abundance < 10) continue; //200
 
             _startingUnitigstest.push_back(unitig);
@@ -5990,8 +5991,8 @@ getStronglyConnectedComponent_node
         //cout << "-----" << endl;
         const UnitigData& source_readIndexes = _unitigDatas2[source_unitigIndex];
 
-		//ofstream file_scc("/home/gats/workspace/run/subgraph.csv");
-		//file_scc << "Name,Colour" << endl;
+		ofstream file_scc("/home/gats/workspace/run/subgraph.csv");
+		file_scc << "Name,Colour" << endl;
 
         unordered_set<u_int32_t> isVisited;
         queue<u_int32_t> queue;
@@ -6007,14 +6008,16 @@ getStronglyConnectedComponent_node
             isVisited.insert(unitigIndex);
 
             const UnitigData& readIndexes = _unitigDatas2[unitigIndex];
+            //cout << _unitigDatas2[unitigIndex]._readIndexes.size() << endl;
 
             u_int32_t nbSharedReads = Utils::computeSharedReads(source_readIndexes, readIndexes);
+            //cout << nbSharedReads << endl;
             //cout << BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex]._endNode) << " " << nbSharedReads << endl;
             //cout << "Shared reads: " << nbSharedReads << " " << readIndexes._readIndexes.size() << " " << source_readIndexes._readIndexes.size() << endl;
             if(nbSharedReads <= 1) continue;
 
             for(u_int32_t nodeIndex : _unitigs[unitigIndex]._nodes){
-                //file_scc << BiGraph::nodeIndex_to_nodeName(nodeIndex) << "," << "red" << endl;
+                file_scc << BiGraph::nodeIndex_to_nodeName(nodeIndex) << "," << "red" << endl;
             }
 
             vector<u_int32_t> successors;
@@ -6024,12 +6027,210 @@ getStronglyConnectedComponent_node
                 queue.push(unitigIndex_nn);
             }
 
+            vector<u_int32_t> predecessors;
+            getPredecessors_unitig(unitigIndex, 0, predecessors);
+            
+            for(u_int32_t unitigIndex_nn : predecessors){
+                queue.push(unitigIndex_nn);
+            }
+
         }
 
-        //file_scc.close();
+        file_scc.close();
 
     }
 
+    bool isEdgeNode(u_int32_t nodeIndex){
+		Unitig& unitig = nodeIndex_to_unitig(nodeIndex);
+        return nodeIndex == unitig._startNode || nodeIndex == unitig._endNode;
+    }
+
+    struct ShortedPathData{
+        u_int32_t _unitigIndex;
+        u_int32_t _distance;
+        //u_int32_t _prevNodeIndex;
+    };
+
+    struct ShortedPathData_Comparator {
+        bool operator()(ShortedPathData const& p1, ShortedPathData const& p2){
+            return p1._distance > p2._distance;
+        }
+    };
+    
+    /*
+    void shortestPath_weighted(u_int32_t source_unitigIndex, u_int32_t sink_unitigIndex, vector<u_int32_t>& path){
+        
+        path.clear();
+        bool found = false;
+
+        unordered_map<u_int32_t, u_int32_t> distances;
+
+        priority_queue< ShortedPathData, vector <ShortedPathData> , ShortedPathData_Comparator> pq;
+
+        pq.push({src, 0, {src}});
+        distances[src] = 0;
+
+        while (!pq.empty() && !found)
+        {
+            
+            ShortedPathData pathData = pq.top();
+            pq.pop();
+
+            u_int32_t u = pathData._nodeIndex;
+
+
+            vector<AdjNode> nodes;
+            for(AdjNode& node : _nodes[BiGraph::nodeName_to_nodeIndex(u, true)]){
+                nodes.push_back(node);
+            }
+            for(AdjNode& node : _nodes[BiGraph::nodeName_to_nodeIndex(u, false)]){
+                nodes.push_back(node);
+            }
+
+
+            //cout << graphInfo->id_to_name(u) << " " << nodes.size() << endl;
+
+            for(AdjNode& node : nodes){
+
+                u_int32_t v = BiGraph::nodeIndex_to_nodeName(node._index);
+                u_int32_t weight = unitigLengths[v] - node._overlap;
+
+                u_int32_t dist = -1;
+                if(distances.find(v) != distances.end()) dist = distances[v];
+
+                if (dist > distances[u] + weight)
+                {
+                    distances[v] = distances[u] + weight;
+                    vector<u_int32_t> p = pathData._path;
+                    p.push_back(v);
+
+                    if(v == dest){
+                        path.clear();
+                        path = p;
+                        found = true;
+                        break;
+                    }
+
+                    //cout << "\tAdd node: " << graphInfo->id_to_name(v) << " " << distances[v] << endl;
+                    pq.push({v, distances[v], p});
+                }
+
+            }
+
+        }
+
+        //cout << path.size() << endl;
+        //printf("Vertex Distance from Source\n");
+        //for (int i = 0; i < V; ++i)
+        //    printf("%d \t\t %d\n", i, distance[i]);
+    }
+    */
+
+    void shortestPath_unitig_weighted(u_int32_t source_unitigIndex, unordered_map<u_int32_t, vector<u_int32_t>>& destPaths, bool includeSource, bool includeSink){
+
+        //u_int32_t sink_unitigIndex_rev = unitigIndex_toReverseDirection(source_unitigIndex);
+
+        //bool found = false;
+        //u_int32_t found_unitigIndex = -1;
+        //path.clear();
+
+        priority_queue< ShortedPathData, vector <ShortedPathData> , ShortedPathData_Comparator> pq;
+        unordered_map<u_int32_t, u_int32_t> dist;
+		unordered_map<u_int32_t, u_int32_t> prev;
+
+        pq.push({source_unitigIndex, 0});
+        dist[source_unitigIndex] = 0;
+        prev[source_unitigIndex] = -1;
+    
+
+        
+        while(!pq.empty()){
+            
+            int u = pq.top()._unitigIndex;
+            pq.pop();
+            
+            //cout << u << " " << pq.size() << endl;
+            vector<u_int32_t> successors;
+            getSuccessors_unitig(u, 0, successors);
+
+            for(u_int32_t v : successors){
+
+                u_int32_t weight = _unitigs[v]._nbNodes;
+                
+                if(dist.find(v) == dist.end()){
+                    dist[v] = -1;
+                }
+
+                if(dist[v] > dist[u] + weight){
+                    
+                    prev[v] = u;
+
+                    u_int32_t unitigIndexDest = -1;
+
+                    if(destPaths.find(v) != destPaths.end()){
+                        unitigIndexDest = v;
+                    }
+                    else if(destPaths.find(unitigIndex_toReverseDirection(v)) != destPaths.end()){
+                        unitigIndexDest = unitigIndex_toReverseDirection(v);
+                    }
+
+                    if(unitigIndexDest != -1){
+                        vector<u_int32_t> path;
+
+                        u_int32_t n = v;
+                        while(n != source_unitigIndex){
+
+
+                            if(n == v){
+                                if(includeSink) path.push_back(n);
+                            }
+                            else{
+                                path.push_back(n);
+                            }
+
+                            n = prev[n];
+                        }
+                        if(includeSource) path.push_back(source_unitigIndex);
+
+                        destPaths[unitigIndexDest] = path;
+
+                    }
+                    //if(v == sink_unitigIndex || v == sink_unitigIndex_rev){
+                    //    found_unitigIndex = v;
+                    //    found = true;
+                    //    break;
+                    //}
+
+                    dist[v] = dist[u] + weight;
+                    pq.push({v, dist[v]});
+                }
+            }
+
+        }
+
+        /*
+        if(found){
+
+            u_int32_t n = found_unitigIndex;
+            while(n != source_unitigIndex){
+
+
+                if(n == found_unitigIndex){
+                    if(includeSink) path.push_back(n);
+                }
+                else{
+                    path.push_back(n);
+                }
+
+                n = prev[n];
+            }
+            if(includeSource) path.push_back(source_unitigIndex);
+
+            //return distance[sink_unitigIndex];
+        }
+        */
+
+    }
     
     /*
     void create_dfs_order(u_int32_t source_nodeIndex, vector<u_int32_t>& order){

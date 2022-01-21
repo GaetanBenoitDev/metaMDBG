@@ -14,8 +14,12 @@ public:
 	unordered_map<u_int32_t, DnaBitset*> _nodeNameToSequence_left;
 	unordered_map<u_int32_t, DnaBitset*> _nodeNameToSequence_right;
 
-	ToBasespaceOnTheFly(const string& inputDir){
+	ToBasespaceOnTheFly(){
 
+
+	}
+
+	void create(const string& inputDir){
 		_inputDir = inputDir;
 
 		cout << "Loading kminmer sequences" << endl;
