@@ -35,6 +35,9 @@ def main(argv):
     mg_threshold = 0.5 #length threshold to consider marker genes
     min_length = 1000 #minimum length of contigs to consider for compositional probability
 
+    canClusterContigs = False
+
+    nbLongContigs = 0
     contigLengths = {}
     #contigIndex = 0
     contigName_to_contigIndex = {}
@@ -43,6 +46,10 @@ def main(argv):
         contigName_to_contigIndex[header] = contigIndex
         #contigIndex += 1
         contigLengths[contigIndex] = len(seq)
+        if len(seq) > 75000: nbLongContigs += 1
+
+    if nbLongContigs > 1:
+        canClusterContigs = True
 
     print(contigName_to_contigIndex)
     print(contigLengths.keys())
@@ -64,7 +71,7 @@ def main(argv):
         checkIsSingleSpecies(contigFilename, nodeToContigFilename, mg_threshold, min_length, nbCores, contigName_to_contigIndex, contigLengths)
     else:
         annotate(contigFilename, nodeToContigFilename, False, mg_threshold, min_length, nbCores, contigName_to_contigIndex, contigLengths)
-        computeScgClusters(contigFilename, nodeToContigFilename, mg_threshold, min_length, nbCores, contigName_to_contigIndex, contigLengths)
+        computeScgClusters(contigFilename, nodeToContigFilename, mg_threshold, min_length, nbCores, contigName_to_contigIndex, contigLengths, canClusterContigs)
 
 def getUnitigToNodenames(nodeToContigFilename):
 
@@ -288,55 +295,6 @@ def annotate(contigFilename, nodeToContigFilename, annotateOnly, mg_length_thres
 
     #print(len(scgSequencesNames))
     scgSequenceFile.close()
-
-
-    """
-    nbSpecies = 0
-    if len(marker_contig_counts) > 0:
-        nbSpecies = int(statistics.median(marker_contig_counts.values()))
-
-    print("Predicted nb species: ", nbSpecies)
-    if nbSpecies > 1:
-        
-        distanceMatrixFilename = contigFilename + "._distanceMatrixComposition.csv.gz";
-        compositionCommand = "/home/gats/workspace/tools/computeUnitigAbundance/build/bin/Bloocoo -file " + contigFilename + " -abd ~/workspace/run/shortreads/unitigs/depth_input.txt"
-        print(compositionCommand)
-        ret = os.system(compositionCommand)
-        if ret != 0:
-            print("Command failed: ", ret)
-
-        contigClusterFilename = distanceMatrixFilename + ".csv"
-        clusterCommand = "Rscript " + scriptDir + "/clusterContigsComposition.r " + distanceMatrixFilename + " " + str(nbSpecies)
-        print(clusterCommand)
-        ret = os.system(clusterCommand)
-        if ret != 0:
-            print("Command failed: ", ret)
-
-
-
-        #clusterToNodenameCommand = "python3 " + scriptDir + "/unitigCluster_to_nodeName.py " + nodeToContigFilename + " "  ~/workspace/run/distance_matrix_composition.csv.gz.csv"
-
-        if ret == 0: #Composition clustering can bug if distance matrix is empty (there is no contig of length >75k for isntance)
-            clusterFilename = nodeToContigFilename.replace("Color", "Cluster")
-            outputFile = open(clusterFilename, "w")
-            outputFile.write("Name,Color\n")
-
-            contigClusterFile = open(contigClusterFilename)
-            contigClusterFile.readline()
-            
-            for line in contigClusterFile:
-                line = line.rstrip()
-                fields = line.split(",")
-
-                unitigName = int(fields[0])
-                cluster = int(fields[1])
-
-                for nodeName in unitigToNodenames[unitigName]:
-                    outputFile.write(str(nodeName) + "," + str(cluster) + "\n")
-
-            outputFile.close()
-
-    """
     
     return marker_contig_counts
 
@@ -353,6 +311,16 @@ def computeCompletenessContamination(marker_contig_counts):
     contamination = float(nbContaminatedScgs) / float(107)
 
     return completeness, contamination
+
+def estimateNbSpecies(marker_contig_counts):
+
+    vals = []
+
+    for markerName, markerCounts in marker_contig_counts.items():
+        vals.append(markerCounts[0])
+
+    return int(statistics.median(vals))
+
 
 def computeCompletenessContamination2(marker_contig_counts):
 
@@ -460,8 +428,10 @@ def computeCompletenessContamination2(marker_contig_counts):
     logger.debug(bins)
     """
 
-def computeScgClusters(contigFilename, nodeToContigFilename, mg_length_threshold, min_length, nbCores, contigName_to_contigIndex, contigLengths):
+def computeScgClusters(contigFilename, nodeToContigFilename, mg_length_threshold, min_length, nbCores, contigName_to_contigIndex, contigLengths, canClusterContigs):
 
+    scriptDir = os.path.dirname(os.path.realpath(__file__))
+    
     unitigToNodenames = getUnitigToNodenames(nodeToContigFilename)
 
 
@@ -530,6 +500,59 @@ def computeScgClusters(contigFilename, nodeToContigFilename, mg_length_threshold
 
     scgClusterFile.close()
     scgClusterFile_contig.close()
+
+
+
+
+
+    if canClusterContigs:
+
+        nbSpecies = 0
+        if len(cluster_per_scg) > 0:
+            nbSpecies = estimateNbSpecies(cluster_per_scg)
+
+        print("Predicted nb species: ", nbSpecies)
+
+        if nbSpecies >= 1:
+            
+            distanceMatrixFilename = contigFilename + "._distanceMatrixComposition.csv.gz";
+            compositionCommand = "/home/gats/workspace/tools/computeUnitigAbundance/build/bin/Bloocoo -file " + contigFilename + " -abd ~/workspace/run/shortreads/unitigs/depth_input.txt"
+            print(compositionCommand)
+            ret = os.system(compositionCommand)
+            if ret != 0:
+                print("Command failed: ", ret)
+
+            contigClusterFilename = distanceMatrixFilename + ".csv"
+            clusterCommand = "Rscript " + scriptDir + "/clusterContigsComposition.r " + distanceMatrixFilename + " " + str(nbSpecies)
+            print(clusterCommand)
+            ret = os.system(clusterCommand)
+            if ret != 0:
+                print("Command failed: ", ret)
+
+
+
+            #clusterToNodenameCommand = "python3 " + scriptDir + "/unitigCluster_to_nodeName.py " + nodeToContigFilename + " "  ~/workspace/run/distance_matrix_composition.csv.gz.csv"
+
+            if ret == 0: #Composition clustering can bug if distance matrix is empty (there is no contig of length >75k for isntance)
+                clusterFilename = nodeToContigFilename.replace("Color", "Cluster")
+                outputFile = open(clusterFilename, "w")
+                outputFile.write("Name,Color\n")
+
+                contigClusterFile = open(contigClusterFilename)
+                contigClusterFile.readline()
+                
+                for line in contigClusterFile:
+                    line = line.rstrip()
+                    fields = line.split(",")
+
+                    unitigName = int(fields[0])
+                    cluster = int(fields[1])
+
+                    for nodeName in unitigToNodenames[unitigName]:
+                        outputFile.write(str(nodeName) + "," + str(cluster) + "\n")
+
+                outputFile.close()
+
 
     return cluster_per_scg
     """

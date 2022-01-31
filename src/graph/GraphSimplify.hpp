@@ -107,6 +107,7 @@ public:
 
     vector<Bubble> _bubbles;
     unordered_set<u_int32_t> _isNodeInvalid_tmp;
+    unordered_set<u_int32_t> _isUnitigInvalid_tmp;
     //GraphSimplify::SuperbubbleSimplify* _superbubbleSimplify;
     //u_int32_t _lastAbundanceCutoff;
     unordered_map<u_int32_t, ComplexArea> _complexAreas_source; 
@@ -121,6 +122,7 @@ public:
     unordered_set<u_int32_t> _debug_groundTruthNodeNames;
 	vector<UnitigData> _unitigDatas2;
     unordered_set<u_int64_t> _rareReads;
+    unordered_set<u_int32_t> _repeatedNodenames;
 
     GraphSimplify(const string& inputGfaFilename, const string& outputDir, u_int32_t nbNodes){
         _inputGfaFilename = inputGfaFilename;
@@ -217,6 +219,7 @@ public:
 
     void clear(float abundanceCutoff_min){
 
+        _repeatedNodenames.clear();
         _rareReads.clear();
         _isBoundUnitig.clear();
         _removedReadIndex.clear();
@@ -225,6 +228,7 @@ public:
         _longUnitigNodeAbundance.clear();
         _isNodeInvalid_tmp.clear();
         _isNodeValid2.clear();
+        _isUnitigInvalid_tmp.clear();
 
         for(size_t nodeIndex=0; nodeIndex<_graphSuccessors->_nbNodes; nodeIndex++){
 
@@ -1892,11 +1896,36 @@ public:
             cout << BiGraph::nodeIndex_to_nodeName(pred[0]) << endl; 
             getchar();
         }*/
+        bool isRepeat = false;
+
+        if(_repeatedNodenames.size() > 0 && _repeatedNodenames.find(BiGraph::nodeIndex_to_nodeName(nodeIndex)) != _repeatedNodenames.end()){
+            isRepeat = true;
+        }
 
         //forward
         while(true){
             //cout << endNode << " " << nodeIndex << endl;
             getSuccessors(endNode, 0, neighbors);
+
+            if(_repeatedNodenames.size() > 0){
+                bool isInvalid = false;
+                for(u_int32_t nodeIndex : neighbors){
+                    if(isRepeat){
+                        if(_repeatedNodenames.find(BiGraph::nodeIndex_to_nodeName(nodeIndex)) == _repeatedNodenames.end()){
+                            isInvalid = true;
+                            break;
+                        }
+                    }
+                    else{
+                        if(_repeatedNodenames.find(BiGraph::nodeIndex_to_nodeName(nodeIndex)) != _repeatedNodenames.end()){
+                            isInvalid = true;
+                            break;
+                        }
+                    }
+                }
+                if(isInvalid) break;
+            }
+
             //cout << "lala1: " << neighbors.size() << endl;
             if(neighbors.size() != 1) break;
             if(neighbors[0] == nodeIndex){
@@ -1912,6 +1941,25 @@ public:
             //cout << BiGraph::nodeIndex_to_nodeName(successor) << " " << neighbors.size() << endl;
             //cout << "lala2: " << neighbors.size() << endl;
             if(neighbors.size() != 1) break;
+
+            if(_repeatedNodenames.size() > 0){
+                bool isInvalid = false;
+                for(u_int32_t nodeIndex : neighbors){
+                    if(isRepeat){
+                        if(_repeatedNodenames.find(BiGraph::nodeIndex_to_nodeName(nodeIndex)) == _repeatedNodenames.end()){
+                            isInvalid = true;
+                            break;
+                        }
+                    }
+                    else{
+                        if(_repeatedNodenames.find(BiGraph::nodeIndex_to_nodeName(nodeIndex)) != _repeatedNodenames.end()){
+                            isInvalid = true;
+                            break;
+                        }
+                    }
+                }
+                if(isInvalid) break;
+            }
 
             //cout << successor << " " << neighbors[0] << endl;
 
@@ -1929,6 +1977,26 @@ public:
                 getPredecessors(startNode, 0, neighbors);
                 //cout << "loulou1: " << neighbors.size() << endl;
                 if(neighbors.size() != 1) break;
+
+                if(_repeatedNodenames.size() > 0){
+                    bool isInvalid = false;
+                    for(u_int32_t nodeIndex : neighbors){
+                        if(isRepeat){
+                            if(_repeatedNodenames.find(BiGraph::nodeIndex_to_nodeName(nodeIndex)) == _repeatedNodenames.end()){
+                                isInvalid = true;
+                                break;
+                            }
+                        }
+                        else{
+                            if(_repeatedNodenames.find(BiGraph::nodeIndex_to_nodeName(nodeIndex)) != _repeatedNodenames.end()){
+                                isInvalid = true;
+                                break;
+                            }
+                        }
+                    }
+                    if(isInvalid) break;
+                }
+
                 //if(neighbors[0] == nodeIndex){
                 //    startNode = neighbors[0];
                 //    break; //Circular, todo: don't need to backward if circular
@@ -1940,6 +2008,25 @@ public:
                 getSuccessors(predecessor, 0, neighbors);
                 //cout << "loulou2: " << neighbors.size() << endl;
                 if(neighbors.size() != 1) break;
+
+                if(_repeatedNodenames.size() > 0){
+                    bool isInvalid = false;
+                    for(u_int32_t nodeIndex : neighbors){
+                        if(isRepeat){
+                            if(_repeatedNodenames.find(BiGraph::nodeIndex_to_nodeName(nodeIndex)) == _repeatedNodenames.end()){
+                                isInvalid = true;
+                                break;
+                            }
+                        }
+                        else{
+                            if(_repeatedNodenames.find(BiGraph::nodeIndex_to_nodeName(nodeIndex)) != _repeatedNodenames.end()){
+                                isInvalid = true;
+                                break;
+                            }
+                        }
+                    }
+                    if(isInvalid) break;
+                }
 
                 //cout << predecessor << " " << neighbors[0] << endl;
 
@@ -2491,18 +2578,22 @@ public:
         //cout << unitigIndex << " " << _unitigs.size() << endl;
         successors.clear();
 
+        //cout << "a" << endl;
         Unitig& unitig = _unitigs[unitigIndex];
 
+        //cout << "b" << endl;
         //cout << (unitig._endNode == -1)<< endl;
         //cout << BiGraph::nodeIndex_to_nodeName(unitig._endNode) << endl;
         vector<u_int32_t> successors_nodeIndex;
         getSuccessors(unitig._endNode, 0, successors_nodeIndex);
             
+        //cout << "c" << endl;
 
         for(u_int32_t nodeIndex : successors_nodeIndex){
 
             if(_nodeToUnitig.find(nodeIndex) == _nodeToUnitig.end()) continue; //reinserting bubble
             if(_isNodeInvalid_tmp.find(nodeIndex_to_unitigIndex(nodeIndex)) != _isNodeInvalid_tmp.end()) continue;
+            if(_isUnitigInvalid_tmp.find(nodeIndex_to_unitigIndex(nodeIndex)) != _isUnitigInvalid_tmp.end()) continue;
 
             //if(nodeIndex_to_unitigIndex(nodeIndex) == nodeIndex_to_unitigIndex(BiGraph::nodeName_to_nodeIndex(1302, true))) cout << "hhhhhhha" << endl;
             //if(nodeIndex_to_unitigIndex(nodeIndex) == nodeIndex_to_unitigIndex(BiGraph::nodeName_to_nodeIndex(1302, false))) cout << "hhhhhhha" << endl;
@@ -2512,6 +2603,8 @@ public:
 
             successors.push_back(nodeIndex_to_unitigIndex(nodeIndex));
         }
+
+        //cout << "d" << endl;
     }
 
     void getPredecessors_unitig(u_int32_t unitigIndex, float abundanceCutoff, vector<u_int32_t>& predecessors){
@@ -2527,6 +2620,7 @@ public:
 
             if(_nodeToUnitig.find(nodeIndex) == _nodeToUnitig.end()) continue; //reinserting bubble
             if(_isNodeInvalid_tmp.find(nodeIndex_to_unitigIndex(nodeIndex)) != _isNodeInvalid_tmp.end()) continue;
+            if(_isUnitigInvalid_tmp.find(nodeIndex_to_unitigIndex(nodeIndex)) != _isUnitigInvalid_tmp.end()) continue;
 
             predecessors.push_back(nodeIndex_to_unitigIndex(nodeIndex));
         }
@@ -4302,6 +4396,67 @@ getStronglyConnectedComponent_node
 
     }
     
+    void saveGraph(const string& outputFilename, unordered_set<DbgEdge, hash_pair>& addedEdges){
+
+        unordered_set<u_int32_t> validNodes;
+        for (auto& nodeIndex : _isNodeValid2){
+            u_int32_t nodeName = _graphSuccessors->nodeIndex_to_nodeName(nodeIndex);
+            //if(_debug_groundTruthNodeNames.find(nodeName) == _debug_groundTruthNodeNames.end()) continue;
+            validNodes.insert(nodeName);
+        }
+        
+        GfaParser::rewriteGfa_withoutNodes(_inputGfaFilename, outputFilename, validNodes, _isEdgeRemoved, _graphSuccessors);
+    }
+
+    void saveGraph2(const string& outputFilename, unordered_set<u_int32_t>& componentOnly){
+
+        cout << "Saving graph: " << outputFilename << endl;
+
+	    ofstream outputFile(outputFilename);
+
+        unordered_set<u_int32_t> nodeNames;
+
+        vector<u_int32_t> successors;
+        for (u_int32_t nodeIndex : _isNodeValid2){
+
+            u_int32_t unitigIndex = nodeIndex_to_unitigIndex(nodeIndex);
+            if(componentOnly.find(unitigIndex) == componentOnly.end()) continue;
+
+            bool ori;
+            u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex, ori); 
+
+            string ori_str = "+";
+            if(!ori) ori_str = "-";
+
+            nodeNames.insert(nodeName);
+
+            getSuccessors(nodeIndex, 0, successors);
+            
+            for(u_int32_t nodeIndex_succ : successors){
+                bool ori2;
+                u_int32_t nodeName2 = BiGraph::nodeIndex_to_nodeName(nodeIndex_succ, ori2); 
+
+                string ori_str2 = "+";
+                if(!ori2) ori_str2 = "-";
+
+                outputFile << "L" << "\t" << nodeName << "\t" << ori_str << "\t" << nodeName2 << "\t" << ori_str2 << "\t" <<  _graphSuccessors->getOverlap(nodeIndex, nodeIndex_succ) << "M" << endl;
+            }
+            //L	41056	+	51634	+	481M
+        }
+
+        for(u_int32_t nodeName : nodeNames){
+
+
+            outputFile << "S" << "\t" << nodeName << "\t" << "*" << "\t" << "LN:i:" << _nodeLengths[nodeName] << "\t" << "dp:i:" << _nodeAbundances[nodeName] << endl;
+            //S	41064	*	LN:i:676	dp:i:33
+        }
+
+        outputFile.close();
+
+        cout << "done" << endl;
+        
+    }
+
     void getConnectedComponent(u_int32_t nodeIndex_source, unordered_set<u_int32_t>& component){
 
         component.clear();
@@ -4358,6 +4513,66 @@ getStronglyConnectedComponent_node
                 component.insert(unitigIndex_neighbor);
                 //component.push_back(nodeIndex_neighbor);
             }
+        }
+
+    }
+
+    void getConnectedComponent_unitig(u_int32_t unitigIndex_source, unordered_set<u_int32_t>& component){
+
+        //cout << "-----" << endl;
+        //cout << unitigIndex_source << endl;
+        component.clear();
+
+        queue <u_int32_t> queue;
+
+        queue.push(unitigIndex_source);
+
+        while (!queue.empty()){
+
+            u_int64_t unitigIndex = queue.front();
+            queue.pop();
+
+            //cout << unitigIndex << endl;
+            if(_unitigs[unitigIndex]._startNode == -1 || _unitigs[unitigIndex_toReverseDirection(unitigIndex)]._startNode == -1){
+                cout << "lala" << endl;
+                cout << _unitigs[unitigIndex]._index << " " << _unitigs[unitigIndex_toReverseDirection(unitigIndex)]._index << endl;
+                cout << _unitigs[unitigIndex]._startNode << " " << _unitigs[unitigIndex_toReverseDirection(unitigIndex)]._startNode << endl;
+                getchar();
+            }
+            if(_unitigs[unitigIndex]._startNode == -1) continue;
+            if(_unitigs[unitigIndex_toReverseDirection(unitigIndex)]._startNode == -1) continue;
+            //if(_unitigs[unitigIndex_toReverseDirection(unitigIndex)]._startNode == -1) continue;
+
+
+            if (component.find(unitigIndex) != component.end()) continue;
+
+            //cout << "Start: " << unitigIndex << " " << unitigIndex_toReverseDirection(unitigIndex) << endl;
+            //cout << _unitigs[unitigIndex]._startNode << " " << _unitigs[unitigIndex_toReverseDirection(unitigIndex)]._startNode << endl;
+            //cout << "1" << endl;
+
+            component.insert(unitigIndex);
+            component.insert(unitigIndex_toReverseDirection(unitigIndex));
+
+
+            //cout << "2" << endl;
+            vector<u_int32_t> successors;
+
+            getSuccessors_unitig(unitigIndex, 0, successors);
+            for(u_int32_t unitigIndex_nn : successors) queue.push(unitigIndex_nn);
+
+            //cout << "3" << endl;
+            getPredecessors_unitig(unitigIndex, 0, successors);
+            for(u_int32_t unitigIndex_nn : successors) queue.push(unitigIndex_nn);
+
+            //cout << "4" << endl;
+            getSuccessors_unitig(unitigIndex_toReverseDirection(unitigIndex), 0, successors);
+            for(u_int32_t unitigIndex_nn : successors) queue.push(unitigIndex_nn);
+
+            //cout << "5" << endl;
+            getPredecessors_unitig(unitigIndex_toReverseDirection(unitigIndex), 0, successors);
+            for(u_int32_t unitigIndex_nn : successors) queue.push(unitigIndex_nn);
+
+            //cout << "6" << endl;
         }
 
     }
@@ -6126,8 +6341,24 @@ getStronglyConnectedComponent_node
     }
     */
 
-    void shortestPath_unitig_weighted(u_int32_t source_unitigIndex, unordered_map<u_int32_t, vector<u_int32_t>>& destPaths, bool includeSource, bool includeSink){
+    ofstream file_scc;
 
+    void shortestPath_unitig_weighted(u_int32_t source_unitigIndex, unordered_map<u_int32_t, vector<u_int32_t>>& destPaths, bool includeSource, bool includeSink, u_int32_t pass){
+
+        
+        //cout << "-----" << endl;
+
+        unordered_set<u_int32_t> dests;
+        for(const auto& destPath : destPaths){
+            dests.insert(destPath.first);
+            //cout << source_unitigIndex << " -> " << destPath.first << endl;
+        }
+        //getchar();
+       
+        //if(pass == 60){
+        //    file_scc.open("/home/gats/workspace/run/scc.csv");
+		//	file_scc << "Name,Colour" << endl;
+        //}
         //u_int32_t sink_unitigIndex_rev = unitigIndex_toReverseDirection(source_unitigIndex);
 
         //bool found = false;
@@ -6143,17 +6374,40 @@ getStronglyConnectedComponent_node
         prev[source_unitigIndex] = -1;
     
 
-        
+
         while(!pq.empty()){
             
             int u = pq.top()._unitigIndex;
             pq.pop();
             
+            //cout << u << endl;
+            if(_unitigs[u]._startNode == -1) continue;
+            
+            if(dests.find(u) != dests.end() || dests.find(unitigIndex_toReverseDirection(u)) != dests.end()){
+                dests.erase(u);
+            }
+            //cout << dests.size() << " " << prev.size() << endl;
+            if(dests.size() == 0) break;
+
+            //if(pass == 60){
+            //    for(u_int32_t nodeIndex : _unitigs[u]._nodes){
+            //        file_scc << BiGraph::nodeIndex_to_nodeName(nodeIndex) << "," << "red" << endl;
+            //    }
+            //}
+
+
             //cout << u << " " << pq.size() << endl;
             vector<u_int32_t> successors;
             getSuccessors_unitig(u, 0, successors);
+            vector<u_int32_t> predecessors;
+            getPredecessors_unitig(u, 0, predecessors);
 
-            for(u_int32_t v : successors){
+            vector<u_int32_t> neighbors;
+            neighbors.insert(neighbors.end(), successors.begin(), successors.end());
+            neighbors.insert(neighbors.end(), predecessors.begin(), predecessors.end());
+
+
+            for(u_int32_t v : neighbors){
 
                 u_int32_t weight = _unitigs[v]._nbNodes;
                 
@@ -6207,6 +6461,12 @@ getStronglyConnectedComponent_node
             }
 
         }
+
+        //if(pass == 60){
+        //    cout << "debug done" << endl;
+        //    file_scc.close();
+        //    getchar();
+        //}
 
         /*
         if(found){

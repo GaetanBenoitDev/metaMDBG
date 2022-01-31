@@ -804,6 +804,17 @@ public:
         return true;
     }
 
+    bool addEdge(u_int32_t nodeIndex_from, u_int32_t nodeIndex_to){
+
+        //u_int32_t nodeIndex_from = nodeName_to_nodeIndex(from, fromOrient);
+        //u_int32_t nodeIndex_to = nodeName_to_nodeIndex(to, toOrient);
+        u_int16_t overlap = 200;
+
+        _nodes[nodeIndex_from].push_back({nodeIndex_to, overlap});//getAdjListNode(nodeIndex_to, weight, _nodes[nodeIndex_from]);
+        _nbEdges += 1;
+
+        return true;
+    }
 
     bool addEdge_debug(u_int32_t from, u_int32_t to){
 
@@ -841,6 +852,7 @@ public:
     bool removeEdge(u_int32_t nodeIndex_from, u_int32_t nodeIndex_to){
 
         vector<AdjNode>& successors = _nodes[nodeIndex_from];
+
         // Traversing through the first vector list
         // and removing the second element from it
         for (size_t i=0; i < successors.size(); i++) {

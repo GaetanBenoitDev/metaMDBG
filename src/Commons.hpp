@@ -713,6 +713,31 @@ public:
 		return 1 - ((float)nbShared) / nbElements;
 	}
 
+	static u_int64_t computeSharedReads(const vector<u_int64_t>& reads1, const vector<u_int64_t>& reads2){
+
+		size_t i=0;
+		size_t j=0;
+		u_int64_t nbShared = 0;
+
+		while(i < reads1.size() && j < reads2.size()){
+
+			if(reads1[i] == reads2[j]){
+				nbShared += 1;
+				i += 1;
+				j += 1;
+			}
+			else if(reads1[i] < reads2[j]){
+				i += 1;
+			}
+			else{
+				j += 1;
+			}
+
+		}
+
+		return nbShared;
+	}
+
 	static u_int64_t computeSharedReads(const UnitigData& utg1, const UnitigData& utg2){
 
 		//if(utg1._readIndexes.size() == 0 || utg2._readIndexes.size() == 0) return 1;
@@ -756,7 +781,33 @@ public:
 		return nbShared;
 	}
 
-	
+	static u_int64_t collectSharedReads(const vector<u_int64_t>& reads1, const vector<u_int64_t>& reads2, vector<u_int64_t>& sharedReads){
+
+		sharedReads.clear();
+
+		size_t i=0;
+		size_t j=0;
+		u_int64_t nbShared = 0;
+
+		while(i < reads1.size() && j < reads2.size()){
+			if(reads1[i] == reads2[j]){
+				sharedReads.push_back(reads1[i]);
+				nbShared += 1;
+				i += 1;
+				j += 1;
+			}
+			else if(reads1[i] < reads2[j]){
+				i += 1;
+			}
+			else{
+				j += 1;
+			}
+
+		}
+
+		return nbShared;
+	}
+
 	static u_int64_t collectSharedReads(const UnitigData& utg1, const UnitigData& utg2, vector<u_int64_t>& sharedReads){
 
 		sharedReads.clear();
