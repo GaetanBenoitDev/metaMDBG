@@ -80,8 +80,8 @@ ToBasespaceOnTheFly: en théorie, on peut reconstruire la partie manquante des c
 #include "graph/GfaParser.hpp"
 #include "graph/GraphSimplify.hpp"
 #include "eval/ContigStatistics.hpp"
-#include "toBasespace/ToBasespaceOnTheFly.hpp";
-
+#include "toBasespace/ToBasespaceOnTheFly.hpp"
+#include "contigFeatures/ContigFeature.hpp"
 
 const u_int32_t LONG_UNITIG_LENGTH = 10000;
 const u_int32_t MIN_SUPPORTED_READS = 2;
@@ -926,6 +926,7 @@ public:
 	MDBG* _mdbg;
 	GraphSimplify* _graph;
 	ToBasespaceOnTheFly _toBasespace;
+	ContigFeature _contigFeature;
 	string _gfaFilename;
 
 	Assembly2(): Tool (){
@@ -937,6 +938,8 @@ public:
 	}
 
 	void execute (){
+
+		_contigFeature.computeFastaComposition("/home/gats/workspace/run/overlap_test_AD_k7/binByCutoff/component_16_unitigs.fasta");
 
 		_outputContigFile = gzopen(_outputFilename.c_str(),"wb");
 		_outputContigFile_complete = gzopen(_outputFilename_complete.c_str(),"wb");
@@ -1733,6 +1736,7 @@ public:
 		}
 
 		delete fields;
+		infile.close();
 	}
 
 	void writeScgDebug(const string& contigFilename, unordered_set<u_int32_t>& component){

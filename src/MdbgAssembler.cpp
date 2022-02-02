@@ -4,6 +4,7 @@
 #include "toBasespace/ToMinspace.hpp"
 #include "pipeline/AssemblyPipeline.hpp"
 #include "readSelection/ReadSelection.hpp"
+#include "contigFeatures/KminmerCounter.hpp"
 
 void displayHelp(){
 	cout << "Usage: ./simkaMin [option]" << endl;
@@ -81,6 +82,9 @@ int main (int argc, char* argv[])
     		}
     		else if(programName == "toMinspace"){
                 ToMinspace().run (argc, args);
+    		}
+    		else if(programName == "count"){
+                KminmerCounter().run (argc, args);
     		}
     		else{
     			displayHelp();

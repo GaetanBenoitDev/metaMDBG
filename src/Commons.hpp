@@ -1943,63 +1943,6 @@ public:
 };
 
 
-class ReadParser{
-public:
-
-	string _inputFilename;
-	bool _isFile;
-
-	ReadParser(const string& inputFilename, bool isFile){
-		_inputFilename = inputFilename;
-		_isFile = isFile;
-	}
-
-	void parse(const std::function<void(kseq_t*, u_int64_t)>& fun){
-
-		u_int64_t readIndex = 0;
-
-		if(_isFile){
-			gzFile fp;
-			kseq_t *seq;
-			int slen = 0, qlen = 0;
-			fp = gzopen(_inputFilename.c_str(), "r");
-			seq = kseq_init(fp);
-
-			while (kseq_read(seq) >= 0){
-				fun(seq, readIndex);
-				readIndex += 1;
-			}
-				
-			gzclose(fp);
-		}
-		else{
-			std::ifstream infile(_inputFilename.c_str());
-			std::string line;
-
-			while (std::getline(infile, line))
-			{
-				cout << line << endl;
-
-				gzFile fp;
-				kseq_t *seq;
-				int slen = 0, qlen = 0;
-				fp = gzopen(line.c_str(), "r");
-				seq = kseq_init(fp);
-
-				while (kseq_read(seq) >= 0){
-					fun(seq, readIndex);
-					readIndex += 1;
-				}
-					
-				gzclose(fp);
-			}
-		}
-
-	}
-
-};
-
-
 class MinimizerParser{
 
 public:
@@ -2032,8 +1975,11 @@ public:
 		//100000 3278692
 		//200000 6550207
 		//300000 9827077
+
 		vector<u_int64_t> kmers;
 		_kmerModel->iterate(seq.c_str(), seq.size(), kmers);
+
+		if(kmers.size() == 0) return;
 
 		for(u_int64_t pos=1; pos<kmers.size()-1; pos++){
 
@@ -2084,6 +2030,182 @@ public:
 	}
 
 };
+
+
+class ReadParser{
+public:
+
+	string _inputFilename;
+	bool _isFile;	
+	size_t _l;
+	size_t _k;
+	float _density;
+
+	ReadParser(const string& inputFilename, bool isFile){
+		_inputFilename = inputFilename;
+		_isFile = isFile;
+	}
+
+
+	ReadParser(const string& inputFilename, bool isFile, size_t l, size_t k, float density){
+		_inputFilename = inputFilename;
+		_isFile = isFile;
+		_l = l;
+		_k = k;
+		_density = density;
+	}
+
+	u_int64_t getNbDatasets(){
+
+		u_int64_t nbDatasets = 0;
+
+		std::ifstream infile(_inputFilename.c_str());
+		std::string line;
+
+		while (std::getline(infile, line)){
+			fs::path path(line);
+			if(fs::exists (path)) nbDatasets += 1;
+		}
+
+		return nbDatasets;
+	}
+
+	void parse(const std::function<void(kseq_t*, u_int64_t)>& fun){
+
+		u_int64_t readIndex = 0;
+
+		if(_isFile){
+			gzFile fp;
+			kseq_t *seq;
+			int slen = 0, qlen = 0;
+			fp = gzopen(_inputFilename.c_str(), "r");
+			seq = kseq_init(fp);
+
+			while (kseq_read(seq) >= 0){
+				fun(seq, readIndex);
+				readIndex += 1;
+			}
+				
+			gzclose(fp);
+		}
+		else{
+			std::ifstream infile(_inputFilename.c_str());
+			std::string line;
+
+			while (std::getline(infile, line))
+			{
+				cout << line << endl;
+
+				gzFile fp;
+				kseq_t *seq;
+				int slen = 0, qlen = 0;
+				fp = gzopen(line.c_str(), "r");
+				seq = kseq_init(fp);
+
+				while (kseq_read(seq) >= 0){
+					fun(seq, readIndex);
+					readIndex += 1;
+				}
+					
+				gzclose(fp);
+			}
+		}
+
+	}
+
+
+	void parseKminmers(const std::function<void(vector<KmerVec>, vector<ReadKminmer>, u_int64_t, u_int64_t)>& fun){
+
+		MinimizerParser* _minimizerParser = new MinimizerParser(_l, _density);
+
+		u_int64_t readIndex = 0;
+		u_int64_t datasetIndex = 0;
+
+		
+		if(_isFile){
+			gzFile fp;
+			kseq_t *read;
+			int slen = 0, qlen = 0;
+			fp = gzopen(_inputFilename.c_str(), "r");
+			read = kseq_init(fp);
+
+			while (kseq_read(read) >= 0){
+
+				//cout << readIndex << " " << read->name.s << endl;
+				string rleSequence;
+				vector<u_int64_t> rlePositions;
+				Encoder::encode_rle(read->seq.s, strlen(read->seq.s), rleSequence, rlePositions);
+
+				vector<u_int64_t> minimizers;
+				vector<u_int64_t> minimizers_pos;
+				_minimizerParser->parse(rleSequence, minimizers, minimizers_pos);
+
+				vector<KmerVec> kminmers; 
+				vector<ReadKminmer> kminmersInfo;
+				MDBG::getKminmers(_l, _k, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex, false);
+
+				fun(kminmers, kminmersInfo, readIndex, datasetIndex);
+
+				//fun(seq, readIndex);
+				readIndex += 1;
+				
+			}
+				
+			gzclose(fp);
+		}
+		else{
+			
+			std::ifstream infile(_inputFilename.c_str());
+			std::string line;
+
+			while (std::getline(infile, line))
+			{
+				cout << line << endl;
+
+				readIndex = 0;
+
+				gzFile fp;
+				kseq_t *read;
+				int slen = 0, qlen = 0;
+				fp = gzopen(line.c_str(), "r");
+				read = kseq_init(fp);
+
+				while (kseq_read(read) >= 0){
+
+					string rleSequence;
+					vector<u_int64_t> rlePositions;
+					Encoder::encode_rle(read->seq.s, strlen(read->seq.s), rleSequence, rlePositions);
+
+					vector<u_int64_t> minimizers;
+					vector<u_int64_t> minimizers_pos;
+					_minimizerParser->parse(rleSequence, minimizers, minimizers_pos);
+
+					vector<KmerVec> kminmers; 
+					vector<ReadKminmer> kminmersInfo;
+					MDBG::getKminmers(_l, _k, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex, false);
+
+
+					fun(kminmers, kminmersInfo, readIndex, datasetIndex);
+
+					readIndex += 1;
+
+					//if(readIndex > 50000) break;
+				}
+					
+				gzclose(fp);
+
+				datasetIndex += 1;
+			}
+		}
+
+
+		delete _minimizerParser;
+	}
+
+};
+
+
+
 
 
 
