@@ -95,7 +95,7 @@ public:
 	void extractContigKminmers (){
 
 		ReadParser parserDatasets(_inputFilename, false, _minimizerSize, _kminmerSize, _minimizerDensity);
-		_nbDatasets = parserDatasets.getNbDatasets();
+		_nbDatasets = parserDatasets._nbDatasets;
 		cout << "Nb datasets: " << _nbDatasets << endl;
 
 		ReadParser parser(_inputFilename_contig, true, _minimizerSize, _kminmerSize, _minimizerDensity);
