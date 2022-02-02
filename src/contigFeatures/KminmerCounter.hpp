@@ -99,13 +99,13 @@ public:
 		cout << "Nb datasets: " << _nbDatasets << endl;
 
 		ReadParser parser(_inputFilename_contig, true, _minimizerSize, _kminmerSize, _minimizerDensity);
-		auto fp = std::bind(&KminmerCounter::extractContigKminmers_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
+		auto fp = std::bind(&KminmerCounter::extractContigKminmers_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5);
 		parser.parseKminmers(fp);
 
 	}
 
 
-	void extractContigKminmers_read(const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex, u_int64_t datasetIndex){
+	void extractContigKminmers_read(const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex, u_int64_t datasetIndex, const string& header){
 
 		vector<u_int32_t> counts;
 		for(u_int64_t i=0; i<_nbDatasets; i++) counts.push_back(0);
@@ -128,7 +128,7 @@ public:
 	void countKminmers (){
 
 		ReadParser parser(_inputFilename, false, _minimizerSize, _kminmerSize, _minimizerDensity);
-		auto fp = std::bind(&KminmerCounter::countKminmers_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
+		auto fp = std::bind(&KminmerCounter::countKminmers_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5);
 		parser.parseKminmers(fp);
 
 		/*
@@ -151,7 +151,7 @@ public:
 	}
 
 
-	void countKminmers_read(const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex, u_int64_t datasetIndex){
+	void countKminmers_read(const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex, u_int64_t datasetIndex, const string& header){
 
 		if(readIndex % 100000 == 0){
 			cout << datasetIndex << " " << readIndex << endl;
@@ -182,12 +182,12 @@ public:
 	void computeContigCoverage (){
 
 		ReadParser parser(_inputFilename_contig, true, _minimizerSize, _kminmerSize, _minimizerDensity);
-		auto fp = std::bind(&KminmerCounter::computeContigCoverage_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
+		auto fp = std::bind(&KminmerCounter::computeContigCoverage_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5);
 		parser.parseKminmers(fp);
 	}
 
 
-	void computeContigCoverage_read(const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex, u_int64_t datasetIndex){
+	void computeContigCoverage_read(const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex, u_int64_t datasetIndex, const string& header){
 
 
 		vector<vector<u_int32_t>> abundances;
@@ -216,7 +216,7 @@ public:
 			}
 		}
 
-		cout << "Ctg" << readIndex << ": ";
+		cout << header << ": ";
 		for(u_int64_t i=0; i<_nbDatasets; i++){
 			//cout << abundances[i].size() << endl;
 			float median = Utils::compute_median(abundances[i]);

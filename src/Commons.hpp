@@ -2114,7 +2114,7 @@ public:
 	}
 
 
-	void parseKminmers(const std::function<void(vector<KmerVec>, vector<ReadKminmer>, u_int64_t, u_int64_t)>& fun){
+	void parseKminmers(const std::function<void(vector<KmerVec>, vector<ReadKminmer>, u_int64_t, u_int64_t, string)>& fun){
 
 		MinimizerParser* _minimizerParser = new MinimizerParser(_l, _density);
 
@@ -2144,7 +2144,7 @@ public:
 				vector<ReadKminmer> kminmersInfo;
 				MDBG::getKminmers(_l, _k, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex, false);
 
-				fun(kminmers, kminmersInfo, readIndex, datasetIndex);
+				fun(kminmers, kminmersInfo, readIndex, datasetIndex, string(read->name.s, strlen(read->name.s)));
 
 				//fun(seq, readIndex);
 				readIndex += 1;
@@ -2185,7 +2185,7 @@ public:
 					MDBG::getKminmers(_l, _k, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex, false);
 
 
-					fun(kminmers, kminmersInfo, readIndex, datasetIndex);
+					fun(kminmers, kminmersInfo, readIndex, datasetIndex, string(read->name.s, strlen(read->name.s)));
 
 					readIndex += 1;
 
