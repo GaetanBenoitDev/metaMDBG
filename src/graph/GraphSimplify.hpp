@@ -173,7 +173,7 @@ public:
         //delete _graphPredecessors;
     }
 
-	static bool UnitigComparator_ByLength(const UnitigLength &a, const UnitigLength &b){
+	static bool UnitigComparator_ByLength(const Unitig &a, const Unitig &b){
 		return a._length > b._length;
 	}
 
@@ -3825,12 +3825,13 @@ getStronglyConnectedComponent_node
         for(const Unitig& unitig : _unitigs){
             //cout << unitig._length << " " << unitig._abundance << endl;
             //if(unitig._index % 2 == 1) continue;
-            if(unitig._length < 10000) continue;
+            if(unitig._length < 50000) continue;
             //if(unitig._abundance < 10) continue; //200
 
             _startingUnitigstest.push_back(unitig);
         }
-        std::sort(_startingUnitigstest.begin(), _startingUnitigstest.end(), UnitigComparator_ByAbundance2);
+        //std::sort(_startingUnitigstest.begin(), _startingUnitigstest.end(), UnitigComparator_ByAbundance2);
+        std::sort(_startingUnitigstest.begin(), _startingUnitigstest.end(), UnitigComparator_ByLength);
 
 
         auto rng = std::default_random_engine {};
@@ -4573,6 +4574,82 @@ getStronglyConnectedComponent_node
             for(u_int32_t unitigIndex_nn : successors) queue.push(unitigIndex_nn);
 
             //cout << "6" << endl;
+        }
+
+    }
+
+
+    void getConnectedComponent_unitig(u_int32_t unitigIndex_source, u_int32_t maxDistance, unordered_set<u_int32_t>& component){
+
+        //cout << "-----" << endl;
+        //cout << unitigIndex_source << endl;
+        component.clear();
+
+        queue <u_int32_t> queue;
+
+        queue.push(unitigIndex_source);
+        queue.push(unitigIndex_toReverseDirection(unitigIndex_source));
+        unordered_map<u_int32_t, u_int32_t> distances;
+
+        distances[unitigIndex_source] = 0;
+        distances[unitigIndex_toReverseDirection(unitigIndex_source)] = 0;
+
+        while (!queue.empty()){
+
+            u_int64_t unitigIndex = queue.front();
+            queue.pop();
+
+            //cout << unitigIndex << endl;
+            if(_unitigs[unitigIndex]._startNode == -1 || _unitigs[unitigIndex_toReverseDirection(unitigIndex)]._startNode == -1){
+                cout << "lala" << endl;
+                cout << _unitigs[unitigIndex]._index << " " << _unitigs[unitigIndex_toReverseDirection(unitigIndex)]._index << endl;
+                cout << _unitigs[unitigIndex]._startNode << " " << _unitigs[unitigIndex_toReverseDirection(unitigIndex)]._startNode << endl;
+                getchar();
+            }
+            if(_unitigs[unitigIndex]._startNode == -1) continue;
+            if(_unitigs[unitigIndex_toReverseDirection(unitigIndex)]._startNode == -1) continue;
+            //if(_unitigs[unitigIndex_toReverseDirection(unitigIndex)]._startNode == -1) continue;
+
+
+            if (component.find(unitigIndex) != component.end()) continue;
+
+            if(distances[unitigIndex] > maxDistance) continue;
+
+            //cout << "Start: " << unitigIndex << " " << unitigIndex_toReverseDirection(unitigIndex) << endl;
+            //cout << _unitigs[unitigIndex]._startNode << " " << _unitigs[unitigIndex_toReverseDirection(unitigIndex)]._startNode << endl;
+            //cout << "1" << endl;
+
+            component.insert(unitigIndex);
+            component.insert(unitigIndex_toReverseDirection(unitigIndex));
+
+
+            //cout << "2" << endl;
+            vector<u_int32_t> neighbors;
+            vector<u_int32_t> successors;
+
+            getSuccessors_unitig(unitigIndex, 0, successors);
+            for(u_int32_t unitigIndex_nn : successors) neighbors.push_back(unitigIndex_nn);
+
+            //cout << "3" << endl;
+            getPredecessors_unitig(unitigIndex, 0, successors);
+            for(u_int32_t unitigIndex_nn : successors) neighbors.push_back(unitigIndex_nn);
+
+            //cout << "4" << endl;
+            getSuccessors_unitig(unitigIndex_toReverseDirection(unitigIndex), 0, successors);
+            for(u_int32_t unitigIndex_nn : successors) neighbors.push_back(unitigIndex_nn);
+
+            //cout << "5" << endl;
+            getPredecessors_unitig(unitigIndex_toReverseDirection(unitigIndex), 0, successors);
+            for(u_int32_t unitigIndex_nn : successors) neighbors.push_back(unitigIndex_nn);
+
+            for(u_int32_t unitigIndex_nn : neighbors){
+
+                distances[unitigIndex_nn] = distances[unitigIndex] + 1;
+
+
+                queue.push(unitigIndex_nn);
+            }
+
         }
 
     }

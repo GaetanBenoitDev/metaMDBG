@@ -11,6 +11,13 @@ const float MU_INTER = 0.0676654;
 const float SIGMA_INTER = 0.03419337;
 const float VERY_SMALL_DOUBLE = 0.0000000001;
 
+struct ContigFeatures{
+	u_int32_t _unitigIndex;
+	vector<float> _composition;
+	vector<float> _abundance;
+};
+
+
 struct BinData{
 	vector<float> _sequenceModel;
 };
@@ -34,6 +41,7 @@ public:
 	u_int64_t _nbDatasets;
 	unordered_map<string, vector<u_int32_t>> _contigToNodenames;
 
+	unordered_map<u_int32_t, vector<u_int32_t>> _nodenameCounts;
 
 	ContigFeature(){
 
@@ -75,6 +83,27 @@ public:
 	}
 
 	unordered_map<string, vector<float>> _contigCoverages;
+	float _w_intra;
+	float _w_inter;
+
+	void setup(){
+		float p_intra = 0.09;
+		float p_inter = 0.01;
+		float bin_threshold = -log10(p_intra);
+		float break_threshold = -log10(p_inter);
+
+		float w_intra = bin_threshold * (_nbDatasets + 1);
+		float w_inter = break_threshold * (_nbDatasets + 1);
+
+		//cout << bin_threshold << " " << break_threshold << endl;
+		//cout << w_intra << " " << w_inter << endl;
+
+		_w_intra = w_intra;
+		_w_inter = w_inter;
+
+		//_w_intra = 12;
+		cout << "W_intra: " << _w_intra << endl;
+	}
 
 	void loadAbundanceFile(const string& filename){
 
@@ -117,6 +146,48 @@ public:
 
 	}
 	
+	void loadAbundanceFile_nodename(const string& filename){
+
+		ifstream infile(filename);
+
+		vector<string>* fields = new vector<string>();
+		string line;
+		std::getline(infile, line); //skip header
+
+		while (std::getline(infile, line)){
+			
+			GfaParser::tokenize(line, fields, '\t');
+
+			u_int32_t nodeName = stoull((*fields)[0]);
+
+			vector<u_int32_t> coverages;
+			for(size_t i=1; i<fields->size(); i++){
+				//const string& field = (*fields)[i];
+				//if(field.empty()) continue;
+				//cout << i << " " << (*fields)[i] << endl;
+				u_int32_t ab = stoull((*fields)[i]);
+				//if(ab == 0) ab = 1;
+				coverages.push_back(ab);
+			}
+
+			_nodenameCounts[nodeName] = coverages;
+			_nbDatasets = coverages.size();
+			//u_int32_t nodeName = stoull((*fields)[0]);
+			//u_int32_t contigIndex = stoull((*fields)[1]);
+
+			//_contigToNodenames["ctg" + to_string(contigIndex)].push_back(nodeName);
+
+			//cout << unitigIndex << " " << scgIndex << " " << clusterIndex << endl;
+
+
+		}
+
+		delete fields;
+		infile.close();
+
+		setup();
+	}
+
 	void sequenceToComposition(const string& sequence, vector<float>& composition){
 		
 		composition.resize(_compositionVectorSize);
@@ -161,7 +232,36 @@ public:
 	}
 
 
+	void sequenceToAbundance(const vector<u_int32_t>& sequence, vector<float>& abundances){
 
+		vector<vector<u_int32_t>> values;
+		values.resize(_nbDatasets);
+
+		//cout << "----" << endl;
+		abundances.clear();
+		abundances.resize(_nbDatasets, 0);
+		//vector<float> abundances(_nbDatasets, 0);
+
+		for(u_int32_t nodeIndex : sequence){
+			u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
+			
+			const vector<u_int32_t>& counts = _nodenameCounts[nodeName];
+			for(size_t i=0; i<counts.size(); i++){
+				//abundances[i] += counts[i];
+				values[i].push_back(counts[i]);
+			}
+		}
+
+		for(u_int32_t i=0; i<abundances.size(); i++){
+			for(size_t j=0; j<sequence.size(); j++){
+				cout << values[i][j] << " ";
+			}
+			cout << endl;
+			//cout << abundances[i] << " " << sequence.size() << " " << (abundances[i] / sequence.size()) << endl;
+			//abundances[i] /= ((float) sequence.size());
+			abundances[i] = Utils::compute_median(values[i]);
+		}
+	}
 
 
 	void computeFastaComposition(const string& sequenceFilename){
@@ -462,6 +562,33 @@ public:
 		return min(poisson_prod_1, poisson_prod_2);
 	}
 	
+
+
+	float computeProbability(const ContigFeatures& f1, const ContigFeatures& f2){
+
+
+		float prob_comp = computeCompositionProbability(f1._composition, f2._composition);
+		float prob_cov = computeAbundanceProbability(f1._abundance, f2._abundance);
+
+		float prob_product = prob_comp * prob_cov;
+
+		float log_prob = 0;
+
+		if (prob_product > 0.0){
+			log_prob = - (log10(prob_comp) + log10(prob_cov));
+		}
+
+		return log_prob;
+
+	}
+
+	bool isIntra(const ContigFeatures& f1, const ContigFeatures& f2){
+		float prob = computeProbability(f1 , f2);
+		//cout << prob << " " << _w_intra << endl;
+		return prob != 0 && prob < _w_intra;
+	}
+
+
 
 	/*
 	void computeUnitigComposition(IBank* inbank, size_t k, ModelCanonical::Iterator& itKmer, const vector<size_t>& kmer_to_compositionIndex, u_int64_t compositionVectorSize, vector<UnitigData>& unitigCompositions){
