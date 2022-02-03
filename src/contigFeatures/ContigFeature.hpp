@@ -87,7 +87,7 @@ public:
 	float _w_inter;
 
 	void setup(){
-		float p_intra = 0.09;
+		float p_intra = 0.1;
 		float p_inter = 0.01;
 		float bin_threshold = -log10(p_intra);
 		float break_threshold = -log10(p_inter);
@@ -247,19 +247,19 @@ public:
 			
 			const vector<u_int32_t>& counts = _nodenameCounts[nodeName];
 			for(size_t i=0; i<counts.size(); i++){
-				//abundances[i] += counts[i];
-				values[i].push_back(counts[i]);
+				abundances[i] += counts[i];
+				//values[i].push_back(counts[i]);
 			}
 		}
 
 		for(u_int32_t i=0; i<abundances.size(); i++){
-			for(size_t j=0; j<sequence.size(); j++){
-				cout << values[i][j] << " ";
-			}
-			cout << endl;
+			//for(size_t j=0; j<sequence.size(); j++){
+			//	cout << values[i][j] << " ";
+			//}
+			//cout << endl;
 			//cout << abundances[i] << " " << sequence.size() << " " << (abundances[i] / sequence.size()) << endl;
-			//abundances[i] /= ((float) sequence.size());
-			abundances[i] = Utils::compute_median(values[i]);
+			abundances[i] /= ((float) sequence.size());
+			//abundances[i] = Utils::compute_median(values[i]);
 		}
 	}
 
