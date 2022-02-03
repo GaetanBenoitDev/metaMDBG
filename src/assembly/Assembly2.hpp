@@ -2353,7 +2353,7 @@ public:
 			//basespaceUnitigFile.close();
 
 			cout << "Bin done" << endl;
-			getchar();
+			//getchar();
 			clusterIndex += 1;
 		}
 

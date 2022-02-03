@@ -87,7 +87,7 @@ public:
 	float _w_inter;
 
 	void setup(){
-		float p_intra = 0.1;
+		float p_intra = 0.05;
 		float p_inter = 0.01;
 		float bin_threshold = -log10(p_intra);
 		float break_threshold = -log10(p_inter);
