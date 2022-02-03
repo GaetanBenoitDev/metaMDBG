@@ -17,9 +17,12 @@ public:
     size_t _minimizerSize;
     size_t _kminmerSize;
 
+	string _outputFilename_kminmerCouts;
+	bool _useContigs;
 	MDBG* _mdbg;
 	u_int64_t _nbDatasets;
 	unordered_map<u_int32_t, vector<u_int32_t>> _kminmerCounts;
+	vector<u_int32_t> _countsInit;
 
 	KminmerCounter(): Tool (){
 
@@ -33,10 +36,18 @@ public:
 		_mdbg->load(mdbg_filename);
 		cout << "MDBG nodes: " << _mdbg->_dbg_nodes.size() << endl;
 
-		extractContigKminmers();
+		ReadParser parserDatasets(_inputFilename, false, _minimizerSize, _kminmerSize, _minimizerDensity);
+		_nbDatasets = parserDatasets._nbDatasets;
+		cout << "Nb datasets: " << _nbDatasets << endl;
+
+		for(u_int64_t i=0; i<_nbDatasets; i++) _countsInit.push_back(0);
+
+		cout << _useContigs << endl;
+		if(_useContigs) extractContigKminmers();
 		countKminmers();
-		computeContigCoverage();
-		
+		if(_useContigs) computeContigCoverage();
+		dumpKminmerCount();
+
 		delete _mdbg;
 
 	}
@@ -90,13 +101,11 @@ public:
 		cout << "Density: " << _minimizerDensity << endl;
 		cout << endl;
 
+		_outputFilename_kminmerCouts = _inputDir + "/" + "kminmerCounts.tsv";
+		_useContigs = !_inputFilename_contig.empty();
 	}
 
 	void extractContigKminmers (){
-
-		ReadParser parserDatasets(_inputFilename, false, _minimizerSize, _kminmerSize, _minimizerDensity);
-		_nbDatasets = parserDatasets._nbDatasets;
-		cout << "Nb datasets: " << _nbDatasets << endl;
 
 		ReadParser parser(_inputFilename_contig, true, _minimizerSize, _kminmerSize, _minimizerDensity);
 		auto fp = std::bind(&KminmerCounter::extractContigKminmers_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5);
@@ -107,8 +116,6 @@ public:
 
 	void extractContigKminmers_read(const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex, u_int64_t datasetIndex, const string& header){
 
-		vector<u_int32_t> counts;
-		for(u_int64_t i=0; i<_nbDatasets; i++) counts.push_back(0);
 
 		for(size_t i=0; i<kminmersInfos.size(); i++){
 			
@@ -118,7 +125,7 @@ public:
 			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()) continue;
 
 			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
-			_kminmerCounts[nodeName] = counts;
+			_kminmerCounts[nodeName] = _countsInit;
 			
 		}
 
@@ -170,7 +177,16 @@ public:
 
 			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
 
-			if(_kminmerCounts.find(nodeName) == _kminmerCounts.end()) continue;
+
+			if(_kminmerCounts.find(nodeName) == _kminmerCounts.end()){
+				if(_useContigs){
+					continue;
+				}
+				else{
+					_kminmerCounts[nodeName] = _countsInit;
+				}
+			}
+
 
 			_kminmerCounts[nodeName][datasetIndex] += 1;
 		}
@@ -226,7 +242,31 @@ public:
 
 	}
 
+	void dumpKminmerCount(){
 
+		ofstream outputFile(_outputFilename_kminmerCouts);
+		
+		string header = "NodeName";
+		for(size_t i=0; i<_nbDatasets; i++){
+			header += "\tS" + to_string(i);
+		}
+		outputFile << header << endl;
+
+		for(const auto& it : _kminmerCounts){
+			u_int32_t nodeName = it.first;
+			const vector<u_int32_t>& counts = it.second;
+			
+			string line = to_string(nodeName);
+			for(u_int32_t count : counts){
+				line += "\t" + to_string(count);
+			}
+
+			outputFile << line << endl;
+
+		}
+
+		outputFile.close();
+	}
 
 
 };	

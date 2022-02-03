@@ -9,6 +9,7 @@ const float MU_INTRA = 0;
 const float SIGMA_INTRA = 0.01037897 / 2.0;
 const float MU_INTER = 0.0676654;
 const float SIGMA_INTER = 0.03419337;
+const float VERY_SMALL_DOUBLE = 0.0000000001;
 
 struct BinData{
 	vector<float> _sequenceModel;
@@ -22,6 +23,7 @@ public:
 	KmerModel* _kmerModel;
 	u_int64_t _compositionVectorSize;
 	vector<size_t> _kmerToCompositionIndex;
+	string _filename_abundance;
 
 	//vector<vector<float>> _comps;
 
@@ -29,6 +31,7 @@ public:
 	unordered_map<string, BinData> _bins;
 	unordered_map<string, vector<float>> _contigCompositions;
 
+	u_int64_t _nbDatasets;
 	unordered_map<string, vector<u_int32_t>> _contigToNodenames;
 
 
@@ -71,6 +74,49 @@ public:
 		//exit(1);
 	}
 
+	unordered_map<string, vector<float>> _contigCoverages;
+
+	void loadAbundanceFile(const string& filename){
+
+		ifstream infile(filename);
+
+		vector<string>* fields = new vector<string>();
+		string line;
+		std::getline(infile, line); //skip header
+
+		while (std::getline(infile, line)){
+			
+			GfaParser::tokenize(line, fields, '\t');
+
+			string contigName = (*fields)[0];
+
+			vector<float> coverages;
+			for(size_t i=1; i<fields->size(); i++){
+				const string& field = (*fields)[i];
+				if(field.empty()) continue;
+				//cout << i << " " << (*fields)[i] << endl;
+				float ab = stof((*fields)[i]);
+				if(ab == 0) ab = 1;
+				coverages.push_back(ab);
+			}
+
+			_contigCoverages[contigName] = coverages;
+			_nbDatasets = coverages.size();
+			//u_int32_t nodeName = stoull((*fields)[0]);
+			//u_int32_t contigIndex = stoull((*fields)[1]);
+
+			//_contigToNodenames["ctg" + to_string(contigIndex)].push_back(nodeName);
+
+			//cout << unitigIndex << " " << scgIndex << " " << clusterIndex << endl;
+
+
+		}
+
+		delete fields;
+		infile.close();
+
+	}
+	
 	void sequenceToComposition(const string& sequence, vector<float>& composition){
 		
 		composition.resize(_compositionVectorSize);
@@ -121,6 +167,17 @@ public:
 	void computeFastaComposition(const string& sequenceFilename){
 
 
+		float p_intra = 0.01;
+		float p_inter = 0.01;
+		float bin_threshold = -log10(p_intra);
+		float break_threshold = -log10(p_inter);
+
+		float w_intra = bin_threshold * (_nbDatasets + 1);
+		float w_inter = break_threshold * (_nbDatasets + 1);
+
+		cout << bin_threshold << " " << break_threshold << endl;
+		cout << w_intra << " " << w_inter << endl;
+
 		ifstream infile("/home/gats/workspace/run/overlap_test_AD_k7/binByCutoff/component_16_unitigColor.csv");
 		ofstream outfile("/home/gats/workspace/run/overlap_test_AD_k7/binByCutoff/component_16_unitigClusterNew.csv");
 		outfile << "Name,Color" << endl;
@@ -154,34 +211,69 @@ public:
 			const string& name = it.first;
 			const vector<float>& composition = it.second;
 
+			const vector<float>& contigCoverages = _contigCoverages[name];
+
 			if(_bins.find(name) != _bins.end()) continue;
 
-			float maxProb = 1.0;
+			float maxProb = 9999999;
 			string maxBinName = "";
+
+			cout << "Contig: " << name << endl;
 
 			for(auto& it : _bins){
 
 				const string& binName = it.first;
 				const BinData& binData = it.second;
 
-				
-				//float prob_comp = computeCompositionProbability(binData._sequenceModel, composition);
+				const vector<float>& binCoverages = _contigCoverages[binName];
+
+				float prob_comp = computeCompositionProbability(binData._sequenceModel, composition);
 				//float log_prob = -log10(prob_comp);
-				float prob_comp = computeEuclideanDistance(binData._sequenceModel, composition);
-				float log_prob = prob_comp;
+				//float prob_comp = computeEuclideanDistance(binData._sequenceModel, composition);
+				float prob_cov = computeAbundanceProbability(binCoverages, contigCoverages);
+				//prob_cov = abs(prob_comp);
+				//float log_prob = prob_comp;
 
-				cout << "\t" << binName << ": " << log_prob << endl;
-				if(log_prob < maxProb){
-					maxProb = log_prob;
-					maxBinName = binName;
+
+				float prob_product = prob_comp * prob_cov;
+
+				float log_prob = 0;
+
+				if (prob_product > 0.0){
+					log_prob = - (log10(prob_comp) + log10(prob_cov));
 				}
+
+				cout << "\t" << binName << ": " << log_prob << "    " << (-log10(prob_comp)) << " " << (-log10(prob_cov)) << "    " << computeEuclideanDistance(binCoverages, contigCoverages) << endl;
+				
+				cout << "\t";
+				for(float ab : binCoverages) cout << ab << " ";
+				cout << endl;
+				cout << "\t";
+				for(float ab : contigCoverages) cout << ab << " ";
+				cout << endl;
+
+				if(log_prob <= w_intra){
+					if(log_prob != 0 && log_prob < maxProb){
+						maxProb = log_prob;
+						maxBinName = binName;
+					}
+				}
+
 			}
 
-			cout << name << " -> " << maxBinName << endl;
+			if(!maxBinName.empty()){
+				cout << name << " -> " << maxBinName << endl;
+				for(u_int32_t nodeName : _contigToNodenames[name]){
+					outfile << nodeName << "," << maxBinName << endl;
+				}
+				//getchar();
 
-			for(u_int32_t nodeName : _contigToNodenames[name]){
-				outfile << nodeName << "," << maxBinName << endl;
 			}
+
+
+
+			//if(name == "ctg4893") getchar();
+
 			/*
 			float prob_comp = computeCompositionProbability(_sequenceModel, composition);
 			float log_prob = 0;
@@ -204,6 +296,14 @@ public:
 
 		}
 
+
+		for(auto& it : _bins){
+			const string& binName = it.first;
+			for(u_int32_t nodeName : _contigToNodenames[binName]){
+				outfile << nodeName << "," << binName << endl;
+			}
+		}
+		
 		outfile.close();
 		//cout << _nbContigs << endl;
 		exit(1);
@@ -216,6 +316,7 @@ public:
 		}
 		*/
 	}
+
 
 	void computeFastaComposition_read(kseq_t* read, u_int64_t readIndex){
 
@@ -290,6 +391,78 @@ public:
 		float gaus_inter = computeNormpdf(dist, MU_INTER, SIGMA_INTER);
 		return gaus_intra/(gaus_intra+gaus_inter);
 	}
+
+	double computeAbundanceCorrelation(const vector<float>& cov1, const vector<float>& cov2) {
+
+		size_t i, ii;
+		double sum_xsq = 0.0;
+		double sum_ysq = 0.0;
+		double sum_cross = 0.0;
+		double ratio;
+		double delta_x, delta_y;
+		double mean_x = 0.0, mean_y = 0.0;
+		double r = 0.0;
+
+		size_t s = 0; //skipped
+
+		for (i = 0; i < cov1.size(); ++i) {
+			double m1 = cov1[i]; //ABD(r1,i);
+			double m2 = cov2[i]; //is_small ? small_ABD(r2, i) : ABD(r2, i);
+			//m2 = rand()%500;
+
+			//cout << m1 << " " << m2 << endl;
+			ii = i - s;
+
+			if(ii == 0) {
+				mean_x = m1;
+				mean_y = m2;
+				continue;
+			}
+
+			ratio = ii / (ii + 1.0);
+			delta_x = m1 - mean_x;
+			delta_y = m2 - mean_y;
+			sum_xsq += delta_x * delta_x * ratio;
+			sum_ysq += delta_y * delta_y * ratio;
+			sum_cross += delta_x * delta_y * ratio;
+			mean_x += delta_x / (ii + 1.0);
+			mean_y += delta_y / (ii + 1.0);
+		}
+
+		r = sum_cross / (sqrt(sum_xsq) * sqrt(sum_ysq));
+
+		return r;
+	}
+
+	
+	float computeAbundanceProbability(const vector<float>& cov1, const vector<float>& cov2){
+
+		float poisson_prod_1 = 1;
+		float poisson_prod_2 = 1;
+
+		for(size_t i=0; i<cov1.size(); i++){
+
+			float poisson_pmf_1 = exp((cov1[i] * log(cov2[i])) - lgamma(cov1[i] + 1.0) - cov2[i]);
+
+			float poisson_pmf_2 = exp((cov2[i] * log(cov1[i])) - lgamma(cov2[i] + 1.0) - cov1[i]);
+
+			if (poisson_pmf_1 < VERY_SMALL_DOUBLE){
+				poisson_pmf_1 = VERY_SMALL_DOUBLE;
+			}
+
+			if (poisson_pmf_2 < VERY_SMALL_DOUBLE){
+				poisson_pmf_2 = VERY_SMALL_DOUBLE;
+			}
+
+			poisson_prod_1 = poisson_prod_1 * poisson_pmf_1;
+
+			poisson_prod_2 = poisson_prod_2 * poisson_pmf_2;
+		}
+
+		return min(poisson_prod_1, poisson_prod_2);
+	}
+	
+
 	/*
 	void computeUnitigComposition(IBank* inbank, size_t k, ModelCanonical::Iterator& itKmer, const vector<size_t>& kmer_to_compositionIndex, u_int64_t compositionVectorSize, vector<UnitigData>& unitigCompositions){
 

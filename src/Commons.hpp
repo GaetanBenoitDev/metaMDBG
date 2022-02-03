@@ -336,6 +336,7 @@ const string ARG_DEBUG = "debug";
 const string ARG_INPUT_FILENAME_CONTIG = "c";
 const string ARG_INPUT_FILENAME_UNITIG_NT = "unitigNt";
 const string ARG_INPUT_FILENAME_UNITIG_CLUSTER = "cluster";
+const string ARG_INPUT_FILENAME_ABUNDANCE = "a";
 
 struct UnitigData{
 	u_int32_t _index;

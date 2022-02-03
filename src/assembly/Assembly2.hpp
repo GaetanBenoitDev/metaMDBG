@@ -907,6 +907,7 @@ public:
 	bool _debug;
 	string _inputFilename_unitigNt;
 	string _inputFilename_unitigCluster;
+	string _filename_abundance;
 
 	float _minimizerDensity;
     size_t _minimizerSize;
@@ -939,7 +940,10 @@ public:
 
 	void execute (){
 
+		_contigFeature.loadAbundanceFile(_filename_abundance);
 		_contigFeature.computeFastaComposition("/home/gats/workspace/run/overlap_test_AD_k7/binByCutoff/component_16_unitigs.fasta");
+		
+		exit(1);
 
 		_outputContigFile = gzopen(_outputFilename.c_str(),"wb");
 		_outputContigFile_complete = gzopen(_outputFilename_complete.c_str(),"wb");
@@ -962,7 +966,8 @@ public:
 		(ARG_INPUT_FILENAME_TRUTH, "", cxxopts::value<string>()->default_value(""))
 		(ARG_DEBUG, "", cxxopts::value<bool>()->default_value("false"))
 		(ARG_INPUT_FILENAME_UNITIG_NT, "", cxxopts::value<string>()->default_value(""))
-		(ARG_INPUT_FILENAME_UNITIG_CLUSTER, "", cxxopts::value<string>()->default_value(""));
+		(ARG_INPUT_FILENAME_UNITIG_CLUSTER, "", cxxopts::value<string>()->default_value(""))
+		(ARG_INPUT_FILENAME_ABUNDANCE, "", cxxopts::value<string>()->default_value(""));
 
 
 
@@ -982,6 +987,7 @@ public:
 			_inputFilename_unitigNt = result[ARG_INPUT_FILENAME_UNITIG_NT].as<string>();
 			_inputFilename_unitigCluster = result[ARG_INPUT_FILENAME_UNITIG_CLUSTER].as<string>();
 			_debug = result[ARG_DEBUG].as<bool>();
+			_filename_abundance = result[ARG_INPUT_FILENAME_ABUNDANCE].as<string>();
 		}
 		catch (const std::exception& e){
 			std::cout << options.help() << std::endl;
