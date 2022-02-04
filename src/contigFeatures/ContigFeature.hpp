@@ -87,7 +87,7 @@ public:
 	float _w_inter;
 
 	void setup(){
-		float p_intra = 0.05;
+		float p_intra = 0.1;
 		float p_inter = 0.01;
 		float bin_threshold = -log10(p_intra);
 		float break_threshold = -log10(p_inter);
@@ -102,6 +102,7 @@ public:
 		_w_inter = w_inter;
 
 		//_w_intra = 12;
+		//_w_intra = 1;
 		cout << "W_intra: " << _w_intra << endl;
 	}
 
@@ -568,6 +569,8 @@ public:
 
 
 		float prob_comp = computeCompositionProbability(f1._composition, f2._composition);
+		//return - log10(prob_comp);
+
 		float prob_cov = computeAbundanceProbability(f1._abundance, f2._abundance);
 
 		float prob_product = prob_comp * prob_cov;
@@ -584,7 +587,7 @@ public:
 
 	bool isIntra(const ContigFeatures& f1, const ContigFeatures& f2){
 		float prob = computeProbability(f1 , f2);
-		//cout << prob << " " << _w_intra << endl;
+		cout << "\tProb: " << prob << " " << _w_intra << endl;
 		return prob != 0 && prob < _w_intra;
 	}
 

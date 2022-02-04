@@ -82,6 +82,7 @@ ToBasespaceOnTheFly: en théorie, on peut reconstruire la partie manquante des c
 #include "eval/ContigStatistics.hpp"
 #include "toBasespace/ToBasespaceOnTheFly.hpp"
 #include "contigFeatures/ContigFeature.hpp"
+#include "assembly/Assembly.hpp"
 
 const u_int32_t LONG_UNITIG_LENGTH = 10000;
 const u_int32_t MIN_SUPPORTED_READS = 2;
@@ -2107,7 +2108,12 @@ public:
 
 	void execute_binning(){
 
+		Assembly assembly(_unitigDatas);
 
+
+		//solveBin
+
+		vector<vector<string>> bins;
 		
 
 		string clusterDir = _inputDir + "/" + "binGreedy";
@@ -2115,6 +2121,9 @@ public:
 	    if(!fs::exists (path)){
             fs::create_directory(path);
         } 
+
+		string filename_binStats = clusterDir + "/binStats.txt";
+		ofstream file_binStats(filename_binStats);
 
 		ofstream fileHifiasmAll(clusterDir + "/component_hifiasm_all.csv");
 		fileHifiasmAll << "Name,Colour" << endl;
@@ -2171,7 +2180,7 @@ public:
 			//continue;
 
 
-			float cutoff = unitig._abundance*0.1;
+			float cutoff = unitig._abundance*0.2;
 
 
 			float realCutoff = 0;
@@ -2218,16 +2227,32 @@ public:
 			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(unitig_model._startNode));
 			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(unitig_model._endNode));
 
-			string unitigSequence_model;
-			_toBasespace.createSequence(unitig_model._nodes, unitigSequence_model);
 
-			vector<float> compositionModel;
-			_contigFeature.sequenceToComposition(unitigSequence_model, compositionModel);
+			//vector<u_int32_t> nodePath_model;
+			//assembly.solveBin2(unitig._startNode, 0, _graph, 0, 0, false, nodePath_model);
+			//cout << nodePath_model.size() << endl;
+
+
+			//string unitigSequence_model;
+			//_toBasespace.createSequence(nodePath_model, unitigSequence_model);
+			string unitigSequence_model_init;
+			_toBasespace.createSequence(unitig._nodes, unitigSequence_model_init);
+
+			vector<float> compositionModel_init;
+			_contigFeature.sequenceToComposition(unitigSequence_model_init, compositionModel_init);
+			//vector<float> compositionModel;
+			//_contigFeature.sequenceToComposition(unitigSequence_model, compositionModel);
 
 			vector<float> abundancesModel;
-			_contigFeature.sequenceToAbundance(unitig_model._nodes, abundancesModel);
+			//_contigFeature.sequenceToAbundance(nodePath_model_init, abundancesModel);
+			_contigFeature.sequenceToAbundance(unitig._nodes, abundancesModel);
 
-			ContigFeatures contigFeatureModel = {unitigIndex_model, compositionModel, abundancesModel};
+			ContigFeatures contigFeatureModel = {unitigIndex_model, compositionModel_init, abundancesModel};
+
+			//cout << unitigSequence_model.size() << endl;
+
+			vector<string> bin;
+			bin.push_back(unitigSequence_model_init);
 
 			cout << "\t";
 			for(float count : abundancesModel) cout << count << " ";
@@ -2270,7 +2295,7 @@ public:
 
 
 				u_int32_t contigIndex = u._index;
-				if(u._length < 5000) continue;
+				if(u._length < 1000) continue;
 				
 				if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
 				if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
@@ -2278,9 +2303,14 @@ public:
 				writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._startNode));
 				writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
 
-				string unitigSequence;
-				_toBasespace.createSequence(u._nodes, unitigSequence);
 
+				vector<u_int32_t> nodePath;
+				assembly.solveBin2(u._startNode, 0, _graph, 0, 0, false, nodePath);
+
+				string unitigSequence;
+				_toBasespace.createSequence(nodePath, unitigSequence);
+
+				cout << endl << "\tUnitig length: " << u._length << " " << nodePath.size() << " " << unitigSequence.size() << endl;
 				//string header = ">ctg" + to_string(contigIndex) + '\n';
 				//basespaceUnitigFile << header;
 				//gzwrite(basespaceUnitigFile, (const char*)&header[0], header.size());
@@ -2294,21 +2324,33 @@ public:
 				//	fUnitigColor << nodeName << "," << contigIndex << endl;
 				//}
 
+
 				vector<float> composition;
 				_contigFeature.sequenceToComposition(unitigSequence, composition);
-
+				
 				vector<float> abundances;
-				_contigFeature.sequenceToAbundance(u._nodes, abundances);
+				_contigFeature.sequenceToAbundance(nodePath, abundances);
 
 				ContigFeatures contigFeature = {unitigIndex, composition, abundances};
+				
+				
+				string unitigSequence_init;
+				_toBasespace.createSequence(u._nodes, unitigSequence_init);
+				vector<float> composition_init;
+				_contigFeature.sequenceToComposition(unitigSequence_init, composition_init);
 
+				ContigFeatures contigFeature_init = {unitigIndex, composition_init, abundances};
 
+				cout << "\tComposition dist (init): " << _contigFeature.computeEuclideanDistance(compositionModel_init, composition_init) << "    " << _contigFeature.computeProbability(contigFeatureModel, contigFeature_init) << endl; 
+				cout << "\tComposition dist (extended): " << _contigFeature.computeEuclideanDistance(compositionModel_init, composition) << "    " << _contigFeature.computeProbability(contigFeatureModel, contigFeature) << endl; 
 
 				//contigFeatures.push_back({unitigIndex, composition, abundances});
 
 				//cout << unitigSequence.size() << endl;
 
 				if(_contigFeature.isIntra(contigFeatureModel, contigFeature)){
+
+					bin.push_back(unitigSequence_init);
 
 					cout << "\t";
 					for(float count : abundances) cout << count << " ";
@@ -2352,7 +2394,11 @@ public:
 			//gzclose(basespaceUnitigFile);
 			//basespaceUnitigFile.close();
 
+			computeBinStats(clusterDir, bin, filename_binStats);
+
+			//bins.push_back(bin);
 			cout << "Bin done" << endl;
+			getchar();
 			//getchar();
 			clusterIndex += 1;
 		}
@@ -2365,7 +2411,37 @@ public:
 
 		fileHifiasmAll.close();
 		fileComponentNodeAll.close();
+		file_binStats.close();
 
+	}
+
+	void computeBinStats(const string& outputDir, const vector<string> bin, const string& filename_binStats){
+
+		int lala = 0;
+		const string& basespaceUnitigFilename = outputDir + "/unitigs.fasta";
+		ofstream basespaceUnitigFile = ofstream(basespaceUnitigFilename);
+
+		for(const string& sequence : bin){
+
+
+
+			string header = ">ctg" + to_string(lala);
+			basespaceUnitigFile << header << endl;
+			basespaceUnitigFile << sequence << endl;
+			
+			lala += 1;
+		}
+
+		basespaceUnitigFile.close();
+
+		string command_annotation = "python3 /home/gats/workspace/scripts/annotation/annotation2/computeBinStats.py -t 4 " + basespaceUnitigFilename + " " + filename_binStats;
+		cout << command_annotation << endl;
+		int ret = system(command_annotation.c_str());
+		if(ret != 0){
+			cerr << "Command failed: " << ret << endl;
+			exit(ret);
+		}
+		
 	}
 
 };
