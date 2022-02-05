@@ -2244,10 +2244,11 @@ public:
 			//_contigFeature.sequenceToComposition(unitigSequence_model, compositionModel);
 
 			vector<float> abundancesModel;
+			vector<float> abundancesModel_var;
 			//_contigFeature.sequenceToAbundance(nodePath_model_init, abundancesModel);
-			_contigFeature.sequenceToAbundance(unitig._nodes, abundancesModel);
+			_contigFeature.sequenceToAbundance(unitig._nodes, abundancesModel, abundancesModel_var);
 
-			ContigFeatures contigFeatureModel = {unitigIndex_model, compositionModel_init, abundancesModel};
+			ContigFeatures contigFeatureModel = {unitigIndex_model, compositionModel_init, abundancesModel, abundancesModel_var};
 
 			//cout << unitigSequence_model.size() << endl;
 
@@ -2327,25 +2328,37 @@ public:
 				_contigFeature.sequenceToComposition(unitigSequence, composition);
 				
 				vector<float> abundances;
-				_contigFeature.sequenceToAbundance(nodePath, abundances);
+				vector<float> abundancesVar;
+				_contigFeature.sequenceToAbundance(nodePath, abundances, abundancesVar);
 
-				ContigFeatures contigFeature = {unitigIndex, composition, abundances};
+				ContigFeatures contigFeature = {unitigIndex, composition, abundances, abundancesVar};
 				
 				
 				string unitigSequence_init;
 				_toBasespace.createSequence(u._nodes, unitigSequence_init);
 				vector<float> composition_init;
 				_contigFeature.sequenceToComposition(unitigSequence_init, composition_init);
+				vector<float> abundances_init;
+				vector<float> abundancesVar_init;
+				_contigFeature.sequenceToAbundance(u._nodes, abundances_init, abundancesVar_init);
 
-				ContigFeatures contigFeature_init = {unitigIndex, composition_init, abundances};
+				ContigFeatures contigFeature_init = {unitigIndex, composition_init, abundances_init, abundancesVar_init};
 
-				cout << "\tComposition dist (init): " << _contigFeature.computeEuclideanDistance(compositionModel_init, composition_init) << " " << _contigFeature.computeEuclideanDistance(contigFeatureModel._abundance, contigFeature_init._abundance) << " " << _contigFeature.computeProbability(contigFeatureModel, contigFeature_init)  << endl; 
-				cout << "\tComposition dist (extended): " << _contigFeature.computeEuclideanDistance(compositionModel_init, composition) << " " << _contigFeature.computeEuclideanDistance(contigFeatureModel._abundance, contigFeature._abundance) << " " << _contigFeature.computeProbability(contigFeatureModel, contigFeature)  << endl; 
+				cout << "\tComposition dist (init): " << _contigFeature.computeEuclideanDistance(compositionModel_init, composition_init) << " " << _contigFeature.computeEuclideanDistance(abundancesModel, abundances_init) << " " << _contigFeature.computeProbability(contigFeatureModel, contigFeature_init)  << endl; 
+				cout << "\tComposition dist (extended): " << _contigFeature.computeEuclideanDistance(compositionModel_init, composition) << " " << _contigFeature.computeEuclideanDistance(abundancesModel, abundances) << " " << _contigFeature.computeProbability(contigFeatureModel, contigFeature)  << endl; 
+				int nnz = 0;
+				cout << "\tMetabat Abudance: " << _contigFeature.cal_abd_dist(contigFeatureModel, contigFeature_init, nnz) << " " << _contigFeature.cal_abd_dist(contigFeatureModel, contigFeature, nnz) << endl;
 				cout << "\t";
 				for(float count : abundancesModel) cout << count << " ";
 				cout << endl;
 				cout << "\t";
 				for(float count : abundances) cout << count << " ";
+				cout << endl;
+				cout << "\t";
+				for(float count : abundancesModel_var) cout << count << " ";
+				cout << endl;
+				cout << "\t";
+				for(float count : abundancesVar) cout << count << " ";
 				cout << endl;
 
 				//contigFeatures.push_back({unitigIndex, composition, abundances});

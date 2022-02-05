@@ -4,7 +4,13 @@
 #define MDBG_METAG_CONTIGFEATURE
 
 #include "../Commons.hpp"
+#include <boost/math/distributions.hpp>
 
+typedef double Distance;
+typedef boost::math::normal_distribution<Distance> Normal;
+
+static Distance minCV = 1;
+static Distance minCVSum = 2;
 const float MU_INTRA = 0;
 const float SIGMA_INTRA = 0.01037897 / 2.0;
 const float MU_INTER = 0.0676654;
@@ -16,6 +22,7 @@ struct ContigFeatures{
 	u_int32_t _unitigIndex;
 	vector<float> _composition;
 	vector<float> _abundance;
+	vector<float> _abundanceVar;
 };
 
 
@@ -234,7 +241,7 @@ public:
 	}
 
 
-	void sequenceToAbundance(const vector<u_int32_t>& sequence, vector<float>& abundances){
+	void sequenceToAbundance(const vector<u_int32_t>& sequence, vector<float>& abundances, vector<float>& abundancesVar){
 
 		vector<vector<u_int32_t>> values;
 		values.resize(_nbDatasets);
@@ -242,6 +249,8 @@ public:
 		//cout << "----" << endl;
 		abundances.clear();
 		abundances.resize(_nbDatasets, 0);
+		abundancesVar.clear();
+		abundancesVar.resize(_nbDatasets, 0);
 		//vector<float> abundances(_nbDatasets, 0);
 
 		for(u_int32_t nodeIndex : sequence){
@@ -254,6 +263,7 @@ public:
 			}
 		}
 
+		
 		for(u_int32_t i=0; i<abundances.size(); i++){
 			//for(size_t j=0; j<sequence.size(); j++){
 			//	cout << values[i][j] << " ";
@@ -263,7 +273,28 @@ public:
 			abundances[i] /= ((float) sequence.size());
 			//abundances[i] = Utils::compute_median(values[i]);
 		}
+
+		if(sequence.size() > 1){
+			for(u_int32_t nodeIndex : sequence){
+				u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
+				
+				const vector<u_int32_t>& counts = _nodenameCounts[nodeName];
+
+				for(size_t i=0; i<counts.size(); i++){
+					abundancesVar[i] += (counts[i] - abundances[i]) * (counts[i] - abundances[i]);
+				}
+			}
+
+			for(u_int32_t i=0; i<abundances.size(); i++){
+				abundancesVar[i] /= ((float) sequence.size()-1);
+			}
+		}
+
+
+		//cout << sequence.size() << endl;
+
 	}
+
 
 
 	void computeFastaComposition(const string& sequenceFilename){
@@ -595,6 +626,76 @@ public:
 		return prob < _w_intra;
 	}
 
+
+	// for normal distributions
+	Distance cal_abd_dist2(Normal& p1, Normal& p2) {
+		Distance k1, k2, tmp, d = 0;
+
+		Distance m1 = p1.mean();
+		Distance m2 = p2.mean();
+		Distance v1 = p1.standard_deviation();
+		v1 = v1 * v1;
+		Distance v2 = p2.standard_deviation();
+		v2 = v2 * v2;
+
+		//normal_distribution
+		if (fabs(v2 - v1) < 1e-4) {
+			k1 = k2 = (m1 + m2) / 2;
+		} else {
+			tmp = sqrt(v1 * v2 * ((m1 - m2) * (m1 - m2) - 2 * (v1 - v2) * log(sqrt(v2 / v1))));
+			k1 = (tmp - m1 * v2 + m2 * v1) / (v1 - v2);
+			k2 = (tmp + m1 * v2 - m2 * v1) / (v2 - v1);
+		}
+
+		if (k1 > k2) {
+			tmp = k1;
+			k1 = k2;
+			k2 = tmp;
+		}
+		if (v1 > v2) {
+			std::swap(p1, p2);
+		}
+
+		if (k1 == k2)
+			d = (fabs(boost::math::cdf(p1, k1) - boost::math::cdf(p2, k1)));
+		else
+			d = (fabs(boost::math::cdf(p1, k2) - boost::math::cdf(p1, k1) + boost::math::cdf(p2, k1) - boost::math::cdf(p2, k2)));
+
+		return d;
+
+	}
+
+	Distance cal_abd_dist(const ContigFeatures& f1, const ContigFeatures& f2, int& nnz) {
+
+		float distSum = 0.0f;
+		nnz = 0;
+
+		for (size_t i=0; i < f1._abundance.size(); ++i) {
+
+			Distance d = 0;
+			Distance m1 = f1._abundance[i];
+			Distance m2 = f2._abundance[i];
+			if (m1 > minCV || m2 > minCV) {
+				//nz = true;
+				m1 = std::max(m1, (Distance) 1e-6);
+				m2 = std::max(m2, (Distance) 1e-6);
+				if (m1 != m2) {
+					Distance v1 = f1._abundanceVar[i] < 1 ? 1 : f1._abundanceVar[i];
+					Distance v2 = f2._abundanceVar[i] < 1 ? 1 : f2._abundanceVar[i];
+
+					//cout << m1 << " " << m2 << " " << v1 << " " << v2 << endl;
+					Normal p1(m1, sqrt(v1)), p2(m2, sqrt(v2));
+					d = cal_abd_dist2(p1, p2);
+				}
+				nnz += 1;
+			}
+			distSum += std::min(std::max(d, 1e-6), 1. - 1e-6);
+
+		}
+
+		//return POW(EXP(distSum), 1.0 / nnz);
+		return distSum / nnz;
+	}
 
 
 	/*
