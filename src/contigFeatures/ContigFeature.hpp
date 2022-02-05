@@ -10,6 +10,7 @@ const float SIGMA_INTRA = 0.01037897 / 2.0;
 const float MU_INTER = 0.0676654;
 const float SIGMA_INTER = 0.03419337;
 const float VERY_SMALL_DOUBLE = 0.0000000001;
+const float MAX_WEIGHT = std::numeric_limits<float>::max();
 
 struct ContigFeatures{
 	u_int32_t _unitigIndex;
@@ -580,6 +581,9 @@ public:
 		if (prob_product > 0.0){
 			log_prob = - (log10(prob_comp) + log10(prob_cov));
 		}
+		else{
+			log_prob = MAX_WEIGHT;
+		}
 
 		return log_prob;
 
@@ -587,8 +591,8 @@ public:
 
 	bool isIntra(const ContigFeatures& f1, const ContigFeatures& f2){
 		float prob = computeProbability(f1 , f2);
-		cout << "\tProb: " << prob << " " << _w_intra << endl;
-		return prob != 0 && prob < _w_intra;
+		//cout << "\tProb: " << prob << " " << _w_intra << endl;
+		return prob < _w_intra;
 	}
 
 

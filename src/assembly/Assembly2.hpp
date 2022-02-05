@@ -2254,9 +2254,7 @@ public:
 			vector<string> bin;
 			bin.push_back(unitigSequence_model_init);
 
-			cout << "\t";
-			for(float count : abundancesModel) cout << count << " ";
-			cout << endl;
+
 
 
 			if(_truthInputFilename != ""){
@@ -2310,7 +2308,7 @@ public:
 				string unitigSequence;
 				_toBasespace.createSequence(nodePath, unitigSequence);
 
-				cout << endl << "\tUnitig length: " << u._length << " " << nodePath.size() << " " << unitigSequence.size() << endl;
+				cout << endl << "\tUnitig: " << u._length << " " << nodePath.size() << " " << unitigSequence.size() << endl;
 				//string header = ">ctg" + to_string(contigIndex) + '\n';
 				//basespaceUnitigFile << header;
 				//gzwrite(basespaceUnitigFile, (const char*)&header[0], header.size());
@@ -2341,8 +2339,14 @@ public:
 
 				ContigFeatures contigFeature_init = {unitigIndex, composition_init, abundances};
 
-				cout << "\tComposition dist (init): " << _contigFeature.computeEuclideanDistance(compositionModel_init, composition_init) << "    " << _contigFeature.computeProbability(contigFeatureModel, contigFeature_init) << endl; 
-				cout << "\tComposition dist (extended): " << _contigFeature.computeEuclideanDistance(compositionModel_init, composition) << "    " << _contigFeature.computeProbability(contigFeatureModel, contigFeature) << endl; 
+				cout << "\tComposition dist (init): " << _contigFeature.computeEuclideanDistance(compositionModel_init, composition_init) << " " << _contigFeature.computeEuclideanDistance(contigFeatureModel._abundance, contigFeature_init._abundance) << " " << _contigFeature.computeProbability(contigFeatureModel, contigFeature_init)  << endl; 
+				cout << "\tComposition dist (extended): " << _contigFeature.computeEuclideanDistance(compositionModel_init, composition) << " " << _contigFeature.computeEuclideanDistance(contigFeatureModel._abundance, contigFeature._abundance) << " " << _contigFeature.computeProbability(contigFeatureModel, contigFeature)  << endl; 
+				cout << "\t";
+				for(float count : abundancesModel) cout << count << " ";
+				cout << endl;
+				cout << "\t";
+				for(float count : abundances) cout << count << " ";
+				cout << endl;
 
 				//contigFeatures.push_back({unitigIndex, composition, abundances});
 
@@ -2352,9 +2356,7 @@ public:
 
 					bin.push_back(unitigSequence_init);
 
-					cout << "\t";
-					for(float count : abundances) cout << count << " ";
-					cout << endl;
+
 
 					cout << "\t>" << u._length << ": " << _contigFeature.computeProbability(contigFeatureModel, contigFeature) << endl;
 				
