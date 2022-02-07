@@ -674,6 +674,23 @@ public:
 		}
 	}
 
+	static double compute_median_float(vector<float> scores){
+		size_t size = scores.size();
+
+		if (size == 0){
+			return 0;  // Undefined, really.
+		}
+		else{
+			sort(scores.begin(), scores.end());
+			if (size % 2 == 0){
+				return (scores[size / 2 - 1] + scores[size / 2]) / 2; //scores[size / 2 - 1];
+			}
+			else {
+				return scores[size / 2];
+			}
+		}
+	}
+
 	static void revcomp(string& sequence){
 
 		std::reverse(sequence.begin(), sequence.end());

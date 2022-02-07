@@ -899,10 +899,12 @@ public:
 
 
 		if(data_successors.size() == 0){
-			if(currentDepth == 0){
-				for(size_t i=0; i<currentDepth; i++) cout << "  ";
-				cout << "No successors" << endl;
-			}
+			#ifdef PRINT_DEBUG
+				if(currentDepth == 0){
+					for(size_t i=0; i<currentDepth; i++) cout << "  ";
+					cout << "No successors" << endl;
+				}
+			#endif
 			return -1;
 		}
 		else if(data_successors.size() == 1){
@@ -1404,7 +1406,9 @@ public:
 
 		//cout << "Check infinite cycle: " << BiGraph::nodeIndex_to_nodeName(current_nodeIndex) << " " <<  successorPaths.size() << endl;
 		if(successorPaths.size() == 0){
-			cout << "Infinite cycle" << endl;
+			#ifdef PRINT_DEBUG
+				cout << "Infinite cycle" << endl;
+			#endif
 			//getchar();
 		} 
 
@@ -7464,7 +7468,7 @@ public:
 
 	u_int64_t _maxContigLength = 100000;
 
-	bool solveBin_path(PathData& pathData, GraphSimplify* graph, bool forward, AssemblyState& assemblyState, unordered_set<u_int32_t>& visitedNodes){
+	bool solveBin_path(PathData& pathData, GraphSimplify* graph, bool forward, AssemblyState& assemblyState, unordered_set<u_int32_t>& visitedNodes, u_int64_t& length){
 
 
 		assemblyState._cutoffType = CutoffType::ERROR;
@@ -7497,11 +7501,11 @@ public:
 			truth_pathIndex = it - _evaluation_hifiasmGroundTruth_path.begin();
 		}
 		
-			//if(it != _evaluation_hifiasmGroundTruth_path.end()){
-			//	index += 1;
-			//}
+		//if(it != _evaluation_hifiasmGroundTruth_path.end()){
+		//	index += 1;
+		//}
 		
-		u_int64_t length = graph->_nodeLengths[current_nodeName];
+		length = graph->_nodeLengths[current_nodeName];
 
 		while(true){
 
@@ -7575,7 +7579,10 @@ public:
 				if(current_nodeIndex == pathData.source_nodeIndex){ //Path complete
 					pathData.nodePath.pop_back(); //if the path is solved, the source node exist as first and last element,thus we remove the last one
 
-					cout << "Path complete! (" << pathData.nodePath.size() << ")" << endl;
+					#ifdef PRINT_DEBUG
+						cout << "Path complete! (" << pathData.nodePath.size() << ")" << endl;
+					#endif
+
 					return true; 
 				}
 
@@ -7820,8 +7827,9 @@ public:
 		cout << "2" << endl;
 		*/
 
+		u_int64_t length = 0;
 		PathData pathData_forward = {pathIndex, {}, {}, {}, abundance, nodeIndex, nodeIndex, 0, {}};
-		bool pathSolved = solveBin_path(pathData_forward, graph, true, assemblyState, visitedNodes);
+		bool pathSolved = solveBin_path(pathData_forward, graph, true, assemblyState, visitedNodes, length);
 
 		//PathData pathData = {pathIndex, {}, {}, {}, source_abundance, source_nodeIndex, source_nodeIndex, abundanceCutoff_min};
 		//bool pathSolved = solveBin_path(pathData, graph, true, dummu);
@@ -7853,13 +7861,13 @@ public:
 		PathData pathData_backward = {pathIndex, {}, {}, {}, abundance, nodeIndex, nodeIndex, 0, {}};
 		
 		
-		if(!pathSolved){
+		if(!pathSolved && length < _maxContigLength){
 			#ifdef PRINT_DEBUG 
 				cout << endl << endl << endl << endl << endl << "----- Backward -------------------------------------------------------------------------------------------------------------------------------------" << endl;
 			#endif
 			//getchar();
 			//_iter = 0;
-			pathSolved = solveBin_path(pathData_backward, graph, false, assemblyState, visitedNodes);
+			pathSolved = solveBin_path(pathData_backward, graph, false, assemblyState, visitedNodes, length);
 			if(pathSolved){ 
 				
 				//supportingReads_forward.clear();
@@ -7972,8 +7980,9 @@ public:
 		cout << "2" << endl;
 		*/
 
+		u_int64_t length = 0;
 		PathData pathData_forward = {pathIndex, {}, {}, {}, abundance, nodeIndex, nodeIndex, 0, {}};
-		bool pathSolved = solveBin_path(pathData_forward, graph, true, assemblyState, visitedNodes);
+		bool pathSolved = solveBin_path(pathData_forward, graph, true, assemblyState, visitedNodes, length);
 
 		//PathData pathData = {pathIndex, {}, {}, {}, source_abundance, source_nodeIndex, source_nodeIndex, abundanceCutoff_min};
 		//bool pathSolved = solveBin_path(pathData, graph, true, dummu);
@@ -8012,7 +8021,8 @@ public:
 			#endif
 			//getchar();
 			//_iter = 0;
-			pathSolved = solveBin_path(pathData_backward, graph, false, assemblyState, visitedNodes);
+			u_int64_t length = 0;
+			pathSolved = solveBin_path(pathData_backward, graph, false, assemblyState, visitedNodes, length);
 			if(pathSolved){ 
 				
 				supportingReads_forward.clear();

@@ -140,15 +140,34 @@ public:
 
 	void execute (){
 
-		_contigFeature.loadAbundanceFile_nodename(_filename_abundance);
 		//_contigFeature.computeFastaComposition("/home/gats/workspace/run/overlap_test_AD_k7/binByCutoff/component_16_unitigs.fasta");
 		
 		//exit(1);
+
+		//unordered_map<string, vector<u_int32_t>> contigToNodesLala;
+		//_contigFeature.loadAbundanceFile_metabat(_filename_abundance, contigToNodesLala);
 
 		_outputContigFile = gzopen(_outputFilename.c_str(),"wb");
 		_outputContigFile_complete = gzopen(_outputFilename_complete.c_str(),"wb");
 
 		loadGraph();
+		
+		_contigFeature.loadAbundanceFile_nodename(_filename_abundance);
+		/*
+		_graph->loadState2(0, -1, _unitigDatas);
+		unordered_map<string, vector<u_int32_t>> contigToNodes;
+		for(const Unitig& u : _graph->_unitigs){
+			if(u._index%2 == 0){
+				for(u_int32_t nodeIndex : u._nodes){
+					contigToNodes["ctg" + to_string(u._index)].push_back(nodeIndex);
+				}
+			}
+		}
+		_contigFeature.loadAbundanceFile_metabat(_filename_abundance, contigToNodes);
+		*/
+
+
+
 		execute_binning();
 		//execute_detectSpecies_byCutoff();
 		
@@ -278,6 +297,10 @@ public:
 
 		_toBasespace.create(_inputDir);
 
+
+		//_graph->loadState2(0, -1, _unitigDatas);
+		//generateFasta(_inputDir + "/allContigs.fasta.gz");
+		//generateFastaExpanded(_inputDir + "/allContigsExpanded.fasta.gz");
 
 	}
 
@@ -2272,7 +2295,7 @@ public:
 				}
 			}
 
-
+			vector<string> hifiasmUnitigNames;
 			//vector<u_int32_t> componentNodes;
 			//vector<ContigFeatures> contigFeatures;
 
@@ -2348,18 +2371,20 @@ public:
 				cout << "\tComposition dist (extended): " << _contigFeature.computeEuclideanDistance(compositionModel_init, composition) << " " << _contigFeature.computeEuclideanDistance(abundancesModel, abundances) << " " << _contigFeature.computeProbability(contigFeatureModel, contigFeature)  << endl; 
 				int nnz = 0;
 				cout << "\tMetabat Abudance: " << _contigFeature.cal_abd_dist(contigFeatureModel, contigFeature_init, nnz) << " " << _contigFeature.cal_abd_dist(contigFeatureModel, contigFeature, nnz) << endl;
+				cout << "\tMetabat Abudance (2): " << _contigFeature.computeAbundanceProbability(abundancesModel, abundances_init) << " " << _contigFeature.computeAbundanceProbability(abundancesModel, abundances) << endl;
+				cout << "\tCorrelation: " << _contigFeature.computeAbundanceCorrelation(abundancesModel, abundances_init) << " " << _contigFeature.computeAbundanceCorrelation(abundancesModel, abundances) << endl;
 				cout << "\t";
 				for(float count : abundancesModel) cout << count << " ";
 				cout << endl;
 				cout << "\t";
 				for(float count : abundances) cout << count << " ";
 				cout << endl;
-				cout << "\t";
-				for(float count : abundancesModel_var) cout << count << " ";
-				cout << endl;
-				cout << "\t";
-				for(float count : abundancesVar) cout << count << " ";
-				cout << endl;
+				//cout << "\t";
+				//for(float count : abundancesModel_var) cout << count << " ";
+				//cout << endl;
+				//cout << "\t";
+				//for(float count : abundancesVar) cout << count << " ";
+				//cout << endl;
 
 				//contigFeatures.push_back({unitigIndex, composition, abundances});
 
@@ -2378,7 +2403,6 @@ public:
 						processedNodeNames.insert(nodeName);
 					}
 
-		
 					if(_truthInputFilename != ""){
 					
 						unordered_set<string> hifiasmWrittenUnitigs;
@@ -2390,12 +2414,15 @@ public:
 							if(_evaluation_hifiasmGroundTruth_nodeName_to_unitigName.find(nodeName) != _evaluation_hifiasmGroundTruth_nodeName_to_unitigName.end()){
 								for(string& unitigName : _evaluation_hifiasmGroundTruth_nodeName_to_unitigName[nodeName]){
 									if(hifiasmWrittenUnitigs.find(unitigName) != hifiasmWrittenUnitigs.end()) continue;
-									fileHifiasmAll << unitigName << "," << clusterIndex << endl;
+									//fileHifiasmAll << unitigName << "," << clusterIndex << endl;
 									hifiasmWrittenUnitigs.insert(unitigName);
+
+									hifiasmUnitigNames.push_back(unitigName);
 								}
 							}
 						}
 					}
+					
 
 
 
@@ -2409,7 +2436,34 @@ public:
 			//gzclose(basespaceUnitigFile);
 			//basespaceUnitigFile.close();
 
-			computeBinStats(clusterDir, bin, filename_binStats);
+			int ret = computeBinStats(clusterDir, bin, filename_binStats);
+
+			if(ret == 0){
+
+				string lastLine = "";
+				string line = "";
+				ifstream file_binStats(filename_binStats);
+				while (std::getline(file_binStats, line)){
+					if(line.empty()) continue;
+					lastLine = line;
+				}
+				file_binStats.close();
+				
+				vector<string>* fields = new vector<string>();
+				GfaParser::tokenize(lastLine, fields, ',');
+				float completeness = stof((*fields)[0]);
+				float contamination = stof((*fields)[1]);
+				delete fields;
+				cout << "Result: " << completeness << " " << contamination << endl;
+
+				if(completeness > 0.4){
+					for(const string& unitigName : hifiasmUnitigNames){
+						fileHifiasmAll << unitigName << "," << clusterIndex << endl;
+					}
+				}
+
+			}
+
 
 			//bins.push_back(bin);
 			cout << "Bin done" << endl;
@@ -2430,7 +2484,7 @@ public:
 
 	}
 
-	void computeBinStats(const string& outputDir, const vector<string> bin, const string& filename_binStats){
+	int computeBinStats(const string& outputDir, const vector<string> bin, const string& filename_binStats){
 
 		int lala = 0;
 		const string& basespaceUnitigFilename = outputDir + "/unitigs.fasta";
@@ -2454,12 +2508,279 @@ public:
 		int ret = system(command_annotation.c_str());
 		if(ret != 0){
 			cerr << "Command failed: " << ret << endl;
-			exit(ret);
+			//exit(ret);
 		}
+
+		return ret;
 		
 	}
 
+	void generateFasta(const string& outputFilename){
+
+		gzFile basespaceUnitigFile = gzopen(outputFilename.c_str(), "wb");
+
+		unordered_set<u_int32_t> writtenUnitigs;
+
+		for(const Unitig& u : _graph->_unitigs){
+			
+			//u_int32_t contigIndex = u._index;
+			//if(u._length < 10000) continue;
+			
+			if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
+			if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
+
+			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._startNode));
+			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
+
+			
+			vector<u_int32_t> nodePath = u._nodes;
+			u_int32_t nodeIndex = nodePath[0];
+			for(int i=0; i<(_kminmerSize-1); i++){
+
+				vector<u_int32_t> preds;
+				_graph->getPredecessors(nodeIndex, 0, preds);
+
+				if(preds.size() == 0) break;
+				nodeIndex = preds[0];
+
+				nodePath.insert(nodePath.begin(), nodeIndex);
+			}
+			
+
+			string unitigSequence;
+			_toBasespace.createSequence(nodePath, unitigSequence);
+
+			string header = ">ctg" + to_string(u._index) + '\n';
+			gzwrite(basespaceUnitigFile, (const char*)&header[0], header.size());
+			unitigSequence +=  '\n';
+			gzwrite(basespaceUnitigFile, (const char*)&unitigSequence[0], unitigSequence.size());
+
+		}
+
+		gzclose(basespaceUnitigFile);
+		
+	}
+
+	/*
+	struct ContigFeatures2{
+		u_int32_t _unitigIndex;
+		vector<float> _composition;
+		vector<float> _abundance;
+		vector<float> _abundanceVar;
+		string _sequenceInit;
+		float _length;
+		vector<u_int32_t> _nodeNames;
+	};
+
+	struct Bin{
+		ContigFeatures2 _model;
+		vector<ContigFeatures2> _binnedContigs;
+	};
+
+	static bool ContigFeatureComparator_ByLength(const ContigFeatures2 &a, const ContigFeatures2 &b){
+		return a._length > b._length;
+	}
+
+	vector<ContigFeatures2> _contigFeatures2;
+
+	void generateFastaExpanded(const string& outputFilename){
+
+		string clusterDir = _inputDir + "/" + "binGreedy";
+		fs::path path(clusterDir);
+	    if(!fs::exists (path)){
+            fs::create_directory(path);
+        } 
+
+
+		Assembly assembly(_unitigDatas);
+
+		float prevCutoff = -1;
+
+
+		unordered_set<u_int32_t> processedNodeNames;
+		u_int64_t processedUnitigs = 0;
+
+		for(Unitig& u : _graph->_startingUnitigstest){
+			
+			cout << processedUnitigs << " " << _graph->_startingUnitigstest.size() << endl;
+			processedUnitigs += 1;
+
+			bool isProcessed = false;
+			for(u_int32_t nodeIndex : u._nodes){
+				u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
+				if(processedNodeNames.find(nodeName) != processedNodeNames.end()){
+					isProcessed = true;
+					break;
+				}
+			}
+			if(isProcessed) continue;
+
+			
+			float cutoff = u._abundance*0.1;
+
+			float realCutoff = 0;
+			for(const SaveState2& saveState : _graph->_cachedGraphStates){
+				if(saveState._abundanceCutoff_min > cutoff) break;
+				realCutoff = saveState._abundanceCutoff_min;
+			}
+
+
+			if(realCutoff != prevCutoff){
+				_graph->loadState2(cutoff, u._startNode, _unitigDatas);
+				prevCutoff = realCutoff;
+			}
+
+
+			const Unitig& unitigCurrent = _graph->nodeIndex_to_unitig(u._startNode);
+			//vector<u_int32_t> nodePathInit = unitigCurrent._nodes;
+
+			string unitigSequenceInit;
+			_toBasespace.createSequence(unitigCurrent._nodes, unitigSequenceInit);
+
+			for(u_int32_t nodeIndex : unitigCurrent._nodes){
+				u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
+				processedNodeNames.insert(nodeName);
+			}
+
+
+			vector<u_int32_t> nodePath;
+
+			if(unitigSequenceInit.size() < 100000){
+				assembly.solveBin2(u._startNode, 0, _graph, 0, 0, false, nodePath);
+			}
+			else{
+				nodePath = unitigCurrent._nodes;
+			}
+
+
+			string unitigSequence;
+			_toBasespace.createSequence(nodePath, unitigSequence);
+
+			cout << endl << "\tUnitig: " << u._length << " " <<  unitigSequenceInit.size() << " " << unitigSequence.size() << endl;
+
+
+			vector<float> composition;
+			_contigFeature.sequenceToComposition(unitigSequence, composition);
+
+
+
+
+
+			vector<u_int32_t> nodeNames;
+			for(u_int32_t nodeIndex : nodePath){
+				nodeNames.push_back(BiGraph::nodeIndex_to_nodeName(nodeIndex));
+			}
+
+			ContigFeatures2 contigFeature = {u._index, composition, {}, {}, unitigSequenceInit, unitigSequence.size(), nodeNames};
+			_contigFeatures2.push_back(contigFeature);
+
+		}
+
+        std::sort(_contigFeatures2.begin(), _contigFeatures2.end(), ContigFeatureComparator_ByLength);
+
+		vector<Bin> bins;
+
+		for(const ContigFeatures2& f : _contigFeatures2){
+
+			cout << bins.size() << endl;
+
+			bool isBinned = false;
+
+			for(Bin& bin : bins){
+
+				if( -log10(_contigFeature.computeCompositionProbability(f._composition, bin._model._composition)) < 5){
+					bin._binnedContigs.push_back(f);
+					isBinned = true;
+					break;
+				}
+			}
+
+			if(isBinned) continue;
+
+			Bin bin = {f, {f}};
+			bins.push_back(bin);
+		}
+		//for(float t=0.01; t<10; t++){
+
+		//}
+
+
+		ofstream file_output(clusterDir + "/bin_nodes.csv");
+		file_output << "Name,Colour" << endl;
+
+		ofstream fileHifiasmAll(clusterDir + "/bin_hifiasm.csv");
+		fileHifiasmAll << "Name,Colour" << endl;
+
+		string filename_binStats = clusterDir + "/binStats.txt";
+		ofstream file_binStats(filename_binStats);
+		file_binStats.close();
+
+		int binIndex = 0;
+		for(const Bin& bin : bins){
+			
+			vector<string> binSequences;
+
+			for(const ContigFeatures2& contig : bin._binnedContigs){
+				binSequences.push_back(contig._sequenceInit);
+			}
+			
+			int ret = computeBinStats(clusterDir, binSequences, filename_binStats);
+			//cout << ret << endl;
+
+			if(ret == 0){
+
+				string lastLine = "";
+				string line = "";
+				ifstream file_binStats(filename_binStats);
+				while (std::getline(file_binStats, line)){
+					if(line.empty()) continue;
+					lastLine = line;
+				}
+				file_binStats.close();
+				
+				vector<string>* fields = new vector<string>();
+				GfaParser::tokenize(lastLine, fields, ',');
+				float completeness = stof((*fields)[0]);
+				float contamination = stof((*fields)[1]);
+				delete fields;
+				cout << "Result: " << completeness << " " << contamination << endl;
+
+				if(completeness > 0.4){
+					for(const ContigFeatures2& contig : bin._binnedContigs){
+						for(u_int32_t nodeName : contig._nodeNames){
+							file_output << nodeName << "," << binIndex << endl;
+
+							if(!_truthInputFilename.empty()){
+							
+								unordered_set<string> hifiasmWrittenUnitigs;
+
+								if(_evaluation_hifiasmGroundTruth_nodeName_to_unitigName.find(nodeName) != _evaluation_hifiasmGroundTruth_nodeName_to_unitigName.end()){
+									for(string& unitigName : _evaluation_hifiasmGroundTruth_nodeName_to_unitigName[nodeName]){
+										if(hifiasmWrittenUnitigs.find(unitigName) != hifiasmWrittenUnitigs.end()) continue;
+										fileHifiasmAll << unitigName << "," << binIndex << endl;
+										hifiasmWrittenUnitigs.insert(unitigName);
+									}
+								}
+							}
+						}
+					}
+				}
+
+			}
+
+
+			binIndex += 1;
+		}
+
+		file_output.close();
+		fileHifiasmAll.close();
+		//gzclose(basespaceUnitigFile);
+		exit(1);
+	}
+	*/
 };
+
+
 
 
 

@@ -50,6 +50,9 @@ public:
 	unordered_map<string, vector<u_int32_t>> _contigToNodenames;
 
 	unordered_map<u_int32_t, vector<u_int32_t>> _nodenameCounts;
+	
+	unordered_map<u_int32_t, vector<float>> _nodenameAbundanceMean;
+	unordered_map<u_int32_t, vector<float>> _nodenameAbundanceVar;
 
 	ContigFeature(){
 
@@ -197,6 +200,69 @@ public:
 		setup();
 	}
 
+	void loadAbundanceFile_metabat(const string& filename, unordered_map<string, vector<u_int32_t>>& contigToNodeIndex){
+
+
+		ifstream infile(filename);
+
+		vector<string>* fields = new vector<string>();
+		string line;
+		std::getline(infile, line); //skip header
+
+		while (std::getline(infile, line)){
+			
+			GfaParser::tokenize(line, fields, '\t');
+
+			string contigName = (*fields)[0];
+
+			vector<u_int32_t> nodes;
+			nodes = contigToNodeIndex[contigName];
+			//if(contigToNodeIndex.find(contigName) != contigToNodeIndex.end()){
+			//}
+
+			vector<float> abundanceMean;
+			vector<float> abundanceVar;
+
+			for(size_t i=3; i<fields->size(); i++){
+				const string& field = (*fields)[i];
+				if(field.empty()) continue;
+				//cout << i << " " << (*fields)[i] << endl;
+				float ab = stof((*fields)[i]);
+				//if(ab == 0) ab = 1;
+				if(i%2 == 0){
+					abundanceVar.push_back(ab);
+					//cout << "Var: " << ab << endl;
+				}
+				else{
+					abundanceMean.push_back(ab);
+					//cout << "Mean: " << ab << endl;
+				}
+			}
+
+			_nbDatasets = abundanceMean.size();
+
+			for(u_int32_t nodeIndex : nodes){
+				u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
+				_nodenameAbundanceMean[nodeName] = abundanceMean;
+				_nodenameAbundanceVar[nodeName] = abundanceVar;
+			}
+
+			//u_int32_t nodeName = stoull((*fields)[0]);
+			//u_int32_t contigIndex = stoull((*fields)[1]);
+
+			//_contigToNodenames["ctg" + to_string(contigIndex)].push_back(nodeName);
+
+			//cout << unitigIndex << " " << scgIndex << " " << clusterIndex << endl;
+			//exit(1);
+
+		}
+
+		delete fields;
+		infile.close();
+
+		setup();
+	}
+	
 	void sequenceToComposition(const string& sequence, vector<float>& composition){
 		
 		composition.resize(_compositionVectorSize);
@@ -243,6 +309,45 @@ public:
 
 	void sequenceToAbundance(const vector<u_int32_t>& sequence, vector<float>& abundances, vector<float>& abundancesVar){
 
+		/*
+		vector<vector<float>> values_mean;
+		values_mean.resize(_nbDatasets);
+		vector<vector<float>> values_var;
+		values_var.resize(_nbDatasets);
+
+		abundances.clear();
+		abundances.resize(_nbDatasets, 0);
+		abundancesVar.clear();
+		abundancesVar.resize(_nbDatasets, 0);
+
+		for(u_int32_t nodeIndex : sequence){
+			u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
+			
+			const vector<float>& means = _nodenameAbundanceMean[nodeName];
+
+			for(size_t i=0; i<means.size(); i++){
+				//forabundances[i] += counts[i];
+				values_mean[i].push_back(means[i]);
+			}
+
+			const vector<float>& vars = _nodenameAbundanceVar[nodeName];
+
+			for(size_t i=0; i<vars.size(); i++){
+				//forabundances[i] += counts[i];
+				values_var[i].push_back(vars[i]);
+			}
+
+		}
+
+		for(u_int32_t i=0; i<abundances.size(); i++){
+			abundances[i] = Utils::compute_median_float(values_mean[i]);
+		}
+		for(u_int32_t i=0; i<abundancesVar.size(); i++){
+			abundancesVar[i] = Utils::compute_median_float(values_var[i]);
+		}
+		*/
+
+		
 		vector<vector<u_int32_t>> values;
 		values.resize(_nbDatasets);
 
@@ -258,8 +363,8 @@ public:
 			
 			const vector<u_int32_t>& counts = _nodenameCounts[nodeName];
 			for(size_t i=0; i<counts.size(); i++){
-				abundances[i] += counts[i];
-				//values[i].push_back(counts[i]);
+				//abundances[i] += counts[i];
+				values[i].push_back(counts[i]);
 			}
 		}
 
@@ -270,10 +375,12 @@ public:
 			//}
 			//cout << endl;
 			//cout << abundances[i] << " " << sequence.size() << " " << (abundances[i] / sequence.size()) << endl;
-			abundances[i] /= ((float) sequence.size());
-			//abundances[i] = Utils::compute_median(values[i]);
+			//abundances[i] /= ((float) sequence.size());
+			abundances[i] = Utils::compute_median(values[i]);
+			if(abundances[i] == 0) abundances[i] = VERY_SMALL_DOUBLE;
 		}
 
+		/*
 		if(sequence.size() > 1){
 			for(u_int32_t nodeIndex : sequence){
 				u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
@@ -289,10 +396,10 @@ public:
 				abundancesVar[i] /= ((float) sequence.size()-1);
 			}
 		}
-
+		*/
 
 		//cout << sequence.size() << endl;
-
+		
 	}
 
 
@@ -599,7 +706,6 @@ public:
 
 	float computeProbability(const ContigFeatures& f1, const ContigFeatures& f2){
 
-
 		float prob_comp = computeCompositionProbability(f1._composition, f2._composition);
 		//return - log10(prob_comp);
 
@@ -621,9 +727,16 @@ public:
 	}
 
 	bool isIntra(const ContigFeatures& f1, const ContigFeatures& f2){
-		float prob = computeProbability(f1 , f2);
+
+		
+		float prob_cov = computeAbundanceProbability(f1._abundance, f2._abundance);
+		return computeProbability(f1, f2) < 30;
+		
+		//int nnz = 0;
+		//return computeAbundanceCorrelation(f1._abundance, f2._abundance) > 0.98 && cal_abd_dist(f1, f2 ,nnz) < 0.3;
+		//float prob = computeProbability(f1 , f2);
 		//cout << "\tProb: " << prob << " " << _w_intra << endl;
-		return prob < _w_intra;
+		//return prob < _w_intra;
 	}
 
 

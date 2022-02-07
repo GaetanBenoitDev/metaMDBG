@@ -3824,10 +3824,10 @@ getStronglyConnectedComponent_node
 
         for(const Unitig& unitig : _unitigs){
             //cout << unitig._length << " " << unitig._abundance << endl;
-            //if(unitig._index % 2 == 1) continue;
-            if(unitig._length < 50000) continue;
+            if(unitig._index % 2 == 1) continue;
+            if(unitig._length < 2500) continue;
             //if(unitig._abundance < 10) continue; //200
-
+            
             _startingUnitigstest.push_back(unitig);
         }
         //std::sort(_startingUnitigstest.begin(), _startingUnitigstest.end(), UnitigComparator_ByAbundance2);
