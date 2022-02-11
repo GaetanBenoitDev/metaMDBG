@@ -200,7 +200,7 @@ public:
 		setup();
 	}
 
-	void loadAbundanceFile_metabat(const string& filename, unordered_map<string, vector<u_int32_t>>& contigToNodeIndex){
+	void loadAbundanceFile_metabat(const string& filename, unordered_map<string, vector<u_int32_t>>& contigToNodenames){
 
 
 		ifstream infile(filename);
@@ -216,7 +216,7 @@ public:
 			string contigName = (*fields)[0];
 
 			vector<u_int32_t> nodes;
-			nodes = contigToNodeIndex[contigName];
+			nodes = contigToNodenames[contigName];
 			//if(contigToNodeIndex.find(contigName) != contigToNodeIndex.end()){
 			//}
 
@@ -231,9 +231,11 @@ public:
 				//if(ab == 0) ab = 1;
 				if(i%2 == 0){
 					abundanceVar.push_back(ab);
+					//abundanceVar.push_back(10);
 					//cout << "Var: " << ab << endl;
 				}
 				else{
+					//abundanceVar.push_back(ab);
 					abundanceMean.push_back(ab);
 					//cout << "Mean: " << ab << endl;
 				}
@@ -241,8 +243,8 @@ public:
 
 			_nbDatasets = abundanceMean.size();
 
-			for(u_int32_t nodeIndex : nodes){
-				u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
+			for(u_int32_t nodeName : nodes){
+				//u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
 				_nodenameAbundanceMean[nodeName] = abundanceMean;
 				_nodenameAbundanceVar[nodeName] = abundanceVar;
 			}
@@ -309,7 +311,7 @@ public:
 
 	void sequenceToAbundance(const vector<u_int32_t>& sequence, vector<float>& abundances, vector<float>& abundancesVar){
 
-		/*
+		
 		vector<vector<float>> values_mean;
 		values_mean.resize(_nbDatasets);
 		vector<vector<float>> values_var;
@@ -322,6 +324,8 @@ public:
 
 		for(u_int32_t nodeIndex : sequence){
 			u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
+			
+			if(_nodenameAbundanceMean.find(nodeName) == _nodenameAbundanceMean.end()) continue;
 			
 			const vector<float>& means = _nodenameAbundanceMean[nodeName];
 
@@ -345,9 +349,9 @@ public:
 		for(u_int32_t i=0; i<abundancesVar.size(); i++){
 			abundancesVar[i] = Utils::compute_median_float(values_var[i]);
 		}
-		*/
-
 		
+
+		/*
 		vector<vector<u_int32_t>> values;
 		values.resize(_nbDatasets);
 
@@ -379,7 +383,8 @@ public:
 			abundances[i] = Utils::compute_median(values[i]);
 			if(abundances[i] == 0) abundances[i] = VERY_SMALL_DOUBLE;
 		}
-
+		*/
+	
 		/*
 		if(sequence.size() > 1){
 			for(u_int32_t nodeIndex : sequence){
@@ -674,7 +679,8 @@ public:
 		return r;
 	}
 
-	
+
+
 	float computeAbundanceProbability(const vector<float>& cov1, const vector<float>& cov2){
 
 		float poisson_prod_1 = 1;
@@ -702,6 +708,55 @@ public:
 		return min(poisson_prod_1, poisson_prod_2);
 	}
 	
+	float computeAbundanceProbability_new(const vector<float>& cov1, const vector<float>& cov2){
+
+		vector<float> means_f1 = cov1;
+		vector<float> means_f2 = cov2;
+
+		float mean_ratio = 0;
+		for(size_t i=0; i<means_f1.size(); i++){
+			if(means_f2[i] > 0){
+				float ratio = means_f1[i] / means_f2[i];
+				mean_ratio += ratio;
+				cout << ratio << " ";
+			}
+			else{
+				cout << "0" << " ";
+			}
+		}
+		cout << endl;
+
+		mean_ratio /= means_f1.size();
+
+		for(size_t i=0; i<means_f1.size(); i++){
+			means_f2[i] *= mean_ratio;
+		}
+
+		
+		float poisson_prod_1 = 1;
+		float poisson_prod_2 = 1;
+
+		for(size_t i=0; i<means_f1.size(); i++){
+
+			float poisson_pmf_1 = exp((means_f1[i] * log(means_f2[i])) - lgamma(means_f1[i] + 1.0) - means_f2[i]);
+
+			float poisson_pmf_2 = exp((means_f2[i] * log(means_f1[i])) - lgamma(means_f2[i] + 1.0) - means_f1[i]);
+
+			if (poisson_pmf_1 < VERY_SMALL_DOUBLE){
+				poisson_pmf_1 = VERY_SMALL_DOUBLE;
+			}
+
+			if (poisson_pmf_2 < VERY_SMALL_DOUBLE){
+				poisson_pmf_2 = VERY_SMALL_DOUBLE;
+			}
+
+			poisson_prod_1 = poisson_prod_1 * poisson_pmf_1;
+
+			poisson_prod_2 = poisson_prod_2 * poisson_pmf_2;
+		}
+
+		return min(poisson_prod_1, poisson_prod_2);
+	}
 
 
 	float computeProbability(const ContigFeatures& f1, const ContigFeatures& f2){
@@ -728,10 +783,18 @@ public:
 
 	bool isIntra(const ContigFeatures& f1, const ContigFeatures& f2){
 
+		int nnz = 0;
+		return computeAbundanceCorrelation(f1._abundance, f2._abundance) * (1-cal_abd_dist_new(f1, f2 ,nnz)) > 0.6;
+
+
+		//return  computeAbundanceCorrelation(f1._abundance, f2._abundance) > 0.95 && -log10(computeAbundanceProbability(f1._abundance, f2._abundance)) < 20;
+		//int nnz = 0;
+		//return  computeAbundanceCorrelation(f1._abundance, f2._abundance) > 0.95 && cal_abd_dist(f1, f2 ,nnz) < 0.3;// && computeCompositionProbability(f1._composition, f2._composition) < 2;
+
+		//float prob_cov = computeAbundanceProbability(f1._abundance, f2._abundance);
+		//return computeProbability(f1, f2) < 30;
 		
-		float prob_cov = computeAbundanceProbability(f1._abundance, f2._abundance);
-		return computeProbability(f1, f2) < 30;
-		
+
 		//int nnz = 0;
 		//return computeAbundanceCorrelation(f1._abundance, f2._abundance) > 0.98 && cal_abd_dist(f1, f2 ,nnz) < 0.3;
 		//float prob = computeProbability(f1 , f2);
@@ -810,6 +873,126 @@ public:
 		return distSum / nnz;
 	}
 
+	Distance cal_abd_dist_new(const ContigFeatures& f1, const ContigFeatures& f2, int& nnz) {
+
+		vector<float> means_f1 = f1._abundance;
+		vector<float> means_f2 = f2._abundance;
+
+		float mean_ratio = 0;
+		for(size_t i=0; i<f1._abundance.size(); i++){
+			if(means_f2[i] > 0){
+				float ratio = means_f1[i] / means_f2[i];
+				mean_ratio += ratio;
+				//cout << ratio << " ";
+			}
+			else{
+				//cout << "0" << " ";
+			}
+		}
+		//cout << endl;
+
+		mean_ratio /= f1._abundance.size();
+
+		for(size_t i=0; i<f1._abundance.size(); i++){
+			means_f2[i] *= mean_ratio;
+		}
+
+
+		float distSum = 0.0f;
+		nnz = 0;
+
+		for (size_t i=0; i < f1._abundance.size(); ++i) {
+
+			Distance d = 0;
+			Distance m1 = means_f1[i];
+			Distance m2 = means_f2[i];
+			if (m1 > minCV || m2 > minCV) {
+				//nz = true;
+				m1 = std::max(m1, (Distance) 1e-6);
+				m2 = std::max(m2, (Distance) 1e-6);
+				if (m1 != m2) {
+					Distance v1 = f1._abundanceVar[i] < 1 ? 1 : f1._abundanceVar[i];
+					Distance v2 = f2._abundanceVar[i] < 1 ? 1 : f2._abundanceVar[i];
+
+					//cout << m1 << " " << m2 << " " << v1 << " " << v2 << endl;
+					Normal p1(m1, sqrt(v1)), p2(m2, sqrt(v2));
+					d = cal_abd_dist2(p1, p2);
+				}
+				nnz += 1;
+			}
+			distSum += std::min(std::max(d, 1e-6), 1. - 1e-6);
+
+		}
+
+		//return POW(EXP(distSum), 1.0 / nnz);
+		return distSum / nnz;
+	}
+
+	/*
+	double computeAbundanceCorrelation_new(const vector<float>& cov1, const vector<float>& cov2) {
+
+		vector<float> means_f1 = cov1;
+		vector<float> means_f2 = cov2;
+
+		float mean_ratio = 0;
+		for(size_t i=0; i<means_f1.size(); i++){
+			if(means_f2[i] > 0){
+				float ratio = means_f1[i] / means_f2[i];
+				mean_ratio += ratio;
+				cout << ratio << " ";
+			}
+			else{
+				cout << "0" << " ";
+			}
+		}
+		cout << endl;
+
+		mean_ratio /= means_f1.size();
+
+		for(size_t i=0; i<means_f1.size(); i++){
+			means_f2[i] *= mean_ratio;
+		}
+
+		size_t i, ii;
+		double sum_xsq = 0.0;
+		double sum_ysq = 0.0;
+		double sum_cross = 0.0;
+		double ratio;
+		double delta_x, delta_y;
+		double mean_x = 0.0, mean_y = 0.0;
+		double r = 0.0;
+
+		size_t s = 0; //skipped
+
+		for (i = 0; i < means_f1.size(); ++i) {
+			double m1 = means_f1[i]; //ABD(r1,i);
+			double m2 = means_f2[i]; //is_small ? small_ABD(r2, i) : ABD(r2, i);
+			//m2 = rand()%500;
+
+			//cout << m1 << " " << m2 << endl;
+			ii = i - s;
+
+			if(ii == 0) {
+				mean_x = m1;
+				mean_y = m2;
+				continue;
+			}
+
+			ratio = ii / (ii + 1.0);
+			delta_x = m1 - mean_x;
+			delta_y = m2 - mean_y;
+			sum_xsq += delta_x * delta_x * ratio;
+			sum_ysq += delta_y * delta_y * ratio;
+			sum_cross += delta_x * delta_y * ratio;
+			mean_x += delta_x / (ii + 1.0);
+			mean_y += delta_y / (ii + 1.0);
+		}
+
+		r = sum_cross / (sqrt(sum_xsq) * sqrt(sum_ysq));
+
+		return r;
+	}
+	*/
 
 	/*
 	void computeUnitigComposition(IBank* inbank, size_t k, ModelCanonical::Iterator& itKmer, const vector<size_t>& kmer_to_compositionIndex, u_int64_t compositionVectorSize, vector<UnitigData>& unitigCompositions){

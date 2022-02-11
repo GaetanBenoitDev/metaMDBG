@@ -657,6 +657,18 @@ class Utils{
 
 public:
 
+	static double compute_first_quartile(vector<u_int64_t> scores){
+		size_t size = scores.size();
+
+		if (size == 0){
+			return 0;  // Undefined, really.
+		}
+		else{
+			sort(scores.begin(), scores.end());
+			return scores[size * 0.1];
+		}
+	}
+
 	static double compute_median(vector<u_int32_t> scores){
 		size_t size = scores.size();
 
@@ -729,6 +741,58 @@ public:
 		}
 
 		return 1 - ((float)nbShared) / nbElements;
+	}
+
+	static u_int64_t computeSharedElements(const vector<u_int32_t>& reads1, const vector<u_int32_t>& reads2){
+
+		size_t i=0;
+		size_t j=0;
+		u_int64_t nbShared = 0;
+
+		while(i < reads1.size() && j < reads2.size()){
+
+			if(reads1[i] == reads2[j]){
+				nbShared += 1;
+				i += 1;
+				j += 1;
+			}
+			else if(reads1[i] < reads2[j]){
+				i += 1;
+			}
+			else{
+				j += 1;
+			}
+
+		}
+
+		return nbShared;
+	}
+
+	static u_int64_t collectSharedElements(const vector<u_int32_t>& reads1, const vector<u_int32_t>& reads2, unordered_set<u_int32_t>& sharedReads){
+
+		sharedReads.clear();
+
+		size_t i=0;
+		size_t j=0;
+		u_int64_t nbShared = 0;
+
+		while(i < reads1.size() && j < reads2.size()){
+			if(reads1[i] == reads2[j]){
+				sharedReads.insert(reads1[i]);
+				nbShared += 1;
+				i += 1;
+				j += 1;
+			}
+			else if(reads1[i] < reads2[j]){
+				i += 1;
+			}
+			else{
+				j += 1;
+			}
+
+		}
+
+		return nbShared;
 	}
 
 	static u_int64_t computeSharedReads(const vector<u_int64_t>& reads1, const vector<u_int64_t>& reads2){

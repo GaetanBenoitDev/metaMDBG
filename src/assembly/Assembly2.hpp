@@ -140,6 +140,27 @@ public:
 
 	void execute (){
 
+		/*
+		unordered_map<string, vector<u_int32_t>> contigToNodes;
+		ifstream file_contigToNode(_inputDir + "/contigs.fasta.gz" + ".nodes.csv");
+        vector<string>* fields = new vector<string>();
+		string line;
+		while (std::getline(file_contigToNode, line)){
+			
+			GfaParser::tokenize(line, fields, ';');
+
+			u_int32_t nodeName = stoull((*fields)[0]);
+			u_int32_t contigIndex = stoull((*fields)[1]);
+			//cout << nodeName << " " << contigIndex << endl;
+			contigToNodes["ctg" + to_string(contigIndex)].push_back(nodeName);
+		}
+		delete fields;
+		file_contigToNode.close();
+
+		_contigFeature.loadAbundanceFile_metabat(_filename_abundance, contigToNodes);
+		*/
+	
+
 		//_contigFeature.computeFastaComposition("/home/gats/workspace/run/overlap_test_AD_k7/binByCutoff/component_16_unitigs.fasta");
 		
 		//exit(1);
@@ -151,20 +172,27 @@ public:
 		_outputContigFile_complete = gzopen(_outputFilename_complete.c_str(),"wb");
 
 		loadGraph();
+
+		//generateContigs(_inputDir + "/contigs.min.gz", _inputDir + "/contigs.fasta.gz");
+		//return;
+
+
+
+
 		
-		_contigFeature.loadAbundanceFile_nodename(_filename_abundance);
-		/*
+		//_contigFeature.loadAbundanceFile_nodename(_filename_abundance);
+		
 		_graph->loadState2(0, -1, _unitigDatas);
 		unordered_map<string, vector<u_int32_t>> contigToNodes;
 		for(const Unitig& u : _graph->_unitigs){
 			if(u._index%2 == 0){
 				for(u_int32_t nodeIndex : u._nodes){
-					contigToNodes["ctg" + to_string(u._index)].push_back(nodeIndex);
+					contigToNodes["ctg" + to_string(u._index)].push_back(BiGraph::nodeIndex_to_nodeName(nodeIndex));
 				}
 			}
 		}
 		_contigFeature.loadAbundanceFile_metabat(_filename_abundance, contigToNodes);
-		*/
+		
 
 
 
@@ -2134,7 +2162,6 @@ public:
 		Assembly assembly(_unitigDatas);
 
 
-		//solveBin
 
 		vector<vector<string>> bins;
 		
@@ -2219,20 +2246,44 @@ public:
 				prevCutoff = realCutoff;
 				reloadState = false;
 			}
+			reloadState = true;
 			
 
-
         	unordered_set<u_int32_t> component;
-        	_graph->getConnectedComponent_unitig(_graph->nodeIndex_to_unitigIndex(unitig._startNode), 20, component);
+        	_graph->getConnectedComponent_unitig(_graph->nodeIndex_to_unitigIndex(unitig._startNode), 50, component);
 
-			if(component.size() <= 2) continue;
 
-			reloadState = true;
+			unordered_set<u_int32_t> allowedNodeNames;
+			for(u_int32_t unitigIndex : component){
+				for(u_int32_t nodeIndex : _graph->_unitigs[unitigIndex]._nodes){
+					allowedNodeNames.insert(BiGraph::nodeIndex_to_nodeName(nodeIndex));
+				}
+			}
+
+			component.clear();
+			_graph->loadState2(0, -1, _unitigDatas);
+			for(Unitig& unitig : _graph->_startingUnitigstest){
+				if(allowedNodeNames.find(BiGraph::nodeIndex_to_nodeName(unitig._startNode)) == allowedNodeNames.end()) continue;
+				component.insert(unitig._index);
+				component.insert(_graph->unitigIndex_toReverseDirection(unitig._index));
+			}
+
+			//if(component.size() <= 2) continue;
+
 
 			cout << "Component size: " << component.size() << endl;
 
+			/*
+			cout << "Compute reachable unitigs" << endl;
+			unordered_set<u_int32_t> reachedUnitigs;
+			PathExplorerManager pathExplorerManager(_graph, _unitigDatas, component, reachedUnitigs);
+			pathExplorerManager.collectReachableNodes(unitig._startNode);
 
-
+			component = reachedUnitigs;
+			cout << "Component size (reachable): " << component.size() << endl; 
+			getchar();
+			*/
+		
 			//const string& filenameUnitigColor= clusterDir + "/component_" + to_string(clusterIndex) + "_unitigColor.csv";
 			//ofstream fUnitigColor(filenameUnitigColor);
 			//fUnitigColor << "Name,Colour" << endl;
@@ -2276,11 +2327,11 @@ public:
 			//cout << unitigSequence_model.size() << endl;
 
 			vector<string> bin;
-			bin.push_back(unitigSequence_model_init);
+			//bin.push_back(unitigSequence_model_init);
 
 
 
-
+			/*
 			if(_truthInputFilename != ""){
 			
 				for(u_int32_t nodeIndex : unitig._nodes){
@@ -2294,12 +2345,26 @@ public:
 					}
 				}
 			}
+			*/
 
 			vector<string> hifiasmUnitigNames;
 			//vector<u_int32_t> componentNodes;
 			//vector<ContigFeatures> contigFeatures;
 
 			//u_int32_t contigIndex = 0;
+
+			ofstream file_repeat(_inputDir + "/bin.csv");
+        	file_repeat << "Name,Color" << endl;
+
+			for(u_int32_t nodeIndex : unitig._nodes){
+				file_repeat << BiGraph::nodeIndex_to_nodeName(nodeIndex) << "," << "green" << endl;
+			}
+
+			unordered_set<u_int32_t> binnedNodeNames;
+			for(u_int32_t nodeIndex : unitig._nodes){
+				binnedNodeNames.insert(BiGraph::nodeIndex_to_nodeName(nodeIndex));
+			}
+			
 			for(u_int32_t unitigIndex : component){
 				
 				const Unitig& u = _graph->_unitigs[unitigIndex];
@@ -2317,7 +2382,12 @@ public:
 
 
 				u_int32_t contigIndex = u._index;
-				if(u._length < 1000) continue;
+				if(u._length < 2500){
+					for(u_int32_t nodeIndex : u._nodes){
+						file_repeat << BiGraph::nodeIndex_to_nodeName(nodeIndex) << "," << "blue" << endl;
+					}
+					continue;
+				}
 				
 				if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
 				if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
@@ -2325,14 +2395,17 @@ public:
 				writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._startNode));
 				writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
 
-
 				vector<u_int32_t> nodePath;
-				assembly.solveBin2(u._startNode, 0, _graph, 0, 0, false, nodePath);
+				nodePath = u._nodes;
+				//vector<u_int32_t> nodePath;
+				vector<u_int64_t> nodePath_supportingReads;
+				//assembly.solveBin2(u._startNode, 0, _graph, 0, 0, false, nodePath, nodePath_supportingReads, 100000);
 
 				string unitigSequence;
 				_toBasespace.createSequence(nodePath, unitigSequence);
 
-				cout << endl << "\tUnitig: " << u._length << " " << nodePath.size() << " " << unitigSequence.size() << endl;
+				cout << endl << "\tUnitig: " << BiGraph::nodeIndex_to_nodeName(u._startNode) << " " << u._length << " " << nodePath.size() << " " << unitigSequence.size() << endl;
+				
 				//string header = ">ctg" + to_string(contigIndex) + '\n';
 				//basespaceUnitigFile << header;
 				//gzwrite(basespaceUnitigFile, (const char*)&header[0], header.size());
@@ -2371,8 +2444,10 @@ public:
 				cout << "\tComposition dist (extended): " << _contigFeature.computeEuclideanDistance(compositionModel_init, composition) << " " << _contigFeature.computeEuclideanDistance(abundancesModel, abundances) << " " << _contigFeature.computeProbability(contigFeatureModel, contigFeature)  << endl; 
 				int nnz = 0;
 				cout << "\tMetabat Abudance: " << _contigFeature.cal_abd_dist(contigFeatureModel, contigFeature_init, nnz) << " " << _contigFeature.cal_abd_dist(contigFeatureModel, contigFeature, nnz) << endl;
-				cout << "\tMetabat Abudance (2): " << _contigFeature.computeAbundanceProbability(abundancesModel, abundances_init) << " " << _contigFeature.computeAbundanceProbability(abundancesModel, abundances) << endl;
+				cout << "\tMetabat Abudance: " << _contigFeature.cal_abd_dist_new(contigFeatureModel, contigFeature_init, nnz) << " " << _contigFeature.cal_abd_dist_new(contigFeatureModel, contigFeature, nnz) << endl;
+				cout << "\tMetabat Abudance (2): " << -log10(_contigFeature.computeAbundanceProbability_new(abundancesModel, abundances_init)) << " " << -log10(_contigFeature.computeAbundanceProbability_new(abundancesModel, abundances)) << endl;
 				cout << "\tCorrelation: " << _contigFeature.computeAbundanceCorrelation(abundancesModel, abundances_init) << " " << _contigFeature.computeAbundanceCorrelation(abundancesModel, abundances) << endl;
+				//cout << "\tCorrelation: " << _contigFeature.computeAbundanceCorrelation_new(abundancesModel, abundances_init) << " " << _contigFeature.computeAbundanceCorrelation_new(abundancesModel, abundances) << endl;
 				cout << "\t";
 				for(float count : abundancesModel) cout << count << " ";
 				cout << endl;
@@ -2392,6 +2467,15 @@ public:
 
 				if(_contigFeature.isIntra(contigFeatureModel, contigFeature)){
 
+					cout << "\t>" << u._length << ": " << _contigFeature.computeProbability(contigFeatureModel, contigFeature) << endl;
+				
+
+					for(u_int32_t nodeIndex : u._nodes){
+						file_repeat << BiGraph::nodeIndex_to_nodeName(nodeIndex) << "," << "red" << endl;
+						binnedNodeNames.insert(BiGraph::nodeIndex_to_nodeName(nodeIndex));
+					}
+
+					/*
 					bin.push_back(unitigSequence_init);
 
 
@@ -2422,7 +2506,7 @@ public:
 							}
 						}
 					}
-					
+					*/
 
 
 
@@ -2432,10 +2516,50 @@ public:
 
 			}
 
+			writtenUnitigs.clear();
+
+			_graph->loadState2(cutoff, unitig._startNode, _unitigDatas);
+			for(u_int32_t nodeNameBinned : binnedNodeNames){
+
+				const Unitig& u = _graph->nodeIndex_to_unitig(BiGraph::nodeName_to_nodeIndex(nodeNameBinned, true));
+
+				if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
+				if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
+
+				writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._startNode));
+				writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
+
+				string unitigSequence_init;
+				_toBasespace.createSequence(u._nodes, unitigSequence_init);
+				bin.push_back(unitigSequence_init);
+
+
+				for(u_int32_t nodeIndex : u._nodes){
+					processedNodeNames.insert(BiGraph::nodeIndex_to_nodeName(nodeIndex));
+
+					if(_truthInputFilename != ""){
+					
+						unordered_set<string> hifiasmWrittenUnitigs;
+						u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
+
+						if(_evaluation_hifiasmGroundTruth_nodeName_to_unitigName.find(nodeName) != _evaluation_hifiasmGroundTruth_nodeName_to_unitigName.end()){
+							for(string& unitigName : _evaluation_hifiasmGroundTruth_nodeName_to_unitigName[nodeName]){
+								if(hifiasmWrittenUnitigs.find(unitigName) != hifiasmWrittenUnitigs.end()) continue;
+								//fileHifiasmAll << unitigName << "," << clusterIndex << endl;
+								hifiasmWrittenUnitigs.insert(unitigName);
+
+								hifiasmUnitigNames.push_back(unitigName);
+							}
+						}
+					}
+				}
+
+			}
 			//fUnitigColor.close();
 			//gzclose(basespaceUnitigFile);
 			//basespaceUnitigFile.close();
 
+			
 			int ret = computeBinStats(clusterDir, bin, filename_binStats);
 
 			if(ret == 0){
@@ -2463,10 +2587,12 @@ public:
 				}
 
 			}
+			
 
 
 			//bins.push_back(bin);
 			cout << "Bin done" << endl;
+			file_repeat.close();
 			getchar();
 			//getchar();
 			clusterIndex += 1;
@@ -2487,7 +2613,7 @@ public:
 	int computeBinStats(const string& outputDir, const vector<string> bin, const string& filename_binStats){
 
 		int lala = 0;
-		const string& basespaceUnitigFilename = outputDir + "/unitigs.fasta";
+		const string& basespaceUnitigFilename = outputDir + "/contigsTmp.fasta";
 		ofstream basespaceUnitigFile = ofstream(basespaceUnitigFilename);
 
 		for(const string& sequence : bin){
@@ -2561,6 +2687,487 @@ public:
 		
 	}
 
+
+	struct Contig{
+		vector<u_int32_t> _nodePath;
+		vector<u_int32_t> _nodePath_sorted;
+	};
+
+	void generateContigs(const string& outputFilename, const string& outputFilename_fasta){
+
+
+		ofstream fileHifiasmAll(_inputDir + "/binning_results_hifiasm.csv");
+		fileHifiasmAll << "Name,Colour" << endl;
+
+		gzFile outputContigFile = gzopen(outputFilename.c_str(),"wb");
+		gzFile outputContigFile_fasta = gzopen(outputFilename_fasta.c_str(),"wb");
+
+		Assembly assembly(_unitigDatas);
+
+		float prevCutoff = -1;
+
+
+		unordered_set<u_int32_t> processedNodeNames;
+		u_int64_t processedUnitigs = 0;
+
+		u_int64_t contigIndex = 0;
+
+		vector<Contig> contigs;
+
+		for(Unitig& u : _graph->_startingUnitigstest){
+			
+			//cout << processedNodeNames.size() << " " << _graph->_startingUnitigstes.size() << endl;
+
+			//cout << processedUnitigs << " " << _graph->_startingUnitigstest.size() << endl;
+			processedUnitigs += 1;
+
+			bool isProcessed = false;
+			for(u_int32_t nodeIndex : u._nodes){
+				u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
+				if(processedNodeNames.find(nodeName) != processedNodeNames.end()){
+					isProcessed = true;
+					break;
+				}
+			}
+			if(isProcessed) continue;
+
+			
+			float cutoff = u._abundance*0.1;
+
+			float realCutoff = 0;
+			for(const SaveState2& saveState : _graph->_cachedGraphStates){
+				if(saveState._abundanceCutoff_min > cutoff) break;
+				realCutoff = saveState._abundanceCutoff_min;
+			}
+
+
+			cout << "------- " << BiGraph::nodeIndex_to_nodeName(u._startNode) << " " << u._length << endl;
+
+			if(realCutoff != prevCutoff){
+				_graph->loadState2(0, u._startNode, _unitigDatas);
+				prevCutoff = realCutoff;
+			}
+
+			_graph->determineRepeats(_unitigDatas, cutoff);
+
+			cout <<  "repeat" << endl;
+			getchar();
+			vector<u_int32_t> nodePath;
+			vector<u_int64_t> nodePath_supportingReads;
+			assembly.solveBin2(u._startNode, 0, _graph, 0, 0, false, nodePath, nodePath_supportingReads, 0);
+
+			vector<u_int32_t> component;
+
+			for(u_int32_t nodeIndex : nodePath){
+				u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
+				processedNodeNames.insert(nodeName);
+				component.push_back(nodeName);
+			}
+
+
+			cout << "Check contigs: " << nodePath.size() << endl;
+
+			Contig contig;
+			bool isValid = dereplicateContig(contigs, nodePath, contig);
+
+			nodePath = contig._nodePath;
+
+			if(isValid && nodePath.size() > 0){
+
+				contigs.push_back(contig);
+
+				/*
+				//for(u_int32_t nodeIndex : nodePath){
+				//	if(_contigNodeNames.find(BiGraph::nodeIndex_to_nodeName(nodeIndex)) != _contigNodeNames.end()){
+				//		_contigNodeNames.erase(BiGraph::nodeIndex_to_nodeName(nodeIndex));
+				//	}
+				//}
+
+				u_int64_t size = nodePath.size();
+				gzwrite(outputContigFile, (const char*)&size, sizeof(size));
+				//gzwrite(_outputContigFile, (const char*)&isCircular, sizeof(isCircular));
+				gzwrite(outputContigFile, (const char*)&nodePath[0], size * sizeof(u_int32_t));
+				gzwrite(outputContigFile, (const char*)&nodePath_supportingReads[0], size * sizeof(u_int64_t));
+
+				
+				string unitigSequence;
+				_toBasespace.createSequence(nodePath, unitigSequence);
+
+				cout << "Write contigs: " << nodePath.size() << " " << unitigSequence.size() << endl;
+
+				string header = ">ctg" + to_string(contigIndex) + '\n';
+				gzwrite(outputContigFile_fasta, (const char*)&header[0], header.size());
+				unitigSequence +=  '\n';
+				gzwrite(outputContigFile_fasta, (const char*)&unitigSequence[0], unitigSequence.size());
+				*/
+				/*
+				const string& filename_binStats = _inputDir + "/binStats.txt";
+				vector<string> bin = {unitigSequence};			
+				int ret = computeBinStats(_inputDir, bin, filename_binStats);
+
+				if(ret == 0){
+
+					string lastLine = "";
+					string line = "";
+					ifstream file_binStats(filename_binStats);
+					while (std::getline(file_binStats, line)){
+						if(line.empty()) continue;
+						lastLine = line;
+					}
+					file_binStats.close();
+					
+					vector<string>* fields = new vector<string>();
+					GfaParser::tokenize(lastLine, fields, ',');
+					float completeness = stof((*fields)[0]);
+					float contamination = stof((*fields)[1]);
+					delete fields;
+					cout << "Result: " << completeness << " " << contamination << endl;
+
+					if(_truthInputFilename != ""){
+
+						if(completeness > 0.4){
+
+							unordered_set<string> hifiasmWrittenUnitigs;
+
+							for(u_int32_t nodeIndex : nodePath){
+
+								u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
+
+								if(_evaluation_hifiasmGroundTruth_nodeName_to_unitigName.find(nodeName) != _evaluation_hifiasmGroundTruth_nodeName_to_unitigName.end()){
+									for(string& unitigName : _evaluation_hifiasmGroundTruth_nodeName_to_unitigName[nodeName]){
+										if(hifiasmWrittenUnitigs.find(unitigName) != hifiasmWrittenUnitigs.end()) continue;
+										fileHifiasmAll << unitigName << "," << contigIndex << endl;
+										hifiasmWrittenUnitigs.insert(unitigName);
+
+									}
+								}
+							}
+
+						}
+					}
+
+				}
+				*/
+
+				contigIndex += 1;
+
+			}
+
+			int validContigs = 0;
+			for(Contig& contig : contigs){
+				if(contig._nodePath.size() > 0){
+					validContigs += 1;
+				}
+			}
+			cout << "nb valid contigs: " << validContigs << endl;
+
+		}
+
+		/*
+		for(size_t i=0; i<contigs.size(); i++){
+			for(size_t j=i+1; j<contigs.size(); j++){
+				cout << endl;
+				cout << contigs[i]._nodePath.size() << " " << contigs[i]._nodePath_sorted.size() << endl;
+				cout << contigs[j]._nodePath.size() << " " << contigs[j]._nodePath_sorted.size() << endl;
+				u_int64_t nbShared = Utils::computeSharedElements(contigs[i]._nodePath_sorted, contigs[j]._nodePath_sorted);
+				cout << nbShared /((float)contigs[i]._nodePath.size()) << endl;
+				cout << nbShared /((float)contigs[j]._nodePath.size()) << endl;
+			}
+		}
+		*/
+
+		ofstream file_contigToNode(outputFilename_fasta + ".nodes.csv");
+
+		contigIndex = 0;
+		for(Contig& contig : contigs){
+			if(contig._nodePath.size() > 0){
+
+				string unitigSequence;
+				_toBasespace.createSequence(contig._nodePath, unitigSequence);
+
+				//if(unitigSequence.size() > 500000) continue;
+				string header = ">ctg" + to_string(contigIndex) + '\n';
+				gzwrite(outputContigFile_fasta, (const char*)&header[0], header.size());
+				unitigSequence +=  '\n';
+				gzwrite(outputContigFile_fasta, (const char*)&unitigSequence[0], unitigSequence.size());
+
+				for(u_int32_t nodeIndex : contig._nodePath){
+					file_contigToNode << BiGraph::nodeIndex_to_nodeName(nodeIndex) << ";" << contigIndex << endl;
+				}
+
+				contigIndex += 1;
+			}
+		}
+
+		gzclose(outputContigFile);
+		gzclose(outputContigFile_fasta);
+		fileHifiasmAll.close();
+		file_contigToNode.close();
+	}
+
+	bool dereplicateContig(vector<Contig>& contigs, vector<u_int32_t> nodePath, Contig& contigResult){
+
+		vector<u_int32_t> component;
+		for(u_int32_t nodeIndex : nodePath){
+			component.push_back(BiGraph::nodeIndex_to_nodeName(nodeIndex));
+		}
+
+		std::sort(component.begin(), component.end());
+
+		bool isValid = true;
+
+			
+		for(Contig& contig : contigs){
+			if(contig._nodePath.size() == 0) continue;
+
+			u_int64_t nbShared = Utils::computeSharedElements(component, contig._nodePath_sorted);
+			if(nbShared == 0) continue;
+
+
+			if(contig._nodePath.size() < nodePath.size()){
+				if(nbShared / ((float)contig._nodePath.size()) > 0.5){
+					contig._nodePath.clear();
+					contig._nodePath_sorted.clear();
+					continue;
+				}
+			}
+			else{
+				if(nbShared / ((float)component.size()) > 0.5){
+					isValid = false;
+					break;
+				}
+			}
+
+			
+			unordered_set<u_int32_t> sharedElements;
+			Utils::collectSharedElements(component, contig._nodePath_sorted, sharedElements);
+
+			u_int32_t overlapSize_left = getOverlapSize(nodePath, contig._nodePath, sharedElements);
+			std::reverse(nodePath.begin(), nodePath.end());
+			u_int32_t overlapSize_right = getOverlapSize(nodePath, contig._nodePath, sharedElements);
+			std::reverse(nodePath.begin(), nodePath.end());
+
+			//cout << endl;
+			//cout << "Existing: " << contig._nodePath.size() << " " << (nbShared/((float)contig._nodePath.size())) << endl;
+			//cout << "New: " << nodePath.size() << " " << component.size() << " " << (nbShared/((float)component.size())) << endl;
+			//cout << "Nb shared nodes: " << sharedElements.size() << endl;
+			//cout << "Overlaps: " << overlapSize_left << " " << overlapSize_right << endl;
+
+			if(overlapSize_left != 0 || overlapSize_right != 0){
+				
+				if(contig._nodePath.size() < nodePath.size()){
+					if(overlapSize_left > overlapSize_right){
+						contig._nodePath.erase(contig._nodePath.begin(), contig._nodePath.begin()+overlapSize_left);
+					}
+					else{
+						std::reverse(contig._nodePath.begin(), contig._nodePath.end());
+						contig._nodePath.erase(contig._nodePath.begin(), contig._nodePath.begin()+overlapSize_right);
+						std::reverse(contig._nodePath.begin(), contig._nodePath.end());
+					}
+					vector<u_int32_t> nodePath_sorted;
+					for(u_int32_t nodeIndex : contig._nodePath){
+						nodePath_sorted.push_back(BiGraph::nodeIndex_to_nodeName(nodeIndex));
+					}
+					std::sort(nodePath_sorted.begin(), nodePath_sorted.end());
+					contig._nodePath_sorted = nodePath_sorted;
+				}
+				else{
+					if(overlapSize_left > overlapSize_right){
+						nodePath.erase(nodePath.begin(), nodePath.begin()+overlapSize_left);
+					}
+					else{
+						std::reverse(nodePath.begin(), nodePath.end());
+						nodePath.erase(nodePath.begin(), nodePath.begin()+overlapSize_right);
+						std::reverse(nodePath.begin(), nodePath.end());
+					}
+					component.clear();
+					for(u_int32_t nodeIndex : nodePath){
+						component.push_back(BiGraph::nodeIndex_to_nodeName(nodeIndex));
+					}
+					std::sort(component.begin(), component.end());
+				}
+			}
+
+
+
+
+			//if((nbShared/((float)contig._nodePath.size())) > 0.95) getchar();
+			//if(overlapSize_left > 0 || overlapSize_right > 0) getchar();
+		}
+
+		if(nodePath.size() > 0){
+			//vector<u_int32_t> nodePath_sorted = nodePath;
+			vector<u_int32_t> nodePath_sorted;
+			for(u_int32_t nodeIndex : nodePath){
+				nodePath_sorted.push_back(BiGraph::nodeIndex_to_nodeName(nodeIndex));
+			}
+			std::sort(nodePath_sorted.begin(), nodePath_sorted.end());
+			contigResult = {nodePath, nodePath_sorted};
+		}
+		else{
+			isValid = false;
+		}
+
+		return isValid;
+
+
+			/*
+			if(nbShared > 0){
+				
+				unordered_set<u_int32_t> sharedElements;
+				Utils::collectSharedElements(component, contig._nodePath_sorted, sharedElements);
+
+				cout << endl;
+				cout << "Existing: " << contig._nodePath.size() << " " << (nbShared/((float)contig._nodePath.size())) << endl;
+				cout << "New: " << component.size() << " " << (nbShared/((float)component.size())) << endl;
+				cout << "Nb shared nodes: " << sharedElements.size() << endl;
+
+
+				u_int32_t overlapSize_left = getOverlapSize(nodePath, contig._nodePath, sharedElements);
+				std::reverse(nodePath.begin(), nodePath.end());
+				u_int32_t overlapSize_right = getOverlapSize(nodePath, contig._nodePath, sharedElements);
+				std::reverse(nodePath.begin(), nodePath.end());
+
+				cout << "Overlap size: " << overlapSize_left << " " << overlapSize_right << endl;
+				cout << "Overlap size % existing: " << (overlapSize_left/((float)contig._nodePath.size())) << " " << (overlapSize_right/((float)contig._nodePath.size())) << endl;
+				cout << "Overlap size % new: " << (overlapSize_left/((float)component.size())) << " " << (overlapSize_right/((float)component.size())) << endl;
+
+				bool updateExisting = false;
+
+				vector<u_int32_t> nodePathShortest;
+				if(contig._nodePath.size() < nodePath.size()){
+					nodePathShortest = contig._nodePath;
+					updateExisting = true;
+				}
+				else{
+					nodePathShortest = nodePath;
+				}
+
+				if(overlapSize_left > 0 && overlapSize_left < nodePathShortest.size()){
+					cout << "1" << endl;
+					cout << nodePathShortest.size() << " " << overlapSize_left << endl;
+					nodePathShortest.erase(nodePathShortest.begin(), nodePathShortest.begin()+overlapSize_left);
+					cout << "2" << endl;
+				}
+				std::reverse(nodePathShortest.begin(), nodePathShortest.end());
+				if(overlapSize_right > 0 && overlapSize_right < nodePathShortest.size()){
+					cout << "3" << endl;
+					nodePathShortest.erase(nodePathShortest.begin(), nodePathShortest.begin()+overlapSize_right);
+					cout << "4" << endl;
+				}
+				std::reverse(nodePathShortest.begin(), nodePathShortest.end());
+
+				if(updateExisting){
+					contig._nodePath = nodePathShortest;
+					std::sort(nodePathShortest.begin(), nodePathShortest.end());
+					contig._nodePath_sorted = nodePathShortest;
+				}
+				else{
+					nodePath = nodePathShortest;
+				}
+				//nodePath.erase(nodePath.begin(), nodePath.begin()+nbElements);
+
+
+				//nodePath.erase(nodePath.begin(), nodePath.begin()+nbElements);
+				
+
+
+				//component = nodePath;
+				//std::sort(component.begin(), component.end());
+				//nbShared = Utils::computeSharedElements(component, contig._nodePath_sorted);
+
+				//cout << "Fixed size: " << component.size() << endl;
+				//cout << "Fixed shared %:" << (nbShared/((float)component.size())) << " " << (nbShared/((float)contig._nodePath.size())) << endl;
+			
+				if(overlapSize_left > 0 || overlapSize_right > 0){
+					getchar();
+				}
+			}
+			*/
+
+		//}
+
+		/*
+		for(Contig& contig : contigs){
+			u_int64_t nbShared = Utils::computeSharedElements(component, contig._nodePath_sorted);
+
+			if(nbShared > 0){
+				cout << endl;
+				cout << "Existing: " << contig._nodePath.size() << " " << (nbShared/((float)contig._nodePath.size())) << endl;
+				cout << "New: " << component.size() << " " << (nbShared/((float)component.size())) << endl;
+
+				unordered_set<u_int32_t> sharedElements;
+				Utils::collectSharedElements(component, contig._nodePath_sorted, sharedElements);
+
+				u_int32_t overlapSize_left = getOverlapSize(nodePath, contig._nodePath, sharedElements);
+				std::reverse(nodePath.begin(), nodePath.end());
+				u_int32_t overlapSize_right = getOverlapSize(nodePath, contig._nodePath, sharedElements);
+				std::reverse(nodePath.begin(), nodePath.end());
+
+				cout << "Overlap size: " << overlapSize_left << " " << overlapSize_right << endl;
+				cout << "Overlap size % existing: " << (overlapSize_left/((float)contig._nodePath.size())) << " " << (overlapSize_right/((float)contig._nodePath.size())) << endl;
+				cout << "Overlap size % new: " << (overlapSize_left/((float)component.size())) << " " << (overlapSize_right/((float)component.size())) << endl;
+
+		}
+		*/
+
+
+
+	}
+
+	
+	u_int32_t getOverlapSize(const vector<u_int32_t>& nodePath1, const vector<u_int32_t>& nodePath2, unordered_set<u_int32_t>& sharedElements){
+
+		if(sharedElements.size() == 0) return 0;
+
+		//u_int32_t maxOverlapSize = ; //nodePath1.size() * (sharedElement.size() / ((float) nodePath1.size()));
+
+		u_int32_t maxMiss = sharedElements.size() * 0.03;
+		if(maxMiss == 0) maxMiss = 1;
+		u_int32_t nbElements = 0;
+		u_int32_t nbSharedElements = 0;
+		u_int32_t nbMiss = 0;
+		//u_int32_t overlapSize = 0;
+		//u_int32_t nbUnsharedElements = 0;
+
+		for(size_t i=0; i<sharedElements.size(); i++){
+			//cout << i << " " << nbSharedElements << " " << sharedElements.size() << endl;
+			if(sharedElements.find(BiGraph::nodeIndex_to_nodeName(nodePath1[i])) != sharedElements.end()){
+				nbSharedElements += 1;
+				//nbSharedElements += 1;
+			}
+			else{
+				nbMiss += 1;
+			}
+
+			nbElements += 1;
+
+			if(nbMiss >= maxMiss){
+				float similarity = nbSharedElements / ((float)nbElements);
+				if(similarity < 0.97) break;
+			}
+			//else{
+			//	overlapSize += 1;
+			//}
+
+			//if(nbUnsharedElements > )
+
+			//float similarity = nbSharedElements / ((float)nbElements);
+			//if(similarity < 0.97) break;
+		}
+
+		//cout << "overlap sim: " << nbSharedElements / ((float)sharedElements.size()) << endl;
+		//if(nbSharedElements / ((float)sharedElements.size()) > 0.9){
+		//	return sharedElements.size();
+		//}
+		if(nbSharedElements >= 1) nbSharedElements -= 1;
+
+		return nbSharedElements;
+		//if(overlapSize >= 1) overlapSize -=1;
+
+		//return overlapSize;
+	}
+	
 	/*
 	struct ContigFeatures2{
 		u_int32_t _unitigIndex;

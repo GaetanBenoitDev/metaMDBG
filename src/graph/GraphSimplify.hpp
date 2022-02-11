@@ -177,6 +177,10 @@ public:
 		return a._length > b._length;
 	}
 
+	static bool UnitigComparator_ByLength_Reverse(const Unitig &a, const Unitig &b){
+		return a._length < b._length;
+	}
+
 	static bool UnitigComparator_ByAbundance(const UnitigLength &a, const UnitigLength &b){
 		return a._abundance > b._abundance;
 	}
@@ -2196,10 +2200,11 @@ public:
         _unitigs.push_back({unitigIndexRC, nodeIndex_toReverseDirection(endNode), nodeIndex_toReverseDirection(startNode), median, length, nbNodes, nodesRC});
 
 
-
         /*
+        //---------- Unitig supporting reads
         unordered_set<u_int64_t> readIndexes_unique;
         for(u_int32_t nodeIndex : nodes){
+
             const UnitigData& unitigData = unitigDatas[BiGraph::nodeIndex_to_nodeName(nodeIndex)];
             //cout << unitigData._readIndexes.size() << endl;
             for(u_int64_t readIndex : unitigData._readIndexes){
@@ -2215,7 +2220,10 @@ public:
 
         _unitigDatas2.push_back({0, readIndexes});
         _unitigDatas2.push_back({0, readIndexes}); //!!!!memory a gagner ici: necessaire car on distingue un unitig et son reverse
+        //---------- Unitig supporting reads
         */
+
+        
         //outfile << "S" << "\t" << unitigIndex << "\t" << "*" << endl;
 
 
@@ -2852,15 +2860,24 @@ public:
         //compact(false);
 
         /*
-        unordered_set<u_int32_t> validNodes;
-        for (auto& nodeIndex : _isNodeValid2){
-            u_int32_t nodeName = _graphSuccessors->nodeIndex_to_nodeName(nodeIndex);
-            //if(_debug_groundTruthNodeNames.find(nodeName) == _debug_groundTruthNodeNames.end()) continue;
-            validNodes.insert(nodeName);
+        if(nodeIndex_source != -1){
+            unordered_set<u_int32_t> component;
+            getConnectedComponent(nodeIndex_source, component);
+
+            unordered_set<u_int32_t> validNodes;
+            for (u_int32_t unitigIndex : component){
+                for(u_int32_t nodeIndex : _unitigs[unitigIndex]._nodes){
+                    u_int32_t nodeName = _graphSuccessors->nodeIndex_to_nodeName(nodeIndex);
+                    //if(_debug_groundTruthNodeNames.find(nodeName) == _debug_groundTruthNodeNames.end()) continue;
+                    validNodes.insert(nodeName);
+                }
+            }
+            string outputFilename = _outputDir + "/minimizer_graph_sub.gfa";
+            GfaParser::rewriteGfa_withoutNodes(_inputGfaFilename, outputFilename, validNodes, _isEdgeRemoved, _graphSuccessors);
+        
+
         }
-        string outputFilename = _outputDir + "/minimizer_graph_sub.gfa";
-        GfaParser::rewriteGfa_withoutNodes(_inputGfaFilename, outputFilename, validNodes, _isEdgeRemoved, _graphSuccessors);
-        */   
+        */
 
 
         _currentUnitigNodes.clear();
@@ -3237,9 +3254,9 @@ public:
                     }
 
                     
-                    /*
-                    ///---------------------------- Inserting bubbles
                     
+                    ///---------------------------- Inserting bubbles
+                    /*
                     #ifdef PRINT_DEBUG_SIMPLIFICATION
                         cout << "inserting bubbles" << endl;
                     #endif
@@ -3335,9 +3352,9 @@ public:
                         currentSaveState._nodeNameRemoved_tmp.erase(nodeName);
                         //currentSaveState._nodeNameRemoved.erase(std::remove(currentSaveState._nodeNameRemoved.begin(), currentSaveState._nodeNameRemoved.end(), nodeName), currentSaveState._nodeNameRemoved.end());
                     }
-                    
-                    //------------------------------ End
                     */
+                    //------------------------------ End
+                    
 
                     for(u_int32_t nodeName : currentSaveState._nodeNameRemoved_tmp){
                         currentSaveState._nodeNameRemoved.push_back(nodeName);
@@ -3825,13 +3842,15 @@ getStronglyConnectedComponent_node
         for(const Unitig& unitig : _unitigs){
             //cout << unitig._length << " " << unitig._abundance << endl;
             if(unitig._index % 2 == 1) continue;
-            if(unitig._length < 2500) continue;
+            if(unitig._length < 10000) continue;
+            //coutif(unitig._length < 50000) continue;
+            //if(unitig._length < 10000 || unitig._length > 15000) continue;
             //if(unitig._abundance < 10) continue; //200
             
             _startingUnitigstest.push_back(unitig);
         }
-        //std::sort(_startingUnitigstest.begin(), _startingUnitigstest.end(), UnitigComparator_ByAbundance2);
-        std::sort(_startingUnitigstest.begin(), _startingUnitigstest.end(), UnitigComparator_ByLength);
+        std::sort(_startingUnitigstest.begin(), _startingUnitigstest.end(), UnitigComparator_ByAbundance2);
+        //std::sort(_startingUnitigstest.begin(), _startingUnitigstest.end(), UnitigComparator_ByLength);
 
 
         auto rng = std::default_random_engine {};
@@ -6568,209 +6587,373 @@ getStronglyConnectedComponent_node
         */
 
     }
-    
-    /*
-    void create_dfs_order(u_int32_t source_nodeIndex, vector<u_int32_t>& order){
 
-        cout << endl << "-------------" << endl;
+    void determineRepeats(const vector<UnitigData>& unitigDatas, float abundanceCutoff){
 
-        order.clear();
-        vector<u_int32_t> stack;
+        u_int32_t minSupportingReads = abundanceCutoff / 4;
+        if(minSupportingReads < 2) minSupportingReads = 2;
 
-        u_int32_t unitigIndex_source = nodeIndex_to_unitigIndex(source_nodeIndex);
-        stack.push_back(unitigIndex_source);
+        cout << "Detecting repeat" << endl;
+        cout << "Min supporting reads: " << minSupportingReads << endl;
 
-        unordered_map<u_int32_t, u_int8_t> nodeColors;
+        u_int32_t unitigIndexLala = nodeIndex_to_unitigIndex(BiGraph::nodeName_to_nodeIndex(1242487, false));
+        //cout << Utils::computeSharedReads(unitigDatas[12264], unitigDatas[25489]) << endl;
+        //cout << Utils::computeSharedReads(unitigDatas[4876], unitigDatas[6347]) << endl;
+        //exit(1);
 
-        static u_int8_t WHITE = 0;
-        static u_int8_t GREY = 1;
-        static u_int8_t BLACK = 2;
+        ofstream file_repeat(_outputDir + "/repeat.csv");
+        file_repeat << "Name,Color" << endl;
 
-        while(!stack.empty()){
-            u_int32_t u = stack[stack.size()-1];
+        unordered_set<u_int32_t> isUnitigUnique;
+        vector<Unitig> unitigSortedByLength;
 
-            u_int32_t c = WHITE;
-            if(nodeColors.find(u) != nodeColors.end()) c = nodeColors[u];
+        for(const Unitig& unitig : _unitigs){
+            //cout << unitig._length << " " << unitig._abundance << endl;
+            //if(unitig._index % 2 == 1) continue;
+            //if(unitig._length < 10000) continue;
+            //coutif(unitig._length < 50000) continue;
+            //if(unitig._length < 10000 || unitig._length > 15000) continue;
+            //if(unitig._abundance < 10) continue; //200
+            
+            unitigSortedByLength.push_back(unitig);
+            isUnitigUnique.insert(unitig._index);
+        }
+        std::sort(unitigSortedByLength.begin(), unitigSortedByLength.end(), UnitigComparator_ByLength_Reverse);
 
-            cout << "\tStart node: " << BiGraph::nodeIndex_to_nodeName(_unitigs[u]._startNode) << " " << c << endl;
+        size_t nbPass = 0;
+        while(true){
 
-            if(c != GREY && c != BLACK){
-                nodeColors[u] = GREY;
+            if(nbPass >= 5) break;
 
-                vector<u_int32_t> successors;
-                getSuccessors_unitig(u, successors);
+            for(const Unitig& unitig : unitigSortedByLength){
 
-                cout << "\tNb succ: " << successors.size() << endl;
 
-                for(u_int32_t w : successors){
+                unordered_set<u_int32_t> uniqueSuccessors;
+                determineRepeat_getNextUniqueSuccessors(unitig._index, true, isUnitigUnique, uniqueSuccessors, unitigDatas, minSupportingReads);
+
+                if(uniqueSuccessors.size() > 1){
+
+                    if(unitig._index == unitigIndexLala || unitigIndex_toReverseDirection(unitig._index) == unitigIndexLala){
+                        cout << uniqueSuccessors.size() << endl;
+                        //getchar();
+                    }
+
+                    isUnitigUnique.erase(unitig._index);
+                    isUnitigUnique.erase(unitigIndex_toReverseDirection(unitig._index));
+                }
+
+                unordered_set<u_int32_t> uniquePredecessors;
+                determineRepeat_getNextUniqueSuccessors(unitig._index, false, isUnitigUnique, uniquePredecessors, unitigDatas, minSupportingReads);
+
+                if(uniquePredecessors.size() > 1){
+
+                    if(unitig._index == unitigIndexLala || unitigIndex_toReverseDirection(unitig._index) == unitigIndexLala){
+                        cout << uniquePredecessors.size() << endl;
+                        //getchar();
+                    }
+
+                    isUnitigUnique.erase(unitig._index);
+                    isUnitigUnique.erase(unitigIndex_toReverseDirection(unitig._index));
+
+
+                }
+
+
+
+
+            }
+
+            /*
+            for(const Unitig& unitig : _unitigs){
+                if(isUnitigUnique.find(unitig._index) == isUnitigUnique.end()){
+                    for(u_int32_t nodeIndex : unitig._nodes){
+                        file_repeat << BiGraph::nodeIndex_to_nodeName(nodeIndex) << "," << "red" << endl;
+                    }
+                }
+                else{
+                    for(u_int32_t nodeIndex : unitig._nodes){
+                        file_repeat << BiGraph::nodeIndex_to_nodeName(nodeIndex) << "," << "blue" << endl;
+                    }
+                }
+            }
+            file_repeat.flush();
+            cout << "repeat pass: " << nbPass << endl;
+            getchar();
+            */
+
+
+            nbPass += 1;
+        }
+
+        for(const Unitig& unitig : _unitigs){
+            if(isUnitigUnique.find(unitig._index) == isUnitigUnique.end()){
+                for(u_int32_t nodeIndex : unitig._nodes){
+                    file_repeat << BiGraph::nodeIndex_to_nodeName(nodeIndex) << "," << "red" << endl;
+                }
+            }
+            else{
+                for(u_int32_t nodeIndex : unitig._nodes){
+                    file_repeat << BiGraph::nodeIndex_to_nodeName(nodeIndex) << "," << "blue" << endl;
+                }
+            }
+        }
+
+
+        file_repeat.close();
+    }
+
+	void determineRepeat_getNextUniqueSuccessors(u_int32_t source_unitigIndex, bool forward, unordered_set<u_int32_t>& isUnitigUnique, unordered_set<u_int32_t>& uniqueSuccessors, const vector<UnitigData>& unitigDatas, u_int32_t minSupportingReads){
+
+        u_int32_t source_nodeIndex = -1;
+        if(forward){
+            source_nodeIndex = _unitigs[source_unitigIndex]._endNode;
+        }
+        else{
+            source_nodeIndex = _unitigs[unitigIndex_toReverseDirection(source_unitigIndex)]._endNode;
+        }
+
+        const vector<u_int64_t>& source_readIndexes = unitigDatas[BiGraph::nodeIndex_to_nodeName(source_nodeIndex)]._readIndexes;
+
+        u_int32_t unitigIndexLala = nodeIndex_to_unitigIndex(BiGraph::nodeName_to_nodeIndex(1242487, false));
+        //cout << "-----" << endl;
+
+        uniqueSuccessors.clear();
+		//const vector<u_int64_t>& source_readIndexes = unitigDatas[source_unitigIndex]._readIndexes;
+
+      	unordered_set<u_int32_t> isVisited;
+        queue<u_int32_t> queue;
+
+        queue.push(source_unitigIndex);
+
+        while (!queue.empty()){
+
+            u_int64_t unitigIndex = queue.front();
+            queue.pop();
+
+            if (isVisited.find(unitigIndex) != isVisited.end()) continue;
+            isVisited.insert(unitigIndex);
+
+            //const vector<u_int64_t>& readIndexes = unitigDatas[unitigIndex]._readIndexes;
+
+			if(unitigIndex != source_unitigIndex && unitigIndex != unitigIndex_toReverseDirection(source_unitigIndex)){
+
+                //u_int64_t nbSharedReads = Utils::computeSharedReads(source_readIndexes, readIndexes);
+
+                const vector<u_int64_t>& readIndexes = unitigDatas[BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex]._startNode)]._readIndexes;
+                u_int64_t nbSharedReads = Utils::computeSharedReads(source_readIndexes, readIndexes);
+            
+                /*
+                if(nbSharedReads > 1){
+                    if(source_unitigIndex == unitigIndexLala || unitigIndex_toReverseDirection(source_unitigIndex) == unitigIndexLala){
+                        cout << BiGraph::nodeIndex_to_nodeName(_unitigs[source_unitigIndex]._endNode) << " " << BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex]._startNode) << " " <<  nbSharedReads << endl;
+                        getchar();
+                    }
+                }*/
+
+                /*
+                if(forward){
+                    const vector<u_int64_t>& source_readIndexes = unitigDatas[BiGraph::nodeIndex_to_nodeName(_unitigs[source_unitigIndex]._endNode)]._readIndexes;
+                    const vector<u_int64_t>& readIndexes = unitigDatas[BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex]._startNode)]._readIndexes;
+                    nbSharedReads = Utils::computeSharedReads(source_readIndexes, readIndexes);
+                
+                    if(nbSharedReads > 1){
+                        if(source_unitigIndex == unitigIndexLala || unitigIndex_toReverseDirection(source_unitigIndex) == unitigIndexLala){
+                            cout << BiGraph::nodeIndex_to_nodeName(_unitigs[source_unitigIndex]._endNode) << " " << BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex]._startNode) << " " <<  nbSharedReads << endl;
+                            getchar();
+                        }
+                    }
+
+                }
+                else{
+                    const vector<u_int64_t>& source_readIndexes = unitigDatas[BiGraph::nodeIndex_to_nodeName(_unitigs[source_unitigIndex]._startNode)]._readIndexes;
+                    const vector<u_int64_t>& readIndexes = unitigDatas[BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex]._endNode)]._readIndexes;
+                    nbSharedReads = Utils::computeSharedReads(source_readIndexes, readIndexes);
+                
+
+                    if(nbSharedReads > 1){
+                        if(source_unitigIndex == unitigIndexLala || unitigIndex_toReverseDirection(source_unitigIndex) == unitigIndexLala){
+                            cout << source_readIndexes.size() << " " << readIndexes.size() << endl;
+                            cout << BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex]._startNode) << " " <<  nbSharedReads << endl;
+                            getchar();
+                        }
+                    }
+                }
+                */
+
+                //if(source_unitigIndex == unitigIndexLala || unitigIndex_toReverseDirection(source_unitigIndex) == unitigIndexLala){
+                //    cout << BiGraph::nodeIndex_to_nodeName(source_nodeIndex) << " " << BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex]._startNode) << " " <<  nbSharedReads << endl;
+                //    //getchar();
+                //}
+
+                if(nbSharedReads < minSupportingReads) continue;
+
+
+
+                if(isUnitigUnique.find(unitigIndex) != isUnitigUnique.end()){
+                    //cout << BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex]._startNode) << " " <<  nbSharedReads << endl;
                     
-                    u_int32_t color = WHITE;
-                    if(nodeColors.find(w) != nodeColors.end()) color = nodeColors[w];
-                    if(color != GREY && color != BLACK){
-                        stack.push_back(w);
+                    bool isValid = true;
+                    for(u_int32_t u : uniqueSuccessors){
+                        if(Utils::computeSharedReads(unitigDatas[BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex]._startNode)], unitigDatas[BiGraph::nodeIndex_to_nodeName(_unitigs[u]._startNode)]) > 1){
+                            //cout << "\tinvalid" << endl;
+                            isValid = false;
+                            break;
+                        }
+                        if(Utils::computeSharedReads(unitigDatas[BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex]._startNode)], unitigDatas[BiGraph::nodeIndex_to_nodeName(_unitigs[u]._endNode)]) > 1){
+                            //cout << "\tinvalid" << endl;
+                            isValid = false;
+                            break;
+                        }
+                        if(Utils::computeSharedReads(unitigDatas[BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex]._endNode)], unitigDatas[BiGraph::nodeIndex_to_nodeName(_unitigs[u]._startNode)]) > 1){
+                            //cout << "\tinvalid" << endl;
+                            isValid = false;
+                            break;
+                        }
+                        if(Utils::computeSharedReads(unitigDatas[BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex]._endNode)], unitigDatas[BiGraph::nodeIndex_to_nodeName(_unitigs[u]._endNode)]) > 1){
+                            //cout << "\tinvalid" << endl;
+                            isValid = false;
+                            break;
+                        }
                     }
+
+                    if(!isValid) continue;
+
+                    uniqueSuccessors.insert(unitigIndex);
+                    continue;
                 }
+			}
+
+            vector<u_int32_t> successors;
+            getSuccessors_unitig(unitigIndex, 0, successors);
+			//if(forward){
+            //	getSuccessors_unitig(unitigIndex, 0, successors);
+			//}
+			//else{
+            //	getPredecessors_unitig(unitigIndex, 0, successors);
+			//}
+            
+            for(u_int32_t unitigIndex_nn : successors){
+                queue.push(unitigIndex_nn);
             }
-            else{
-                stack.pop_back();
-                if(c == GREY){
-                    cout << "Add order: " << BiGraph::nodeIndex_to_nodeName(_unitigs[u]._startNode) << endl;
-                    order.push_back(u);
-                    nodeColors[u] = BLACK;
-                }
-            }
+
+
+
         }
 
-        cout << order.size() << endl;
-        for(u_int32_t unitigIndex : order){
-            cout << BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex]._startNode) << endl;
-        }
-        cout << "-----------------" << endl;
-    }
+        //file_scc.close();
 
-    int out_parent(u_int32_t k, const vector<u_int32_t>& order, u_int32_t v, u_int32_t v2){
-        u_int32_t u = order[k];
-        if(u == v2){
-            u = v;
-        }
+	}
 
-        cout << "\tIn degree: "<< BiGraph::nodeIndex_to_nodeName(_unitigs[u]._startNode) << " " << in_degree(u) << endl;
-
-        if(in_degree(u) == 0){
-            return INT_MAX;
-        }
-        int maximum = -1;
-
-        vector<u_int32_t> predecessors;
-        getPredecessors_unitig(u, predecessors);
-
-        for(u_int32_t w : predecessors){
-            int pos = find(order.begin(), order.end(), w) - order.begin();//order.index(w)
-            if (pos <= k){
-                return INT_MAX;
-            }
-            maximum = max(maximum, pos);
-        }
-        return maximum;
-    }
-
-
-
-    int out_child(u_int32_t k, const vector<u_int32_t>& order, u_int32_t v, u_int32_t v2){
-
-        u_int32_t u = order[k];
-        if (u == v2){
-            u = v;
-        }
-        cout << "\tOut degree: " << BiGraph::nodeIndex_to_nodeName(_unitigs[u]._startNode) << " " << out_degree(u) << endl;
-        if (out_degree(u) == 0){
-            return -2;
-        }
-        int minimum = INT_MAX;
-
-        vector<u_int32_t> successors;
-        getSuccessors_unitig(u, successors);
-
-        for(u_int32_t w : successors){
-            int pos = 0;
-            if(w == v && v2 != -1){
-                pos = find(order.begin(), order.end(), v2) - order.begin();
-                //pos = order.index(v2);
-            }
-            else{
-                pos = find(order.begin(), order.end(), w) - order.begin();
-                //pos = order.index(w);
-            }
-            if (pos >= k){
-                return -2;
-            }
-            minimum = min(minimum, pos);
-        }
-        return minimum;
-    }
-
-    void superbubble(const vector<u_int32_t>& order, u_int32_t v, u_int32_t v2){
-
-        cout << endl << endl;
-
-        vector<long> stack;
-        vector<u_int32_t> out_parent_map;
-        static long NONE = -2222;
-        long t = NONE;
-
-        for(u_int32_t k=0; k<order.size(); k++){
-            cout << "\tK: " << k << endl;
-            int child = out_child(k, order, v, v2);
-            cout << "\tChild: " << BiGraph::nodeIndex_to_nodeName(_unitigs[v]._startNode) << " " << child << endl;
-            if(child == k - 1){
-                cout << "Push: " << t << endl; 
-                stack.push_back(t);
-                t = k -1;
-            }
-            else{
-                while (t != NONE && t > child){
-                    //cout << "lala" << endl;
-                    long t2 = stack[stack.size()-1];
-                    stack.pop_back();
-                    if(t2 != NONE){
-                        out_parent_map[t2] = max(out_parent_map[t], out_parent_map[t2]);
-                    }
-                    t = t2;
-                }
-            }
-    
-            if (t != NONE && out_parent_map[t] == k){
-                //order[o: i + 1][::-1]
-                cout << "Superbubble: " << k << " " << t << endl;
-                for(size_t i=t; i<k+1; i++){
-                    cout << BiGraph::nodeIndex_to_nodeName(_unitigs[order[i]]._startNode) << endl;
-                }
-
-                //report(k, t)
-                long t2 = stack[stack.size()-1];
-                stack.pop_back();
-                cout << t2 << endl;
-                if (t2 != NONE){
-                    out_parent_map[t2] = max(out_parent_map[t], out_parent_map[t2]);
-                }
-                t = t2;
-            }
-
-            out_parent_map.push_back(out_parent(k, order, v, v2));
-            if(t != NONE){
-                out_parent_map[t] = max(out_parent_map[t], out_parent_map[k]);
-            }
-        }
-
-        cout << endl << endl;
-    }
-    */
     /*
-    stack = []
-    out_parent_map = []
-    t = None
-    for k in range(len(order)):
-        child = out_child(k, g, order, v, v2)
-        if child == k - 1:
-            stack.append(t)
-            t = k - 1
-        else:
-            while t is not None and t > child:
-                t2 = stack.pop()
-                if t2 is not None:
-                    out_parent_map[t2] = max(out_parent_map[t], out_parent_map[t2])
-                t = t2
-        if t is not None and out_parent_map[t] == k:
-            report(k, t)
-            t2 = stack.pop()
-            if t2 is not None:
-                out_parent_map[t2] = max(out_parent_map[t], out_parent_map[t2])
-            t = t2
-        out_parent_map.append(out_parent(k, g, order, v, v2))
-        if t is not None:
-            out_parent_map[t] = max(out_parent_map[t], out_parent_map[k])
+    u_int64_t countValidSuccessors(unordered_set<u_int32_t>& uniqueSuccessors, const vector<UnitigData>& unitigDatas){
 
+        vector<u_int32_t> succs;
+        for(u_int32_t unitigIndex : uniqueSuccessors){
+            succs.push_back(unitigIndex);
+        }
+
+        u_int64_t n = 0;
+
+        for(size_t i=0; i<succs.size(); i++){
+
+            bool isValid = true;
+
+            for(size_t j=i+1; j<succs.size(); j++){
+
+                cout << BiGraph::nodeIndex_to_nodeName(_unitigs[succs[i]]._startNode) << " " << BiGraph::nodeIndex_to_nodeName(_unitigs[succs[j]]._startNode) << " " << isInReadPath(succs[i], succs[j], true, unitigDatas) << " " << isInReadPath(succs[i], succs[j], false, unitigDatas) << endl;
+                if(isInReadPath(succs[i], succs[j], true, unitigDatas) || isInReadPath(succs[i], succs[j], false, unitigDatas)){
+                    isValid = false;
+                    break;
+                }
+            }
+
+            if(isValid) n += 1;
+        }
+
+        return n;
+    }
     */
+
+    /*
+    u_int64_t countValidSuccessors(unordered_set<u_int32_t>& uniqueSuccessors){
+
+        unordered_set<u_int32_t> addedSuccs;
+
+        for(u_int32_t unitigIndex : uniqueSuccessors){
+
+            bool isValid = true;
+
+            for(u_int32_t unitigIndex_added : addedSuccs){
+
+                if(unitigIndex_added == unitigIndex) continue;
+
+                if(isInReadPath(unitigIndex, unitigIndex_added)){
+                    isValid = false;
+                    break;
+                }
+            }
+
+            if(isValid) addedSuccs.insert(unitigIndex);
+        }
+
+        cout << uniqueSuccessors.size() << " " << addedSuccs.size() << endl;
+        return addedSuccs.size();
+    }
+    */
+
+    /*
+	bool isInReadPath(u_int32_t source_unitigIndex, u_int32_t dest_unitigIndex, bool forward, const vector<UnitigData>& unitigDatas){
+
+        u_int32_t source_nodeIndex = -1;
+        if(forward){
+            source_nodeIndex = _unitigs[source_unitigIndex]._endNode;
+        }
+        else{
+            source_nodeIndex = _unitigs[unitigIndex_toReverseDirection(source_unitigIndex)]._endNode;
+        }
+
+        cout << "Is in read path: " << BiGraph::nodeIndex_to_nodeName(source_nodeIndex) << endl;
+
+        const vector<u_int64_t>& source_readIndexes = unitigDatas[BiGraph::nodeIndex_to_nodeName(source_nodeIndex)]._readIndexes;
+
+      	unordered_set<u_int32_t> isVisited;
+        queue<u_int32_t> queue;
+
+        queue.push(source_unitigIndex);
+
+        while (!queue.empty()){
+
+            u_int64_t unitigIndex = queue.front();
+            queue.pop();
+
+            if (isVisited.find(unitigIndex) != isVisited.end()) continue;
+            isVisited.insert(unitigIndex);
+
+
+			if(unitigIndex != source_unitigIndex){
+
+                const vector<u_int64_t>& readIndexes = unitigDatas[BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex]._startNode)]._readIndexes;
+                u_int64_t nbSharedReads = Utils::computeSharedReads(source_readIndexes, readIndexes);
+            
+                if(nbSharedReads <= 1) continue;
+
+                if(unitigIndex == dest_unitigIndex) return true;
+			}
+
+            vector<u_int32_t> successors;
+            getSuccessors_unitig(unitigIndex, 0, successors);
+            
+            for(u_int32_t unitigIndex_nn : successors){
+                queue.push(unitigIndex_nn);
+            }
+
+        }
+
+        return false;
+	}
+    */
+
+
 };
 
 
