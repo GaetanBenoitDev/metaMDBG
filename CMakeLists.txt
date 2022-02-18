@@ -14,8 +14,8 @@ endif()
 set(CMAKE_CXX_FLAGS "-Wall")
 #set(CMAKE_CXX_FLAGS_DEBUG "-g -Ofast")
 #set(CMAKE_CXX_FLAGS_RELEASE "-Ofast")
-set(CMAKE_CXX_FLAGS_DEBUG "-g -Ofast")
-set(CMAKE_CXX_FLAGS_RELEASE "-Ofast")
+set(CMAKE_CXX_FLAGS_DEBUG "-g -O3")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
 
 find_package(ZLIB)

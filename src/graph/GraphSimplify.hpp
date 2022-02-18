@@ -2634,6 +2634,61 @@ public:
         }
     }
 
+    void getSuccessors_unitig_overlap(u_int32_t unitigIndex, vector<AdjNode>& successors){
+
+        //cout << unitigIndex << " " << _unitigs.size() << endl;
+        successors.clear();
+
+        //cout << "a" << endl;
+        Unitig& unitig = _unitigs[unitigIndex];
+
+        //cout << "b" << endl;
+        //cout << (unitig._endNode == -1)<< endl;
+        //cout << BiGraph::nodeIndex_to_nodeName(unitig._endNode) << endl;
+        vector<AdjNode> successors_nodeIndex;
+        getSuccessors_overlap(unitig._endNode, 0, successors_nodeIndex);
+            
+        //cout << "c" << endl;
+
+        for(const AdjNode& node : successors_nodeIndex){
+
+            u_int32_t nodeIndex = node._index;
+            if(_nodeToUnitig.find(nodeIndex) == _nodeToUnitig.end()) continue; //reinserting bubble
+            if(_isNodeInvalid_tmp.find(nodeIndex_to_unitigIndex(nodeIndex)) != _isNodeInvalid_tmp.end()) continue;
+            if(_isUnitigInvalid_tmp.find(nodeIndex_to_unitigIndex(nodeIndex)) != _isUnitigInvalid_tmp.end()) continue;
+
+            //if(nodeIndex_to_unitigIndex(nodeIndex) == nodeIndex_to_unitigIndex(BiGraph::nodeName_to_nodeIndex(1302, true))) cout << "hhhhhhha" << endl;
+            //if(nodeIndex_to_unitigIndex(nodeIndex) == nodeIndex_to_unitigIndex(BiGraph::nodeName_to_nodeIndex(1302, false))) cout << "hhhhhhha" << endl;
+            //cout << (_isNodeInvalid_tmp.find(nodeIndex_to_unitigIndex(nodeIndex)) != _isNodeInvalid_tmp.end()) << endl;
+
+            //if(_isNodeInvalid_tmp.find(nodeIndex_to_unitigIndex(nodeIndex)) != _isNodeInvalid_tmp.end()) continue;
+
+            successors.push_back({nodeIndex_to_unitigIndex(nodeIndex), node._overlap});
+        }
+
+        //cout << "d" << endl;
+    }
+
+    void getPredecessors_unitig_overlap(u_int32_t unitigIndex, vector<AdjNode>& predecessors){
+
+        predecessors.clear();
+
+        Unitig& unitig = _unitigs[unitigIndex];
+
+        vector<AdjNode> predecessors_nodeIndex;
+        getPredecessors_overlap(unitig._startNode, 0, predecessors_nodeIndex);
+            
+        for(const AdjNode& node : predecessors_nodeIndex){
+
+            u_int32_t nodeIndex = node._index;
+
+            if(_nodeToUnitig.find(nodeIndex) == _nodeToUnitig.end()) continue; //reinserting bubble
+            if(_isNodeInvalid_tmp.find(nodeIndex_to_unitigIndex(nodeIndex)) != _isNodeInvalid_tmp.end()) continue;
+            if(_isUnitigInvalid_tmp.find(nodeIndex_to_unitigIndex(nodeIndex)) != _isUnitigInvalid_tmp.end()) continue;
+
+            predecessors.push_back({nodeIndex_to_unitigIndex(nodeIndex), node._overlap});
+        }
+    }
     /*
     u_int32_t in_degree(u_int32_t v){
         vector<u_int32_t> predecessors;
@@ -2793,7 +2848,8 @@ public:
 
     vector<u_int32_t> sccDebug;
     ofstream file_debug;
-    
+    int __loadState2_index = 0;
+
     void loadState2(float abundanceCutoff_min, u_int32_t nodeIndex_source, const vector<UnitigData>& unitigDatas){
 
         //file_debug = ofstream("/home/gats/workspace/run//debug_graph.csv");
@@ -2808,7 +2864,7 @@ public:
         for(const SaveState2& saveState : _cachedGraphStates){
             //cout << saveState._abundanceCutoff_min << endl;
             if(saveState._abundanceCutoff_min > abundanceCutoff_min) break;
-            cout << "Applying state changes: " << saveState._abundanceCutoff_min << endl;
+            //cout << "Applying state changes: " << saveState._abundanceCutoff_min << endl;
 
             for(const u_int32_t nodeName : saveState._nodeNameRemoved){
 
@@ -2875,9 +2931,10 @@ public:
             string outputFilename = _outputDir + "/minimizer_graph_sub.gfa";
             GfaParser::rewriteGfa_withoutNodes(_inputGfaFilename, outputFilename, validNodes, _isEdgeRemoved, _graphSuccessors);
         
-
         }
         */
+        
+        
 
 
         _currentUnitigNodes.clear();
@@ -3232,7 +3289,7 @@ public:
                     compact(false, unitigDatas);
 
                     if(currentCutoff == 0){
-                        collectStartingUnitigs();
+                        collectStartingUnitigs(k);
                     }
 
 
@@ -3836,22 +3893,23 @@ getStronglyConnectedComponent_node
         //exit(1);
     }
 
-    void collectStartingUnitigs(){
+    void collectStartingUnitigs(u_int64_t k){
 
 
         for(const Unitig& unitig : _unitigs){
             //cout << unitig._length << " " << unitig._abundance << endl;
             if(unitig._index % 2 == 1) continue;
-            if(unitig._length < 10000) continue;
+            //if(unitig._length < 10000) continue;
+            if(unitig._nbNodes < k*2) continue;
             //coutif(unitig._length < 50000) continue;
             //if(unitig._length < 10000 || unitig._length > 15000) continue;
             //if(unitig._abundance < 10) continue; //200
             
             _startingUnitigstest.push_back(unitig);
         }
-        std::sort(_startingUnitigstest.begin(), _startingUnitigstest.end(), UnitigComparator_ByAbundance2);
-        //std::sort(_startingUnitigstest.begin(), _startingUnitigstest.end(), UnitigComparator_ByLength);
-
+        //std::sort(_startingUnitigstest.begin(), _startingUnitigstest.end(), UnitigComparator_ByAbundance2);
+        std::sort(_startingUnitigstest.begin(), _startingUnitigstest.end(), UnitigComparator_ByLength);
+        cout << "Nb starting unitigs test: " << _startingUnitigstest.size() << endl;
 
         auto rng = std::default_random_engine {};
 		unordered_set<u_int32_t> binNodes;
@@ -4673,6 +4731,80 @@ getStronglyConnectedComponent_node
 
     }
 
+    void getConnectedComponent_unitig_nt(u_int32_t unitigIndex_source, u_int32_t maxDistance, unordered_set<u_int32_t>& component){
+
+        //cout << "-----" << endl;
+        //cout << unitigIndex_source << endl;
+        component.clear();
+
+        queue <u_int32_t> queue;
+
+        queue.push(unitigIndex_source);
+        queue.push(unitigIndex_toReverseDirection(unitigIndex_source));
+        unordered_map<u_int32_t, u_int32_t> distances;
+
+        distances[unitigIndex_source] = 0;
+        distances[unitigIndex_toReverseDirection(unitigIndex_source)] = 0;
+
+        unordered_set<u_int32_t> isVisited;
+
+        while (!queue.empty()){
+
+            u_int64_t unitigIndex = queue.front();
+            queue.pop();
+
+
+            component.insert(unitigIndex);
+            component.insert(unitigIndex_toReverseDirection(unitigIndex));
+
+            if (isVisited.find(unitigIndex) != isVisited.end()) continue;
+
+            isVisited.insert(unitigIndex);
+            isVisited.insert(unitigIndex_toReverseDirection(unitigIndex));
+
+            if(distances[unitigIndex] > maxDistance) continue;
+
+            //cout << "Start: " << unitigIndex << " " << unitigIndex_toReverseDirection(unitigIndex) << endl;
+            //cout << _unitigs[unitigIndex]._startNode << " " << _unitigs[unitigIndex_toReverseDirection(unitigIndex)]._startNode << endl;
+            //cout << "1" << endl;
+
+
+
+            //cout << "2" << endl;
+            vector<AdjNode> neighbors;
+            vector<AdjNode> successors;
+
+            getSuccessors_unitig_overlap(unitigIndex, successors);
+            for(const AdjNode& unitigIndex_nn : successors) neighbors.push_back(unitigIndex_nn);
+
+            //cout << "3" << endl;
+            getPredecessors_unitig_overlap(unitigIndex, successors);
+            for(const AdjNode& unitigIndex_nn : successors) neighbors.push_back(unitigIndex_nn);
+
+            //cout << "4" << endl;
+            getSuccessors_unitig_overlap(unitigIndex_toReverseDirection(unitigIndex), successors);
+            for(const AdjNode& unitigIndex_nn : successors) neighbors.push_back(unitigIndex_nn);
+
+            //cout << "5" << endl;
+            getPredecessors_unitig_overlap(unitigIndex_toReverseDirection(unitigIndex), successors);
+            for(const AdjNode& unitigIndex_nn : successors) neighbors.push_back(unitigIndex_nn);
+
+
+            for(const AdjNode& unitigNode : neighbors){
+
+                u_int32_t unitigIndex_nn = unitigNode._index;
+                u_int32_t overlap = unitigNode._overlap;
+
+                float overlapLength = 0;
+
+                distances[unitigIndex_nn] = distances[unitigIndex] + _unitigs[unitigIndex_nn]._length - overlapLength; 
+
+                queue.push(unitigIndex_nn);
+            }
+
+        }
+
+    }
 
     void removeUnconnectedNodes(u_int32_t nodeIndex_source){
         
@@ -6837,6 +6969,87 @@ getStronglyConnectedComponent_node
             }
 
 
+
+        }
+
+        //file_scc.close();
+
+	}
+
+	void getConnectedComponent_readpath(u_int32_t source_unitigIndex, const vector<UnitigData>& unitigDatas, u_int32_t minSupportingReads, unordered_set<u_int32_t>& component){
+
+        component.clear();
+
+        unordered_set<u_int64_t> readIndexes_unique;
+        for(u_int32_t nodeIndex : _unitigs[source_unitigIndex]._nodes){
+
+            const UnitigData& unitigData = unitigDatas[BiGraph::nodeIndex_to_nodeName(nodeIndex)];
+
+            for(u_int64_t readIndex : unitigData._readIndexes){
+                readIndexes_unique.insert(readIndex);
+            }
+        }
+
+        vector<u_int64_t> source_readIndexes;
+        for(u_int32_t readIndex : readIndexes_unique){
+            source_readIndexes.push_back(readIndex);
+        }
+        std::sort(source_readIndexes.begin(), source_readIndexes.end());
+
+
+      	unordered_set<u_int32_t> isVisited;
+        queue<u_int32_t> queue;
+
+        queue.push(source_unitigIndex);
+
+        while (!queue.empty()){
+
+            u_int64_t unitigIndex = queue.front();
+            queue.pop();
+
+            if (isVisited.find(unitigIndex) != isVisited.end()) continue;
+            isVisited.insert(unitigIndex);
+            isVisited.insert(unitigIndex_toReverseDirection(unitigIndex));
+
+
+
+            unordered_set<u_int64_t> readIndexes_unique2;
+            for(u_int32_t nodeIndex : _unitigs[unitigIndex]._nodes){
+                for(u_int64_t readIndex : unitigDatas[BiGraph::nodeIndex_to_nodeName(nodeIndex)]._readIndexes){
+                    readIndexes_unique2.insert(readIndex);
+                }
+            }
+            vector<u_int64_t> readIndexes;
+            for(u_int32_t readIndex : readIndexes_unique2){
+                readIndexes.push_back(readIndex);
+            }
+            std::sort(readIndexes.begin(), readIndexes.end());
+
+
+            //const vector<u_int64_t>& readIndexes = unitigDatas[BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex]._startNode)]._readIndexes;
+            u_int64_t nbSharedReads = Utils::computeSharedReads(source_readIndexes, readIndexes);
+        
+            if(nbSharedReads < minSupportingReads) continue;
+
+            component.insert(unitigIndex);
+            component.insert(unitigIndex_toReverseDirection(unitigIndex));
+            //cout << "2" << endl;
+            vector<u_int32_t> successors;
+
+            getSuccessors_unitig(unitigIndex, 0, successors);
+            for(u_int32_t unitigIndex_nn : successors) queue.push(unitigIndex_nn);
+
+            //cout << "3" << endl;
+            getPredecessors_unitig(unitigIndex, 0, successors);
+            for(u_int32_t unitigIndex_nn : successors) queue.push(unitigIndex_nn);
+
+            //cout << "4" << endl;
+            getSuccessors_unitig(unitigIndex_toReverseDirection(unitigIndex), 0, successors);
+            for(u_int32_t unitigIndex_nn : successors) queue.push(unitigIndex_nn);
+
+            //cout << "5" << endl;
+            getPredecessors_unitig(unitigIndex_toReverseDirection(unitigIndex), 0, successors);
+            for(u_int32_t unitigIndex_nn : successors) queue.push(unitigIndex_nn);
 
         }
 

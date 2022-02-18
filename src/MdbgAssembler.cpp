@@ -1,5 +1,6 @@
 #include "Bloocoo.hpp"
 #include "assembly/Assembly2.hpp"
+#include "assembly/Assembly3.hpp"
 #include "toBasespace/ToBasespace.hpp"
 #include "toBasespace/ToMinspace.hpp"
 #include "pipeline/AssemblyPipeline.hpp"
@@ -76,6 +77,9 @@ int main (int argc, char* argv[])
     		}
     		else if(programName == "asm"){
                 Assembly2().run (argc, args);
+    		}
+    		else if(programName == "contig"){
+                Assembly3().run (argc, args);
     		}
     		else if(programName == "toBasespace"){
                 ToBasespace().run (argc, args);

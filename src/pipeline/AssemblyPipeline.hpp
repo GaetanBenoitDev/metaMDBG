@@ -143,9 +143,9 @@ public:
 			executeCommand(command);
 			//getchar();
 
-			command = _filename_exe + " toBasespace -i " + _inputFilename +  " -o " + _inputDir;
-			if(pass > 0) command += " -c " +  _inputDir + "/contigs.min.gz";
-			executeCommand(command);
+			//command = _filename_exe + " toBasespace -i " + _inputFilename +  " -o " + _inputDir;
+			//if(pass > 0) command += " -c " +  _inputDir + "/contigs.min.gz";
+			//executeCommand(command);
 
 			command = _filename_exe + " asm -o " + _inputDir;
 			if(_truthInputFilename != "") command += " --itruth " + _truthInputFilename;

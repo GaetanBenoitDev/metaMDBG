@@ -2248,7 +2248,7 @@ public:
 	}
 
 
-	void parseKminmers(const std::function<void(vector<KmerVec>, vector<ReadKminmer>, u_int64_t, u_int64_t, string)>& fun){
+	void parseKminmers(const std::function<void(vector<KmerVec>, vector<ReadKminmer>, u_int64_t, u_int64_t, string, string)>& fun){
 
 		MinimizerParser* _minimizerParser = new MinimizerParser(_l, _density);
 
@@ -2281,7 +2281,7 @@ public:
 				MDBG::getKminmers(_l, _k, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex, false);
 
 
-				fun(kminmers, kminmersInfo, readIndex, datasetIndex, string(read->name.s, strlen(read->name.s)));
+				fun(kminmers, kminmersInfo, readIndex, datasetIndex, string(read->name.s, strlen(read->name.s)), string(read->seq.s, strlen(read->seq.s)));
 
 				//cout << readIndex << endl;
 
@@ -2379,6 +2379,33 @@ public:
 		*/
 
 		delete _minimizerParser;
+	}
+
+	void extractSubsample(const string& outputFilename, unordered_set<u_int64_t>& selectedReads){
+
+		_extractSubsample_outputFile = gzopen(outputFilename.c_str(),"wb");
+		_selectedReads = selectedReads;
+
+		//ReadParser parser(readFilename, false);
+		auto fp = std::bind(&ReadParser::extractSubsample_read, this, std::placeholders::_1, std::placeholders::_2);
+		parse(fp);
+
+		gzclose(_extractSubsample_outputFile);
+
+	}
+
+	gzFile _extractSubsample_outputFile;
+	unordered_set<u_int64_t> _selectedReads;
+
+	void extractSubsample_read(kseq_t* read, u_int64_t readIndex){
+
+		if(_selectedReads.find(readIndex) != _selectedReads.end()){
+			string header = ">" + string(read->name.s, strlen(read->name.s)) + "\n";
+			string seq = string(read->seq.s, strlen(read->seq.s)) + "\n";
+			gzwrite(_extractSubsample_outputFile, (const char*)&header[0], header.size());
+			gzwrite(_extractSubsample_outputFile, (const char*)&seq[0], seq.size());
+		}
+
 	}
 
 };

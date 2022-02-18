@@ -108,6 +108,7 @@ struct PathData{
 };
 
 struct PathData2{
+	vector<u_int32_t> nodePath;
 	vector<u_int32_t> prevNodes;
 	u_int32_t source_nodeIndex;
 	unordered_set<u_int32_t> visitedNodes;
@@ -2173,11 +2174,12 @@ public:
 		if(data_successors.size() == 0) return;
 		//Print debug prev ranks
 
-
+		
 		vector<SuccessorData> successors_bestPrevUnitigRank_cutoff;
 		//if(usePathSuccessors){
 			//cout << cutoff_min << endl;
 			computeBestSuccessors_byUnitigRank(graph, _unitigDatas, data_successors, currentDepth, successors_bestPrevUnitigRank_cutoff, cutoff_min, true, false, forward, usePathSuccessors);
+			//computeBestSuccessors_byUnitigRank(graph, _unitigDatas, data_successors, currentDepth, successors_bestPrevUnitigRank_cutoff, cutoff_min, true, false, forward, usePathSuccessors);
 			if(successors_bestPrevUnitigRank_cutoff.size() == 1){
 				u_int32_t current_nodeIndex = successors_bestPrevUnitigRank_cutoff[0]._nodeIndexSuccessor;
 
@@ -2845,8 +2847,8 @@ public:
 	}*/
 
 
-	u_int64_t maxLength = 100000;
-	u_int64_t maxLength_reachable = 20000;
+	u_int64_t maxLength = 10000;
+	u_int64_t maxLength_reachable = 10000;
 
 	/*
 	bool isPathAlreadyExplored2(u_int32_t current_nodeIndex, u_int32_t source_nodeIndex, GraphSimplify* graph, vector<UnitigData>& _unitigDatas, bool forward, u_int32_t currentDepth, u_int64_t currentLength){
@@ -5174,20 +5176,34 @@ public:
 	vector<UnitigData>& _unitigDatas;
 	//vector<u_int32_t> _nodePath;
 	unordered_set<u_int32_t>& _visitableUnitigs;
-	unordered_set<u_int32_t>& _visitedUnitigs;
+	ContigFeature& _contigFeature;
 	
 	unordered_set<u_int32_t> _forbiddenNodeNames;
 
-	//vector<u_int32_t> _prevNodes;
-	//unordered_set<u_int32_t> _visitedNodes;
+	u_int32_t _firstContigIndex;
+	unordered_set<u_int32_t> _visitedContigIndex;
+	//vector<float> _compositions_model;
+	//vector<float> _abundances_model;
+	ContigFeatures _contigFeatureModel;
+	vector<ContigFeatures> _visitedContigFeatures;
+	ContigFeatures _lastContigFeature;
+	u_int32_t _lastVisitedContigNodeIndex;
+	ofstream& _file_asmResult;
 
-	PathExplorerManager(GraphSimplify* graph, vector<UnitigData>& unitigDatas, unordered_set<u_int32_t>& visitableUnitigs, unordered_set<u_int32_t>& visitedUnitigs) : _unitigDatas(unitigDatas), _visitableUnitigs(visitableUnitigs), _visitedUnitigs(visitedUnitigs){
+	struct ContigSuccessor{
+		u_int32_t _nodeIndex;
+		u_int32_t _contigIndex;
+	};
+
+	PathExplorerManager(GraphSimplify* graph, vector<UnitigData>& unitigDatas, unordered_set<u_int32_t>& visitableUnitigs, ContigFeature& contigFeature, ofstream& file_asmResult) : _unitigDatas(unitigDatas), _visitableUnitigs(visitableUnitigs), _contigFeature(contigFeature), _file_asmResult(file_asmResult){
 		_graph = graph;
+		_lastVisitedContigNodeIndex = -1;
+		_firstContigIndex = -1;
 		//_prevNodes = prevNodes;
 	}
 
 	
-	void collectReachableNodes(u_int32_t source_nodeIndex){
+	void execute(u_int32_t source_nodeIndex, vector<u_int32_t>& nodePath){
 
 		unordered_set<u_int32_t> visitedUnitigs;
 		
@@ -5198,11 +5214,12 @@ public:
 		AssemblyState assemblyState = {1, {}, {}, false, 0, {}, false, 0, CutoffType::ERROR};
 		//ExtendedPathData extendedPathData;
 
-		collectReachableNodes_path(source_nodeIndex, true, assemblyState);
-		cout << _visitedUnitigs.size() << endl;
+		expand(source_nodeIndex, true, assemblyState, nodePath);
 
-		collectReachableNodes_path(source_nodeIndex, false, assemblyState);
-		cout << _visitedUnitigs.size() << endl;
+		//cout << _visitedUnitigs.size() << endl;
+
+		//collectReachableNodes_path(source_nodeIndex, false, assemblyState);
+		//cout << _visitedUnitigs.size() << endl;
 
 		//collectReachableNodes_path(source_nodeIndex, true, assemblyState);
 		//cout << _visitedUnitigs.size() << endl;
@@ -5217,13 +5234,13 @@ public:
 		//return pathSolved;
 	}
 
-	void collectReachableNodes_path(u_int32_t source_nodeIndex, bool forward, AssemblyState& assemblyState){
+	void expand(u_int32_t source_nodeIndex, bool forward, AssemblyState& assemblyState, vector<u_int32_t>& nodePath){
 
 		unordered_set<u_int32_t> visitedNodes;
 		//_visitedNodes.clear();
 		//_prevNodes.clear();
 
-		assemblyState._backtrackLengthMax_nbNodes = determineMinSupportReadLength(source_nodeIndex, forward);
+		//assemblyState._backtrackLengthMax_nbNodes = determineMinSupportReadLength(source_nodeIndex, forward);
 		
 		assemblyState._cutoffType = CutoffType::ERROR;
 		//u_int32_t source_nodeIndex = pathData.source_nodeIndex;
@@ -5240,12 +5257,12 @@ public:
 		//PathExplorer pathExplorer_source(pathData.prevNodes, pathData.source_abundance, pathData.source_nodeIndex, source_nodeIndex, currentAbundance, visitedNodes, _unitigDatas, 0, true, assemblyState);
 		//pathExplorer_source.nodeExplored(source_nodeIndex, _graph);
 
-		_visitedUnitigs.insert(_graph->nodeIndex_to_unitigIndex(source_nodeIndex));
-		_visitedUnitigs.insert(_graph->unitigIndex_toReverseDirection(_graph->nodeIndex_to_unitigIndex(source_nodeIndex)));
+		//_visitedUnitigs.insert(_graph->nodeIndex_to_unitigIndex(source_nodeIndex));
+		//_visitedUnitigs.insert(_graph->unitigIndex_toReverseDirection(_graph->nodeIndex_to_unitigIndex(source_nodeIndex)));
 
 		visitedNodes.insert(BiGraph::nodeIndex_to_nodeName(source_nodeIndex));
 
-		PathData2 pathData_source = {{source_nodeIndex}, source_nodeIndex, visitedNodes};
+		PathData2 pathData_source = {{source_nodeIndex}, {source_nodeIndex}, source_nodeIndex, visitedNodes};
 		//pathData_source.prevNodes.push_back();
 		//PathExplorer::clampPrevNodes(p.prevNodes, _unitigDatas);
 
@@ -5263,14 +5280,14 @@ public:
             //PathExplorer pathExplorer = queue.front();
             queue.pop();
 
-			cout << queue.size() << " " << _forbiddenNodeNames.size() << endl;
+			//cout << queue.size() << " " << _forbiddenNodeNames.size() << endl;
 
-			if(queue.size() > 1000){
-				visitBFS(pathData.source_nodeIndex, pathData.visitedNodes);
-				continue;
-			}
+			//if(queue.size() > 1000){
+			//	visitBFS(pathData.source_nodeIndex, pathData.visitedNodes);
+			//	continue;
+			//}
 
-			if(_forbiddenNodeNames.find(BiGraph::nodeIndex_to_nodeName(pathData.source_nodeIndex)) != _forbiddenNodeNames.end()) continue;
+			//if(_forbiddenNodeNames.find(BiGraph::nodeIndex_to_nodeName(pathData.source_nodeIndex)) != _forbiddenNodeNames.end()) continue;
 
 			//cout << "Start node: " << BiGraph::nodeIndex_to_nodeName(pathData.source_nodeIndex) << " " << queue.size() << endl;
 
@@ -5287,16 +5304,62 @@ public:
 			//u_int32_t current_nodeIndex = pathExplorer._prevNodes[pathExplorer._prevNodes.size()-1];
 			u_int32_t unitigIndex = _graph->nodeIndex_to_unitigIndex(current_nodeIndex);
 
-			if(_visitableUnitigs.find(unitigIndex) == _visitableUnitigs.end() && _visitableUnitigs.find(_graph->unitigIndex_toReverseDirection(unitigIndex)) == _visitableUnitigs.end()) continue;
+			//if(_visitableUnitigs.find(unitigIndex) == _visitableUnitigs.end() && _visitableUnitigs.find(_graph->unitigIndex_toReverseDirection(unitigIndex)) == _visitableUnitigs.end()) continue;
 
 			pathExplorer.getNextNode(current_nodeIndex, _graph, forward, 0, resultType, nextNodes, true, true);
 			
 			//cout << "Nb successors: " << nextNodes.size() << endl;
 			//if(nextNodes.size() != 1) getchar();
 			
+			/*
 			if(nextNodes.size() == 0){
-				visitBFS(current_nodeIndex, pathData.visitedNodes);
-				continue;
+				nodePath = pathData.nodePath;
+				//visitBFS(current_nodeIndex, pathData.visitedNodes);
+				break;
+			}
+			else if(nextNodes.size() > 1){
+				nodePath = pathData.nodePath;
+				break;
+			}
+			else{
+				*/
+			if(nextNodes.size() != 1){
+
+				nodePath = pathData.nodePath;
+				break;
+				/*
+				if(_lastVisitedContigNodeIndex == -1) break;
+
+				vector<ContigSuccessor> contigSuccessors;
+				collectPossibleContigSuccessors(_lastVisitedContigNodeIndex, forward, contigSuccessors);
+				cout << "Last contig node: " << BiGraph::nodeIndex_to_nodeName(_lastVisitedContigNodeIndex) << endl;
+				cout << "Nb contig successors: " << contigSuccessors.size() << endl;
+
+				if(contigSuccessors.size() == 0) break;
+
+				for(const ContigSuccessor& succ : contigSuccessors){
+					cout << BiGraph::nodeIndex_to_nodeName(succ._nodeIndex) << endl;
+				}
+
+				getchar();
+
+				PathData2 p = pathData;
+
+				u_int32_t current_nodeIndex = contigSuccessors[contigSuccessors.size()-1]._nodeIndex;
+				if(current_nodeIndex == pathData.source_nodeIndex){ //Path complete
+					break; 
+				}
+
+				p.source_nodeIndex = current_nodeIndex;
+				p.nodePath.push_back(current_nodeIndex);
+				p.prevNodes.push_back(current_nodeIndex);
+				PathExplorer::clampPrevNodes(p.prevNodes, _unitigDatas);
+				p.visitedNodes.insert(BiGraph::nodeIndex_to_nodeName(current_nodeIndex));
+				addNode(current_nodeIndex);
+
+				queue.push(p);
+				*/
+
 			}
 			else{
 
@@ -5306,8 +5369,8 @@ public:
 					//PathExplorer p = pathExplorer;
 					bool isValid = true;
 
-					_visitedUnitigs.insert(_graph->nodeIndex_to_unitigIndex(s._path[0]));
-					_visitedUnitigs.insert(_graph->unitigIndex_toReverseDirection(_graph->nodeIndex_to_unitigIndex(s._path[0])));
+					//_visitedUnitigs.insert(_graph->nodeIndex_to_unitigIndex(s._path[0]));
+					//_visitedUnitigs.insert(_graph->unitigIndex_toReverseDirection(_graph->nodeIndex_to_unitigIndex(s._path[0])));
 
 
 					for(size_t i=1; i<s._path.size(); i++){
@@ -5318,28 +5381,120 @@ public:
 
 						if(current_nodeIndex == pathData.source_nodeIndex){ //Path complete
 							isValid = false;
+							nodePath = pathData.nodePath;
 							break; 
 						}
 
 						//cout << "1" << endl;
 						u_int32_t unitigIndex = _graph->nodeIndex_to_unitigIndex(current_nodeIndex);
 						//cout << unitigIndex << " " << _graph->unitigIndex_toReverseDirection(unitigIndex) << endl;
-						if(_visitableUnitigs.find(unitigIndex) == _visitableUnitigs.end() && _visitableUnitigs.find(_graph->unitigIndex_toReverseDirection(unitigIndex)) == _visitableUnitigs.end()){
-							isValid = false;
+						//if(_visitableUnitigs.find(unitigIndex) == _visitableUnitigs.end() && _visitableUnitigs.find(_graph->unitigIndex_toReverseDirection(unitigIndex)) == _visitableUnitigs.end()){
+						//	isValid = false;
 							//cout << "break 2" << endl;
-							break;
-						}
+						//	break;
+						//}
 
 						//cout << "2" << endl;
-						_visitedUnitigs.insert(_graph->nodeIndex_to_unitigIndex(current_nodeIndex));
-						_visitedUnitigs.insert(_graph->unitigIndex_toReverseDirection(_graph->nodeIndex_to_unitigIndex(current_nodeIndex)));
+						//_visitedUnitigs.insert(_graph->nodeIndex_to_unitigIndex(current_nodeIndex));
+						//_visitedUnitigs.insert(_graph->unitigIndex_toReverseDirection(_graph->nodeIndex_to_unitigIndex(current_nodeIndex)));
+
+						cout << "Add node: " << BiGraph::nodeIndex_to_nodeName(current_nodeIndex) << endl;
+						
+
+						u_int32_t current_nodeName = BiGraph::nodeIndex_to_nodeName(current_nodeIndex);
+
+						if(_contigFeature._nodeName_to_contigIndex.find(current_nodeName) != _contigFeature._nodeName_to_contigIndex.end()){
+							u_int32_t contigIndex = _contigFeature._nodeName_to_contigIndex[current_nodeName];
+
+							if(_visitedContigIndex.size() == 0){
+								
+								const Unitig& unitig = _graph->nodeIndex_to_unitig(current_nodeIndex);
+
+								vector<float> composition;
+								bool hasComposition = _contigFeature.nodepathToComposition(unitig._nodes, composition);
+
+								vector<float> abundances;
+								vector<float> abundancesVar;
+								bool hasAbundances = _contigFeature.sequenceToAbundance(unitig._nodes, abundances, abundancesVar);
+
+								if(hasAbundances){
+									_firstContigIndex = contigIndex;
+									_visitedContigIndex.insert(contigIndex);
+
+									_contigFeatureModel = {0, composition, abundances, abundancesVar};
+									_lastContigFeature = _contigFeatureModel;
+									_visitedContigFeatures.push_back(_contigFeatureModel);
+									_lastVisitedContigNodeIndex = current_nodeIndex;
+								}
+
+							}
+							else if(_visitedContigIndex.find(contigIndex) == _visitedContigIndex.end()){
+								
+								_visitedContigIndex.insert(contigIndex);
+
+								const Unitig& unitig = _graph->nodeIndex_to_unitig(current_nodeIndex);
+
+								vector<float> composition;
+								bool hasComposition = _contigFeature.nodepathToComposition(unitig._nodes, composition);
+
+								vector<float> abundances;
+								vector<float> abundancesVar;
+								bool hasAbundances = _contigFeature.sequenceToAbundance(unitig._nodes, abundances, abundancesVar);
+
+								ContigFeatures contigFeature = {0, composition, abundances, abundancesVar};
+
+								//const vector<float>& contigComposition_model = _contigFeature._contigCompositions[_firstContigIndex];
+								//const vector<float>& contigComposition = _contigFeature._contigCoverages[contigIndex];
+								//const vector<float>& contigAbundances_model = _contigFeature._contigCoverages[_firstContigIndex];
+								//const vector<float>& contigAbundances = _contigFeature._contigCoverages[contigIndex];
+								
+								cout << endl;
+								cout << endl;
+								cout << current_nodeName << " " << contigIndex << endl;
+
+								cout << "\tComposition dist: " << -log10(_contigFeature.computeCompositionProbability(_contigFeatureModel._composition, composition)) << " " << _contigFeature.cal_tnf_dist(_contigFeatureModel._composition, composition) << endl; // << " " << _contigFeature.computeEuclideanDistance(abundancesModel, abundances_init) << " " << _contigFeature.computeProbability(contigFeatureModel, contigFeature_init)  << endl; 
+								//cout << "\tComposition dist (extended): " << _contigFeature.computeEuclideanDistance(compositionModel_init, composition) << " " << _contigFeature.computeEuclideanDistance(abundancesModel, abundances) << " " << _contigFeature.computeProbability(contigFeatureModel, contigFeature)  << endl; 
+								int nnz = 0;
+								cout << "\tMetabat Abudance: " << _contigFeature.cal_abd_dist(_contigFeatureModel, contigFeature, nnz) << endl;// << " " << _contigFeature.cal_abd_dist(contigFeatureModel, contigFeature, nnz) << endl;
+								cout << "\tMetabat Abudance new: " << _contigFeature.cal_abd_dist_new(_contigFeatureModel, contigFeature, nnz) << endl; // << " " << _contigFeature.cal_abd_dist_new(contigFeatureModel, contigFeature, nnz) << endl;
+								cout << "\tMetacoag abundance: " << -log10(_contigFeature.computeAbundanceProbability_new(_contigFeatureModel._abundance, abundances)) << endl; // << " " << -log10(_contigFeature.computeAbundanceProbability_new(abundancesModel, abundances)) << endl;
+								cout << "\tCorrelation: " << _contigFeature.computeAbundanceCorrelation(_contigFeatureModel._abundance, abundances) << endl; // << " " << _contigFeature.computeAbundanceCorrelation(abundancesModel, abundances) << endl;
+								//cout << "\tCorrelation: " << _contigFeature.computeAbundanceCorrelation_new(abundancesModel, abundances_init) << " " << _contigFeature.computeAbundanceCorrelation_new(abundancesModel, abundances) << endl;
+								cout << "\t";
+								for(u_int32_t count : _contigFeatureModel._abundance) cout << count << " ";
+								cout << endl;
+								cout << "\t";
+								for(u_int32_t count : abundances) cout << count << " ";
+								cout << endl;
+								/*
+								for(const ContigFeatures& c1 : _visitedContigFeatures){
+									cout << "\tComposition dist: " << -log10(_contigFeature.computeCompositionProbability(c1._composition, composition)) << " " << _contigFeature.cal_tnf_dist(c1._composition, composition) << endl; // << " " << _contigFeature.computeEuclideanDistance(abundancesModel, abundances_init) << " " << _contigFeature.computeProbability(contigFeatureModel, contigFeature_init)  << endl; 
+									cout << "\tMetabat Abudance: " << _contigFeature.cal_abd_dist(c1, contigFeature, nnz) << endl;// << " " << _contigFeature.cal_abd_dist(contigFeatureModel, contigFeature, nnz) << endl;
+									cout << "\tMetabat Abudance new: " << _contigFeature.cal_abd_dist_new(c1, contigFeature, nnz) << endl; // << " " << _contigFeature.cal_abd_dist_new(contigFeatureModel, contigFeature, nnz) << endl;
+									cout << "\tMetacoag abundance: " << -log10(_contigFeature.computeAbundanceProbability_new(c1._abundance, abundances)) << endl; // << " " << -log10(_contigFeature.computeAbundanceProbability_new(abundancesModel, abundances)) << endl;
+									cout << "\tCorrelation: " << _contigFeature.computeAbundanceCorrelation(c1._abundance, abundances) << endl; // << " " << _contigFeature.computeAbundanceCorrelation(abundancesModel, abundances) << endl;
+								}
+								*/
+								//getchar();
+
+								
+								_visitedContigFeatures.push_back(contigFeature);
+								_lastContigFeature = contigFeature;
+							}
+							
+
+
+							_lastVisitedContigNodeIndex = current_nodeIndex;
+						}
+
 
 						//cout << "3" << endl;
 						p.source_nodeIndex = current_nodeIndex;
+						p.nodePath.push_back(current_nodeIndex);
 						p.prevNodes.push_back(current_nodeIndex);
 						PathExplorer::clampPrevNodes(p.prevNodes, _unitigDatas);
 						p.visitedNodes.insert(BiGraph::nodeIndex_to_nodeName(current_nodeIndex));
-
+						addNode(current_nodeIndex);
 						//cout << "4" << endl;
 						//p.nodeExplored(current_nodeIndex, _graph);
 						//binNode(current_nodeIndex, pathData.prevNodes, pathData.nodePath, graph, pathData._index, assemblyState, false, pathData);
@@ -5347,6 +5502,9 @@ public:
 
 					if(isValid){
 						queue.push(p);
+					}
+					else{
+						break;
 					}
 
 					//cout << "miu" << endl;
@@ -5361,7 +5519,92 @@ public:
 
 	}
 
+	void addNode(u_int32_t nodeIndex){
+		_file_asmResult << BiGraph::nodeIndex_to_nodeName(nodeIndex) << "," << "0" << endl;
 
+		_file_asmResult.flush();
+	}
+
+
+	void collectPossibleContigSuccessors(u_int32_t source_nodeIndex, bool forward, vector<ContigSuccessor>& contigSuccessors){
+
+		contigSuccessors.clear();
+		//u_int32_t source_nodeName = BiGraph::nodeIndex_to_nodeName(source_nodeIndex);
+		unordered_set<u_int32_t> isVisited;
+
+		//for(u_int32_t nodeName : prevNodes){
+		//	if(nodeName == source_nodeName) continue;
+		//	//isVisited.insert(BiGraph::nodeIndex_to_nodeName(nodeIndex));
+		//	isVisited.insert(nodeName);
+		//}
+
+        queue<u_int32_t> queue;
+
+        queue.push(source_nodeIndex);
+
+        while (!queue.empty()){
+
+            u_int32_t nodeIndex = queue.front();
+			u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
+            queue.pop();
+
+            if (isVisited.find(nodeName) != isVisited.end()) continue;
+
+            isVisited.insert(nodeName);
+
+			const Unitig& unitig = _graph->nodeIndex_to_unitig(nodeIndex);
+
+			if(nodeIndex != source_nodeIndex && unitig._nbNodes > 8){
+				if(_contigFeature._nodeName_to_contigIndex.find(nodeName) != _contigFeature._nodeName_to_contigIndex.end()){
+					
+
+					u_int32_t contigIndex = _contigFeature._nodeName_to_contigIndex[nodeName];
+
+					bool hasSucc = false;
+					for(const ContigSuccessor& succ : contigSuccessors){
+						if(succ._contigIndex == contigIndex){
+							hasSucc = true;
+							break;
+						}
+					}
+
+					if(!hasSucc) contigSuccessors.push_back({nodeIndex, contigIndex});
+
+					continue;
+				}
+			}
+
+
+			//u_int32_t unitigIndex = _graph->nodeIndex_to_unitigIndex(nodeIndex);
+			
+
+
+            vector<u_int32_t> successors;
+
+			if(forward){
+				_graph->getSuccessors(nodeIndex, 0, successors);
+				for(u_int32_t nn : successors) queue.push(nn);
+			}
+			else{
+				_graph->getPredecessors(nodeIndex, 0, successors);
+            	for(u_int32_t nn : successors) queue.push(nn);
+			}
+
+            //_graph->getPredecessors(nodeIndex, 0, successors);
+            //for(u_int32_t nn : successors) queue.push(nn);
+
+            //_graph->getSuccessors(_graph->nodeIndex_toReverseDirection(nodeIndex), 0, successors);
+            //for(u_int32_t nn : successors) queue.push(nn);
+
+            //_graph->getPredecessors(_graph->nodeIndex_toReverseDirection(nodeIndex), 0, successors);
+            //for(u_int32_t nn : successors) queue.push(nn);
+
+        }
+
+
+	}
+
+	/*
 	void visitBFS(u_int32_t source_nodeIndex, unordered_set<u_int32_t>& prevNodes){
 
 		u_int32_t source_nodeName = BiGraph::nodeIndex_to_nodeName(source_nodeIndex);
@@ -5517,7 +5760,7 @@ public:
 		
 
 	//}
-
+	*/
 
 };
 
@@ -5566,7 +5809,9 @@ public:
 	gzFile _outputContigFile;
 	gzFile _outputContigFile_complete;
 
-	Assembly(vector<UnitigData>& unitigDatas): _unitigDatas(unitigDatas), Tool (){
+	ContigFeature& _contigFeature;
+
+	Assembly(vector<UnitigData>& unitigDatas, ContigFeature& contigFeature): _unitigDatas(unitigDatas), _contigFeature(contigFeature), Tool (){
 
 		/*
 		getParser()->push_back (new OptionOneParam (STR_INPUT_DIR, "input dir", true));
@@ -7929,9 +8174,15 @@ public:
 
 	bool solveBin_path(PathData& pathData, GraphSimplify* graph, bool forward, AssemblyState& assemblyState, unordered_set<u_int32_t>& visitedNodes, u_int64_t& length, u_int64_t maxContigLength){
 
+		_visitedContigIndex.clear();
+		_firstContigIndex = -1;
+		_contigFeatureModel = {};
+		_lastContigFeature = {};
+		_visitedContigFeatures.clear();
+
 
 		assemblyState._backtrackLengthMax_nbNodes = determineMinSupportReadLength(pathData.source_nodeIndex, forward);
-		//assemblyState._backtrackLengthMax_nbNodes = 5;
+		assemblyState._backtrackLengthMax_nbNodes = 10;
 		
 		assemblyState._cutoffType = CutoffType::ERROR;
 		//float currentAbundance = 0;//pathData.source_abundance;
@@ -8210,6 +8461,107 @@ public:
 					exit(1);
 				}
 				*/
+
+
+				/*
+				u_int32_t current_nodeName = BiGraph::nodeIndex_to_nodeName(current_nodeIndex);
+
+				if(_contigFeature._nodeName_to_contigIndex.find(current_nodeName) != _contigFeature._nodeName_to_contigIndex.end()){
+					u_int32_t contigIndex = _contigFeature._nodeName_to_contigIndex[current_nodeName];
+
+					if(_visitedContigIndex.size() == 0){
+						
+						const Unitig& unitig = _graph->nodeIndex_to_unitig(current_nodeIndex);
+
+						vector<float> composition;
+						bool hasComposition = _contigFeature.nodepathToComposition(unitig._nodes, composition);
+
+						vector<float> abundances;
+						vector<float> abundancesVar;
+						bool hasAbundances = _contigFeature.sequenceToAbundance(unitig._nodes, abundances, abundancesVar);
+
+						if(hasAbundances){
+							_firstContigIndex = contigIndex;
+							_visitedContigIndex.insert(contigIndex);
+
+							_contigFeatureModel = {0, composition, abundances, abundancesVar};
+							_lastContigFeature = _contigFeatureModel;
+							_visitedContigFeatures.push_back(_contigFeatureModel);
+						}
+
+					}
+					else if(_visitedContigIndex.find(contigIndex) == _visitedContigIndex.end() && hasContig(current_nodeIndex, pathData.nodePath, contigIndex)){
+						
+
+						_visitedContigIndex.insert(contigIndex);
+
+						const Unitig& unitig = _graph->nodeIndex_to_unitig(current_nodeIndex);
+
+						vector<float> composition;
+						bool hasComposition = _contigFeature.nodepathToComposition(unitig._nodes, composition);
+
+						vector<float> abundances;
+						vector<float> abundancesVar;
+						bool hasAbundances = _contigFeature.sequenceToAbundance(unitig._nodes, abundances, abundancesVar);
+
+						if(hasAbundances){
+							ContigFeatures contigFeature = {0, composition, abundances, abundancesVar};
+
+							//const vector<float>& contigComposition_model = _contigFeature._contigCompositions[_firstContigIndex];
+							//const vector<float>& contigComposition = _contigFeature._contigCoverages[contigIndex];
+							//const vector<float>& contigAbundances_model = _contigFeature._contigCoverages[_firstContigIndex];
+							//const vector<float>& contigAbundances = _contigFeature._contigCoverages[contigIndex];
+							
+							
+							cout << endl;
+							cout << endl;
+							cout << current_nodeName << " " << contigIndex << endl;
+
+							cout << "\tComposition dist: " << -log10(_contigFeature.computeCompositionProbability(_contigFeatureModel._composition, composition)) << " " << _contigFeature.cal_tnf_dist(_contigFeatureModel._composition, composition) << endl; // << " " << _contigFeature.computeEuclideanDistance(abundancesModel, abundances_init) << " " << _contigFeature.computeProbability(contigFeatureModel, contigFeature_init)  << endl; 
+							//cout << "\tComposition dist (extended): " << _contigFeature.computeEuclideanDistance(compositionModel_init, composition) << " " << _contigFeature.computeEuclideanDistance(abundancesModel, abundances) << " " << _contigFeature.computeProbability(contigFeatureModel, contigFeature)  << endl; 
+							int nnz = 0;
+							cout << "\tMetabat Abudance: " << _contigFeature.cal_abd_dist(_contigFeatureModel, contigFeature, nnz) << endl;// << " " << _contigFeature.cal_abd_dist(contigFeatureModel, contigFeature, nnz) << endl;
+							cout << "\tMetabat Abudance new: " << _contigFeature.cal_abd_dist_new(_contigFeatureModel, contigFeature, nnz) << endl; // << " " << _contigFeature.cal_abd_dist_new(contigFeatureModel, contigFeature, nnz) << endl;
+							cout << "\tMetacoag abundance: " << -log10(_contigFeature.computeAbundanceProbability_new(_contigFeatureModel._abundance, abundances)) << endl; // << " " << -log10(_contigFeature.computeAbundanceProbability_new(abundancesModel, abundances)) << endl;
+							cout << "\tCorrelation: " << _contigFeature.computeAbundanceCorrelation(_contigFeatureModel._abundance, abundances) << endl; // << " " << _contigFeature.computeAbundanceCorrelation(abundancesModel, abundances) << endl;
+							//cout << "\tCorrelation: " << _contigFeature.computeAbundanceCorrelation_new(abundancesModel, abundances_init) << " " << _contigFeature.computeAbundanceCorrelation_new(abundancesModel, abundances) << endl;
+							cout << "\t";
+							for(u_int32_t count : _contigFeatureModel._abundance) cout << count << " ";
+							cout << endl;
+							cout << "\t";
+							for(u_int32_t count : abundances) cout << count << " ";
+							cout << endl;
+							
+							
+							//for(const ContigFeatures& c1 : _visitedContigFeatures){
+							//	cout << "\tComposition dist: " << -log10(_contigFeature.computeCompositionProbability(c1._composition, composition)) << " " << _contigFeature.cal_tnf_dist(c1._composition, composition) << endl; // << " " << _contigFeature.computeEuclideanDistance(abundancesModel, abundances_init) << " " << _contigFeature.computeProbability(contigFeatureModel, contigFeature_init)  << endl; 
+							//	cout << "\tMetabat Abudance: " << _contigFeature.cal_abd_dist(c1, contigFeature, nnz) << endl;// << " " << _contigFeature.cal_abd_dist(contigFeatureModel, contigFeature, nnz) << endl;
+							//	cout << "\tMetabat Abudance new: " << _contigFeature.cal_abd_dist_new(c1, contigFeature, nnz) << endl; // << " " << _contigFeature.cal_abd_dist_new(contigFeatureModel, contigFeature, nnz) << endl;
+							//	cout << "\tMetacoag abundance: " << -log10(_contigFeature.computeAbundanceProbability_new(c1._abundance, abundances)) << endl; // << " " << -log10(_contigFeature.computeAbundanceProbability_new(abundancesModel, abundances)) << endl;
+							//	cout << "\tCorrelation: " << _contigFeature.computeAbundanceCorrelation(c1._abundance, abundances) << endl; // << " " << _contigFeature.computeAbundanceCorrelation(abundancesModel, abundances) << endl;
+							//}
+							
+							//getchar();
+							if(!_contigFeature.isIntra(_contigFeatureModel, contigFeature, hasComposition, hasAbundances)){
+								cout << "Non intra contig" << endl;
+								return false;
+								//getchar();
+							}
+							
+							_visitedContigFeatures.push_back(contigFeature);
+							_lastContigFeature = contigFeature;
+						}
+
+					}
+					
+
+
+				}
+				*/
+
+
+
+
 				binNode(current_nodeIndex, pathData.prevNodes, pathData.nodePath, graph, pathData._index, assemblyState, false, pathData);
 				visitedNodes.insert(BiGraph::nodeIndex_to_nodeName(current_nodeIndex));
 				
@@ -8269,6 +8621,21 @@ public:
 		}
 	}
 
+	bool hasContig(u_int32_t current_nodeIndex, vector<u_int32_t>& nodePath, u_int32_t contigIndex){
+
+		unordered_set<u_int32_t>& conitgNodes = _contigFeature._contigNodes[contigIndex];
+
+		u_int64_t nbShared = 0;
+		for(u_int32_t nodeIndex : nodePath){
+			if(conitgNodes.find(BiGraph::nodeIndex_to_nodeName(nodeIndex)) == conitgNodes.end()) continue;
+			nbShared += 1;
+		}
+
+		//cout << contigIndex << " " << nbShared << " " << conitgNodes.size() << "    " << BiGraph::nodeIndex_to_nodeName(current_nodeIndex) << endl;
+		if(nbShared >= conitgNodes.size()-2) return true;
+		return false;
+	}
+
 	bool extendPath2(u_int32_t nodeIndex, float abundance, GraphSimplify* graph, u_int32_t pathIndex, u_int32_t pathIndex_complete, AssemblyState& assemblyState, ExtendedPathData& extendedPathData, vector<u_int32_t>& resultNodePath, vector<u_int64_t>& resultNodePath_supportingReads, u_int64_t maxContigLength){
 
 		//cout << "TODO: clean complex area..." << endl;
@@ -8320,8 +8687,9 @@ public:
 		vector<u_int32_t> nodePath_backward;
 		vector<u_int64_t> supportingReads_backward;
 
-		PathData pathData_backward = {pathIndex, {}, {}, {}, abundance, nodeIndex, nodeIndex, 0, {}};
-		
+		u_int32_t nodeIndex_backward = _graph->nodeIndex_to_unitig(nodeIndex)._endNode;
+		PathData pathData_backward = {pathIndex, {}, {}, {}, abundance, nodeIndex_backward, nodeIndex_backward, 0, {}};
+		size_t startingUnitigSize = _graph->nodeIndex_to_unitig(nodeIndex)._nbNodes;
 		
 		if(!pathSolved){
 			#ifdef PRINT_DEBUG 
@@ -8330,6 +8698,9 @@ public:
 			//getchar();
 			//_iter = 0;
 			pathSolved = solveBin_path(pathData_backward, graph, false, assemblyState, visitedNodes, length, maxContigLength);
+			
+			pathData_backward.nodePath.erase(pathData_backward.nodePath.begin(), pathData_backward.nodePath.begin()+startingUnitigSize-1);
+			
 			if(pathSolved){ 
 				
 				supportingReads_forward.clear();
@@ -8423,6 +8794,14 @@ public:
 		return pathSolved;
 
 	}
+
+	u_int32_t _firstContigIndex;
+	unordered_set<u_int32_t> _visitedContigIndex;
+	//vector<float> _compositions_model;
+	//vector<float> _abundances_model;
+	ContigFeatures _contigFeatureModel;
+	vector<ContigFeatures> _visitedContigFeatures;
+	ContigFeatures _lastContigFeature;
 
 	bool extendPath(u_int32_t nodeIndex, float abundance, GraphSimplify* graph, u_int32_t pathIndex, u_int32_t pathIndex_complete, AssemblyState& assemblyState, ExtendedPathData& extendedPathData){
 
