@@ -300,6 +300,7 @@ public:
 			extract_truth_kminmers();
 		}
 
+		//cout << "lala " << _evaluation_hifiasmGroundTruth_position.size() << endl;
 
 		file_groundTruth = ofstream(_inputDir + "/binning_results.csv");
 		file_groundTruth << "Name,Colour" << endl;
@@ -321,9 +322,78 @@ public:
 		_graph->clear(0);
 		_graph->compact(false, _unitigDatas);
 		removeUnsupportedEdges(_gfaFilename, gfa_filename_noUnsupportedEdges, _graph);
+
+
+
+
+		/*
+		//ofstream file_groundTruth_hifiasm_position(_inputDir + "/groundtruth_hifiasm_position.csv");
+		ofstream file_groundTruth_hifiasm(_inputDir + "/groundtruth_hifiasm.csv");
+		file_groundTruth_hifiasm << "Name,Colour" << endl;
+		//file_groundTruth_hifiasm_position << "Name,Order" << endl;
+
+		unordered_set<u_int32_t> validNodes;
+
+		//unordered_set<u_int32_t> groundTruth_kminmers;
+		int founded = 0;
+		for(auto it : _mdbg->_dbg_nodes){
+			const KmerVec& vec = it.first;
+
+			u_int32_t nodeName = it.second._index;
+			
+			//vec = vec.normalize();
+			if(_evaluation_hifiasmGroundTruth_nodeNamePosition.find(nodeName) == _evaluation_hifiasmGroundTruth_nodeNamePosition.end()) continue;
+
+			founded += 1;
+			//groundTruth_kminmers.insert(it.second._index);
+
+			//file_groundTruth_hifiasm << it.second._index << "," << _evaluation_hifiasmGroundTruth_nodeNamePosition[nodeName] << endl;
+			//file_groundTruth_hifiasm_position << it.second._index << "," << _evaluation_hifiasmGroundTruth_position[vec] << endl;
+
+			validNodes.insert(nodeName);
+
+			//vector<u_int32_t> neighbors;
+			//graph->collectNeighbors(it.second._index, 100, neighbors, 100, visitedNodes);
+			//for(u_int32_t nn : neighbors){
+				//cout << nn << endl;
+				//groundTruth_kminmers.insert(nn);
+			//}
+			//cout << "n: " << neighbors.size() << endl;
+			//cout << n << endl;
+
+
+			//cout << groundTruth_kminmers.size() << endl;
+		}
+		//cout << "Nb nodes abundant: " << groundTruth_kminmers.size() << endl;
+		cout << "Found: " << founded << endl;
+		//gfaParser.rewriteGfa_withNodes(gfa_filename, gfa_filename + "_groundTruth_hifiasm.gfa", groundTruth_kminmers);
+		file_groundTruth_hifiasm.close();
+		//file_groundTruth_hifiasm_position.close();
+
+		string outputFilename = _inputDir + "/minimizer_graph_truth.gfa";
+		GfaParser::rewriteGfa_withoutNodes(_gfaFilename, outputFilename, validNodes, _graph->_isEdgeRemoved, _graph->_graphSuccessors);
+		*/
+
+
+
+
 		delete _mdbg;
 		cout << "done" << endl;
 	
+
+
+
+
+
+
+
+
+
+			
+
+
+
+
 
 
 		//cout << graphSimplify->_graphSuccessors->_nbEdges << endl;
@@ -2266,7 +2336,7 @@ public:
 				processedNodeNames.insert(BiGraph::nodeIndex_to_nodeName(nodeIndex));
 			}
 
-			binByReadpath(unitig._startNode, processedNodeNames, clusterDir, filename_binStats, fileHifiasmAll, clusterIndex);
+			binByReadpath(unitig._startNode, processedNodeNames, clusterDir, filename_binStats, fileHifiasmAll, fileComponentNodeAll, clusterIndex);
 			continue;
 
         	unordered_set<u_int32_t> component;
@@ -2849,7 +2919,7 @@ public:
 		
 	}
 
-	void binByReadpath(u_int32_t source_nodeIndex, unordered_set<u_int32_t>& processedNodeNames, const string& clusterDir, const string& filename_binStats, ofstream& fileHifiasmAll, u_int64_t& clusterIndex){
+	void binByReadpath(u_int32_t source_nodeIndex, unordered_set<u_int32_t>& processedNodeNames, const string& clusterDir, const string& filename_binStats, ofstream& fileHifiasmAll, ofstream& fileComponentNodeAll, u_int64_t& clusterIndex){
 
 		//unordered_map<u_int32_t, u_int32_t> lala;
 
@@ -2889,7 +2959,29 @@ public:
 		writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(unitig_model._startNode));
 		writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(unitig_model._endNode));
 
-		vector<string> hifiasmUnitigNames;
+		unordered_set<string> hifiasmUnitigNames;
+		unordered_set<u_int32_t> allComponentNodenames;
+
+
+
+
+
+		if(_truthInputFilename != ""){
+			for(u_int32_t nodeIndex : unitig_model._nodes){
+
+				u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
+
+				allComponentNodenames.insert(nodeName);
+				
+				if(_evaluation_hifiasmGroundTruth_nodeName_to_unitigName.find(nodeName) != _evaluation_hifiasmGroundTruth_nodeName_to_unitigName.end()){
+					for(string& unitigName : _evaluation_hifiasmGroundTruth_nodeName_to_unitigName[nodeName]){
+						hifiasmUnitigNames.insert(unitigName);
+					}
+				}
+			}
+		}
+
+
 
 		while(!queue.empty()){
 
@@ -2905,7 +2997,7 @@ public:
 
 
 			size_t componentNbNodes = 10;
-			size_t componentLength = 500000;
+			size_t componentLength = 100000;
 
 			unordered_set<u_int32_t> component;
 			unordered_set<u_int32_t> componentNbNodes2;
@@ -2915,7 +3007,7 @@ public:
 			cout << "Component size: " << componentNbNodes2.size() << " " << component.size() << endl;
 
 
-
+			component = componentNbNodes2;
 
 
 
@@ -3142,19 +3234,15 @@ public:
 
 					if(_truthInputFilename != ""){
 					
-						unordered_set<string> hifiasmWrittenUnitigs;
-
 						for(u_int32_t nodeIndex : u._nodes){
 
 							u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
 
+							allComponentNodenames.insert(nodeName);
+							
 							if(_evaluation_hifiasmGroundTruth_nodeName_to_unitigName.find(nodeName) != _evaluation_hifiasmGroundTruth_nodeName_to_unitigName.end()){
 								for(string& unitigName : _evaluation_hifiasmGroundTruth_nodeName_to_unitigName[nodeName]){
-									if(hifiasmWrittenUnitigs.find(unitigName) != hifiasmWrittenUnitigs.end()) continue;
-									//fileHifiasmAll << unitigName << "," << clusterIndex << endl;
-									hifiasmWrittenUnitigs.insert(unitigName);
-
-									hifiasmUnitigNames.push_back(unitigName);
+									hifiasmUnitigNames.insert(unitigName);
 								}
 							}
 						}
@@ -3199,12 +3287,18 @@ public:
 			cout << "Result: " << completeness << " " << contamination << endl;
 
 			if(completeness > 0.3){
+
+				for(u_int32_t nodeName : allComponentNodenames){
+					fileComponentNodeAll << nodeName << "," << clusterIndex << endl;
+				}
+				fileComponentNodeAll.flush();
+
 				for(const string& unitigName : hifiasmUnitigNames){
 					fileHifiasmAll << unitigName << "," << clusterIndex << endl;
 				}
 				fileHifiasmAll.flush();
 
-				
+				/*
 				unordered_set<u_int32_t> component;
             	_graph->getConnectedComponent(source_nodeIndex, component);
 				unordered_set<u_int32_t> validNodes;
@@ -3216,7 +3310,7 @@ public:
 				}
 				string outputFilename = _inputDir + "/minimizer_graph_sub_4_" + to_string(clusterIndex) + ".gfa";
 				GfaParser::rewriteGfa_withoutNodes(_gfaFilename, outputFilename, validNodes, _graph->_isEdgeRemoved, _graph->_graphSuccessors);
-
+				*/
 			
 
 
@@ -5042,7 +5136,7 @@ public:
 
 			vector<UnitigLength> startingUnitigs;
 
-			_minUnitigAbundance = cutoff / 0.05;
+			_minUnitigAbundance = cutoff / 0.2;
 
 			for(const Unitig& unitig : _graph->_unitigs){
 				if(unitig._nbNodes <= _kminmerSize*2) continue;
@@ -5082,7 +5176,7 @@ public:
 					processedNodeNames.insert(BiGraph::nodeIndex_to_nodeName(nodeIndex));
 				}
 
-				binByReadpath(unitig._startNode, processedNodeNames, clusterDir, filename_binStats, fileHifiasmAll, clusterIndex);
+				binByReadpath(unitig._startNode, processedNodeNames, clusterDir, filename_binStats, fileHifiasmAll, fileComponentNodeAll, clusterIndex);
 
 
 			}

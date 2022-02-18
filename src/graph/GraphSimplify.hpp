@@ -4795,9 +4795,8 @@ getStronglyConnectedComponent_node
                 u_int32_t unitigIndex_nn = unitigNode._index;
                 u_int32_t overlap = unitigNode._overlap;
 
-                float overlapLength = 0;
-
-                distances[unitigIndex_nn] = distances[unitigIndex] + _unitigs[unitigIndex_nn]._length - overlapLength; 
+                //cout << distances[unitigIndex] << " " << _unitigs[unitigIndex_nn]._length << " " << overlap << endl;
+                distances[unitigIndex_nn] = distances[unitigIndex] + _unitigs[unitigIndex_nn]._length - overlap; 
 
                 queue.push(unitigIndex_nn);
             }

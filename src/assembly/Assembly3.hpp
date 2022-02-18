@@ -1301,6 +1301,7 @@ public:
 				u_int64_t size = contig._nodePath.size();
 				gzwrite(outputContigFile_min, (const char*)&size, sizeof(size));
 				gzwrite(outputContigFile_min, (const char*)&contig._nodePath[0], size * sizeof(u_int32_t));
+				
 				/*
 				string unitigSequenceLala;
 				_toBasespace.createSequence(contig._nodePath, unitigSequenceLala);
@@ -1312,7 +1313,8 @@ public:
 				gzwrite(outputContigFile_fasta, (const char*)&unitigSequenceLala[0], unitigSequenceLala.size());
 
 				contigIndex += 1;
-
+				*/
+				/*
 				continue;
 
 				

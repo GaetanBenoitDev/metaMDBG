@@ -24,6 +24,8 @@
 namespace fs = std::filesystem;
 //namespace fs = std::filesystem;
 
+//#define FIX_PALINDROME
+
 //#include <sys/types.h>
 //#include <sys/stat.h>
 
@@ -1133,14 +1135,18 @@ public:
 
 	static void getKminmers(const size_t l, const size_t k, const vector<u_int64_t>& minimizers, const vector<u_int64_t>& minimizersPos, vector<KmerVec>& kminmers, vector<ReadKminmer>& kminmersLength, const vector<u_int64_t>& rlePositions, int readIndex, bool allowPalindrome){
 
+		kminmers.clear();
+        kminmersLength.clear();
+        bool doesComputeLength = minimizersPos.size() > 0;
+		if(minimizers.size() < k) return;
+
+		#ifdef FIX_PALINDROME
 		/*
 		bool isLala = false;
 		if(std::find(minimizers.begin(), minimizers.end(), 56801217747741349) !=  minimizers.end()){
 			isLala = true;
 		}*/
 		
-        kminmersLength.clear();
-        bool doesComputeLength = minimizersPos.size() > 0;
 		/*
 		vector<u_int64_t> minimizers_filtered;
 
@@ -1183,7 +1189,6 @@ public:
 		}
 		*/
 		
-		if(minimizers.size() < k) return;
 
 		//unordered_set<u_int64_t> bannedMinimizers;
 		vector<bool> bannedPositions(minimizers.size(), false);
@@ -1564,17 +1569,137 @@ public:
 			kminmers.clear();
         	kminmersLength.clear();
 		}
+		#else
+
+
+
+		int i_max = ((int)minimizers.size()) - (int)k + 1;
+		for(int i=0; i<i_max; i++){
+
+			KmerVec vec;
+			vector<u_int32_t> currentMinimizerIndex;
+
+			int j=i;
+			while(true){
+				
+				if(j >= minimizers.size()) break;
+
+				u_int64_t minimizer = minimizers[j];
+
+				vec._kmers.push_back(minimizer);
+				currentMinimizerIndex.push_back(j);
+
+				if(vec._kmers.size() == k){
+
+					bool isReversed;
+					vec = vec.normalize(isReversed);
+
+					if(doesComputeLength){
+
+						u_int32_t indexFirstMinimizer = currentMinimizerIndex[0];
+						u_int32_t indexSecondMinimizer = currentMinimizerIndex[1];
+						u_int32_t indexSecondLastMinimizer = currentMinimizerIndex[currentMinimizerIndex.size()-2];
+						u_int32_t indexLastMinimizer = currentMinimizerIndex[currentMinimizerIndex.size()-1];
+
+
+						u_int32_t read_pos_start = minimizersPos[indexFirstMinimizer];
+						u_int32_t read_pos_end = minimizersPos[indexLastMinimizer];
+						if(rlePositions.size() > 0){
+							read_pos_start = rlePositions[minimizersPos[indexFirstMinimizer]];
+							read_pos_end = rlePositions[minimizersPos[indexLastMinimizer]];
+							read_pos_end +=  (rlePositions[minimizersPos[indexLastMinimizer] + l] - rlePositions[minimizersPos[indexLastMinimizer]]); //l-1 a check
+						}
+						else{
+							read_pos_end +=  l;//(minimizersPos[indexLastMinimizer] + l - minimizersPos[indexLastMinimizer]); //l-1 a check
+
+						}
+
+						u_int16_t length = read_pos_end - read_pos_start;
+
+						u_int16_t seq_length_start = 0;
+						u_int16_t seq_length_end = 0;
+
+						u_int16_t position_of_second_minimizer = 0;
+						u_int16_t position_of_second_minimizer_seq = 0;
+						if(isReversed){
+
+							u_int16_t pos_last_minimizer = minimizersPos[indexSecondLastMinimizer] + l;
+							if(rlePositions.size() > 0) pos_last_minimizer = rlePositions[pos_last_minimizer];
+							//u_int16_t pos_last_minimizer = rlePositions[minimizersPos[indexSecondLastMinimizer] + l];
+							seq_length_start = read_pos_end - pos_last_minimizer; //rlePositions[minimizersPos[i+k-1]] - rlePositions[minimizersPos[i+k-2]];
+						}
+						else{
+
+							//u_int16_t pos_last_minimizer = rlePositions[minimizersPos[indexSecondMinimizer]];
+							u_int16_t pos_last_minimizer = minimizersPos[indexSecondMinimizer];
+							if(rlePositions.size() > 0) pos_last_minimizer = rlePositions[pos_last_minimizer];
+							seq_length_start = pos_last_minimizer - read_pos_start;
+
+							//cout << "todo" << endl;
+							//seq_length_start = 
+							//position_of_second_minimizer = rlePositions[minimizersPos[i+1]];// - rlePositions[minimizersPos[i]];
+						}
+
+						u_int16_t position_of_second_to_last_minimizer = 0;
+						u_int16_t position_of_second_to_last_minimizer_seq = 0;
+						if(isReversed){
+							
+							u_int16_t pos_last_minimizer = minimizersPos[indexSecondMinimizer];
+							if(rlePositions.size() > 0) pos_last_minimizer = rlePositions[pos_last_minimizer];
+							seq_length_end = pos_last_minimizer - read_pos_start;
+
+							//position_of_second_to_last_minimizer = rlePositions[minimizersPos[i+1]]; // - rlePositions[minimizersPos[i]];
+						}
+						else{
+							//position_of_second_to_last_minimizer = rlePositions[minimizersPos[indexSecondLastMinimizer]]; //rlePositions[minimizersPos[i+k-1]] - rlePositions[minimizersPos[i+k-2]];
+							//position_of_second_to_last_minimizer_seq = position_of_second_to_last_minimizer;
+							//position_of_second_to_last_minimizer_seq += (rlePositions[minimizersPos[i+k-2] + l - 1] - rlePositions[minimizersPos[i+k-2]]);
+
+							//u_int16_t pos_last_minimizer = rlePositions[minimizersPos[indexSecondLastMinimizer] + l];
+							u_int16_t pos_last_minimizer = minimizersPos[indexSecondLastMinimizer] + l;
+							if(rlePositions.size() > 0) pos_last_minimizer = rlePositions[pos_last_minimizer];
+							//cout << "lala: " << rlePositions.size() << " " << (minimizersPos[i+k-1] + l) << endl;
+							//cout << read_pos_end << " " << pos_last_minimizer << endl;
+							//position_of_second_to_last_minimizer_seq = rlePositions[minimizersPos[i+k-2] + l - 1];
+							seq_length_end = read_pos_end - pos_last_minimizer; //rlePositions[minimizersPos[i+k-1]] - rlePositions[minimizersPos[i+k-2]];
+							//position_of_second_to_last_minimizer_seq = length - seq_length_end;
+							//seq_length_end = rlePositions[minimizersPos[i+k-1]] - rlePositions[minimizersPos[i+k-2]];
+							//position_of_second_to_last_minimizer_seq =  length - seq_length_end + 1; //(rlePositions[minimizersPos[i+k-2]] - read_pos_start);//rlePositions[minimizersPos[i+k-2]] - read_pos_start;
+						}
+
+						kminmersLength.push_back({read_pos_start, read_pos_end, length, isReversed, position_of_second_minimizer, position_of_second_to_last_minimizer, position_of_second_minimizer_seq, position_of_second_to_last_minimizer_seq, seq_length_start, seq_length_end});
+					}
+					else{
+						kminmersLength.push_back({0, 0, 0, isReversed, 0, 0, 0, 0, 0, 0});
+					}
+
+					kminmers.push_back(vec);
+					break;
+					
+				}
+
+				j += 1;
+			}
+
+		}
+
+			
+		
+		#endif
 
 
 	}
 
 	static void getKminmers_complete(const size_t k, const vector<u_int64_t>& minimizers, const vector<u_int64_t>& minimizersPos, vector<ReadKminmerComplete>& kminmers, int readIndex){
 
+        kminmers.clear();
+		if(minimizers.size() < k) return;
+
+
+		#ifdef FIX_PALINDROME
 		bool hasPalindromeTotal = false;
 
-        kminmers.clear();
 
-		if(minimizers.size() < k) return;
 
 		vector<bool> bannedPositions(minimizers.size(), false);
 
@@ -1691,6 +1816,77 @@ public:
 			if(!hasPalindrome) break;
         	kminmers.clear();
 		}
+		#else
+
+		int i_max = ((int)minimizers.size()) - (int)k + 1;
+		for(int i=0; i<i_max; i++){
+
+
+			KmerVec vec;
+			vector<u_int32_t> currentMinimizerIndex;
+
+			int j=i;
+			while(true){
+				
+				if(j >= minimizers.size()) break;
+
+				u_int64_t minimizer = minimizers[j];
+
+				vec._kmers.push_back(minimizer);
+				currentMinimizerIndex.push_back(j);
+
+				if(vec._kmers.size() == k){
+
+					bool isReversed;
+					vec = vec.normalize(isReversed);
+
+					u_int32_t indexFirstMinimizer = currentMinimizerIndex[0];
+					u_int32_t indexSecondMinimizer = currentMinimizerIndex[1];
+					u_int32_t indexSecondLastMinimizer = currentMinimizerIndex[currentMinimizerIndex.size()-2];
+					u_int32_t indexLastMinimizer = currentMinimizerIndex[currentMinimizerIndex.size()-1];
+
+
+					u_int32_t read_pos_start = indexFirstMinimizer;
+					u_int32_t read_pos_end = indexLastMinimizer;
+					u_int32_t length = read_pos_end - read_pos_start + 1;
+
+					
+					u_int32_t seq_length_start = 0;
+					u_int32_t seq_length_end = 0;
+
+					if(isReversed){
+
+						u_int32_t pos_last_minimizer = indexSecondLastMinimizer;
+						seq_length_start = read_pos_end - pos_last_minimizer;
+					}
+					else{
+
+						u_int32_t pos_last_minimizer = indexSecondMinimizer;
+						seq_length_start = pos_last_minimizer - read_pos_start;
+					}
+
+					if(isReversed){
+						
+						u_int32_t pos_last_minimizer = indexSecondMinimizer;
+						seq_length_end = pos_last_minimizer - read_pos_start;
+
+					}
+					else{
+						u_int32_t pos_last_minimizer = indexSecondLastMinimizer;
+						seq_length_end = read_pos_end - pos_last_minimizer; 
+					}
+
+					kminmers.push_back({vec, isReversed, read_pos_start, read_pos_end, seq_length_start, seq_length_end, length});
+					break;
+				}
+
+				j += 1;
+			}
+
+		}
+
+			
+		#endif
 
 		//if(hasPalindromeTotal){
 		//	cout << "mioum" << endl;
