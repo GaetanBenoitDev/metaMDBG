@@ -125,14 +125,14 @@ public:
 
 		//Read selection
 		command = _filename_exe + " readSelection -i " + _inputFilename + " -o " + _inputDir;
-		executeCommand(command);
+		//executeCommand(command);
 
 
 
 
 		u_int64_t pass = 0;
 
-		for(size_t k=4; k<5; k+=1){
+		for(size_t k=3; k<5; k+=1){
 			//cout << "Start asm: " << k << endl;
 
 			writeParameters(minimizerSize, k, density);
@@ -143,14 +143,19 @@ public:
 			executeCommand(command);
 			//getchar();
 
+			command = _filename_exe + " contig -o " + _inputDir;
+			if(_truthInputFilename != "") command += " --itruth " + _truthInputFilename;
+			if(pass > 0) command += " -c " +  _inputDir + "/contigs.min.gz";
+			executeCommand(command);
+
 			//command = _filename_exe + " toBasespace -i " + _inputFilename +  " -o " + _inputDir;
 			//if(pass > 0) command += " -c " +  _inputDir + "/contigs.min.gz";
 			//executeCommand(command);
 
-			command = _filename_exe + " asm -o " + _inputDir;
-			if(_truthInputFilename != "") command += " --itruth " + _truthInputFilename;
+			command = _filename_exe + " toMinspace " +  " -o " + _inputDir;
 			if(pass > 0) command += " -c " +  _inputDir + "/contigs.min.gz";
 			executeCommand(command);
+
 
 
 			//getchar();

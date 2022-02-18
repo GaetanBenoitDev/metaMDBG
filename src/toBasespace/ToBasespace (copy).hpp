@@ -107,7 +107,56 @@ public:
 		_mdbg->load(mdbg_filename);
 		cout << "MDBG nodes: " << _mdbg->_dbg_nodes.size() << endl;
 
-		loadContigs(_inputDir + "/contigs.nodepath.gz");
+
+		string filename_kminmerSequences = _inputDir + "/kminmerSequences";
+		_outputFile_left = gzopen((filename_kminmerSequences + "_left.gz").c_str(),"wb");
+		_outputFile_right = gzopen((filename_kminmerSequences + "_right.gz").c_str(),"wb");
+
+		//extractKminmerSequences_all();
+		extractKminmerSequences_allVariants();
+
+		//cout << _nodeName_all_left.size() << " " << _nodeName_all_right.size() << endl;
+
+		cout << "Correcting kminmer sequences" << endl;
+
+		//auto alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kNW, 3, -5, -3);  // linear gaps
+		//spoa::Graph graph{};
+		//_alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kNW, 3, -5, -3);  // linear gaps
+		//spoa::Graph graph{};
+		
+
+
+		for(auto& it : _kminmerSequenceCopies_all_left){
+			u_int32_t nodeName = it.first;
+			const vector<DnaBitset*>& dnaSeq = it.second;
+
+			//if(_isDoneNodeName_left.find(nodeName) == _isDoneNodeName_left.end()){
+			string correctedSequence;
+			performErrorCorrection_all(nodeName, dnaSeq, correctedSequence);
+			writeKminmerSequence_all(nodeName, correctedSequence, _outputFile_left);
+
+			//}
+		}
+
+		
+		for(auto& it : _kminmerSequenceCopies_all_right){
+			u_int32_t nodeName = it.first;
+			const vector<DnaBitset*>& dnaSeq = it.second;
+
+			//if(_isDoneNodeName_right.find(nodeName) == _isDoneNodeName_right.end()){
+			string correctedSequence;
+			performErrorCorrection_all(nodeName, dnaSeq, correctedSequence);
+			writeKminmerSequence_all(nodeName, correctedSequence, _outputFile_right);
+			//}
+		}
+
+		gzclose(_outputFile_left);
+		gzclose(_outputFile_right);
+
+
+		return;
+
+		loadContigs(_inputDir + "/minimizer_contigs.gz");
 		//loadContigs(_inputDir + "/minimizer_contigs_complete.gz");
 		//loadContigs(_inputDir + "/eval/composition/22/debug_longUnitigs.gz");
 		//loadContigs(_inputDir + "/eval/composition//3/debug_longUnitigsNeighbors.gz");
@@ -123,7 +172,7 @@ public:
 
 		//exit(1);
 		//loadKminmerSequences();
-		createBaseContigs(_inputDir + "/contigs.nodepath.gz", _filename_outputContigs.c_str());
+		createBaseContigs(_inputDir + "/minimizer_contigs.gz", _filename_outputContigs.c_str());
 		//createBaseContigs(_inputDir + "/minimizer_contigs_complete.gz", _filename_outputContigs.c_str());
 		//createBaseContigs(_inputDir + "/eval/composition//22//debug_longUnitigs.gz", _inputDir + "/eval/composition//22//debug_longUnitigs.fasta.gz");
 		//createBaseContigs(_inputDir + "/eval/composition//3//debug_longUnitigsNeighbors.gz", _inputDir + "/eval/composition//3/debug_longUnitigsNeighbors.fasta.gz");

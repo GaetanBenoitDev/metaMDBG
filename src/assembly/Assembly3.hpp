@@ -137,7 +137,7 @@ public:
 	void execute (){
 
 		loadGraph();
-		generateContigs2(_inputDir + "/contigs.min.gz", _inputDir + "/contigs.fasta.gz");
+		generateContigs2(_inputDir + "/contigs.nodepath.gz", _inputDir + "/contigs.fasta.gz");
 
 	}
 
@@ -1302,6 +1302,11 @@ public:
 				gzwrite(outputContigFile_min, (const char*)&size, sizeof(size));
 				gzwrite(outputContigFile_min, (const char*)&contig._nodePath[0], size * sizeof(u_int32_t));
 				
+				vector<u_int64_t> supportingReads;
+				getSupportingReads(contig._nodePath, supportingReads);
+
+				gzwrite(outputContigFile_min, (const char*)&supportingReads[0], size * sizeof(u_int64_t));
+
 				/*
 				string unitigSequenceLala;
 				_toBasespace.createSequence(contig._nodePath, unitigSequenceLala);
@@ -1373,6 +1378,60 @@ public:
 		//extractContigKminmers(outputFilename_fasta);
 		file_asmResult.close();
 		
+	}
+
+	void getSupportingReads(const vector<u_int32_t>& pathNodes, vector<u_int64_t>& supportingReads){
+
+		//supportingReads.resize(pathNodes.size());
+		//return;
+
+		supportingReads.clear();
+		vector<u_int32_t> prevNodes;
+
+		for(u_int32_t nodeIndex : pathNodes){
+
+			//cout << nodeIndex << " " << prevNodes.size() <<  endl;
+			u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
+			UnitigData& unitigData = _unitigDatas[nodeName];
+
+			if(prevNodes.size() == 0){
+				prevNodes.push_back(nodeIndex);
+				supportingReads.push_back(unitigData._readIndexes[0]);
+				continue;
+			}
+
+			u_int32_t prevRank = 0;
+			u_int64_t supportingRead = -1;
+
+			while(true){
+				
+				int prevIndex = prevNodes.size() - prevRank - 1;
+				//cout << "lalalala     " << prevIndex << endl;
+				if(prevIndex < 0 ) break;
+				
+				u_int32_t prev_nodeIndex = prevNodes[prevIndex];
+				u_int32_t prev_nodeName = BiGraph::nodeIndex_to_nodeName(prev_nodeIndex);
+				UnitigData& prev_unitigData = _unitigDatas[prev_nodeName];
+				
+				vector<u_int64_t> sharedReads;
+				Utils::collectSharedReads(unitigData, prev_unitigData, sharedReads);
+				//cout << "sdfsdfsd     " << sharedReads.size() << endl;
+				if(sharedReads.size() > 0){
+					prevRank += 1;
+					supportingRead = sharedReads[0];
+
+					//cout << "lala: " << supportingRead << endl;
+				}
+				else{
+					break;
+				}
+			}
+
+
+			prevNodes.push_back(nodeIndex);
+			supportingReads.push_back(supportingRead);
+
+		}
 	}
 
 

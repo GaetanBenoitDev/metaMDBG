@@ -131,7 +131,7 @@ public:
 
 		_filename_outputContigs = _inputDir + "/contigs.min.gz";
 		_filename_readMinimizers = _inputDir + "/read_data.gz";
-		_filename_nodeContigs = _inputDir + "/minimizer_contigs.gz";
+		_filename_nodeContigs = _inputDir + "/contigs.nodepath.gz";
 	}
 
 	void loadContigs(){
@@ -143,20 +143,20 @@ public:
 		while(true){
 
 			vector<u_int32_t> nodePath;
-			//vector<u_int64_t> supportingReads;
+			vector<u_int64_t> supportingReads;
 			u_int64_t size;
 			gzread(contigFile, (char*)&size, sizeof(size));
 			
 
 			if(gzeof(contigFile)) break;
 
-			u_int8_t isCircular;
-			gzread(contigFile, (char*)&isCircular, sizeof(isCircular));
+			//u_int8_t isCircular;
+			//gzread(contigFile, (char*)&isCircular, sizeof(isCircular));
 
 			nodePath.resize(size);
-			//supportingReads.resize(size);
+			supportingReads.resize(size);
 			gzread(contigFile, (char*)&nodePath[0], size * sizeof(u_int32_t));
-			//gzread(contigFile, (char*)&supportingReads[0], size * sizeof(u_int64_t));
+			gzread(contigFile, (char*)&supportingReads[0], size * sizeof(u_int64_t));
 
 			//for(u_int32_t nodeIndex : nodePath){
 			for(size_t i=0; i<nodePath.size(); i++){
@@ -499,7 +499,7 @@ public:
 		while(true){
 
 			vector<u_int32_t> nodePath;
-			//vector<u_int64_t> supportingReads;
+			vector<u_int64_t> supportingReads;
 			u_int64_t size;
 			gzread(contigFile, (char*)&size, sizeof(size));
 			
@@ -507,13 +507,13 @@ public:
 			if(gzeof(contigFile)) break;
 
 
-			u_int8_t isCircular;
-			gzread(contigFile, (char*)&isCircular, sizeof(isCircular));
+			//u_int8_t isCircular;
+			//gzread(contigFile, (char*)&isCircular, sizeof(isCircular));
 
 			nodePath.resize(size);
-			//supportingReads.resize(size);
+			supportingReads.resize(size);
 			gzread(contigFile, (char*)&nodePath[0], size * sizeof(u_int32_t));
-			//gzread(contigFile, (char*)&supportingReads[0], size * sizeof(u_int64_t));
+			gzread(contigFile, (char*)&supportingReads[0], size * sizeof(u_int64_t));
 
 
 			vector<u_int64_t> contigSequence;
@@ -649,12 +649,12 @@ public:
 
 			}
 
-			if(isCircular){
+			//if(isCircular){
 				//cout << "blurp: " << contigSequence[_kminmerSize-1] << endl;
 				//contigSequence.pop_back();
 				//contigSequence.push_back(contigSequence[_kminmerSize-1]); //k += 1
 				//contigSequence.push_back(contigSequence[_kminmerSize]); //k += 2
-			}
+			//}
 			//exit(1);
 			//cout << contigSequence.substr(362170, 100) << endl;
 			//cout << endl << endl;

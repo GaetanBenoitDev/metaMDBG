@@ -305,8 +305,8 @@ public:
 		file_groundTruth = ofstream(_inputDir + "/binning_results.csv");
 		file_groundTruth << "Name,Colour" << endl;
 
-		file_groundTruth_hifiasmContigs = ofstream(_inputDir + "/binning_results_hifiasm_" + to_string(_kminmerSize) + ".csv");
-		file_groundTruth_hifiasmContigs << "Name,Colour" << endl;
+		//file_groundTruth_hifiasmContigs = ofstream(_inputDir + "/binning_results_hifiasm_" + to_string(_kminmerSize) + ".csv");
+		//file_groundTruth_hifiasmContigs << "Name,Colour" << endl;
 
 		//if(_debug){
             //gfa_filename = _inputDir + "/minimizer_graph_debug.gfa";
@@ -917,7 +917,7 @@ public:
 
 
 		file_groundTruth.close();
-		file_groundTruth_hifiasmContigs.close();
+		//file_groundTruth_hifiasmContigs.close();
 		file_kminmersContigs.close();
 
 		fileHifiasmAll.close();
@@ -1735,7 +1735,7 @@ public:
 
 	size_t _iter;
 	ofstream file_groundTruth;
-	ofstream file_groundTruth_hifiasmContigs;
+	//ofstream file_groundTruth_hifiasmContigs;
 
 	ofstream file_kminmersContigs;
 	
@@ -2878,7 +2878,7 @@ public:
 
 
 		file_groundTruth.close();
-		file_groundTruth_hifiasmContigs.close();
+		//file_groundTruth_hifiasmContigs.close();
 		file_kminmersContigs.close();
 
 		fileHifiasmAll.close();
@@ -5186,7 +5186,7 @@ public:
 
 
 		file_groundTruth.close();
-		file_groundTruth_hifiasmContigs.close();
+		//file_groundTruth_hifiasmContigs.close();
 		file_kminmersContigs.close();
 
 		fileHifiasmAll.close();

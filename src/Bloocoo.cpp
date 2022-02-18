@@ -1288,7 +1288,7 @@ void Bloocoo::createGfa(){
 
 
 	if(_filename_inputContigs == ""){
-		//_mdbg->dump(_outputDir + "/mdbg_nodes_init.gz");
+		_mdbg->dump(_outputDir + "/mdbg_nodes_init.gz");
 	}
 	
 	_mdbg->dump(_outputDir + "/mdbg_nodes.gz");
