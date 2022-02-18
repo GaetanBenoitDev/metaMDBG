@@ -404,7 +404,7 @@ public:
 
 
 
-		_toBasespace.create(_inputDir);
+		//_toBasespace.create(_inputDir);
 
 
 		//_graph->loadState2(0, -1, _unitigDatas);
@@ -2921,6 +2921,7 @@ public:
 
 	void binByReadpath(u_int32_t source_nodeIndex, unordered_set<u_int32_t>& processedNodeNames, const string& clusterDir, const string& filename_binStats, ofstream& fileHifiasmAll, ofstream& fileComponentNodeAll, u_int64_t& clusterIndex){
 
+		u_int64_t cumulatedLength = 0;
 		//unordered_map<u_int32_t, u_int32_t> lala;
 
 		vector<string> bin;
@@ -2937,8 +2938,8 @@ public:
 
 
 		string unitigSequence_model;
-		_toBasespace.createSequence(unitig_model._nodes, unitigSequence_model);
-
+		//_toBasespace.createSequence(unitig_model._nodes, unitigSequence_model);
+		cumulatedLength += unitig_model._length;
 		bin.push_back(unitigSequence_model);
 
 		vector<float> compositionModel;
@@ -3185,7 +3186,7 @@ public:
 
 
 				string unitigSequence;
-				_toBasespace.createSequence(u._nodes, unitigSequence);
+				//_toBasespace.createSequence(u._nodes, unitigSequence);
 
 				cout << endl << "\tUnitig: " << BiGraph::nodeIndex_to_nodeName(u._startNode) << " " << u._length << " " << u._nodes.size() << " " << unitigSequence.size() << endl;
 				
@@ -3249,8 +3250,9 @@ public:
 					}
 					
 					string unitigSequence_init;
-					_toBasespace.createSequence(u._nodes, unitigSequence_init);
+					//_toBasespace.createSequence(u._nodes, unitigSequence_init);
 					bin.push_back(unitigSequence_init);
+					cumulatedLength += u._length;
 
 					queue.push(unitigIndex);
 				}
@@ -3265,7 +3267,18 @@ public:
 
 		}
 
+		if(cumulatedLength > 500000){
+			for(u_int32_t nodeName : allComponentNodenames){
+				fileComponentNodeAll << nodeName << "," << clusterIndex << endl;
+			}
+			fileComponentNodeAll.flush();
 
+			for(const string& unitigName : hifiasmUnitigNames){
+				fileHifiasmAll << unitigName << "," << clusterIndex << endl;
+			}
+			fileHifiasmAll.flush();
+		}
+		/*
 		int ret = computeBinStats(clusterDir, bin, filename_binStats);
 
 		if(ret == 0){
@@ -3298,19 +3311,7 @@ public:
 				}
 				fileHifiasmAll.flush();
 
-				/*
-				unordered_set<u_int32_t> component;
-            	_graph->getConnectedComponent(source_nodeIndex, component);
-				unordered_set<u_int32_t> validNodes;
-				for (u_int32_t unitigIndex : component){
-					for(u_int32_t nodeIndex : _graph->_unitigs[unitigIndex]._nodes){
-						u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
-						validNodes.insert(nodeName);
-					}
-				}
-				string outputFilename = _inputDir + "/minimizer_graph_sub_4_" + to_string(clusterIndex) + ".gfa";
-				GfaParser::rewriteGfa_withoutNodes(_gfaFilename, outputFilename, validNodes, _graph->_isEdgeRemoved, _graph->_graphSuccessors);
-				*/
+
 			
 
 
@@ -3322,6 +3323,7 @@ public:
 			}
 
 		}
+		*/
 
 		cout << "bin done" << endl;
 		//getchar();
