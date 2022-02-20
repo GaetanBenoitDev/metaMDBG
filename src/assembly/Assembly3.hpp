@@ -304,7 +304,57 @@ public:
 
 	}
 
+	void indexReads_contig(const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex){
 
+		//vector<ReadIndexType> unitigIndexex;
+
+		for(const KmerVec& vec : kminmers){
+			//if(mdbg->_dbg_nodes[vec]._index == 55479) cout << "AAAAA" << endl;
+
+			//cout << mdbg->_dbg_nodes[vec]._index << endl;
+			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()) continue;
+
+			
+
+
+			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
+
+			UnitigData& unitigData = _unitigDatas[nodeName];
+			//if(std::find(unitigData._readIndexes.begin(), unitigData._readIndexes.end(), readIndex) != unitigData._readIndexes.end()) continue;
+			unitigData._readIndexes.push_back(readIndex);
+
+			//vector<KmerVec> kminmers2; 
+			//vector<ReadKminmer> kminmersInfo2;
+			//vector<u_int64_t> minimizersPos2; 
+			//vector<u_int64_t> rlePositions2;
+			//MDBG::getKminmers(_minimizerSize, 3, vec._kmers, minimizersPos2, kminmers2, kminmersInfo2, rlePositions2, -1, false);
+			//cout << kminmers2.size() << endl;
+			/*
+			for(const KmerVec& vec2 : kminmers2){
+
+				vector<u_int32_t>& nodeNames = _contigNodeNames[vec2];
+				if(std::find(nodeNames.begin(), nodeNames.end(), nodeName) == nodeNames.end()){
+					nodeNames.push_back(nodeName);
+				}
+				//_contigNodeNames[vec2].push_back(nodeName);
+			}*/
+
+			/*
+			u_int32_t nodeIndex = BiGraph::nodeName_to_nodeIndex(nodeName, true);
+			if(_graph->_isNodeValid2.find(nodeIndex) == _graph->_isNodeValid2.end()) continue;
+			//if(_nodeData.find(nodeName) == _nodeData.end()) continue;
+
+			//UnitigData& unitigData = _nodeData[nodeName];
+			UnitigData& unitigData = _unitigDatas[nodeName];
+			unitigData._readIndexes.push_back(readIndex);
+			cout << "indexing : " << readIndex << endl;
+			*/
+		}
+
+
+
+	}
+	
 	void removeUnsupportedEdges(const string& gfaFilename, const string& gfa_filename_noUnsupportedEdges, GraphSimplify* graph){
 
 		
@@ -313,6 +363,12 @@ public:
 		auto fp = std::bind(&Assembly3::indexReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 		parser.parse(fp);
 		
+		if(_filename_inputContigs != ""){
+			KminmerParser contigParser(_filename_inputContigs, _minimizerSize, _kminmerSize);
+			auto fp2 = std::bind(&Assembly3::indexReads_contig, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+			contigParser.parse_mContigs(fp2);
+		}
+
 		vector<DbgEdge> removedEdges;
 
 		for(Unitig& unitig : graph->_unitigs){
@@ -804,8 +860,8 @@ public:
 					*/
 					if(unitig._abundance < _minUnitigAbundance) continue;
 					if(unitig._nbNodes < _kminmerSize*2) continue;
-					//if(cutoff == 0 && unitig._length < 10000) continue;
-					if(cutoff == 0) continue;
+					if(cutoff == 0 && unitig._length < 10000) continue;
+					//if(cutoff == 0) continue;
 
 					startingUnitigs.push_back({unitig._length, unitig._abundance, unitig._startNode});
 				}
@@ -1382,6 +1438,7 @@ public:
 
 	void getSupportingReads(const vector<u_int32_t>& pathNodes, vector<u_int64_t>& supportingReads){
 
+		cout << "lala" << endl;
 		//supportingReads.resize(pathNodes.size());
 		//return;
 
@@ -1395,6 +1452,9 @@ public:
 			UnitigData& unitigData = _unitigDatas[nodeName];
 
 			if(prevNodes.size() == 0){
+				
+				cout << unitigData._readIndexes.size() << endl;
+
 				prevNodes.push_back(nodeIndex);
 				supportingReads.push_back(unitigData._readIndexes[0]);
 				continue;
@@ -1432,6 +1492,8 @@ public:
 			supportingReads.push_back(supportingRead);
 
 		}
+		
+		cout << "loulou" << endl;
 	}
 
 

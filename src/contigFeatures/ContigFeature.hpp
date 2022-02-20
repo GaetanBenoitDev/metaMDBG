@@ -54,6 +54,7 @@ public:
 	unordered_map<u_int32_t, vector<float>> _nodenameAbundanceMean;
 	unordered_map<u_int32_t, vector<float>> _nodenameAbundanceVar;
 	unordered_map<u_int32_t, u_int32_t> _nodeNameDuplicate;
+	unordered_map<u_int32_t, string> _contigSequences;
 
 
 	ContigFeature(){
@@ -355,6 +356,39 @@ public:
 		for(size_t i=0; i<composition.size(); i++){
 			//composition[i] = Utils::compute_median_float(values_mean[i]);
 			composition[i] /= n;;
+		}
+
+		return true;
+
+	}
+
+	bool nodepathToContigSequence(const vector<u_int32_t>& nodepath, string& sequence, u_int32_t& contigIndexResult){
+		
+		u_int32_t existingContigIndex = -1;
+
+		contigIndexResult = -1;
+		sequence.clear();
+
+		for(u_int32_t nodeIndex : nodepath){
+			u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
+			
+			if(_nodeName_to_contigIndex.find(nodeName) == _nodeName_to_contigIndex.end()) continue;
+			
+			u_int32_t contigIndex = _nodeName_to_contigIndex[nodeName];
+
+			if(existingContigIndex == -1){
+				existingContigIndex = contigIndex;
+			}
+			else{
+				if(existingContigIndex != contigIndex){ //repeated node
+					sequence.clear();
+					return false;
+				}
+			}
+
+			contigIndexResult = contigIndex;
+			sequence = _contigSequences[contigIndex];
+
 		}
 
 		return true;
