@@ -12,6 +12,7 @@ public:
 
 	string _inputFilename;
 	string _inputDir;
+	string _outputFilename;
 	float _minimizerDensity;
     size_t _minimizerSize;
     size_t _kminmerSize;
@@ -37,7 +38,8 @@ public:
 		cxxopts::Options options("Assembly", "");
 		options.add_options()
 		(ARG_INPUT_FILENAME, "", cxxopts::value<string>())
-		(ARG_OUTPUT_DIR, "", cxxopts::value<string>());
+		(ARG_OUTPUT_DIR, "", cxxopts::value<string>())
+		(ARG_OUTPUT_FILENAME, "", cxxopts::value<string>());
 
 		//("k,kminmerSize", "File name", cxxopts::value<std::string>())
 		//("v,verbose", "Verbose output", cxxopts::value<bool>()->default_value("false"))
@@ -55,6 +57,7 @@ public:
 
 			_inputFilename = result[ARG_INPUT_FILENAME].as<string>();
 			_inputDir = result[ARG_OUTPUT_DIR].as<string>();
+			_outputFilename = result[ARG_OUTPUT_FILENAME].as<string>();
 		}
 		catch (const std::exception& e){
 			std::cout << options.help() << std::endl;
@@ -78,7 +81,7 @@ public:
 		cout << "Density: " << _minimizerDensity << endl;
 		cout << endl;
 
-		_filename_readMinimizers = _inputDir + "/read_data.gz";
+		_filename_readMinimizers = _outputFilename; //_inputDir + "/read_data.gz";
 	}
 
 

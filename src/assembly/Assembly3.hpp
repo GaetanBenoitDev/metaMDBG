@@ -304,8 +304,9 @@ public:
 
 	}
 
-	void indexReads_contig(const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex){
+	void indexReads_contig(const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex){//}, const vector<KmerVec>& kminmers_k3, const vector<ReadKminmer>& kminmersInfos_k3){
 
+		readIndex += 2000000000;
 		//vector<ReadIndexType> unitigIndexex;
 
 		for(const KmerVec& vec : kminmers){
@@ -314,41 +315,20 @@ public:
 			//cout << mdbg->_dbg_nodes[vec]._index << endl;
 			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()) continue;
 
-			
+			//if(vec.isPalindrome()) cout << _mdbg->_dbg_nodes[vec]._index << endl;
+			//getchar();
 
 
 			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
-
-			UnitigData& unitigData = _unitigDatas[nodeName];
-			//if(std::find(unitigData._readIndexes.begin(), unitigData._readIndexes.end(), readIndex) != unitigData._readIndexes.end()) continue;
-			unitigData._readIndexes.push_back(readIndex);
-
-			//vector<KmerVec> kminmers2; 
-			//vector<ReadKminmer> kminmersInfo2;
-			//vector<u_int64_t> minimizersPos2; 
-			//vector<u_int64_t> rlePositions2;
-			//MDBG::getKminmers(_minimizerSize, 3, vec._kmers, minimizersPos2, kminmers2, kminmersInfo2, rlePositions2, -1, false);
-			//cout << kminmers2.size() << endl;
-			/*
-			for(const KmerVec& vec2 : kminmers2){
-
-				vector<u_int32_t>& nodeNames = _contigNodeNames[vec2];
-				if(std::find(nodeNames.begin(), nodeNames.end(), nodeName) == nodeNames.end()){
-					nodeNames.push_back(nodeName);
-				}
-				//_contigNodeNames[vec2].push_back(nodeName);
-			}*/
-
-			/*
 			u_int32_t nodeIndex = BiGraph::nodeName_to_nodeIndex(nodeName, true);
-			if(_graph->_isNodeValid2.find(nodeIndex) == _graph->_isNodeValid2.end()) continue;
+			//if(_graph->_isNodeValid2.find(nodeIndex) == _graph->_isNodeValid2.end()) continue;
 			//if(_nodeData.find(nodeName) == _nodeData.end()) continue;
 
 			//UnitigData& unitigData = _nodeData[nodeName];
 			UnitigData& unitigData = _unitigDatas[nodeName];
+			//if(std::find(unitigData._readIndexes.begin(), unitigData._readIndexes.end(), readIndex) != unitigData._readIndexes.end()) continue;
 			unitigData._readIndexes.push_back(readIndex);
-			cout << "indexing : " << readIndex << endl;
-			*/
+			//cout << "indexing : " << readIndex << endl;
 		}
 
 
@@ -364,9 +344,9 @@ public:
 		parser.parse(fp);
 		
 		if(_filename_inputContigs != ""){
-			KminmerParser contigParser(_filename_inputContigs, _minimizerSize, _kminmerSize);
-			auto fp2 = std::bind(&Assembly3::indexReads_contig, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-			contigParser.parse_mContigs(fp2);
+			KminmerParser parserContig(_filename_inputContigs, _minimizerSize, _kminmerSize);
+			auto fpContig = std::bind(&Assembly3::indexReads_contig, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+			parserContig.parse(fpContig);
 		}
 
 		vector<DbgEdge> removedEdges;
@@ -848,7 +828,7 @@ public:
 				vector<UnitigLength> startingUnitigs;
 
 				_graph->loadState2(cutoff, -1, _unitigDatas);
-				_minUnitigAbundance = cutoff / 0.4;
+				_minUnitigAbundance = cutoff / 0.2;
 
 
 				for(const Unitig& unitig : _graph->_unitigs){
@@ -1438,9 +1418,9 @@ public:
 
 	void getSupportingReads(const vector<u_int32_t>& pathNodes, vector<u_int64_t>& supportingReads){
 
-		cout << "lala" << endl;
-		//supportingReads.resize(pathNodes.size());
-		//return;
+		//cout << "lala" << endl;
+		supportingReads.resize(pathNodes.size());
+		return;
 
 		supportingReads.clear();
 		vector<u_int32_t> prevNodes;

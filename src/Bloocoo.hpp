@@ -64,6 +64,7 @@ public:
 	KmerVec _lala;
 
 	string _filename_readMinimizers;
+	string _filename_contigMinimizers;
 	string _filename_inputContigs;
 	string _filename_solidKminmers;
 	//string _filename_filteredMinimizers;
@@ -79,7 +80,7 @@ public:
 	void createMDBG();
 	//void createMDBG_read(kseq_t* read, u_int64_t readIndex);
 	void createMDBG_collectKminmers(const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex);
-	void createMDBG_collectKminmers_contigs(const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex);
+	void createMDBG_collectKminmers_contig(const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex);
 	void removeErroneousKminmers(const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex);
 	void loadSolidKminmers();
 

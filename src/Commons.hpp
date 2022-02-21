@@ -331,6 +331,7 @@ const unsigned char revcomp_4NT[256] = {
 const string ARG_INPUT_FILENAME = "i";
 const string ARG_INPUT_FILENAME_TRUTH = "itruth";
 const string ARG_OUTPUT_DIR = "o";
+const string ARG_OUTPUT_FILENAME = "f";
 const string ARG_MINIMIZER_LENGTH = "l";
 const string ARG_KMINMER_LENGTH = "k";
 const string ARG_MINIMIZER_DENSITY = "d";
