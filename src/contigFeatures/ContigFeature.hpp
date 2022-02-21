@@ -215,7 +215,7 @@ public:
 		setup();
 	}
 
-	void loadAbundanceFile_metabat(const string& filename, unordered_map<string, vector<u_int32_t>>& contigToNodenames){
+	void loadAbundanceFile_metabat(const string& filename){
 
 
 		ifstream infile(filename);
@@ -230,8 +230,12 @@ public:
 
 			string contigName = (*fields)[0];
 
-			vector<u_int32_t> nodes;
-			nodes = contigToNodenames[contigName];
+			size_t pos = contigName.find("ctg");
+			contigName.erase(pos, 3);
+			u_int32_t contigIndex = stoull(contigName);
+
+			//vector<u_int32_t> nodes;
+			//nodes = contigToNodenames[contigName];
 			//if(contigToNodeIndex.find(contigName) != contigToNodeIndex.end()){
 			//}
 
@@ -256,13 +260,18 @@ public:
 				}
 			}
 
+			_contigCoverages[contigIndex] = abundanceMean;
+			_contigCoveragesVar[contigIndex] = abundanceVar;
+
 			_nbDatasets = abundanceMean.size();
 
+			/*
 			for(u_int32_t nodeName : nodes){
 				//u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
 				_nodenameAbundanceMean[nodeName] = abundanceMean;
 				_nodenameAbundanceVar[nodeName] = abundanceVar;
 			}
+			*/
 
 			//u_int32_t nodeName = stoull((*fields)[0]);
 			//u_int32_t contigIndex = stoull((*fields)[1]);
@@ -300,7 +309,7 @@ public:
 			composition[_kmerToCompositionIndex[kmer]] += 1;
 		}
 
-		/*
+		
 		float rsum = 0;
 		for(size_t i = 0; i < composition.size(); ++i) {
 			rsum += composition[i] * composition[i];
@@ -309,7 +318,7 @@ public:
 		for(size_t i = 0; i < composition.size(); ++i) {
 			composition[i] /= rsum;
 		}
-		*/
+		/*
 		float sum = 0;
 		for(size_t i = 0; i < composition.size(); ++i) {
 			sum += composition[i];
@@ -320,7 +329,7 @@ public:
 		for(size_t i = 0; i < composition.size(); ++i) {
 			composition[i] /= sum;
 		}
-
+		*/
 	}
 
 	bool nodepathToComposition(const vector<u_int32_t>& sequence, vector<float>& composition){
@@ -415,13 +424,15 @@ public:
 			
 			//cout << nodeName << " " << (_nodeName_to_contigIndex.find(nodeName) != _nodeName_to_contigIndex.end()) << endl;
 			if(_nodeName_to_contigIndex.find(nodeName) == _nodeName_to_contigIndex.end()) continue;
-			if(_nodeNameDuplicate.find(nodeName) != _nodeNameDuplicate.end() && _nodeNameDuplicate[nodeName] != 1) continue;
+			//if(_nodeNameDuplicate.find(nodeName) != _nodeNameDuplicate.end() && _nodeNameDuplicate[nodeName] != 1) continue;
 			u_int32_t contigIndex = _nodeName_to_contigIndex[nodeName];
 
 			const vector<float>& contigAbundances = _contigCoverages[contigIndex];
+			const vector<float>& contigAbundancesVar = _contigCoveragesVar[contigIndex];
 
 			for(size_t i=0; i<contigAbundances.size(); i++){
 				abundances[i] += contigAbundances[i];
+				abundancesVar[i] += contigAbundancesVar[i];
 				//values_mean[i].push_back(contigAbundances[i]);
 			}
 			
@@ -434,7 +445,9 @@ public:
 			abundances[i] /= n;
 			if(abundances[i] < 1) abundances[i] = 0;
 			//abundances[i] = Utils::compute_median_float(values_mean[i]);
-			abundancesVar[i] = abundances[i];
+			//abundancesVar[i] = abundances[i];
+			abundancesVar[i] /= n;
+			if(abundancesVar[i] < 1) abundancesVar[i] = 0;
 		}
 
 
@@ -932,7 +945,10 @@ public:
 		if(isinf(cor)) return false;
 		if(isnan(cor)) return false;
 		
-		return cor * (1-dist) > 0.65;
+		float tnf_dist = cal_tnf_dist(f1._composition, f2._composition, f1._unitigIndex, f2._unitigIndex);
+
+		//(1-tnf_dist)
+		return  cor * (1-dist) > 0.65;
 
 
 		//return  computeAbundanceCorrelation(f1._abundance, f2._abundance) > 0.95 && -log10(computeAbundanceProbability(f1._abundance, f2._abundance)) < 20;
@@ -1090,10 +1106,10 @@ public:
 		return distSum / nnz;
 	}
 
-	Distance cal_tnf_dist(const vector<float>& c1, const vector<float>& c2) {
+	Distance cal_tnf_dist(const vector<float>& c1, const vector<float>& c2, u_int32_t contigIndex1, u_int32_t contigIndex2) {
 
-		size_t length1 = 20000;
-		size_t length2 = 20000;
+		size_t length1 = _contigSequences[contigIndex1].size();
+		size_t length2 = _contigSequences[contigIndex2].size();
 		//if(d1._length < 2500) return 1;
 		//if(d2._length < 2500) return 1;
 		/*

@@ -5452,7 +5452,7 @@ public:
 								cout << endl;
 								cout << current_nodeName << " " << contigIndex << endl;
 
-								cout << "\tComposition dist: " << -log10(_contigFeature.computeCompositionProbability(_contigFeatureModel._composition, composition)) << " " << _contigFeature.cal_tnf_dist(_contigFeatureModel._composition, composition) << endl; // << " " << _contigFeature.computeEuclideanDistance(abundancesModel, abundances_init) << " " << _contigFeature.computeProbability(contigFeatureModel, contigFeature_init)  << endl; 
+								//cout << "\tComposition dist: " << -log10(_contigFeature.computeCompositionProbability(_contigFeatureModel._composition, composition)) << " " << _contigFeature.cal_tnf_dist(_contigFeatureModel._composition, composition) << endl; // << " " << _contigFeature.computeEuclideanDistance(abundancesModel, abundances_init) << " " << _contigFeature.computeProbability(contigFeatureModel, contigFeature_init)  << endl; 
 								//cout << "\tComposition dist (extended): " << _contigFeature.computeEuclideanDistance(compositionModel_init, composition) << " " << _contigFeature.computeEuclideanDistance(abundancesModel, abundances) << " " << _contigFeature.computeProbability(contigFeatureModel, contigFeature)  << endl; 
 								int nnz = 0;
 								cout << "\tMetabat Abudance: " << _contigFeature.cal_abd_dist(_contigFeatureModel, contigFeature, nnz) << endl;// << " " << _contigFeature.cal_abd_dist(contigFeatureModel, contigFeature, nnz) << endl;
