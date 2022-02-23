@@ -7,6 +7,7 @@
 #include "pipeline/AssemblyPipeline.hpp"
 #include "readSelection/ReadSelection.hpp"
 #include "contigFeatures/KminmerCounter.hpp"
+#include "contigFeatures/KmerCounter.hpp"
 
 void displayHelp(){
 	cout << "Usage: ./simkaMin [option]" << endl;
@@ -93,6 +94,9 @@ int main (int argc, char* argv[])
     		}
     		else if(programName == "count"){
                 KminmerCounter().run (argc, args);
+    		}
+    		else if(programName == "countKmer"){
+                KmerCounter().run (argc, args);
     		}
     		else{
     			displayHelp();

@@ -24,6 +24,8 @@
 namespace fs = std::filesystem;
 //namespace fs = std::filesystem;
 
+typedef unsigned __int128 u_int128_t;
+
 //#define FIX_PALINDROME
 
 //#include <sys/types.h>
