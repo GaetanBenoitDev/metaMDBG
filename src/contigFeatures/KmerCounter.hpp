@@ -43,7 +43,7 @@ public:
 		(ARG_OUTPUT_DIR, "", cxxopts::value<string>())
 		(ARG_INPUT_FILENAME, "", cxxopts::value<string>()->default_value(""))
 		(ARG_INPUT_FILENAME_CONTIG, "", cxxopts::value<string>()->default_value(""))
-		(ARG_TRIMMED_OUTLIERS, "", cxxopts::value<float>()->default_value(0.05));
+		(ARG_TRIMMED_OUTLIERS, "", cxxopts::value<float>()->default_value("0.05"));
 
 
 		if(argc <= 1){
@@ -61,6 +61,7 @@ public:
 			_inputFilename_contig = result[ARG_INPUT_FILENAME_CONTIG].as<string>();
 			_trimmedOutliers = result[ARG_TRIMMED_OUTLIERS].as<float>();
 			
+			cout << "Trimmed val: " << _trimmedOutliers << endl;
 		}
 		catch (const std::exception& e){
 			std::cout << options.help() << std::endl;
