@@ -14,6 +14,7 @@ public:
 	string _inputFilename_shortreads;
 	string _outputFilename;
     size_t _kmerSize;
+	float _trimmedOutliers;
 
 	//string _tmpDir;
 	//string _outputFilename_kmerCouts;
@@ -34,13 +35,15 @@ public:
 
 	void parseArgs(int argc, char* argv[]){
 
+		string ARG_TRIMMED_OUTLIERS = "t";
 
 		cxxopts::Options options("ToMinspace", "");
 		options.add_options()
 		//(ARG_INPUT_FILENAME, "", cxxopts::value<string>())
 		(ARG_OUTPUT_DIR, "", cxxopts::value<string>())
 		(ARG_INPUT_FILENAME, "", cxxopts::value<string>()->default_value(""))
-		(ARG_INPUT_FILENAME_CONTIG, "", cxxopts::value<string>()->default_value(""));
+		(ARG_INPUT_FILENAME_CONTIG, "", cxxopts::value<string>()->default_value(""))
+		(ARG_TRIMMED_OUTLIERS, "", cxxopts::value<float>()->default_value(0.05));
 
 
 		if(argc <= 1){
@@ -56,7 +59,7 @@ public:
 			_inputFilename_shortreads = result[ARG_INPUT_FILENAME].as<string>();
 			_outputFilename = result[ARG_OUTPUT_DIR].as<string>();
 			_inputFilename_contig = result[ARG_INPUT_FILENAME_CONTIG].as<string>();
-			
+			_trimmedOutliers = result[ARG_TRIMMED_OUTLIERS].as<float>();
 			
 		}
 		catch (const std::exception& e){
@@ -89,8 +92,6 @@ public:
 		countShortreadsKmers();
 		dumpContigCoverages();
 
-		"reprise: enelever bord des contigs
-		retirer outliers"
 		//countKminmers();
 		//computeContigCoverage();
 		//dumpKminmerCount();
@@ -219,28 +220,40 @@ public:
 		//vector<u_int64_t> rlePositions;
 		//Encoder::encode_rle(read->seq.s, strlen(read->seq.s), rleSequence, rlePositions);
 
+		vector<u_int32_t> count_values;
+
 		vector<u_int64_t> minimizers;
 		vector<u_int64_t> minimizers_pos;
 		_minimizerParser->parse(string(read->seq.s), minimizers, minimizers_pos);
 
-		double sum = 0;
-		//u_int64_t n = 0;
 
 		for(u_int64_t minimizer : minimizers){
-			sum += _kmerCounts[minimizer];
-			//n += 1;
-			//if(_kmerCounts.find(minimizer) == _kmerCounts.end()) _kmerCounts[minimizer] = 0;
+			count_values.push_back(_kmerCounts[minimizer]);
 		}
 
-		float mean = sum / minimizers.size();
+		std::sort(count_values.begin(), count_values.end());
+
+		double sum = 0;
+		double n = 0;
+
+		u_int64_t nbTrimmedValues = count_values.size() * _trimmedOutliers;
+
+		for(size_t i=nbTrimmedValues; i<count_values.size()-nbTrimmedValues; i++){
+			sum += count_values[i];
+			n += 1;
+		}
+
+		if(n <= 1) return;
+
+		float mean = sum / n;
 
 		double var = 0;
-		for(u_int64_t minimizer : minimizers){
-			double count = _kmerCounts[minimizer];
+		for(size_t i=nbTrimmedValues; i<count_values.size()-nbTrimmedValues; i++){
+			double count = count_values[i];
 			var += ((count - mean) * (count - mean));
 		}
 
-		var /= (minimizers.size()-1);
+		var /= (n-1);
 
 		cout << readIndex << " " << mean << " " << var << endl; 
 
