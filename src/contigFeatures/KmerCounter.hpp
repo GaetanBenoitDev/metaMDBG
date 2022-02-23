@@ -156,15 +156,27 @@ public:
 			
 			cout << "Countign kmers: " << filename << endl;
 
-			for(auto& it : _kmerCounts){
-				_kmerCounts[it.first] = 0;
+			if(datasetIndex % 2 == 0){
+				cout << "\tNew dataset" << endl;
+				for(auto& it : _kmerCounts){
+					_kmerCounts[it.first] = 0;
+				}
+
 			}
+			else{
+				cout << "\tProcessing pair" << endl;
+			}
+
+
 
 			ReadParser parserDataset(filename, true);
 			auto fp = std::bind(&KmerCounter::countShortreadsKmers_read, this, std::placeholders::_1, std::placeholders::_2);
 			parserDataset.parse(fp);
 
-			computeContigCoverage();
+			if(datasetIndex % 2 == 1){
+				computeContigCoverage();
+				_currentDatasetIndex += 1;
+			}
 			/*
 			string kmerCountFilename = _tmpDir + "/" + "kmerCounts_" + to_string(datasetIndex) + ".gz";
 			gzFile kmerCountFile = gzopen(kmerCountFilename.c_str(), "wb");
@@ -177,7 +189,6 @@ public:
 			gzclose(kmerCountFile);
 			*/
 			datasetIndex += 1;
-			_currentDatasetIndex += 1;
 		}
 		
 
@@ -208,6 +219,7 @@ public:
 
 	void computeContigCoverage (){
 
+		cout << "\tComputing contig coverage" << endl;
 		ReadParser parser(_inputFilename_contig, true);
 		auto fp = std::bind(&KmerCounter::computeContigCoverage_read, this, std::placeholders::_1, std::placeholders::_2);
 		parser.parse(fp);
