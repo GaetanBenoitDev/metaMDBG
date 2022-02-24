@@ -79,6 +79,7 @@ public:
 
 		ReadParser parserDatasets(_inputFilename_shortreads, false);
 		_nbDatasets = parserDatasets._nbDatasets;
+		_nbDatasets /= 2; //PAIRED
 		cout << "Nb datasets: " << _nbDatasets << endl;
 
 		for(u_int64_t i=0; i<_nbDatasets; i++) _countsInit.push_back(0);
