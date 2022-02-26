@@ -868,6 +868,25 @@ public:
 		return nbShared;
 	}
 
+	static u_int64_t computeSharedReads(const vector<u_int32_t>& nodeNames, const vector<UnitigData>& unitigDatas){
+
+		vector<u_int64_t> sharedReads;
+		for(u_int64_t readIndex : unitigDatas[nodeNames[0]]._readIndexes){
+			sharedReads.push_back(readIndex);
+		}
+
+		for(size_t i=1; i<nodeNames.size(); i++){
+
+			vector<u_int64_t> sharedReadsTmp;
+			collectSharedReads(sharedReads, unitigDatas[nodeNames[i]]._readIndexes, sharedReadsTmp);
+			sharedReads = sharedReadsTmp;
+		}
+
+		return sharedReads.size();
+	}
+
+
+
 	static u_int64_t collectSharedReads(const vector<u_int64_t>& reads1, const vector<u_int64_t>& reads2, vector<u_int64_t>& sharedReads){
 
 		sharedReads.clear();
@@ -2365,6 +2384,7 @@ public:
 		while (std::getline(infile, line)){
 
     		line.erase(std::remove_if(line.begin(), line.end(), ::isspace), line.end());
+			if(line.empty()) continue;
 
 			fs::path path(line);
 
@@ -2621,14 +2641,16 @@ public:
 	string _inputFilename;
 	size_t _l;
 	size_t _k;
+	bool _usePos;
 
-	KminmerParser(const string& inputFilename, size_t l, size_t k){
+	KminmerParser(const string& inputFilename, size_t l, size_t k, bool usePos){
 		_inputFilename = inputFilename;
 		_l = l;
 		_k = k;
+		_usePos = usePos;
 	}
 
-	void parse(const std::function<void(vector<KmerVec>, vector<ReadKminmer>, u_int64_t)>& fun){
+	void parse(const std::function<void(vector<u_int64_t>, vector<KmerVec>, vector<ReadKminmer>, u_int64_t)>& fun){
 
 		gzFile file_readData = gzopen(_inputFilename.c_str(),"rb");
 
@@ -2646,7 +2668,7 @@ public:
 			minimizers.resize(size);
 			minimizersPosOffsets.resize(size);
 			gzread(file_readData, (char*)&minimizers[0], size * sizeof(u_int64_t));
-			gzread(file_readData, (char*)&minimizersPosOffsets[0], size * sizeof(u_int16_t));
+			if(_usePos) gzread(file_readData, (char*)&minimizersPosOffsets[0], size * sizeof(u_int16_t));
 
 			
 			//cout << "----" << endl;
@@ -2667,7 +2689,7 @@ public:
 			vector<u_int64_t> rlePositions;
 			MDBG::getKminmers(_l, _k, minimizers, minimizersPos, kminmers, kminmersInfo, rlePositions, 0, false);
 
-			fun(kminmers, kminmersInfo, readIndex);
+			fun(minimizers, kminmers, kminmersInfo, readIndex);
 
 			readIndex += 1;
 		}
@@ -2722,6 +2744,7 @@ public:
 
 	}
 
+	/*
 	void parseDuo(const std::function<void(vector<KmerVec>, vector<ReadKminmer>, u_int64_t, vector<KmerVec>, vector<ReadKminmer>)>& fun){
 
 		gzFile file_readData = gzopen(_inputFilename.c_str(),"rb");
@@ -2777,6 +2800,7 @@ public:
 		gzclose(file_readData);
 
 	}
+	*/
 
 	void parse_mContigs(const std::function<void(vector<KmerVec>, vector<ReadKminmer>, u_int64_t)>& fun){
 

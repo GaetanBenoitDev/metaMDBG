@@ -55,6 +55,8 @@ Gros changement non testé:
 /*
 Solve repeat: attention startNode et endNode d'un meme unitig pourrait etre un meme successor/predecessor si l'unitig est couvert par plusieurs long reads (il faut choisir le bon dans ce cas)
 ToBasespaceOnTheFly: en théorie, on peut reconstruire la partie manquante des contigs basespace (les k-1 premiers nodes), en utilisant les predecesseurs de ce noeud de départ
+
+- singleton erroneous unitigs dans le graphe (si une erreur est isolé, ça créé qq noeuds attaché erroneous, on pourrait ptet supprimé les mini component peut couverte à voir)
 */
 
 //:/mnt/chris-native/chris/Projects/AD_HiFi
@@ -110,6 +112,7 @@ public:
     size_t _kminmerSize;
 	vector<UnitigData> _unitigDatas;
 
+	string _partitionDir;
 	string _filename_solidKminmers;
 	string _filename_inputContigs;
 	string _filename_outputContigs;
@@ -137,7 +140,7 @@ public:
 	void execute (){
 
 		loadGraph();
-		generateContigs2(_inputDir + "/contigs.nodepath.gz", _inputDir + "/contigs.fasta.gz");
+		//generateContigs2(_inputDir + "/contigs.nodepath.gz", _inputDir + "/contigs.fasta.gz");
 
 	}
 
@@ -206,6 +209,8 @@ public:
 
 	}
 
+	unordered_map<u_int64_t, vector<u_int32_t>> _debug_readPath;
+
 	void loadGraph(){
 
 		_gfaFilename = _inputDir + "/minimizer_graph.gfa";
@@ -232,14 +237,14 @@ public:
 		file_groundTruth = ofstream(_inputDir + "/binning_results.csv");
 		file_groundTruth << "Name,Colour" << endl;
 
-		file_groundTruth_hifiasmContigs = ofstream(_inputDir + "/binning_results_hifiasm_" + to_string(_kminmerSize) + ".csv");
-		file_groundTruth_hifiasmContigs << "Name,Colour" << endl;
+		//file_groundTruth_hifiasmContigs = ofstream(_inputDir + "/binning_results_hifiasm_" + to_string(_kminmerSize) + ".csv");
+		//file_groundTruth_hifiasmContigs << "Name,Colour" << endl;
 
 		//if(_debug){
             //gfa_filename = _inputDir + "/minimizer_graph_debug.gfa";
 		//}
 		
-		GraphSimplify* graphSimplify = new GraphSimplify(_gfaFilename, _inputDir, 0);
+		GraphSimplify* graphSimplify = new GraphSimplify(_gfaFilename, _inputDir, 0, _kminmerSize);
 		_graph = graphSimplify;
 		
 
@@ -248,22 +253,73 @@ public:
 		_unitigDatas.resize(_mdbg->_dbg_nodes.size());
 		_graph->clear(0);
 		_graph->compact(false, _unitigDatas);
-		if(_kminmerSize <= 4){
-			removeUnsupportedEdges(_gfaFilename, gfa_filename_noUnsupportedEdges, _graph);
-		}
+		generateContigs();
+		removeUnsupportedEdges(_gfaFilename, gfa_filename_noUnsupportedEdges, _graph);
+		
 
-		delete _mdbg;
 		cout << "done" << endl;
 	
 
+		//if(_kminmerSize == 4){
+			//cout << graphSimplify->_graphSuccessors->_nbEdges << endl;
+			//graphSimplify->execute(5, _kminmerSize);
+			//graphSimplify->debug_writeGfaErrorfree(1000, PathExplorer::computeAbundanceCutoff(1000, 0, CutoffType::ERROR), -1, _kminmerSize, false, true, false, _unitigDatas);
+			_graph->debug_writeGfaErrorfree(500, 500, -1, _kminmerSize, false, true, false, _unitigDatas);
+			_graph->loadState2(0, -1, _unitigDatas);
+		//}
 
-		//cout << graphSimplify->_graphSuccessors->_nbEdges << endl;
-		//graphSimplify->execute(5, _kminmerSize);
-		//graphSimplify->debug_writeGfaErrorfree(1000, PathExplorer::computeAbundanceCutoff(1000, 0, CutoffType::ERROR), -1, _kminmerSize, false, true, false, _unitigDatas);
-		_graph->debug_writeGfaErrorfree(500, 500, -1, _kminmerSize, false, true, false, _unitigDatas);
+		_partitionDir = _inputDir + "/" + "partitions";
+		fs::path path(_partitionDir);
+		if(fs::exists (path)){
+			fs::remove_all(path);
+		} 
+		fs::create_directory(path);
+
+		//_graph->loadState2(0, -1, _unitigDatas);
+		_graph->saveGraph(_inputDir + "/minimizer_graph_sub.gfa");
+		//_graph->loadState2(7, -1, _unitigDatas);
+		//_graph->saveGraph(_inputDir + "/minimizer_graph_sub_2.gfa");
+		/*
+		if(_kminmerSize == 4){
+			//cout << "A ENLEVER" << endl;
+			_graph->loadState2(10, -1, _unitigDatas);
+			_graph->saveGraph(_inputDir + "/minimizer_graph_sub_2.gfa");
+		}
+		else{
+			//cout << "A ENLEVER" << endl;
+			_graph->loadState2(2.5, -1, _unitigDatas);
+			_graph->saveGraph(_inputDir + "/minimizer_graph_sub_2.gfa");
+		}
+		*/
+
+		//cout << Utils::computeSharedReads(_unitigDatas[8228], _unitigDatas[8229]) << endl;
+		//cout << Utils::computeSharedReads(_unitigDatas[6323], _unitigDatas[2778]) << endl;
+		//cout << Utils::computeSharedReads(_unitigDatas[8228], _unitigDatas[2778]) << endl;
+		//cout << Utils::computeSharedReads(_unitigDatas[6323], _unitigDatas[8229]) << endl;
+		
+		//cout << Utils::computeSharedReads(_unitigDatas[3076], _unitigDatas[4346]) << endl;
+		//cout << Utils::computeSharedReads(_unitigDatas[4506], _unitigDatas[4886]) << endl;
+		//cout << Utils::computeSharedReads(_unitigDatas[3076], _unitigDatas[4886]) << endl;
+		//cout << Utils::computeSharedReads(_unitigDatas[3031], _unitigDatas[8043]) << endl;
+		//cout << Utils::computeSharedReads(_unitigDatas[62], _unitigDatas[1106]) << endl;
+		//cout << Utils::computeSharedReads(_unitigDatas[9895], _unitigDatas[933]) << endl;
+		//cout << Utils::computeSharedReads(_unitigDatas[12321], _unitigDatas[933]) << endl;
+		
+		//for(auto& it : _evaluation_hifiasmGroundTruth_nodeNamePosition){
+		//	if(it.second == 4790){
+		//		cout << it.first << " " << _unitigDatas[it.first]._readIndexes.size() << endl;
+		//	}
+		//}
 
 
+		//getchar();
+		//debug_checkReads();
+		//cout << endl << endl;
+		partitionReads();
+		correctReads();
+		//getchar();
 
+		delete _mdbg;
 
 		//_toBasespace.create(_inputDir);
 
@@ -274,7 +330,7 @@ public:
 
 	}
 
-	void indexReads_read(const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex){//}, const vector<KmerVec>& kminmers_k3, const vector<ReadKminmer>& kminmersInfos_k3){
+	void indexReads_read(const vector<u_int64_t>& minimizers, const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex){//}, const vector<KmerVec>& kminmers_k3, const vector<ReadKminmer>& kminmersInfos_k3){
 
 		//vector<ReadIndexType> unitigIndexex;
 
@@ -304,7 +360,7 @@ public:
 
 	}
 
-	void indexReads_contig(const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex){//}, const vector<KmerVec>& kminmers_k3, const vector<ReadKminmer>& kminmersInfos_k3){
+	void indexReads_contig(const vector<u_int64_t>& minimizers, const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex){//}, const vector<KmerVec>& kminmers_k3, const vector<ReadKminmer>& kminmersInfos_k3){
 
 		readIndex += 2000000000;
 		//vector<ReadIndexType> unitigIndexex;
@@ -337,17 +393,18 @@ public:
 	
 	void removeUnsupportedEdges(const string& gfaFilename, const string& gfa_filename_noUnsupportedEdges, GraphSimplify* graph){
 
-		
-		KminmerParser parser(_filename_readMinimizers, _minimizerSize, _kminmerSize);
+		KminmerParser parser(_filename_readMinimizers, _minimizerSize, _kminmerSize, true);
 		//auto fp = std::bind(&Assembly::indexReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5);
-		auto fp = std::bind(&Assembly3::indexReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+		auto fp = std::bind(&Assembly3::indexReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
 		parser.parse(fp);
 		
-		if(_filename_inputContigs != ""){
-			KminmerParser parserContig(_filename_inputContigs, _minimizerSize, _kminmerSize);
-			auto fpContig = std::bind(&Assembly3::indexReads_contig, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-			parserContig.parse(fpContig);
-		}
+		//if(_filename_inputContigs != ""){
+		//	KminmerParser parserContig(_filename_inputContigs, _minimizerSize, _kminmerSize, true);
+		//	auto fpContig = std::bind(&Assembly3::indexReads_contig, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
+		//	parserContig.parse(fpContig);
+		//}
+
+		//if(_kminmerSize > 4) return;
 
 		vector<DbgEdge> removedEdges;
 
@@ -404,7 +461,7 @@ public:
 
 	size_t _iter;
 	ofstream file_groundTruth;
-	ofstream file_groundTruth_hifiasmContigs;
+	//ofstream file_groundTruth_hifiasmContigs;
 
 	ofstream file_kminmersContigs;
 	
@@ -1338,10 +1395,10 @@ public:
 				gzwrite(outputContigFile_min, (const char*)&size, sizeof(size));
 				gzwrite(outputContigFile_min, (const char*)&contig._nodePath[0], size * sizeof(u_int32_t));
 				
-				vector<u_int64_t> supportingReads;
-				getSupportingReads(contig._nodePath, supportingReads);
+				//vector<u_int64_t> supportingReads;
+				//getSupportingReads(contig._nodePath, supportingReads);
 
-				gzwrite(outputContigFile_min, (const char*)&supportingReads[0], size * sizeof(u_int64_t));
+				//gzwrite(outputContigFile_min, (const char*)&supportingReads[0], size * sizeof(u_int64_t));
 
 				/*
 				string unitigSequenceLala;
@@ -1476,6 +1533,808 @@ public:
 		cout << "loulou" << endl;
 	}
 
+
+	unordered_map<u_int32_t, gzFile> _readPartitions;
+
+	void partitionReads(){
+
+		//cout << "Partitionning reads" << endl;
+
+		u_int32_t cutoffLevel = 0;
+		for(const SaveState2& saveState : _graph->_cachedGraphStates){
+			const string filename = _partitionDir + "/part_" + to_string(cutoffLevel) + ".gz";
+			_readPartitions[cutoffLevel] = gzopen(filename.c_str(),"wb");
+			cutoffLevel += 1;
+		}
+
+		_graph->loadState2(0, -1, _unitigDatas);
+
+		
+		KminmerParser parser(_filename_readMinimizers, _minimizerSize, _kminmerSize, true);
+		auto fp = std::bind(&Assembly3::partitionReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
+		parser.parse(fp);
+
+		for(auto& it : _readPartitions){
+			gzclose(it.second);
+		}
+	}
+
+	void partitionReads_read(const vector<u_int64_t>& minimizers, const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex){//}, const vector<KmerVec>& kminmers_k3, const vector<ReadKminmer>& kminmersInfos_k3){
+	
+		vector<u_int32_t> nodePath;
+
+		for(const KmerVec& vec : kminmers){
+			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
+				cout << "XXXXX ";
+				continue;
+			}
+			
+			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
+			nodePath.push_back(nodeName);
+			cout << nodeName << " ";
+		}
+		cout << endl;
+
+		double n = 0;
+		double sum = 0;
+		unordered_set<u_int32_t> writtenUnitigs;
+
+		vector<float> readpathAbudance_values;
+		for(u_int32_t nodeName : nodePath){
+
+			u_int32_t nodeIndex = BiGraph::nodeName_to_nodeIndex(nodeName, false);
+			u_int32_t unitigIndex = _graph->nodeIndex_to_unitigIndex(nodeIndex);
+			const Unitig& u = _graph->_unitigs[unitigIndex];
+
+			if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
+			if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
+
+			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._startNode));
+			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
+
+			for(u_int32_t nodeIndex : u._nodes){
+				readpathAbudance_values.push_back(u._abundance);
+				cout << u._abundance << " ";
+				n += 1;
+				sum += u._abundance;
+			}
+		}
+		cout << endl;
+		
+		float readPathAbundance = sum / n; ////Utils::compute_median_float(readpathAbudance_values);
+		cout << "Read path abundance: " << readPathAbundance << " " << (sum / n) << endl;
+		//if(readPathAbundance < 10) getchar();
+
+		float cutoff = readPathAbundance * 0.1;
+		
+		//if(_kminmerSize != 4) 
+		//cutoff = 0;
+
+		u_int32_t cutoffLevel = 0;
+		float realCutoff = 0;
+		for(const SaveState2& saveState : _graph->_cachedGraphStates){
+			if(saveState._abundanceCutoff_min > cutoff) break;
+			realCutoff = saveState._abundanceCutoff_min;
+			cutoffLevel += 1;
+		}
+
+		gzFile& file = _readPartitions[cutoffLevel];
+		
+		u_int16_t size = minimizers.size();
+		gzwrite(file, (const char*)&size, sizeof(size));
+		gzwrite(file, (const char*)&minimizers[0], size * sizeof(u_int64_t));
+	}
+
+
+	ofstream file_correction;
+	gzFile _outputFile_correctedReads;
+
+	void correctReads(){
+
+
+		_graph->loadState2(0, -1, _unitigDatas);
+		
+		const string& outputFilename_correctedReads = _inputDir + "/correctedReads_" + to_string(_kminmerSize) + ".min.gz";
+		_outputFile_correctedReads = gzopen(outputFilename_correctedReads.c_str(),"wb");
+
+		/*
+		u_int32_t cutoffLevel = 0;
+		for(const SaveState2& saveState : _graph->_cachedGraphStates){
+
+			//cout << cutoffLevel << " " << saveState._abundanceCutoff_min << endl;
+			//getchar();
+
+			_graph->loadState2(saveState._abundanceCutoff_min, -1, _unitigDatas);
+			//_graph->saveGraph(_inputDir + "minimizer_graph_sub.gfa");
+			const string readPartitionFilename = _partitionDir + "/part_" + to_string(cutoffLevel) + ".gz";
+			
+			KminmerParser parser(readPartitionFilename, _minimizerSize, _kminmerSize, false);
+			auto fp = std::bind(&Assembly3::correctReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
+			parser.parse(fp);
+
+
+
+
+
+			//_readPartitions[cutoffLevel] = gzopen(filename.c_str(),"wb");
+			cutoffLevel += 1;
+		}
+		*/
+
+
+
+		
+		KminmerParser parser(_filename_readMinimizers, _minimizerSize, _kminmerSize, true);
+		auto fp = std::bind(&Assembly3::correctReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
+		parser.parse(fp);
+		
+
+		//file_correction.close();
+		gzclose(_outputFile_correctedReads);
+		
+	}
+
+	void correctReads_read(const vector<u_int64_t>& minimizers, const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex){//}, const vector<KmerVec>& kminmers_k3, const vector<ReadKminmer>& kminmersInfos_k3){
+
+		file_correction = ofstream(_inputDir + "/correction.csv");
+		file_correction << "Name,Color" << endl;
+
+		//cout << "-------------" << endl;
+		//cout << readIndex << endl;
+		//cout << minimizers.size() << endl;
+
+
+		
+
+
+		bool isHere = false;
+		vector<u_int32_t> nodePath;
+
+		for(const KmerVec& vec : kminmers){
+			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
+				cout << "XXX ";
+				continue;
+			}
+			
+			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
+
+			cout << nodeName << " ";
+			
+			if(nodeName == 2630) isHere = true;
+			//if(readIndex == 1510){
+			file_correction << nodeName << "," << "red" << endl;
+			//}
+			nodePath.push_back(nodeName);
+		}
+		cout << endl;
+
+		//if(_kminmerSize == 7 && isHere) getchar();
+
+
+		vector<u_int32_t> readpath;
+		applyReadCorrection(nodePath, readpath);
+
+		vector<u_int32_t> contigpath;
+		readpathToContig(readpath, contigpath);
+
+		bool isPathErroneous = false;
+		//cout << "lala" << endl;
+		//cout << readpath.size() << endl;
+		for(u_int32_t nodeIndex : readpath){
+			//cout << BiGraph::nodeIndex_to_nodeName(nodeIndex) << " ";
+
+			if(!_truthInputFilename.empty()){
+				if(_evaluation_hifiasmGroundTruth_nodeNamePosition.find(BiGraph::nodeIndex_to_nodeName(nodeIndex)) == _evaluation_hifiasmGroundTruth_nodeNamePosition.end()){
+					isPathErroneous = true;
+				}
+			}
+		}
+		//cout << endl;
+
+		/*
+		if(isPathErroneous){
+			for(u_int32_t nodeIndex : readpath){
+
+				if(!_truthInputFilename.empty()){
+					if(_evaluation_hifiasmGroundTruth_nodeNamePosition.find(BiGraph::nodeIndex_to_nodeName(nodeIndex)) == _evaluation_hifiasmGroundTruth_nodeNamePosition.end()){
+
+						//cout << "XXXXX ";
+					}
+					else{
+						//cout << BiGraph::nodeIndex_to_nodeName(nodeIndex) << " ";
+					}
+				}
+			}
+			//cout << endl;
+
+			//cout << "error" << endl;
+			//getchar();
+		}
+		*/
+
+		file_correction.flush();
+
+		//346, 1734, 1770, 2136, 2323, 2364
+		if(readIndex == 346){
+
+			/*
+			bool isHere = false;
+			for(u_int32_t nodeIndex : _graph->_isNodeValid2){
+				if(BiGraph::nodeIndex_to_nodeName(nodeIndex) == 0){
+					isHere = true;
+					break;
+				}
+			}
+			cout << isHere << endl;
+			*/
+			//getchar();
+
+			//file_correction.flush();
+		}
+		//getchar();
+
+		//if(contigpath.size() == 0) return;
+		//cout << "decommenter ici dans v final, contig size 0 a discard" << endl;
+
+		//for(u_int32_t nodeIndex : contigpath){
+		//	cout << BiGraph::nodeIndex_to_nodeName(nodeIndex) << " ";
+		//}
+		//cout << endl;
+		//getchar();
+
+		/*
+		bool printRead = false;
+		for(u_int32_t nodeIndex : contigpath){
+			u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
+
+			if(_evaluation_hifiasmGroundTruth_nodeNamePosition.find(nodeName) == _evaluation_hifiasmGroundTruth_nodeNamePosition.end()) continue;
+
+			if(_evaluation_hifiasmGroundTruth_nodeNamePosition[nodeName] == 4790){
+				printRead = true;
+			}
+		}
+		
+		if(readIndex == 3427){
+			cout << readIndex << ": " << endl;
+			for(u_int32_t nodeIndex : _debug_readPath[readIndex]){
+				cout << nodeIndex << " ";
+			}
+			cout << endl;
+			
+			for(u_int32_t nodeIndex : contigpath){
+				cout << BiGraph::nodeIndex_to_nodeName(nodeIndex) << " ";
+			}
+			cout << endl;
+			//getchar();
+		}
+		*/
+		
+
+
+		u_int64_t size = contigpath.size();
+		gzwrite(_outputFile_correctedReads, (const char*)&size, sizeof(size));
+		gzwrite(_outputFile_correctedReads, (const char*)&contigpath[0], size * sizeof(u_int32_t));
+
+		//vector<ReadIndexType> unitigIndexex;
+
+		/*
+		for(const KmerVec& vec : kminmers){
+			//if(mdbg->_dbg_nodes[vec]._index == 55479) cout << "AAAAA" << endl;
+
+			//cout << mdbg->_dbg_nodes[vec]._index << endl;
+			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()) continue;
+
+			//if(vec.isPalindrome()) cout << _mdbg->_dbg_nodes[vec]._index << endl;
+			//getchar();
+
+
+			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
+			//u_int32_t nodeIndex = BiGraph::nodeName_to_nodeIndex(nodeName, true);
+			//if(_graph->_isNodeValid2.find(nodeIndex) == _graph->_isNodeValid2.end()) continue;
+			//if(_nodeData.find(nodeName) == _nodeData.end()) continue;
+
+			//UnitigData& unitigData = _nodeData[nodeName];
+			UnitigData& unitigData = _unitigDatas[nodeName];
+			//if(std::find(unitigData._readIndexes.begin(), unitigData._readIndexes.end(), readIndex) != unitigData._readIndexes.end()) continue;
+			unitigData._readIndexes.push_back(readIndex);
+			//cout << "indexing : " << readIndex << endl;
+		}
+		*/
+
+
+
+	}
+
+	void applyReadCorrection(const vector<u_int32_t>& nodePath, vector<u_int32_t>& readpath){
+
+		
+		//_graph->loadState2(0, -1, _unitigDatas);
+		/*
+		unordered_set<u_int32_t> writtenUnitigs;
+
+		vector<float> readpathAbudance_values;
+		for(u_int32_t nodeName : nodePath){
+
+			u_int32_t nodeIndex = BiGraph::nodeName_to_nodeIndex(nodeName, false);
+			u_int32_t unitigIndex = _graph->nodeIndex_to_unitigIndex(nodeIndex);
+			const Unitig& u = _graph->_unitigs[unitigIndex];
+
+			if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
+			if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
+
+			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._startNode));
+			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
+
+			for(u_int32_t nodeIndex : u._nodes){
+				readpathAbudance_values.push_back(u._abundance);
+			}
+		}
+		
+		float readPathAbundance = Utils::compute_median_float(readpathAbudance_values);
+		cout << "Read path abundance: " << readPathAbundance << endl;
+		*/
+		float minSupportingReads = 4; //readPathAbundance * 0.15;
+		//float cutoff = readPathAbundance * 0.2;
+		//_graph->loadState2(cutoff, -1, _unitigDatas);
+		
+
+		u_int32_t maxDepth = nodePath.size()*2;
+		readpath.clear();
+
+		vector<u_int32_t> nodePath_existing;
+		for(u_int32_t nodeName : nodePath){
+			if(_graph->_isNodeValid2.find(BiGraph::nodeName_to_nodeIndex(nodeName, true)) == _graph->_isNodeValid2.end()) continue;
+			nodePath_existing.push_back(nodeName);
+		}
+		if(nodePath_existing.size() == 0) return;
+
+
+		long supportSize = 6;
+		if(nodePath_existing.size() < supportSize) return;
+
+		u_int64_t anchorPos = -1;
+		vector<u_int32_t> nodePath_anchor;
+		for(long i=0; i< ((long)nodePath_existing.size())-supportSize; i++){
+			
+			vector<u_int32_t> nodeNames;
+			for(size_t j=i; j<i+supportSize; j++){
+				nodeNames.push_back(nodePath_existing[j]);
+			}
+			//u_int32_t nodeName_source = nodePath_existing[i];
+			//u_int32_t nodeName_dest = nodePath_existing[i+supportSize];
+
+			u_int64_t nbSupportingReads = Utils::computeSharedReads(nodeNames, _unitigDatas);
+			//cout << i << " " << nbSupportingReads << endl;
+			//cout << nodeName_source << " " << nodeName_dest << " " << nbSupportingReads << endl;
+			
+			if(nbSupportingReads < minSupportingReads) continue;
+
+			for(size_t j=i; j<i+supportSize; j++){
+				nodePath_anchor.push_back(nodePath_existing[j]);
+			}
+
+			anchorPos = i;
+			break;
+		}
+
+		
+		if(anchorPos == -1) return;
+
+		//vector<u_int32_t> nodePath_supported_left;
+
+		//LEFT
+		long ii = anchorPos - 1;
+		while(true){
+
+			if(ii < 0) break;
+
+			vector<u_int32_t> nodeNames;
+			for(size_t j=ii; j<ii+supportSize; j++){
+				nodeNames.push_back(nodePath_existing[j]);
+			}
+			
+			u_int64_t nbSupportingReads = Utils::computeSharedReads(nodeNames, _unitigDatas);
+
+			//cout << "left " << ii << " " << nbSupportingReads << endl;
+
+			if(nbSupportingReads < minSupportingReads){
+				nodePath_existing.erase(nodePath_existing.begin()+ii);
+			}
+
+			ii -= 1;
+		}
+
+		//RIGHT
+		ii = anchorPos + 1;
+		while(true){
+
+			if(ii > ((long)nodePath_existing.size())-supportSize) break;
+
+			vector<u_int32_t> nodeNames;
+			for(size_t j=ii; j<ii+supportSize; j++){
+				nodeNames.push_back(nodePath_existing[j]);
+			}
+			
+			u_int64_t nbSupportingReads = Utils::computeSharedReads(nodeNames, _unitigDatas);
+
+			//cout << "right " << ii << " " << nbSupportingReads << endl;
+
+			if(nbSupportingReads < minSupportingReads){
+				nodePath_existing.erase(nodePath_existing.begin()+ii+supportSize-1);
+				continue; //! the ii incrmeent is handled by erase
+			}
+
+			ii += 1;
+		}
+		
+		/*
+		cout << "\tRead supported:" << endl;
+		cout << "\t";
+		for(u_int32_t nodeName : nodePath_existing){
+			cout << nodeName << " ";
+		}
+		cout << endl;
+		*/
+		/*
+		bool hasFoundAnchor = false;
+		while(true){
+
+			cout << "----" << endl;
+			size_t j=0;
+			bool isUnsupported = false;
+			nodePath_supported.clear();
+
+			for(long i=0; i< ((long)nodePath_existing.size())-supportSize; i++){
+				
+				j = i;
+				u_int32_t nodeName_source = nodePath_existing[i];
+				u_int32_t nodeName_dest = nodePath_existing[i+supportSize];
+
+				u_int64_t nbSupportingReads = Utils::computeSharedReads(_unitigDatas[nodeName_source], _unitigDatas[nodeName_dest]);
+				cout << nodeName_source << " " << nodeName_dest << " " << nbSupportingReads << endl;
+				
+				if(nbSupportingReads < 3){ 
+					isUnsupported = true;
+					break;
+				}
+
+				hasFoundAnchor = true;
+
+				if(nodePath_supported.size() == 0){
+					for(size_t j=i; j<i+supportSize; j++){
+						nodePath_supported.push_back(nodePath_existing[j]);
+					}
+				}
+				
+				nodePath_supported.push_back(nodeName_dest);
+				//cout << "\tSupporting reads: " << nodeName_source << " " << nodeName_dest << endl;
+				//cout << "\t" << Utils::computeSharedReads(_unitigDatas[nodeName_source], _unitigDatas[nodeName_dest]) << endl;
+			}
+
+			if(isUnsupported){
+				if(hasFoundAnchor){
+					cout << "Removed: " << nodePath_existing[j+supportSize] << endl;
+					nodePath_existing.erase(nodePath_existing.begin() + j + supportSize);
+				}
+				else{
+					cout << "Removed: " << nodePath_existing[j] << endl;
+					nodePath_existing.erase(nodePath_existing.begin() + j);
+				}
+			}
+			else{
+				break;
+			}
+		}
+		*§
+		/*
+		for(long i=0; i< ((long)nodePath_existing.size())-supportSize; i++){
+			
+			u_int32_t nodeName_source = nodePath_existing[i];
+			u_int32_t nodeName_dest = nodePath_existing[i+supportSize];
+
+			u_int64_t nbSupportingReads = Utils::computeSharedReads(_unitigDatas[nodeName_source], _unitigDatas[nodeName_dest]);
+			if(nbSupportingReads < 3) continue;
+
+			if(nodePath_supported.size() == 0){
+				for(size_t j=i; j<i+supportSize; j++){
+					nodePath_supported.push_back(nodePath_existing[j]);
+				}
+			}
+			
+			nodePath_supported.push_back(nodeName_dest);
+			//cout << "\tSupporting reads: " << nodeName_source << " " << nodeName_dest << endl;
+			//cout << "\t" << Utils::computeSharedReads(_unitigDatas[nodeName_source], _unitigDatas[nodeName_dest]) << endl;
+		}
+		*/
+
+		/*
+		cout << "\tRead supported:" << endl;
+		cout << "\t";
+		for(u_int32_t nodeName : nodePath_supported){
+			cout << nodeName << " ";
+		}
+		cout << endl;
+
+
+
+
+		//cout << "Computing components" << endl;
+		u_int32_t componentIndex = 0;
+		//u_int32_t currentComponentIndex = 0;
+		unordered_map<u_int32_t, u_int32_t> nodeName_to_component;
+		//unordered_set<u_int32_t> isConnected;
+		//vector<vector<u_int32_t>> components;
+		
+		for(size_t i=0; i<nodePath_supported.size(); i++){
+
+			u_int32_t nodeName_source = nodePath_supported[i];
+
+			if(nodeName_to_component.find(nodeName_source) == nodeName_to_component.end()){
+				nodeName_to_component[nodeName_source] = componentIndex;
+				componentIndex += 1;
+			}
+
+			u_int32_t currentComponentIndex = nodeName_to_component[nodeName_source];
+			//currentComponentIndex = componentIndex;
+
+			//if(isConnected.find(nodeName_source) != isConnected.end()) continue;
+
+			//vector<u_int32_t> component;
+			//component.push_back(nodeName_source);
+			//isConnected.insert(nodeName_source);
+
+			for(size_t j=i+1; j<nodePath_supported.size(); j++){
+			
+				u_int32_t nodeName_dest = nodePath_supported[j];
+
+				//if(nodeName_to_component.find(nodeName_dest) != nodeName_to_component.end()){
+				//	if(nodeName_to_component[nodeName_dest] == componentIndex) continue;
+				//}
+
+				//if(isConnected.find(nodeName_dest) != isConnected.end()) continue;
+
+				//cout << "\tSearching path: " << nodeName_source << " " << nodeName_dest << endl;
+				vector<u_int32_t> path;
+				_graph->shortestPath_nodeName(nodeName_source, nodeName_dest, path, true, true, 20);
+				//cout << "done" << endl;
+
+				if(path.size() == 0) continue;
+				
+				nodeName_to_component[nodeName_dest] = currentComponentIndex;
+
+				//component.push_back(nodeName_dest);
+				//isConnected.insert(nodeName_dest);
+				
+			}
+
+			//components.push_back(component);
+		}
+
+		unordered_map<u_int32_t, vector<u_int32_t>> components;
+		for(auto& it : nodeName_to_component){
+			components[it.second].push_back(it.first);
+		}
+
+		vector<u_int32_t> maxComponent;
+		u_int32_t maxComponentSize = 0;
+		if(components.size() != 1){
+			cout << "\tComponents: " << components.size() << endl;
+			for(auto& it : components){
+				const vector<u_int32_t>& c = it.second;
+				cout << "\t\t";
+				for(u_int32_t nodeName : c) cout << nodeName << " ";
+				cout << endl;
+			}
+			//getchar();
+		} 
+		
+		for(auto& it : components){
+			//cout << "\t\t" << c.size() << endl;
+			const vector<u_int32_t>& c = it.second;
+
+			if(c.size() > maxComponentSize){
+				maxComponentSize = c.size();
+				maxComponent = c;
+			}
+		}
+
+		unordered_set<u_int32_t> componentIndexed;
+		for(u_int32_t nodeName : maxComponent) componentIndexed.insert(nodeName);
+		
+		vector<u_int32_t> nodePath_connected;
+		for(u_int32_t nodeName : nodePath_supported){
+			if(componentIndexed.find(nodeName) == componentIndexed.end()) continue;
+			nodePath_connected.push_back(nodeName);
+		}
+		*/
+
+
+
+		vector<u_int32_t> nodePath_connected = nodePath_existing;
+		u_int32_t prevNodename = -1;
+		u_int32_t nodeIndex_source = -1;
+		//u_int32_t nodeIndex_dest = -1;
+
+		for(long i=0; i<((long)nodePath_connected.size())-1; i++){
+			
+			u_int32_t nodeName_source = nodePath_connected[i];
+			u_int32_t nodeName_dest = nodePath_connected[i+1];
+
+			unordered_set<u_int32_t> unallowedNodeNames;
+			for(long j=0; j<nodePath_connected.size(); j++){
+				if(nodePath_connected[j] == nodeName_source || nodePath_connected[j] == nodeName_dest) continue;
+				unallowedNodeNames.insert(nodePath_connected[j]);
+			}
+
+			//cout << "\tSearching path: " << nodeName_source << " " << nodeName_dest << endl;
+			//cout << Utils::computeSharedReads(_unitigDatas[nodeName_source], _unitigDatas[nodeName_dest]) << endl;
+
+			vector<u_int32_t> path;
+			_graph->shortestPath_nodeName(nodeName_source, nodeName_dest, path, true, true, maxDepth, _unitigDatas, unallowedNodeNames, nodeIndex_source, nodePath_anchor);
+
+
+			//cout << "done" << endl;
+
+			std::reverse(path.begin(), path.end());
+
+			//cout << "\t";
+			if(readpath.size() == 0){
+				for(u_int32_t nodeIndex : path){
+					readpath.push_back(nodeIndex);
+				}
+			}
+			else{ //Discard source
+				for(size_t i=1; i<path.size(); i++){ 
+					//cout << BiGraph::nodeIndex_to_nodeName(nodeIndex) << " ";
+					readpath.push_back(path[i]);
+				}
+			}
+			prevNodename = nodeName_source;
+			
+			if(readpath.size() > 0){
+				nodeIndex_source = readpath[readpath.size()-1];
+			}
+			//cout << endl;
+		}
+		//cout << endl;
+		
+		/*
+		cout << nodePath_connected.size() << " " << nodePath_connected.size()-6 << endl;
+		for(long i=0; i< ((long)nodePath_connected.size())-6; i++){
+			
+			u_int32_t nodeName_source = nodePath_connected[i];
+			u_int32_t nodeName_dest = nodePath_connected[i+6];
+			cout << "\tSupporting reads: " << nodeName_source << " " << nodeName_dest << endl;
+			cout << "\t" << Utils::computeSharedReads(_unitigDatas[nodeName_source], _unitigDatas[nodeName_dest]) << endl;
+		}
+		*/
+
+	}
+
+	void readpathToContig(const vector<u_int32_t>& readpath, vector<u_int32_t>& contigpath){
+
+		long n = 2;
+		vector<u_int32_t> prevNodes;
+
+		contigpath.clear();
+		if(readpath.size() == 0) return;
+
+		u_int32_t nodeIndexStart = readpath[0];
+		const Unitig& unitigStart = _graph->nodeIndex_to_unitig(nodeIndexStart);
+
+		u_int32_t prevNode = -1;
+		for(u_int32_t nodeIndex : unitigStart._nodes){
+			if(nodeIndex == nodeIndexStart) break;
+			prevNode = nodeIndex;
+			prevNodes.push_back(nodeIndex);
+		}
+		//if(prevNode != -1) contigpath.push_back(prevNode);
+		
+		
+		long size = prevNodes.size();
+		long start_i = max(0l, size-n);
+		for(size_t i=start_i; i<prevNodes.size(); i++){
+			contigpath.push_back(prevNodes[i]);
+		}
+		
+		for(u_int32_t nodeIndex : readpath){
+			contigpath.push_back(nodeIndex);
+		}
+
+		u_int32_t nodeIndexEnd = readpath[readpath.size()-1];
+		const Unitig& unitigEnd = _graph->nodeIndex_to_unitig(nodeIndexEnd);
+
+		vector<u_int32_t> nextNodes;
+		u_int32_t nextNode = -1;
+		bool canAdd = false;
+		for(u_int32_t nodeIndex : unitigEnd._nodes){
+			if(nodeIndex == nodeIndexEnd){
+				canAdd = true;
+				continue;
+			}
+			if(!canAdd) continue;
+			nextNodes.push_back(nodeIndex);
+			//nextNode = nodeIndex;
+			//break;
+		}
+		
+		//if(nextNode != -1) contigpath.push_back(nextNode);
+		for(size_t i=0; i<n && i<nextNodes.size(); i++){
+			contigpath.push_back(nextNodes[i]);
+		}
+
+	}
+
+
+	void debug_checkReads(){
+
+		cout << "Checking reads" << endl;
+
+		KminmerParser parser(_filename_readMinimizers, _minimizerSize, _kminmerSize, true);
+		auto fp = std::bind(&Assembly3::debug_checkReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
+		parser.parse(fp);
+	}
+
+	void debug_checkReads_read(const vector<u_int64_t>& minimizers, const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex){//}, const vector<KmerVec>& kminmers_k3, const vector<ReadKminmer>& kminmersInfos_k3){
+	
+		vector<u_int32_t> nodePath;
+		bool printRead = false;
+
+		for(const KmerVec& vec : kminmers){
+			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
+				nodePath.push_back(0);
+				continue;
+			}
+			
+			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
+			nodePath.push_back(nodeName);
+
+			if(_evaluation_hifiasmGroundTruth_nodeNamePosition.find(nodeName) == _evaluation_hifiasmGroundTruth_nodeNamePosition.end()) continue;
+
+			if(_evaluation_hifiasmGroundTruth_nodeNamePosition[nodeName] == 4790){
+				printRead = true;
+			}
+		}
+
+		if(printRead || readIndex == 3427){ //|| readIndex == 2010
+			cout << readIndex << endl;
+			_debug_readPath[readIndex] = nodePath;
+			//cout << readIndex << ": " << endl;
+			//for(u_int32_t nodeName : nodePath){
+			//	cout << nodeName << " ";
+			//}
+			//cout << endl;
+		}
+
+	}
+
+	void generateContigs(){
+		if(_kminmerSize < 10) return;
+
+		cout << "Generating contigs" << endl;
+		
+		const string& outputFilename = _inputDir + "/contigs.nodepath.gz";
+		gzFile outputContigFile_min = gzopen(outputFilename.c_str(),"wb");
+
+		unordered_set<u_int32_t> writtenUnitigs;
+
+		vector<float> readpathAbudance_values;
+		for(const Unitig& u : _graph->_unitigs){
+			//if(u._nbNodes < _kminmerSize*2) continue;
+
+			if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
+			if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
+
+			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._startNode));
+			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
+
+			u_int64_t size = u._nodes.size();
+			gzwrite(outputContigFile_min, (const char*)&size, sizeof(size));
+			gzwrite(outputContigFile_min, (const char*)&u._nodes[0], size * sizeof(u_int32_t));
+		}
+		
+		gzclose(outputContigFile_min);
+	}
 
 };
 

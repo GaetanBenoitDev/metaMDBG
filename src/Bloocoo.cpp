@@ -157,7 +157,7 @@ void Bloocoo::createMDBG_read(kseq_t* read, u_int64_t readIndex){
 
 
 
-void Bloocoo::createMDBG_collectKminmers(const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex){
+void Bloocoo::createMDBG_collectKminmers(const vector<u_int64_t>& minimizers, const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex){
 	
 
 
@@ -179,7 +179,7 @@ void Bloocoo::createMDBG_collectKminmers(const vector<KmerVec>& kminmers, const 
 	}
 }
 
-void Bloocoo::createMDBG_collectKminmers_contig(const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex){
+void Bloocoo::createMDBG_collectKminmers_contig(const vector<u_int64_t>& minimizers, const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex){
 	
 
 
@@ -379,21 +379,21 @@ void Bloocoo::removeErroneousKminmers(const vector<KmerVec>& kminmers, const vec
 void Bloocoo::createMDBG (){
 
 	cout << "Extracting kminmers (read)" << endl;
-	KminmerParser parser(_filename_readMinimizers, _minimizerSize, _kminmerSize);
-	auto fp = std::bind(&Bloocoo::createMDBG_collectKminmers, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+	KminmerParser parser(_filename_readMinimizers, _minimizerSize, _kminmerSize, true);
+	auto fp = std::bind(&Bloocoo::createMDBG_collectKminmers, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
 	parser.parse(fp);
 
 	cout << "Nb kminmers (reads): " << _kminmersData.size() << endl;
 
-	
+	/*
 	if(_filename_inputContigs != ""){
 		cout << "Extracting kminmers (contigs)" << endl;
 		//KminmerParser contigParser(_filename_inputContigs, _minimizerSize, _kminmerSize);
 		//auto fp2 = std::bind(&Bloocoo::createMDBG_collectKminmers_contigs, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 		//contigParser.parse_mContigs(fp2);
 
-		KminmerParser parser(_filename_contigMinimizers, _minimizerSize, _kminmerSize);
-		auto fp = std::bind(&Bloocoo::createMDBG_collectKminmers_contig, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+		KminmerParser parser(_filename_contigMinimizers, _minimizerSize, _kminmerSize, true);
+		auto fp = std::bind(&Bloocoo::createMDBG_collectKminmers_contig, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
 		parser.parse(fp);
 
 		cout << "Nb kminmers (Contigs): " << _kminmersData.size() << endl;
@@ -403,6 +403,7 @@ void Bloocoo::createMDBG (){
 		//auto fp3 = std::bind(&Bloocoo::removeErroneousKminmers, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 		//readParser.parse(fp3);
 	}
+	*/
 	
 
 	_mdbg = new MDBG(_kminmerSize);
@@ -415,7 +416,8 @@ void Bloocoo::createMDBG (){
 		const KmerVec& vec = it.first;
 		const KminmerData& kminmerData = it.second;
 
-
+		//cout << "A ENLEVER" << endl;
+		//if(_kminmerSize == 4 && kminmerData._count == 1) continue;
 		if(kminmerData._count == 1) continue;
 
 		//if(kminmerCounts[vec] > 1000) cout << kminmerCounts[vec] << endl;

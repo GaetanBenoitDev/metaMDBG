@@ -123,10 +123,12 @@ public:
 	vector<UnitigData> _unitigDatas2;
     unordered_set<u_int64_t> _rareReads;
     unordered_set<u_int32_t> _repeatedNodenames;
+    size_t _kminmerSize;
 
-    GraphSimplify(const string& inputGfaFilename, const string& outputDir, u_int32_t nbNodes){
+    GraphSimplify(const string& inputGfaFilename, const string& outputDir, u_int32_t nbNodes, size_t kminmerSize){
         _inputGfaFilename = inputGfaFilename;
         _outputDir = outputDir;
+        _kminmerSize = kminmerSize;
 
         _graphSuccessors = GfaParser::createBiGraph_lol(inputGfaFilename, true, nbNodes);
 	    //_graphPredecessors = GfaParser::createBiGraph_lol(inputGfaFilename, false);
@@ -876,7 +878,9 @@ public:
             //cout << "\tVisited: " << BiGraph::nodeIndex_to_nodeName(_unitigs[v]._startNode) << " " << BiGraph::nodeIndex_to_nodeName(_unitigs[v]._endNode) << endl;
             queue.pop_back();
 
-            if(pathLength[v] > maxLength) continue;
+            //if(pathLength[v] > maxLength) continue;
+            cout << pathLength[v] << " " << _kminmerSize << endl;
+            if(pathLength[v] > _kminmerSize*3) continue;
 
             isVisited.insert(v);
             if(seen.find(v) != seen.end()){
@@ -894,7 +898,7 @@ public:
 
                 if(isVisited.find(u) == isVisited.end()){
                     seen.insert(u);
-                    pathLength[u] = pathLength[v] + _unitigs[u]._length;
+                    pathLength[u] = pathLength[v] + _unitigs[u]._nbNodes; //_unitigs[u]._length;
                 }
 
             }
@@ -1389,7 +1393,8 @@ public:
 
                     if(_unitigs[_nodeToUnitig[neighbors_utg3[0]]]._index != utg_4._index) continue;
                     if(_graphSuccessors->nodeIndex_to_nodeName(utg_1._endNode, dummy) == _graphSuccessors->nodeIndex_to_nodeName(utg_4._startNode, dummy)) continue; //Repeated unitig with a cycle on on side
-                    if(utg_2._length > maxLength || utg_3._length > maxLength) continue;
+                    //if(utg_2._length > maxLength || utg_3._length > maxLength) continue;
+                    if(utg_2._nbNodes > _kminmerSize*3 || utg_3._nbNodes > _kminmerSize*3) continue;
 
                     #ifdef PRINT_DEBUG_SIMPLIFICATION
                         cout << "\tBubble: " << _graphSuccessors->nodeIndex_to_nodeName(utg_1._endNode, dummy) << " " << _graphSuccessors->nodeIndex_to_nodeName(utg_2._startNode, dummy) << " " << _graphSuccessors->nodeIndex_to_nodeName(utg_3._startNode, dummy) << " " << _graphSuccessors->nodeIndex_to_nodeName(utg_4._startNode, dummy) << " " << utg_2._length << " " << utg_3._length << endl;
@@ -2579,7 +2584,6 @@ public:
         neighbors.insert(neighbors.end(), successors.begin(), successors.end());
         neighbors.insert(neighbors.end(), predecessors.begin(), predecessors.end());
     }
-
     
     void getSuccessors_unitig(u_int32_t unitigIndex, float abundanceCutoff, vector<u_int32_t>& successors){
 
@@ -3033,6 +3037,8 @@ public:
             compact(false, unitigDatas);
         }
 
+
+
         //vector<Bubble> bubbles;
         //vector<float> lala = {40, 800};
         //cout << compute_median_float(lala) << endl;
@@ -3089,6 +3095,8 @@ public:
 
         if(!doesLoadState){
         while(true){
+
+
 
             //u_int64_t nbInvalidUnitigs = 0;
             //for(Unitig& unitig : _unitigs){
@@ -3166,8 +3174,44 @@ public:
                 vector<bool> isBubble = vector<bool>(_graphSuccessors->_nbNodes, false);
                 bool isModSub = false;
 
-                
-                
+                /*
+                bool isHere = false;
+                for(u_int32_t nodeIndex : _isNodeValid2){
+                    if(BiGraph::nodeIndex_to_nodeName(nodeIndex) == 0){
+                        isHere = true;
+                        break;
+                    }
+                }
+                cout << isHere << endl;
+                getchar();
+                */
+                /*
+                bool isHere = false;
+                for(u_int32_t nodeIndex : _isNodeValid2){
+                    if(BiGraph::nodeIndex_to_nodeName(nodeIndex) == 4861){
+                        isHere = true;
+                        break;
+                    }
+                }
+                //if(!isHere) cout << "sdfsdfsdf" << endl;
+                //cout << isHere << endl;
+                if(isHere){
+                    cout << isHere << endl;
+
+                    unordered_set<u_int32_t> validNodes;
+                    for (auto& nodeIndex : _isNodeValid2){
+                        u_int32_t nodeName = _graphSuccessors->nodeIndex_to_nodeName(nodeIndex);
+                        validNodes.insert(nodeName);
+                    }
+                    string outputFilename = _outputDir + "/minimizer_graph_sub_3.gfa";
+                    GfaParser::rewriteGfa_withoutNodes(_inputGfaFilename, outputFilename, validNodes, _isEdgeRemoved, _graphSuccessors);
+                    
+
+
+                    getchar();
+                }*/
+
+
                 while(true){
                     compact(true, unitigDatas);
 
@@ -3187,7 +3231,7 @@ public:
 
 
                 //3526895 2681795
-
+                /*
                 while(true){
                     compact(true, unitigDatas);
                     u_int64_t nbSuperbubblesRemoved = superbubble(50000, isBubble, currentSaveState, false);
@@ -3212,7 +3256,7 @@ public:
                     isModification = true;
                     isModSub = true;
                 }
-                
+                */
                 //cout << _isBubble[BiGraph::nodeName_to_nodeIndex(510153, true)] << " " << _isBubble[BiGraph::nodeName_to_nodeIndex(510153, false)] << endl;
                 //cout << _isBubble[BiGraph::nodeName_to_nodeIndex(1718667, true)] << " " << _isBubble[BiGraph::nodeName_to_nodeIndex(1718667, false)] << endl;
                 //cout << getNodeUnitigAbundance(BiGraph::nodeName_to_nodeIndex(1473953, true)) << endl;
@@ -3524,6 +3568,23 @@ public:
                     //_isNodeValid2 = isNodeValid2_memo; //!
                     std::reverse(_bubbles.begin(), _bubbles.end());
                     compact(false, unitigDatas);
+
+                    
+
+                    
+                    
+                    /*
+                    unordered_set<u_int32_t> validNodes;
+                    for (auto& nodeIndex : _isNodeValid2){
+                        u_int32_t nodeName = _graphSuccessors->nodeIndex_to_nodeName(nodeIndex);
+                        validNodes.insert(nodeName);
+                    }
+                    string outputFilename = _outputDir + "/minimizer_graph_sub.gfa";
+                    GfaParser::rewriteGfa_withoutNodes(_inputGfaFilename, outputFilename, validNodes, _isEdgeRemoved, _graphSuccessors);
+                        
+
+                    getchar();
+                    */
 
                     /*
                     unordered_map<u_int32_t, unordered_set<u_int32_t>> bridgingReads;
@@ -4474,7 +4535,7 @@ getStronglyConnectedComponent_node
 
     }
     
-    void saveGraph(const string& outputFilename, unordered_set<DbgEdge, hash_pair>& addedEdges){
+    void saveGraph(const string& outputFilename){
 
         unordered_set<u_int32_t> validNodes;
         for (auto& nodeIndex : _isNodeValid2){
@@ -7165,6 +7226,421 @@ getStronglyConnectedComponent_node
 	}
     */
 
+    struct NodeSupport{
+        u_int32_t _nodeIndex;
+        u_int32_t _nbSupportingReads;
+    };
+    
+    struct NodeSupport_Comparator {
+        bool operator()(NodeSupport const& p1, NodeSupport const& p2){
+            return p1._nbSupportingReads < p2._nbSupportingReads;
+        }
+    };
+
+    void findBestSupportedPath(u_int32_t source_nodeIndex, u_int32_t dest_nodeName, unordered_set<u_int32_t>& unallowedNodenames, const vector<UnitigData>& unitigDatas, vector<u_int32_t>& nodepath, vector<u_int32_t>& anchorNodeNames){
+        
+
+        nodepath.clear();
+        const vector<u_int64_t>& readIndexes_source = unitigDatas[BiGraph::nodeIndex_to_nodeName(source_nodeIndex)]._readIndexes;
+
+        vector<u_int32_t> prevNodes;
+        vector<u_int32_t> prevNodeNames;
+        unordered_set<u_int32_t> isVisited;
+
+        prevNodes.push_back(source_nodeIndex);
+        prevNodeNames.push_back(BiGraph::nodeIndex_to_nodeName(source_nodeIndex));
+        isVisited.insert(source_nodeIndex);
+
+
+        for(u_int32_t nodeName : unallowedNodenames){
+            isVisited.insert(BiGraph::nodeName_to_nodeIndex(nodeName, true));
+            isVisited.insert(BiGraph::nodeName_to_nodeIndex(nodeName, false));
+        }
+
+        while(true){
+            u_int32_t nodeIndex = prevNodes[prevNodes.size()-1];
+            //cout << "\t\tVisit: " << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
+
+            vector<u_int32_t> successors;
+            getSuccessors(nodeIndex, 0, successors);
+
+            if(successors.size() == 0) return;
+
+            u_int64_t maxSharedReads = 0;
+            u_int32_t maxSuccessorNodeIndex = -1;
+
+            for(u_int32_t nodeIndex_successor : successors){
+
+                vector<u_int32_t> nodeNames = prevNodeNames;
+                //for(u_int32_t nodeName : anchorNodeNames){
+                //    if(std::find(nodeNames.begin(), nodeNames.end(), nodeName) != nodeNames.end()) continue;
+                //    nodeNames.push_back(nodeName);
+                //}
+                //if(std::find(nodeNames.begin(), nodeNames.end(), BiGraph::nodeIndex_to_nodeName(nodeIndex_successor)) == nodeNames.end()){
+                nodeNames.push_back(BiGraph::nodeIndex_to_nodeName(nodeIndex_successor));
+                //}
+
+                const vector<u_int64_t>& readIndexes = unitigDatas[BiGraph::nodeIndex_to_nodeName(nodeIndex_successor)]._readIndexes;
+                //u_int32_t nbSharedReads = Utils::computeSharedReads(readIndexes_source, readIndexes);
+                u_int32_t nbSharedReads = Utils::computeSharedReads(nodeNames, unitigDatas);
+                
+                //cout << "\t\tSuccessor: " << BiGraph::nodeIndex_to_nodeName(nodeIndex_successor) << " " << nbSharedReads << " " << (isVisited.find(nodeIndex_successor) != isVisited.end()) << endl;
+                if(isVisited.find(nodeIndex_successor) != isVisited.end()) continue;
+
+
+
+                if(nbSharedReads <= 0) continue;
+
+                if(nbSharedReads > maxSharedReads){
+                    maxSharedReads = nbSharedReads;
+                    maxSuccessorNodeIndex = nodeIndex_successor;
+                }
+            }
+
+            if(maxSuccessorNodeIndex == -1) return;
+
+            isVisited.insert(maxSuccessorNodeIndex);
+            prevNodes.push_back(maxSuccessorNodeIndex);
+            prevNodeNames.push_back(BiGraph::nodeIndex_to_nodeName(maxSuccessorNodeIndex));
+            if(BiGraph::nodeIndex_to_nodeName(maxSuccessorNodeIndex) == dest_nodeName) break; //Found path
+        }     
+
+        //cout << "\t\tfind path: ";
+        //for(u_int32_t nodeIndex : prevNodes){
+        //    cout << BiGraph::nodeIndex_to_nodeName(nodeIndex) << " ";
+        //}
+        //cout << endl;
+
+        nodepath = prevNodes;    
+    }
+
+    void shortestPath_nodeName(u_int32_t source_nodeName, u_int32_t dest_nodeName, vector<u_int32_t>& path, bool includeSource, bool includeSink, u_int32_t maxDistance, const vector<UnitigData>& unitigDatas, unordered_set<u_int32_t>& unallowedNodenames, u_int32_t nodeIndex_sourceLala, vector<u_int32_t>& anchorNodeNames){
+        /*
+        path.clear();
+
+        u_int32_t source_nodeIndex_1 = BiGraph::nodeName_to_nodeIndex(source_nodeName, true);
+        u_int32_t source_nodeIndex_2 = BiGraph::nodeName_to_nodeIndex(source_nodeName, false);
+
+        if(nodeIndex_sourceLala == -1){
+            vector<u_int32_t> nodepath1;
+            findBestSupportedPath(source_nodeIndex_1, dest_nodeName, unallowedNodenames, unitigDatas, nodepath1, anchorNodeNames);
+            vector<u_int32_t> nodepath2;
+            findBestSupportedPath(source_nodeIndex_2, dest_nodeName, unallowedNodenames, unitigDatas, nodepath2, anchorNodeNames);
+            
+            //cout << "\t\t" << nodepath1.size() << " " << nodepath2.size() << endl;
+            if(nodepath1.size() == 0 && nodepath2.size() == 0) return;
+
+            if(nodepath1.size() == 0){
+                path = nodepath2;
+            }
+            else if(nodepath2.size() == 0){
+                path = nodepath1;
+            }
+            else if(nodepath1.size() < nodepath2.size()){
+                path = nodepath1;
+            }
+            else{
+                path = nodepath2;
+            }
+        }
+        else{
+
+            //cout << "\t\tallo: " << BiGraph::nodeIndex_to_nodeName(nodeIndex_sourceLala) << endl;
+            vector<u_int32_t> nodepath;
+            findBestSupportedPath(nodeIndex_sourceLala, dest_nodeName, unallowedNodenames, unitigDatas, nodepath, anchorNodeNames);
+
+            path = nodepath;
+        }
+        */
+
+        
+        const vector<u_int64_t>& readIndexes_source = unitigDatas[source_nodeName]._readIndexes;
+
+        path.clear();
+		unordered_set<u_int32_t> isVisited1;
+		unordered_map<u_int32_t, u_int32_t> prev1;
+        //queue<u_int32_t> queue1;
+        priority_queue<NodeSupport, vector<NodeSupport> , NodeSupport_Comparator> queue1;
+		unordered_set<u_int32_t> isVisited2;
+		unordered_map<u_int32_t, u_int32_t> prev2;
+        //queue<u_int32_t> queue2;
+        priority_queue<NodeSupport, vector<NodeSupport> , NodeSupport_Comparator> queue2;
+		//unordered_map<u_int32_t, u_int32_t> distance1;
+		//unordered_map<u_int32_t, u_int32_t> distance2;
+
+		unordered_map<u_int32_t, u_int32_t> prev;
+
+        u_int32_t source_nodeIndex_1 = BiGraph::nodeName_to_nodeIndex(source_nodeName, true);
+        u_int32_t source_nodeIndex_2 = BiGraph::nodeName_to_nodeIndex(source_nodeName, false);
+
+        //unordered_map<u_int32_t, u_int32_t> dist1;
+        //unordered_map<u_int32_t, u_int32_t> dist2;
+
+        //distance1[source_nodeIndex_1] = 0;
+        //distance1[source_nodeIndex_2] = 0;
+
+        if(nodeIndex_sourceLala == -1){
+            //isVisited1.insert(source_nodeIndex_1);
+            prev1[source_nodeIndex_1] = -1;
+            queue1.push({source_nodeIndex_1, 0});
+            //isVisited2.insert(source_nodeIndex_2);
+            prev2[source_nodeIndex_2] = -1;
+            queue2.push({source_nodeIndex_2, 0});
+        }
+        else{
+            //isVisited1.insert(nodeIndex_sourceLala);
+            prev1[nodeIndex_sourceLala] = -1;
+            queue1.push({nodeIndex_sourceLala, 0});
+        }
+
+
+        for(u_int32_t nodeName : unallowedNodenames){
+            isVisited1.insert(BiGraph::nodeName_to_nodeIndex(nodeName, true));
+            isVisited1.insert(BiGraph::nodeName_to_nodeIndex(nodeName, false));
+            isVisited2.insert(BiGraph::nodeName_to_nodeIndex(nodeName, true));
+            isVisited2.insert(BiGraph::nodeName_to_nodeIndex(nodeName, false));
+        }
+        //isVisited1.insert(BiGraph::nodeName_to_nodeIndex(unallowedNodename, true));
+        //isVisited1.insert(BiGraph::nodeName_to_nodeIndex(unallowedNodename, false));
+        //isVisited2.insert(BiGraph::nodeName_to_nodeIndex(unallowedNodename, true));
+        //isVisited2.insert(BiGraph::nodeName_to_nodeIndex(unallowedNodename, false));
+
+        bool found = false;
+
+        u_int32_t source_nodeIndex = -1;
+        u_int32_t dest_nodeIndex = -1;
+        
+        while(!found){
+
+            //cout << source_nodeName << " " << dest_nodeName << endl;
+            //cout << queue1.size() << " " << queue2.size() << endl;
+
+
+            //cout << "\tTop1: " << BiGraph::nodeIndex_to_nodeName(queue2.top()._nodeIndex) << " " << queue2.top()._nbSupportingReads << endl;
+            
+            if(nodeIndex_sourceLala == -1){
+
+
+                if(queue1.empty() && queue2.empty()) break;
+
+                if(!queue1.empty() && !found){
+
+                    NodeSupport nodeSupport = queue1.top();
+                    queue1.pop();
+                    u_int32_t nodeIndex_current = nodeSupport._nodeIndex;
+
+                    //if (isVisited1.find(nodeIndex_current) != isVisited1.end()) continue;
+                    //isVisited1.insert(nodeIndex_current);
+
+                    //cout << "VisitL: " << BiGraph::nodeIndex_to_nodeName(nodeIndex_current) << endl;
+
+                    vector<u_int32_t> successors;
+                    getSuccessors(nodeIndex_current, 0, successors);
+
+                    for(u_int32_t nodeIndex_successor : successors){
+
+                        if (isVisited1.find(nodeIndex_successor) != isVisited1.end()) continue;
+                    
+                        const vector<u_int64_t>& readIndexes = unitigDatas[BiGraph::nodeIndex_to_nodeName(nodeIndex_successor)]._readIndexes;
+                        u_int32_t nbSharedReads = Utils::computeSharedReads(readIndexes_source, readIndexes);
+                        //cout << "\tNeighborsL: " << BiGraph::nodeIndex_to_nodeName(nodeIndex_successor) << " " << nbSharedReads << endl;
+
+                        if(nbSharedReads <= 1) continue;
+
+                        //if(dist1.find(nodeIndex_successor) == dist1.end()){
+                        //    dist1[nodeIndex_successor] = nbSharedReads;
+                        //}
+
+                        //if(dist1[nodeIndex_successor] > dist1[nodeIndex_current]){
+                            
+
+                            //dist1[nodeIndex_successor] = nbSharedReads; //dist1[nodeIndex_current] + ;
+                            queue1.push({nodeIndex_successor, nbSharedReads});
+
+                            prev1[nodeIndex_successor] = nodeIndex_current;
+
+                            //distance1[nodeIndex_successor] = distance1[nodeIndex_current] + 1;
+                            //if(distance1[nodeIndex_successor] > maxDistance) continue;
+
+                            //queue1.push({nodeIndex_successor, nbSharedReads});
+                            isVisited1.insert(nodeIndex_successor);
+                            //prev1[nodeIndex_successor] = nodeIndex_current;
+                            
+                            if(BiGraph::nodeIndex_to_nodeName(nodeIndex_successor) == dest_nodeName){
+                                source_nodeIndex = source_nodeIndex_1;
+                                dest_nodeIndex = nodeIndex_successor;
+                                found = true;
+                                prev = prev1;
+                                //cout << "found 1" << endl;
+                                break;
+                            }
+                        //}
+
+                        if(found) break;
+                    }
+                }
+
+                //cout << "\tTop2: " << BiGraph::nodeIndex_to_nodeName(queue2.top()._nodeIndex) << " " << queue2.top()._nbSupportingReads << endl;
+                
+                if(!queue2.empty() && !found){
+
+                    NodeSupport nodeSupport = queue2.top();
+                    queue2.pop();
+                    u_int32_t nodeIndex_current = nodeSupport._nodeIndex;
+
+                    //if (isVisited2.find(nodeIndex_current) != isVisited2.end()) continue;
+                    //isVisited2.insert(nodeIndex_current);
+                    //cout << "VisitR: " << BiGraph::nodeIndex_to_nodeName(nodeIndex_current) << endl;
+
+                    vector<u_int32_t> successors;
+                    getSuccessors(nodeIndex_current, 0, successors);
+
+                    for(u_int32_t nodeIndex_successor : successors){
+
+                        if (isVisited2.find(nodeIndex_successor) != isVisited2.end()) continue;
+                    
+                        const vector<u_int64_t>& readIndexes = unitigDatas[BiGraph::nodeIndex_to_nodeName(nodeIndex_successor)]._readIndexes;
+                        u_int32_t nbSharedReads = Utils::computeSharedReads(readIndexes_source, readIndexes);
+                        //cout << "\tNeighborsR: " << BiGraph::nodeIndex_to_nodeName(nodeIndex_successor) << " " << nbSharedReads << endl;
+
+                        if(nbSharedReads <= 1) continue;
+
+                        //if(dist2.find(nodeIndex_successor) == dist2.end()){
+                        //    dist2[nodeIndex_successor] = nbSharedReads;
+                        //}
+
+                        //if(dist2[nodeIndex_successor] > dist2[nodeIndex_current]){
+                            
+
+                        //dist2[nodeIndex_successor] = nbSharedReads; //dist2[nodeIndex_current] + nbSharedReads;
+                        //cout << "\tInsert: " << BiGraph::nodeIndex_to_nodeName(nodeIndex_successor) << " " << nbSharedReads << endl;
+
+                        queue2.push({nodeIndex_successor, nbSharedReads});
+                        //cout << "\tTop: " << BiGraph::nodeIndex_to_nodeName(queue2.top()._nodeIndex) << " " << queue2.top()._nbSupportingReads << endl;
+                        prev2[nodeIndex_successor] = nodeIndex_current;
+
+                        //distance1[nodeIndex_successor] = distance1[nodeIndex_current] + 1;
+                        //if(distance1[nodeIndex_successor] > maxDistance) continue;
+
+                        //queue1.push({nodeIndex_successor, nbSharedReads});
+                        isVisited2.insert(nodeIndex_successor);
+                        //prev1[nodeIndex_successor] = nodeIndex_current;
+                        
+                        if(BiGraph::nodeIndex_to_nodeName(nodeIndex_successor) == dest_nodeName){
+                            source_nodeIndex = source_nodeIndex_2;
+                            dest_nodeIndex = nodeIndex_successor;
+                            found = true;
+                            prev = prev2;
+                            //cout << "found 2" << endl;
+                            break;
+                        }
+                        //}
+
+                        if(found) break;
+                    }
+
+                    //cout << "\tTop: " << BiGraph::nodeIndex_to_nodeName(queue2.top()._nodeIndex) << " " << queue2.top()._nbSupportingReads << endl;
+                            
+                }
+            }
+            else{
+
+                if(queue1.empty()) break;
+
+                if(!queue1.empty() && !found){
+
+                    NodeSupport nodeSupport = queue1.top();
+                    queue1.pop();
+                    u_int32_t nodeIndex_current = nodeSupport._nodeIndex;
+
+                    //if (isVisited1.find(nodeIndex_current) != isVisited1.end()) continue;
+                    //isVisited1.insert(nodeIndex_current);
+                    
+                    //cout << "Visit: " << BiGraph::nodeIndex_to_nodeName(nodeIndex_current) << endl;
+
+                    vector<u_int32_t> successors;
+                    getSuccessors(nodeIndex_current, 0, successors);
+
+                    for(u_int32_t nodeIndex_successor : successors){
+
+                        if (isVisited1.find(nodeIndex_successor) != isVisited1.end()) continue;
+                    
+                        const vector<u_int64_t>& readIndexes = unitigDatas[BiGraph::nodeIndex_to_nodeName(nodeIndex_successor)]._readIndexes;
+                        u_int32_t nbSharedReads = Utils::computeSharedReads(readIndexes_source, readIndexes);
+                        //cout << "\tNeighbors: " << BiGraph::nodeIndex_to_nodeName(nodeIndex_successor) << " " << nbSharedReads << endl;
+
+                        if(nbSharedReads <= 1) continue;
+
+                        //if(dist1.find(nodeIndex_successor) == dist1.end()){
+                        //    dist1[nodeIndex_successor] = nbSharedReads;
+                        //}
+
+                        //if(dist1[nodeIndex_successor] > dist1[nodeIndex_current]){
+                            
+
+                            //dist1[nodeIndex_successor] = nbSharedReads; //dist1[nodeIndex_current] + ;
+                            queue1.push({nodeIndex_successor, nbSharedReads});
+
+                            prev1[nodeIndex_successor] = nodeIndex_current;
+
+                            //distance1[nodeIndex_successor] = distance1[nodeIndex_current] + 1;
+                            //if(distance1[nodeIndex_successor] > maxDistance) continue;
+
+                            //queue1.push({nodeIndex_successor, nbSharedReads});
+                            isVisited1.insert(nodeIndex_successor);
+                            //prev1[nodeIndex_successor] = nodeIndex_current;
+                            
+                            if(BiGraph::nodeIndex_to_nodeName(nodeIndex_successor) == dest_nodeName){
+                                source_nodeIndex = nodeIndex_sourceLala;
+                                dest_nodeIndex = nodeIndex_successor;
+                                found = true;
+                                prev = prev1;
+                                //cout << "found 1" << endl;
+                                break;
+                            }
+                        //}
+
+                        if(found) break;
+                    }
+                }
+            }
+            
+            //cout << "\tTop: " << BiGraph::nodeIndex_to_nodeName(queue2.top()._nodeIndex) << " " << queue2.top()._nbSupportingReads << endl;
+                
+         
+            //if(source_nodeName == 6999 && dest_nodeName == 5632) getchar();
+            //getchar(); 
+        } 
+
+        //cout << "\tFound: " << found << endl;
+
+        if(found){
+
+            u_int32_t n = dest_nodeIndex;
+            while(n != source_nodeIndex){
+
+                //cout << BiGraph::nodeIndex_to_nodeName(source_nodeIndex) << " " << BiGraph::nodeIndex_to_nodeName(dest_nodeIndex) << " " << BiGraph::nodeIndex_to_nodeName(n) << " " << n << endl;
+                //cout << "haaaaa" << endl;
+
+                if(n == dest_nodeIndex){
+                    if(includeSink) path.push_back(n);
+                }
+                else{
+                    path.push_back(n);
+                }
+
+                n = prev[n];
+            }
+            if(includeSource) path.push_back(source_nodeIndex);
+
+            //return distance[dest_nodeIndex];
+        }
+
+
+        //return -1;
+
+        
+    }
 
 };
 

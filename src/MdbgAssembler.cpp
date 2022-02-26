@@ -3,7 +3,7 @@
 #include "assembly/Assembly3.hpp"
 #include "toBasespace/ToBasespace.hpp"
 #include "toBasespace/ToBasespaceNoCorrection.hpp"
-#include "toBasespace/ToMinspace.hpp"
+//#include "toBasespace/ToMinspace.hpp"
 #include "pipeline/AssemblyPipeline.hpp"
 #include "readSelection/ReadSelection.hpp"
 #include "contigFeatures/KminmerCounter.hpp"
@@ -89,9 +89,9 @@ int main (int argc, char* argv[])
     		else if(programName == "toBasespaceFast"){
                 ToBasespaceNoCorrection().run (argc, args);
     		}
-    		else if(programName == "toMinspace"){
-                ToMinspace().run (argc, args);
-    		}
+    		//else if(programName == "toMinspace"){
+            //    ToMinspace().run (argc, args);
+    		//}
     		else if(programName == "count"){
                 KminmerCounter().run (argc, args);
     		}

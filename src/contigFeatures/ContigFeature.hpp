@@ -242,7 +242,7 @@ public:
 			vector<float> abundanceMean;
 			vector<float> abundanceVar;
 
-			for(size_t i=3; i<fields->size(); i++){
+			for(size_t i=1; i<fields->size(); i++){ //metabat i=3
 				const string& field = (*fields)[i];
 				if(field.empty()) continue;
 				//cout << i << " " << (*fields)[i] << endl;

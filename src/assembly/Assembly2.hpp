@@ -82,7 +82,7 @@ ToBasespaceOnTheFly: en théorie, on peut reconstruire la partie manquante des c
 #include "eval/ContigStatistics.hpp"
 #include "toBasespace/ToBasespaceOnTheFly.hpp"
 #include "contigFeatures/ContigFeature.hpp"
-#include "assembly/Assembly.hpp"
+//#include "assembly/Assembly.hpp"
 
 const u_int32_t LONG_UNITIG_LENGTH = 10000;
 const u_int32_t MIN_SUPPORTED_READS = 2;
@@ -312,7 +312,7 @@ public:
             //gfa_filename = _inputDir + "/minimizer_graph_debug.gfa";
 		//}
 		
-		GraphSimplify* graphSimplify = new GraphSimplify(_gfaFilename, _inputDir, 0);
+		GraphSimplify* graphSimplify = new GraphSimplify(_gfaFilename, _inputDir, 0, _kminmerSize);
 		_graph = graphSimplify;
 		
 		
@@ -1641,7 +1641,7 @@ public:
 	}
 
 
-	void indexReads_read(const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex){//}, const vector<KmerVec>& kminmers_k3, const vector<ReadKminmer>& kminmersInfos_k3){
+	void indexReads_read(const vector<u_int64_t>& minimizers, const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex){//}, const vector<KmerVec>& kminmers_k3, const vector<ReadKminmer>& kminmersInfos_k3){
 
 		//vector<ReadIndexType> unitigIndexex;
 
@@ -1675,9 +1675,9 @@ public:
 	void removeUnsupportedEdges(const string& gfaFilename, const string& gfa_filename_noUnsupportedEdges, GraphSimplify* graph){
 
 		
-		KminmerParser parser(_filename_readMinimizers, _minimizerSize, _kminmerSize);
+		KminmerParser parser(_filename_readMinimizers, _minimizerSize, _kminmerSize, true);
 		//auto fp = std::bind(&Assembly::indexReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5);
-		auto fp = std::bind(&Assembly2::indexReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+		auto fp = std::bind(&Assembly2::indexReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
 		parser.parse(fp);
 		
 		vector<DbgEdge> removedEdges;
@@ -2232,7 +2232,7 @@ public:
 
 	void execute_binning(){
 
-		Assembly assembly(_unitigDatas, _contigFeature);
+		//Assembly assembly(_unitigDatas, _contigFeature);
 
 
 
@@ -3456,7 +3456,7 @@ public:
 		ofstream file_asmResult = ofstream(_inputDir + "/binning_results.csv");
 		file_asmResult << "Name,Colour" << endl;
 
-		Assembly assembly(_unitigDatas, _contigFeature);
+		//Assembly assembly(_unitigDatas, _contigFeature);
 
 		float prevCutoff = -1;
 
@@ -3583,7 +3583,7 @@ public:
 			//exit(1);
 
 			vector<u_int64_t> nodePath_supportingReads;
-			assembly.solveBin2(u._startNode, u._abundance, _graph, 0, 0, false, nodePath, nodePath_supportingReads, 0);
+			//assembly.solveBin2(u._startNode, u._abundance, _graph, 0, 0, false, nodePath, nodePath_supportingReads, 0);
 
 
 			for(u_int32_t nodeIndex : nodePath){
@@ -5285,7 +5285,7 @@ public:
 		ofstream file_asmResult = ofstream(_inputDir + "/binning_results.csv");
 		file_asmResult << "Name,Colour" << endl;
 
-		Assembly assembly(_unitigDatas, _contigFeature);
+		//Assembly assembly(_unitigDatas, _contigFeature);
 
 		float prevCutoff = -1;
 
