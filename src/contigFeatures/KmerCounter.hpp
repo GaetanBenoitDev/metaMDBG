@@ -77,7 +77,7 @@ public:
 		_kmerModel = new KmerModel(31);
 		_minimizerParser = new MinimizerParser(31, 0.1);
 
-		ReadParser parserDatasets(_inputFilename_shortreads, false);
+		ReadParser parserDatasets(_inputFilename_shortreads, false, false);
 		_nbDatasets = parserDatasets._nbDatasets;
 		_nbDatasets /= 2; //PAIRED
 		cout << "Nb datasets: " << _nbDatasets << endl;
@@ -103,7 +103,7 @@ public:
 
 	void extractContigKmers (){
 
-		ReadParser parser(_inputFilename_contig, true);
+		ReadParser parser(_inputFilename_contig, true, false);
 		auto fp = std::bind(&KmerCounter::extractContigKmers_read, this, std::placeholders::_1, std::placeholders::_2);
 		parser.parse(fp);
 
@@ -150,7 +150,7 @@ public:
 	void countShortreadsKmers (){
 
 		_currentDatasetIndex = 0;
-		ReadParser parser(_inputFilename_shortreads, false);
+		ReadParser parser(_inputFilename_shortreads, false, false);
 		u_int64_t datasetIndex = 0;
 
 		for(const string& filename : parser._filenames){
@@ -170,7 +170,7 @@ public:
 
 
 
-			ReadParser parserDataset(filename, true);
+			ReadParser parserDataset(filename, true, false);
 			auto fp = std::bind(&KmerCounter::countShortreadsKmers_read, this, std::placeholders::_1, std::placeholders::_2);
 			parserDataset.parse(fp);
 
@@ -221,7 +221,7 @@ public:
 	void computeContigCoverage (){
 
 		cout << "\tComputing contig coverage" << endl;
-		ReadParser parser(_inputFilename_contig, true);
+		ReadParser parser(_inputFilename_contig, true, false);
 		auto fp = std::bind(&KmerCounter::computeContigCoverage_read, this, std::placeholders::_1, std::placeholders::_2);
 		parser.parse(fp);
 

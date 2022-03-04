@@ -399,7 +399,7 @@ public:
 		//cout << graphSimplify->_graphSuccessors->_nbEdges << endl;
 		//graphSimplify->execute(5, _kminmerSize);
 		//graphSimplify->debug_writeGfaErrorfree(1000, PathExplorer::computeAbundanceCutoff(1000, 0, CutoffType::ERROR), -1, _kminmerSize, false, true, false, _unitigDatas);
-		_graph->debug_writeGfaErrorfree(500, 500, -1, _kminmerSize, false, true, false, _unitigDatas);
+		_graph->debug_writeGfaErrorfree(500, 500, -1, _kminmerSize, false, true, false, _unitigDatas, true);
 
 
 
@@ -1825,7 +1825,7 @@ public:
 		_minimizerParser = new MinimizerParser(_minimizerSize, _minimizerDensity);
 		
 		auto fp = std::bind(&Assembly2::extract_truth_kminmers_read, this, std::placeholders::_1, std::placeholders::_2);
-		ReadParser readParser(_truthInputFilename, true);
+		ReadParser readParser(_truthInputFilename, true, false);
 		readParser.parse(fp);
 
 		_file_groundTruth_hifiasm_position.close();

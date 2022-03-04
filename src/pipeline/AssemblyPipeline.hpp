@@ -135,12 +135,17 @@ public:
 
 		u_int64_t pass = 0;
 		u_int32_t prevK = -1;
+		size_t firstK = -1;
 
 		for(size_t k=4; k<31; k+=1){
+
+			if(firstK == -1){
+				firstK = k;
+			}
 			//cout << "Start asm: " << k << endl;
 
 
-			writeParameters(minimizerSize, k, density);
+			writeParameters(minimizerSize, k, density, firstK);
 			//if(pass > 0) createInputFile(true);
 
 			//if(pass <= 0){
@@ -159,15 +164,16 @@ public:
 
 			//Read selection
 			command = _filename_exe + " readSelection -i " + inputFilename + " -o " + _inputDir + " -f " + _inputDir + "/read_data.gz";
+			if(pass == 0) command += " --firstpass";
 			executeCommand(command);
 
 
 			command = _filename_exe + " graph -o " + _inputDir;
-			//if(pass > 0) command += " -c " +  _inputDir + "/contig_data.gz";
+			if(pass == 0) command += " --firstpass";
 			executeCommand(command);
 			//getchar();
 
-			command = _filename_exe + " contig -o " + _inputDir;
+			command = _filename_exe + " multik -o " + _inputDir;
 			if(!_truthInputFilename.empty()) command += " --itruth " + _truthInputFilename;
 			//if(pass > 0) command += " -c " +  _inputDir + "/contig_data.gz";
 			executeCommand(command);
@@ -177,16 +183,31 @@ public:
 			//executeCommand(command);
 
 			//command = _filename_exe + " toBasespaceFast " +  " -o " + _inputDir + " -i " + _inputFilenameComplete;
+			//command = _filename_exe + " toBasespaceFast " + " -o " + _inputDir + " -i " + inputFilename + " -c " + _inputDir + "/correctedReads_" + to_string(k) + ".min.gz";
+			//if(pass == 0) command += " --firstpass";
+			//executeCommand(command);
+
 			command = _filename_exe + " toBasespaceFast " + " -o " + _inputDir + " -i " + inputFilename + " -c " + _inputDir + "/correctedReads_" + to_string(k) + ".min.gz";
-			//if(pass > 0) command += " -c " +  _inputDir + "/tmpContigs.fasta.gz";
+			if(pass == 0) command += " --firstpass";
 			executeCommand(command);
 
-			//getchar();
-
-			if(k >= 10){
-				command = _filename_exe + " toBasespaceFast " + " -o " + _inputDir + " -i " + inputFilename + " -c " + _inputDir + "/contigs.nodepath.gz";
+			//if(pass > 0){
+				//Generate contigs
+				command = _filename_exe + " contig " + " -o " + _inputDir;
+				if(!_truthInputFilename.empty()) command += " --itruth " + _truthInputFilename;
+				//if(pass == 0) command += " --firstpass";
 				executeCommand(command);	
-			}
+
+				command = _filename_exe + " toBasespaceFast " + " -o " + _inputDir + " -i " + inputFilename + " -c " + _inputDir + "/contigs.nodepath.gz --fasta";
+				if(pass == 0) command += " --firstpass";
+				executeCommand(command);	
+
+				command = _filename_exe + " toBasespace " + " -o " + _inputDir + " -i " + _inputFilename + " -c " + _inputDir + "/contigs.nodepath.gz.fasta.gz --fasta";
+				if(pass == 0) command += " --firstpass";
+				executeCommand(command);	
+
+			//}
+
 			/*
 			//Contig selection
 			const string& inputFilenameContig =  _inputDir + "/tmpInputContig.txt";
@@ -220,13 +241,14 @@ public:
 		}
 	}
 
-	void writeParameters(size_t minimizerSize, size_t k, float density){
+	void writeParameters(size_t minimizerSize, size_t k, float density, size_t firstK){
 
 		string filename_parameters = _inputDir + "/parameters.gz";
 		gzFile file_parameters = gzopen(filename_parameters.c_str(),"wb");
 		gzwrite(file_parameters, (const char*)&minimizerSize, sizeof(minimizerSize));
 		gzwrite(file_parameters, (const char*)&k, sizeof(k));
 		gzwrite(file_parameters, (const char*)&density, sizeof(density));
+		gzwrite(file_parameters, (const char*)&firstK, sizeof(firstK));
 		gzclose(file_parameters);
 	}
 
@@ -253,7 +275,7 @@ public:
 		string inputFilename = _inputDir + "/input.txt";
 		ofstream inputFile(inputFilename);
 
-		const string& filename = _inputDir + "/correctedReads_" + to_string(k) + ".min.gz.fasta.gz";
+		const string& filename = _inputDir + "/correctedReads_" + to_string(k) + ".min.gz.bitset";
 		inputFile << filename << endl;
 		/*
 		ReadParser readParser(_inputFilename, false);

@@ -65,8 +65,7 @@ ToBasespaceOnTheFly: en théorie, on peut reconstruire la partie manquante des c
 #ifndef MDBG_METAG_ASSEMBLY3
 #define MDBG_METAG_ASSEMBLY3
 
-//#define PRINT_ADDED_NODES
-//#define PRINT_PREV_RANK
+//#define PRINT_DEBUG_PREVRANK
 
 #include "Commons.hpp"
 
@@ -210,6 +209,7 @@ public:
 	}
 
 	unordered_map<u_int64_t, vector<u_int32_t>> _debug_readPath;
+    vector<bool> _isBubble;
 
 	void loadGraph(){
 
@@ -264,7 +264,12 @@ public:
 			//cout << graphSimplify->_graphSuccessors->_nbEdges << endl;
 			//graphSimplify->execute(5, _kminmerSize);
 			//graphSimplify->debug_writeGfaErrorfree(1000, PathExplorer::computeAbundanceCutoff(1000, 0, CutoffType::ERROR), -1, _kminmerSize, false, true, false, _unitigDatas);
-			_graph->debug_writeGfaErrorfree(500, 500, -1, _kminmerSize, false, true, false, _unitigDatas);
+			_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true);
+			
+			_isBubble = _graph->_isBubble;
+
+			_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, false);
+
 			_graph->loadState2(0, -1, _unitigDatas);
 		//}
 
@@ -315,7 +320,7 @@ public:
 		//getchar();
 		//debug_checkReads();
 		//cout << endl << endl;
-		partitionReads();
+		//partitionReads();
 		correctReads();
 		//getchar();
 
@@ -548,7 +553,7 @@ public:
 		_minimizerParser = new MinimizerParser(_minimizerSize, _minimizerDensity);
 		
 		auto fp = std::bind(&Assembly3::extract_truth_kminmers_read, this, std::placeholders::_1, std::placeholders::_2);
-		ReadParser readParser(_truthInputFilename, true);
+		ReadParser readParser(_truthInputFilename, true, false);
 		readParser.parse(fp);
 
 		_file_groundTruth_hifiasm_position.close();
@@ -1536,6 +1541,7 @@ public:
 
 	unordered_map<u_int32_t, gzFile> _readPartitions;
 
+	
 	void partitionReads(){
 
 		//cout << "Partitionning reads" << endl;
@@ -1606,14 +1612,14 @@ public:
 		//if(readPathAbundance < 10) getchar();
 
 		float cutoff = readPathAbundance * 0.1;
-		
+		cutoff = 0;
 		//if(_kminmerSize != 4) 
 		//cutoff = 0;
 
 		u_int32_t cutoffLevel = 0;
 		float realCutoff = 0;
 		for(const SaveState2& saveState : _graph->_cachedGraphStates){
-			if(saveState._abundanceCutoff_min > cutoff) break;
+			if(saveState._abundanceCutoff_min >= cutoff) break;
 			realCutoff = saveState._abundanceCutoff_min;
 			cutoffLevel += 1;
 		}
@@ -1626,7 +1632,7 @@ public:
 	}
 
 
-	ofstream file_correction;
+	//ofstream file_correction;
 	gzFile _outputFile_correctedReads;
 
 	void correctReads(){
@@ -1676,12 +1682,15 @@ public:
 
 	void correctReads_read(const vector<u_int64_t>& minimizers, const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex){//}, const vector<KmerVec>& kminmers_k3, const vector<ReadKminmer>& kminmersInfos_k3){
 
-		file_correction = ofstream(_inputDir + "/correction.csv");
-		file_correction << "Name,Color" << endl;
+		bool print_read = false;
+		if(readIndex % 10000 == 0) print_read = true;
 
-		//cout << "-------------" << endl;
-		//cout << readIndex << endl;
-		//cout << minimizers.size() << endl;
+		//file_correction = ofstream(_inputDir + "/correction.csv");
+		//file_correction << "Name,Color" << endl;
+
+		if(print_read) cout << "-------------" << endl;
+		if(print_read) cout << readIndex << endl;
+		if(print_read) cout << minimizers.size() << endl;
 
 
 		
@@ -1689,33 +1698,79 @@ public:
 
 		bool isHere = false;
 		vector<u_int32_t> nodePath;
-
+		vector<u_int32_t> nodePath_withMissing;
+	
+		if(print_read) cout << "\t";
 		for(const KmerVec& vec : kminmers){
 			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
-				cout << "XXX ";
+				nodePath_withMissing.push_back(-1);
+				if(print_read) cout << "XXXXX ";
 				continue;
 			}
 			
 			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
 
-			cout << nodeName << " ";
+			if(_isBubble[BiGraph::nodeName_to_nodeIndex(nodeName, true)]){
+				if(print_read) cout << nodeName << "B ";
+				//continue;
+			}
+			else{
+				if(print_read) cout << nodeName << " ";
+			}
+
 			
 			if(nodeName == 2630) isHere = true;
 			//if(readIndex == 1510){
-			file_correction << nodeName << "," << "red" << endl;
+			//file_correction << nodeName << "," << "red" << endl;
 			//}
 			nodePath.push_back(nodeName);
+			nodePath_withMissing.push_back(nodeName);
 		}
-		cout << endl;
+		if(print_read) cout << endl;
 
 		//if(_kminmerSize == 7 && isHere) getchar();
 
 
-		vector<u_int32_t> readpath;
-		applyReadCorrection(nodePath, readpath);
 
-		vector<u_int32_t> contigpath;
-		readpathToContig(readpath, contigpath);
+
+		/*
+		double n = 0;
+		double sum = 0;
+		unordered_set<u_int32_t> writtenUnitigs;
+
+		vector<float> readpathAbudance_values;
+		for(u_int32_t nodeName : nodePath){
+
+			u_int32_t nodeIndex = BiGraph::nodeName_to_nodeIndex(nodeName, false);
+			u_int32_t unitigIndex = _graph->nodeIndex_to_unitigIndex(nodeIndex);
+			const Unitig& u = _graph->_unitigs[unitigIndex];
+
+			if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
+			if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
+
+			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._startNode));
+			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
+
+			for(u_int32_t nodeIndex : u._nodes){
+				readpathAbudance_values.push_back(u._abundance);
+				//cout << u._abundance << " ";
+				n += 1;
+				sum += u._abundance;
+			}
+		}
+		//cout << endl;
+		
+		float readPathAbundance = Utils::compute_median_float(readpathAbudance_values); //sum / n;
+		cout << "Read path abundance: " << readPathAbundance << " " << (sum / n) << endl;
+		*/
+
+
+
+		vector<u_int32_t> readpath;
+		applyReadCorrection(nodePath, readpath, print_read);
+
+		//vector<u_int32_t> contigpath;
+		extendReadpath(nodePath_withMissing, readpath, print_read);
 
 		bool isPathErroneous = false;
 		//cout << "lala" << endl;
@@ -1752,7 +1807,7 @@ public:
 		}
 		*/
 
-		file_correction.flush();
+		//file_correction.flush();
 
 		//346, 1734, 1770, 2136, 2323, 2364
 		if(readIndex == 346){
@@ -1809,11 +1864,18 @@ public:
 		}
 		*/
 		
+		if(print_read){
+			cout << readpath.size() << endl;
+			cout << "\t";
+			for(u_int32_t nodeIndex : readpath){
+				cout << BiGraph::nodeIndex_to_nodeName(nodeIndex) << " ";
+			}
+			cout << endl;
+		}
 
-
-		u_int64_t size = contigpath.size();
+		u_int64_t size = readpath.size();
 		gzwrite(_outputFile_correctedReads, (const char*)&size, sizeof(size));
-		gzwrite(_outputFile_correctedReads, (const char*)&contigpath[0], size * sizeof(u_int32_t));
+		gzwrite(_outputFile_correctedReads, (const char*)&readpath[0], size * sizeof(u_int32_t));
 
 		//vector<ReadIndexType> unitigIndexex;
 
@@ -1845,50 +1907,230 @@ public:
 
 	}
 
-	void applyReadCorrection(const vector<u_int32_t>& nodePath, vector<u_int32_t>& readpath){
+	void applyReadCorrection(const vector<u_int32_t>& nodePath, vector<u_int32_t>& readpath, bool print_read){
 
 		
-		//_graph->loadState2(0, -1, _unitigDatas);
-		/*
-		unordered_set<u_int32_t> writtenUnitigs;
-
-		vector<float> readpathAbudance_values;
-		for(u_int32_t nodeName : nodePath){
-
-			u_int32_t nodeIndex = BiGraph::nodeName_to_nodeIndex(nodeName, false);
-			u_int32_t unitigIndex = _graph->nodeIndex_to_unitigIndex(nodeIndex);
-			const Unitig& u = _graph->_unitigs[unitigIndex];
-
-			if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
-			if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
-
-			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._startNode));
-			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
-
-			for(u_int32_t nodeIndex : u._nodes){
-				readpathAbudance_values.push_back(u._abundance);
-			}
-		}
-		
-		float readPathAbundance = Utils::compute_median_float(readpathAbudance_values);
-		cout << "Read path abundance: " << readPathAbundance << endl;
-		*/
-		float minSupportingReads = 4; //readPathAbundance * 0.15;
-		//float cutoff = readPathAbundance * 0.2;
-		//_graph->loadState2(cutoff, -1, _unitigDatas);
-		
-
+		float minSupportingReads = 2;
 		u_int32_t maxDepth = nodePath.size()*2;
+
 		readpath.clear();
 
-		vector<u_int32_t> nodePath_existing;
+
+
+		vector<u_int32_t> nodePath_errorFree;
 		for(u_int32_t nodeName : nodePath){
-			if(_graph->_isNodeValid2.find(BiGraph::nodeName_to_nodeIndex(nodeName, true)) == _graph->_isNodeValid2.end()) continue;
-			nodePath_existing.push_back(nodeName);
+
+			u_int32_t nodeIndex = BiGraph::nodeName_to_nodeIndex(nodeName, true);
+
+			if(_graph->_isNodeValid2.find(nodeIndex) == _graph->_isNodeValid2.end()) continue;
+			if(_isBubble[nodeIndex]) continue;
+
+			nodePath_errorFree.push_back(nodeName);
 		}
-		if(nodePath_existing.size() == 0) return;
+
+		if(print_read){
+			cout << "\tRead error free:" << endl;
+			cout << "\t";
+			for(u_int32_t nodeName : nodePath_errorFree){
+				cout << nodeName << " ";
+			}
+			cout << endl;
+		}
+
+		if(nodePath_errorFree.size() == 0) return;
 
 
+		//cout << nodePath_errorFree.size() << endl;
+
+
+
+
+
+		bool isFix = false;
+		vector<u_int32_t> nodePath_errorFree_fixed;
+
+		for(long i=0; i<((long)nodePath_errorFree.size())-1; i++){
+			
+			u_int32_t nodeName_source = nodePath_errorFree[i];
+			u_int32_t nodeName_dest = nodePath_errorFree[i+1];
+
+			nodePath_errorFree_fixed.push_back(nodeName_source);
+
+			vector<u_int32_t> path;
+			//_graph->shortestPath_nodeName(nodeName_source, nodeName_dest, path, true, true, maxDepth, _unitigDatas, unallowedNodeNames, nodeIndex_source, nodePath_anchor);
+    		_graph->finUniquePath(nodeName_source, nodeName_dest, path, false, false, maxDepth);
+
+			if(path.size() == 0){
+				continue;
+			}
+			else{
+				isFix = true;
+			}
+
+			std::reverse(path.begin(), path.end());
+
+			for(u_int32_t nodeIndex : path){
+				nodePath_errorFree_fixed.push_back(BiGraph::nodeIndex_to_nodeName(nodeIndex));
+			}
+			
+		}
+		nodePath_errorFree_fixed.push_back(nodePath_errorFree[nodePath_errorFree.size()-1]);
+
+		if(print_read){
+			cout << "\tRead error free (fixed):" << endl;
+			cout << "\t";
+			for(u_int32_t nodeName : nodePath_errorFree_fixed){
+				cout << nodeName << " ";
+			}
+			cout << endl;
+			//if(isFix) getchar();
+		}
+
+
+
+
+
+
+
+
+
+		
+		vector<u_int32_t> nodePath_anchor = nodePath_errorFree_fixed;
+		//for(u_int32_t nodeName : nodePath_errorFree_fixed)
+
+
+
+		vector<u_int32_t> nodePath_connected = nodePath_errorFree_fixed;
+		
+		u_int32_t prevNodename = -1;
+		u_int32_t nodeIndex_source = -1;
+		//u_int32_t nodeIndex_dest = -1;
+
+		
+		for(long i=0; i<((long)nodePath_connected.size())-1; i++){
+			
+			u_int32_t nodeName_source = nodePath_connected[i];
+			u_int32_t nodeName_dest = nodePath_connected[i+1];
+
+			bool foundPath = false;
+
+			while(true){
+
+				unordered_set<u_int32_t> unallowedNodeNames;
+				for(long j=0; j<nodePath_connected.size(); j++){
+					if(nodePath_connected[j] == nodeName_source || nodePath_connected[j] == nodeName_dest) continue;
+					unallowedNodeNames.insert(nodePath_connected[j]);
+				}
+
+				//cout << "\tSearching path: " << nodeName_source << " " << nodeName_dest << endl;
+				//cout << Utils::computeSharedReads(_unitigDatas[nodeName_source], _unitigDatas[nodeName_dest]) << endl;
+
+				//cout << nodePath_anchor.size() << endl;
+				vector<u_int32_t> path;
+				_graph->shortestPath_nodeName(nodeName_source, nodeName_dest, path, true, true, maxDepth, _unitigDatas, unallowedNodeNames, nodeIndex_source, nodePath_anchor);
+
+				if(path.size() == 0){
+					foundPath = false;
+					break;
+				}
+
+				foundPath = true;
+				//cout << "done" << endl;
+
+				std::reverse(path.begin(), path.end());
+
+				//cout << "\t";
+				if(readpath.size() == 0){
+					for(u_int32_t nodeIndex : path){
+						readpath.push_back(nodeIndex);
+					}
+				}
+				else{ //Discard source
+					for(size_t i=1; i<path.size(); i++){ 
+						//cout << BiGraph::nodeIndex_to_nodeName(nodeIndex) << " ";
+						readpath.push_back(path[i]);
+					}
+				}
+				prevNodename = nodeName_source;
+				
+				if(readpath.size() > 0){
+					nodeIndex_source = readpath[readpath.size()-1];
+				}
+				//cout << endl;
+
+				if(foundPath){
+					nodePath_anchor = nodePath_errorFree_fixed;
+					break;
+				}
+				else{
+					size_t distStart = 0;
+					size_t distEnd = 0;
+					for(u_int32_t nodeName : nodePath_connected){
+						if(nodeName == nodeName_source || nodeName == nodeName_dest) break;
+						distStart += 1;
+					}
+					for(long i=nodePath_connected.size()-1; i>=0; i--){
+						u_int32_t nodeName = nodePath_connected[i];
+						if(nodeName == nodeName_source || nodeName == nodeName_dest) break;
+						distEnd += 1;
+					}
+
+					bool isSolution = true;
+
+					if(distStart < distEnd){
+						u_int32_t nodeName = nodePath_anchor[0];
+						if(nodeName == nodeName_source || nodeName == nodeName_dest){
+							nodeName = nodePath_anchor[nodePath_anchor.size()-1];
+							if(nodeName == nodeName_source || nodeName == nodeName_dest){
+								isSolution = false;
+							}
+							else{
+								nodePath_anchor.pop_back();
+							}
+						}
+						else{
+							nodePath_anchor.erase(nodePath_anchor.begin());
+						}
+					}
+					else{
+						u_int32_t nodeName = nodePath_anchor[nodePath_anchor.size()-1];
+						if(nodeName == nodeName_source || nodeName == nodeName_dest){
+							nodeName = nodePath_anchor[0];
+							if(nodeName == nodeName_source || nodeName == nodeName_dest){
+								isSolution = false;
+							}
+							else{
+								nodePath_anchor.pop_back();
+							}
+						}
+						else{
+							nodePath_anchor.erase(nodePath_anchor.begin());
+						}
+					}
+
+					if(!isSolution){
+						nodePath_anchor = nodePath_errorFree_fixed;
+						break;
+					}
+				}
+
+			}
+
+
+		}
+
+		
+
+		if(print_read){
+			cout << "\tRead corrected:" << endl;
+			cout << "\t";
+			for(u_int32_t nodeIndex : readpath){
+				cout << BiGraph::nodeIndex_to_nodeName(nodeIndex) << " ";
+			}
+			cout << endl;
+		}
+
+		/*
 		long supportSize = 6;
 		if(nodePath_existing.size() < supportSize) return;
 
@@ -1966,6 +2208,7 @@ public:
 
 			ii += 1;
 		}
+		*/
 		
 		/*
 		cout << "\tRead supported:" << endl;
@@ -2149,7 +2392,7 @@ public:
 		*/
 
 
-
+		/*
 		vector<u_int32_t> nodePath_connected = nodePath_existing;
 		u_int32_t prevNodename = -1;
 		u_int32_t nodeIndex_source = -1;
@@ -2197,7 +2440,7 @@ public:
 			//cout << endl;
 		}
 		//cout << endl;
-		
+		*/
 		/*
 		cout << nodePath_connected.size() << " " << nodePath_connected.size()-6 << endl;
 		for(long i=0; i< ((long)nodePath_connected.size())-6; i++){
@@ -2211,6 +2454,259 @@ public:
 
 	}
 
+	void extendReadpath(const vector<u_int32_t>& originalNodePath, vector<u_int32_t>& readpath, bool print_read){
+
+		#ifdef PRINT_DEBUG_PREVRANK
+			cout << "\tExtending read path" << endl;
+			cout << "\t";
+			for(u_int32_t nodeIndex : readpath){
+				cout << BiGraph::nodeIndex_to_nodeName(nodeIndex) << " ";
+			}
+			cout << endl;
+		#endif
+
+		if(readpath.size() == 0) return;
+
+		//cout << "\tNode path original:" << endl;
+		//cout << "\t";
+		//for(u_int32_t nodeName : originalNodePath){
+		//	cout << nodeName << " ";
+		//}
+		//cout << endl;
+
+		unordered_set<u_int32_t> readPathIndexed;
+		for(size_t i=0; i<readpath.size(); i++){
+			//cout << BiGraph::nodeIndex_to_nodeName(readpath[i]) << endl;
+			readPathIndexed.insert(BiGraph::nodeIndex_to_nodeName(readpath[i]));
+		}
+
+		//cout << "lala" << endl;
+
+		long nbExtendLeft = 0;
+		for(size_t i=0; i<originalNodePath.size(); i++){
+			//cout << originalNodePath[i] << " " << (readPathIndexed.find(originalNodePath[i]) != readPathIndexed.end()) << endl;
+			if(readPathIndexed.find(originalNodePath[i]) == readPathIndexed.end()){
+				nbExtendLeft += 1;
+			}
+			else{
+				break;
+			}
+		}
+
+		long nbExtendRight = 0;
+		for(long i=originalNodePath.size()-1; i >= 0; i--){
+			if(readPathIndexed.find(originalNodePath[i]) == readPathIndexed.end()){
+				nbExtendRight += 1;
+			}
+			else{
+				break;
+			}
+		}
+
+		nbExtendLeft += 2;
+		nbExtendRight += 2;
+
+		if(print_read) cout << "\tExtend: " << nbExtendLeft << " " << nbExtendRight << endl;
+
+		extendReadpath2(readpath, true, nbExtendRight);
+		extendReadpath2(readpath, false, nbExtendLeft);
+		/*
+		vector<u_int32_t> prevNodes;
+
+		contigpath.clear();
+		if(readpath.size() == 0) return;
+
+		u_int32_t nodeIndexStart = readpath[0];
+		const Unitig& unitigStart = _graph->nodeIndex_to_unitig(nodeIndexStart);
+
+		u_int32_t prevNode = -1;
+		for(u_int32_t nodeIndex : unitigStart._nodes){
+			if(nodeIndex == nodeIndexStart) break;
+			prevNode = nodeIndex;
+			prevNodes.push_back(nodeIndex);
+		}
+		//if(prevNode != -1) contigpath.push_back(prevNode);
+		
+		
+		long size = prevNodes.size();
+		long start_i = max(0l, size-n);
+		for(size_t i=start_i; i<prevNodes.size(); i++){
+			contigpath.push_back(prevNodes[i]);
+		}
+		
+		for(u_int32_t nodeIndex : readpath){
+			contigpath.push_back(nodeIndex);
+		}
+
+		u_int32_t nodeIndexEnd = readpath[readpath.size()-1];
+		const Unitig& unitigEnd = _graph->nodeIndex_to_unitig(nodeIndexEnd);
+
+		vector<u_int32_t> nextNodes;
+		u_int32_t nextNode = -1;
+		bool canAdd = false;
+		for(u_int32_t nodeIndex : unitigEnd._nodes){
+			if(nodeIndex == nodeIndexEnd){
+				canAdd = true;
+				continue;
+			}
+			if(!canAdd) continue;
+			nextNodes.push_back(nodeIndex);
+			//nextNode = nodeIndex;
+			//break;
+		}
+		
+		//if(nextNode != -1) contigpath.push_back(nextNode);
+		for(size_t i=0; i<n && i<nextNodes.size(); i++){
+			contigpath.push_back(nextNodes[i]);
+		}
+		*/
+
+	}
+
+	struct SuccessorData3{
+		u_int32_t _nodeIndex;
+		bool _isSupported;
+	};
+
+	void extendReadpath2(vector<u_int32_t>& nodePath, bool forward, size_t nbSuccessors){
+
+		#ifdef PRINT_DEBUG_PREVRANK
+			if(forward){
+				cout << "\tExtending right" << endl;
+			}
+			else{
+				cout << "\tExtending left" << endl;
+			}
+		#endif
+
+		if(nodePath.size() == 0) return;
+
+		u_int32_t nodeIndex = -1;
+		if(forward){
+			nodeIndex = nodePath[nodePath.size()-1];
+		}
+		else{
+			nodeIndex = nodePath[0];
+		}
+
+		for(size_t i=0; i<nbSuccessors; i++){
+
+			vector<u_int32_t> successors;
+			if(forward){
+				_graph->getSuccessors(nodeIndex, 0, successors);
+			}
+			else{
+				_graph->getPredecessors(nodeIndex, 0, successors);
+			}
+
+			if(successors.size() == 0){
+				return;
+			}
+			else if(successors.size() == 1){
+				nodeIndex = successors[0];
+				if(forward){
+					nodePath.push_back(nodeIndex);
+				}
+				else{
+					nodePath.insert(nodePath.begin(), nodeIndex);
+				}
+
+			}
+			else{
+
+				nodeIndex = determineBestSupportedSuccessors(nodePath, forward, successors);
+				if(nodeIndex == -1) return;
+
+				if(forward){
+					nodePath.push_back(nodeIndex);
+				}
+				else{
+					nodePath.insert(nodePath.begin(), nodeIndex);
+				}
+			}
+			
+		}
+		//vector<u_int32_t> prevNodes;
+		//if()
+	}
+
+	u_int32_t determineBestSupportedSuccessors(vector<u_int32_t>& nodePath, bool forward, const vector<u_int32_t>& successors){
+
+		#ifdef PRINT_DEBUG_PREVRANK
+			cout << "\t-------------------------" << endl;
+		#endif
+		
+		vector<SuccessorData3> possibleSuccessors;
+		for(u_int32_t nodeIndex_successor : successors){
+			possibleSuccessors.push_back({nodeIndex_successor, true});
+		}
+
+		size_t prevRank = 0;
+
+		while(true){
+
+
+			long prevRankIndex = -1; 
+
+			if(forward){
+				prevRankIndex = nodePath.size() - prevRank - 1;
+				if(prevRankIndex < 0) return -1;
+			}
+			else{
+				prevRankIndex = prevRank;
+				if(prevRankIndex >= nodePath.size()) return -1;
+			}
+
+			//cout << "\t" << prevRankIndex << endl;
+			u_int32_t nodeIndex_prev = nodePath[prevRankIndex];
+			u_int32_t nodeName_prev = BiGraph::nodeIndex_to_nodeName(nodeIndex_prev);
+
+			#ifdef PRINT_DEBUG_PREVRANK
+				cout << "\t" << prevRank << " " << nodeName_prev << "    ";
+			#endif
+
+			bool isFinished = false;
+			for(SuccessorData3& successorData : possibleSuccessors){
+				if(!successorData._isSupported) continue;
+
+				u_int32_t nodeName_successor = BiGraph::nodeIndex_to_nodeName(successorData._nodeIndex);
+
+				u_int64_t nbShared = Utils::computeSharedReads(_unitigDatas[nodeName_successor], _unitigDatas[nodeName_prev]);
+				
+				#ifdef PRINT_DEBUG_PREVRANK
+					cout << nodeName_successor << " " << nbShared << "    ";
+				#endif
+
+				if(nbShared <= 1){
+					successorData._isSupported = false;
+				}
+
+			}
+
+			#ifdef PRINT_DEBUG_PREVRANK
+				cout << endl;
+			#endif
+
+			u_int32_t supporteNodeIndex = -1;
+			size_t nbSupportedSuccessors = 0;
+			for(SuccessorData3& successorData : possibleSuccessors){
+				if(successorData._isSupported){
+					nbSupportedSuccessors += 1;
+					supporteNodeIndex = successorData._nodeIndex;
+				}
+			}
+
+			if(nbSupportedSuccessors == 1){
+				return supporteNodeIndex;
+			}
+
+			prevRank += 1;
+		}
+
+		return -1;
+	}
+
+	/*
 	void readpathToContig(const vector<u_int32_t>& readpath, vector<u_int32_t>& contigpath){
 
 		long n = 2;
@@ -2264,7 +2760,7 @@ public:
 		}
 
 	}
-
+	*/
 
 	void debug_checkReads(){
 

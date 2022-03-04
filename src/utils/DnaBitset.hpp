@@ -32,7 +32,8 @@ public:
  
         /* number of bytes necessary to store dna_str as a bitset */
         size_t dna_bytes = (dna_len / 4) + (dna_len % 4 != 0);
- 
+        _bitsetSize = dna_bytes;
+
         m_data = new uint8_t[dna_bytes];
  
         //std::memset(m_data, 0, dna_bytes);
@@ -65,6 +66,12 @@ public:
         }
     }
  
+     DnaBitset(uint8_t* dna_byte, u_int32_t bitsetSize, u_int32_t sequenceSize){
+        _bitsetSize = bitsetSize;
+        m_data = dna_byte;
+        m_len = sequenceSize;
+    }
+
     ~DnaBitset()
     {
         delete[] m_data;
@@ -106,8 +113,9 @@ public:
         return dna_str;
     }
  
-    u_int16_t m_len;
+    u_int32_t m_len;
     uint8_t* m_data;
+    u_int32_t _bitsetSize;
     
 private:
 };

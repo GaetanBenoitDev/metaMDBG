@@ -63,6 +63,7 @@ public:
 	//string _input_extractKminmers;
 	KmerVec _lala;
 
+	bool _isFirstPass;
 	string _filename_readMinimizers;
 	string _filename_contigMinimizers;
 	string _filename_inputContigs;

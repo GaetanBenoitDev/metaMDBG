@@ -35,6 +35,7 @@ typedef unsigned __int128 u_int128_t;
 #include <memory>
 #include "./utils/ntHashIterator.hpp"
 #include "./utils/kseq.h"
+#include "./utils/DnaBitset.hpp"
 KSEQ_INIT(gzFile, gzread)
 
 using namespace std;
@@ -339,9 +340,12 @@ const string ARG_KMINMER_LENGTH = "k";
 const string ARG_MINIMIZER_DENSITY = "d";
 const string ARG_DEBUG = "debug";
 const string ARG_INPUT_FILENAME_CONTIG = "c";
+const string ARG_INPUT_FILENAME_CONTIG_FASTA = "cf";
 const string ARG_INPUT_FILENAME_UNITIG_NT = "unitigNt";
 const string ARG_INPUT_FILENAME_UNITIG_CLUSTER = "cluster";
 const string ARG_INPUT_FILENAME_ABUNDANCE = "a";
+const string ARG_FIRST_PASS = "firstpass";
+const string ARG_FASTA = "fasta";
 
 struct UnitigData{
 	u_int32_t _index;
@@ -356,14 +360,14 @@ struct UnitigData{
 struct ReadKminmer{
 	u_int32_t _read_pos_start;
 	u_int32_t _read_pos_end;
-	u_int16_t _length;
+	u_int32_t _length;
 	bool _isReversed;
-	u_int16_t _position_of_second_minimizer;
-	u_int16_t _position_of_second_to_last_minimizer;
-	u_int16_t _position_of_second_minimizer_seq;
-	u_int16_t _position_of_second_to_last_minimizer_seq;
-	u_int16_t _seq_length_start;
-	u_int16_t _seq_length_end;
+	u_int32_t _position_of_second_minimizer;
+	u_int32_t _position_of_second_to_last_minimizer;
+	u_int32_t _position_of_second_minimizer_seq;
+	u_int32_t _position_of_second_to_last_minimizer_seq;
+	u_int32_t _seq_length_start;
+	u_int32_t _seq_length_end;
 };
 
 
@@ -1636,16 +1640,17 @@ public:
 
 						}
 
-						u_int16_t length = read_pos_end - read_pos_start;
+						u_int32_t length = read_pos_end - read_pos_start;
 
-						u_int16_t seq_length_start = 0;
-						u_int16_t seq_length_end = 0;
+						//cout << read_pos_start << " " << read_pos_end << " " << 
+						u_int32_t seq_length_start = 0;
+						u_int32_t seq_length_end = 0;
 
-						u_int16_t position_of_second_minimizer = 0;
-						u_int16_t position_of_second_minimizer_seq = 0;
+						u_int32_t position_of_second_minimizer = 0;
+						u_int32_t position_of_second_minimizer_seq = 0;
 						if(isReversed){
 
-							u_int16_t pos_last_minimizer = minimizersPos[indexSecondLastMinimizer] + l;
+							u_int32_t pos_last_minimizer = minimizersPos[indexSecondLastMinimizer] + l;
 							if(rlePositions.size() > 0) pos_last_minimizer = rlePositions[pos_last_minimizer];
 							//u_int16_t pos_last_minimizer = rlePositions[minimizersPos[indexSecondLastMinimizer] + l];
 							seq_length_start = read_pos_end - pos_last_minimizer; //rlePositions[minimizersPos[i+k-1]] - rlePositions[minimizersPos[i+k-2]];
@@ -1653,7 +1658,7 @@ public:
 						else{
 
 							//u_int16_t pos_last_minimizer = rlePositions[minimizersPos[indexSecondMinimizer]];
-							u_int16_t pos_last_minimizer = minimizersPos[indexSecondMinimizer];
+							u_int32_t pos_last_minimizer = minimizersPos[indexSecondMinimizer];
 							if(rlePositions.size() > 0) pos_last_minimizer = rlePositions[pos_last_minimizer];
 							seq_length_start = pos_last_minimizer - read_pos_start;
 
@@ -1662,11 +1667,11 @@ public:
 							//position_of_second_minimizer = rlePositions[minimizersPos[i+1]];// - rlePositions[minimizersPos[i]];
 						}
 
-						u_int16_t position_of_second_to_last_minimizer = 0;
-						u_int16_t position_of_second_to_last_minimizer_seq = 0;
+						u_int32_t position_of_second_to_last_minimizer = 0;
+						u_int32_t position_of_second_to_last_minimizer_seq = 0;
 						if(isReversed){
 							
-							u_int16_t pos_last_minimizer = minimizersPos[indexSecondMinimizer];
+							u_int32_t pos_last_minimizer = minimizersPos[indexSecondMinimizer];
 							if(rlePositions.size() > 0) pos_last_minimizer = rlePositions[pos_last_minimizer];
 							seq_length_end = pos_last_minimizer - read_pos_start;
 
@@ -1678,7 +1683,7 @@ public:
 							//position_of_second_to_last_minimizer_seq += (rlePositions[minimizersPos[i+k-2] + l - 1] - rlePositions[minimizersPos[i+k-2]]);
 
 							//u_int16_t pos_last_minimizer = rlePositions[minimizersPos[indexSecondLastMinimizer] + l];
-							u_int16_t pos_last_minimizer = minimizersPos[indexSecondLastMinimizer] + l;
+							u_int32_t pos_last_minimizer = minimizersPos[indexSecondLastMinimizer] + l;
 							if(rlePositions.size() > 0) pos_last_minimizer = rlePositions[pos_last_minimizer];
 							//cout << "lala: " << rlePositions.size() << " " << (minimizersPos[i+k-1] + l) << endl;
 							//cout << read_pos_end << " " << pos_last_minimizer << endl;
@@ -1688,7 +1693,7 @@ public:
 							//seq_length_end = rlePositions[minimizersPos[i+k-1]] - rlePositions[minimizersPos[i+k-2]];
 							//position_of_second_to_last_minimizer_seq =  length - seq_length_end + 1; //(rlePositions[minimizersPos[i+k-2]] - read_pos_start);//rlePositions[minimizersPos[i+k-2]] - read_pos_start;
 						}
-
+						//cout << i << ": " << seq_length_start << " " << seq_length_end << endl;
 						kminmersLength.push_back({read_pos_start, read_pos_end, length, isReversed, position_of_second_minimizer, position_of_second_to_last_minimizer, position_of_second_minimizer_seq, position_of_second_to_last_minimizer_seq, seq_length_start, seq_length_end});
 					}
 					else{
@@ -2336,16 +2341,18 @@ class ReadParser{
 public:
 
 	string _inputFilename;
-	bool _isFile;	
+	bool _isFile;
+	bool _isBitset;
 	size_t _l;
 	size_t _k;
 	float _density;
 	vector<string> _filenames;
 	u_int64_t _nbDatasets;
 
-	ReadParser(const string& inputFilename, bool isFile){
+	ReadParser(const string& inputFilename, bool isFile, bool isBitset){
 		_inputFilename = inputFilename;
 		_isFile = isFile;
+		_isBitset = isBitset;
 		
 		if(_isFile){
 			_nbDatasets = 1;
@@ -2400,8 +2407,6 @@ public:
 
 	}
 
-
-
 	void parse(const std::function<void(kseq_t*, u_int64_t)>& fun){
 
 		u_int64_t readIndex = 0;
@@ -2410,48 +2415,49 @@ public:
 
 			cout << filename << endl;
 
-			gzFile fp;
-			kseq_t *seq;
-			int slen = 0, qlen = 0;
-			fp = gzopen(filename.c_str(), "r");
-			seq = kseq_init(fp);
+			if(_isBitset){
 
-			while (kseq_read(seq) >= 0){
-				fun(seq, readIndex);
-				readIndex += 1;
+				ifstream fp(filename);
+
+				kseq_t *read;
+				read = new kseq_t();
+				//read = kseq_init(fp);
+
+				while (true) {
+
+					u_int32_t sizeData = -1;
+					fp.read((char*)&sizeData, sizeof(sizeData));
+
+    				if(fp.eof())break;
+
+					u_int32_t sizeSequence = -1;
+					fp.read((char*)&sizeSequence, sizeof(sizeSequence));
+
+					uint8_t* m_data = new uint8_t[sizeData];
+					fp.read((char*)&m_data[0], sizeData*sizeof(uint8_t));
+
+					DnaBitset* dnaBitset = new DnaBitset(m_data, sizeData, sizeSequence);
+
+					char* seq = dnaBitset->to_string();
+					read->seq.s = seq;
+					
+					fun(read, readIndex);
+
+					free(seq);
+					delete dnaBitset;
+
+					readIndex += 1;
+				}
+
+				delete read;
+				//kseq_destroy(read);
+				fp.close();
 			}
-				
-			kseq_destroy(seq);
-			gzclose(fp);
-		}
-
-		/*
-		if(_isFile){
-			gzFile fp;
-			kseq_t *seq;
-			int slen = 0, qlen = 0;
-			fp = gzopen(_inputFilename.c_str(), "r");
-			seq = kseq_init(fp);
-
-			while (kseq_read(seq) >= 0){
-				fun(seq, readIndex);
-				readIndex += 1;
-			}
-				
-			gzclose(fp);
-		}
-		else{
-			std::ifstream infile(_inputFilename.c_str());
-			std::string line;
-
-			while (std::getline(infile, line))
-			{
-				cout << line << endl;
-
+			else{
 				gzFile fp;
 				kseq_t *seq;
 				int slen = 0, qlen = 0;
-				fp = gzopen(line.c_str(), "r");
+				fp = gzopen(filename.c_str(), "r");
 				seq = kseq_init(fp);
 
 				while (kseq_read(seq) >= 0){
@@ -2459,10 +2465,11 @@ public:
 					readIndex += 1;
 				}
 					
+				kseq_destroy(seq);
 				gzclose(fp);
 			}
+
 		}
-		*/
 
 	}
 
@@ -2643,6 +2650,11 @@ public:
 	size_t _k;
 	bool _usePos;
 
+	unordered_set<u_int64_t> _isReadProcessed;
+
+	KminmerParser(){
+	}
+
 	KminmerParser(const string& inputFilename, size_t l, size_t k, bool usePos){
 		_inputFilename = inputFilename;
 		_l = l;
@@ -2670,7 +2682,11 @@ public:
 			gzread(file_readData, (char*)&minimizers[0], size * sizeof(u_int64_t));
 			if(_usePos) gzread(file_readData, (char*)&minimizersPosOffsets[0], size * sizeof(u_int16_t));
 
-			
+			if(_isReadProcessed.size() > 0 && _isReadProcessed.find(readIndex) != _isReadProcessed.end()){
+				readIndex += 1;
+				continue;
+			}
+
 			//cout << "----" << endl;
 			vector<u_int64_t> minimizersPos; 
 			if(size > 0){

@@ -17,6 +17,7 @@ public:
     size_t _minimizerSize;
     size_t _kminmerSize;
 	string _filename_readMinimizers;
+	bool _isFirstPass;
 	
 
 	u_int64_t _debug_nbMinimizers;
@@ -39,6 +40,7 @@ public:
 		options.add_options()
 		(ARG_INPUT_FILENAME, "", cxxopts::value<string>())
 		(ARG_OUTPUT_DIR, "", cxxopts::value<string>())
+		(ARG_FIRST_PASS, "", cxxopts::value<bool>()->default_value("false"))
 		(ARG_OUTPUT_FILENAME, "", cxxopts::value<string>());
 
 		//("k,kminmerSize", "File name", cxxopts::value<std::string>())
@@ -58,6 +60,8 @@ public:
 			_inputFilename = result[ARG_INPUT_FILENAME].as<string>();
 			_inputDir = result[ARG_OUTPUT_DIR].as<string>();
 			_outputFilename = result[ARG_OUTPUT_FILENAME].as<string>();
+			_isFirstPass = result[ARG_FIRST_PASS].as<bool>();
+
 		}
 		catch (const std::exception& e){
 			std::cout << options.help() << std::endl;
@@ -92,7 +96,7 @@ public:
 		//_file_minimizerPos = gzopen(_filename_readMinimizers.c_str(),"wb");
 		
 		auto fp = std::bind(&ReadSelection::readSelection_read, this, std::placeholders::_1, std::placeholders::_2);
-		ReadParser readParser(_inputFilename, false);
+		ReadParser readParser(_inputFilename, false, !_isFirstPass);
 		readParser.parse(fp);
 
 		gzclose(_file_readData);

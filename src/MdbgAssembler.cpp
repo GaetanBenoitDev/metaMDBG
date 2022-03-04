@@ -1,6 +1,7 @@
 #include "Bloocoo.hpp"
 #include "assembly/Assembly2.hpp"
 #include "assembly/Assembly3.hpp"
+#include "assembly/GenerateContigs.hpp"
 #include "toBasespace/ToBasespace.hpp"
 #include "toBasespace/ToBasespaceNoCorrection.hpp"
 //#include "toBasespace/ToMinspace.hpp"
@@ -77,10 +78,13 @@ int main (int argc, char* argv[])
     		else if(programName == "graph"){
                 Bloocoo().run (argc, args);
     		}
-    		else if(programName == "asm"){
+    		else if(programName == "bin"){
                 Assembly2().run (argc, args);
     		}
     		else if(programName == "contig"){
+                GenerateContigs().run (argc, args);
+    		}
+    		else if(programName == "multik"){
                 Assembly3().run (argc, args);
     		}
     		else if(programName == "toBasespace"){

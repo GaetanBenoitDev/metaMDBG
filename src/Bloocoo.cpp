@@ -35,6 +35,7 @@ void Bloocoo::parseArgs(int argc, char* argv[]){
 	options.add_options()
 	//("d,debug", "Enable debugging") // a bool parameter
 	(ARG_OUTPUT_DIR, "", cxxopts::value<string>())
+	(ARG_FIRST_PASS, "", cxxopts::value<bool>()->default_value("false"))
 	(ARG_INPUT_FILENAME_CONTIG, "", cxxopts::value<string>()->default_value(""));
 	//(ARG_KMINMER_LENGTH, "", cxxopts::value<int>()->default_value("3"))
 	//(ARG_MINIMIZER_LENGTH, "", cxxopts::value<int>()->default_value("21"))
@@ -56,6 +57,7 @@ void Bloocoo::parseArgs(int argc, char* argv[]){
 
 		_outputDir = result[ARG_OUTPUT_DIR].as<string>(); 
 		_filename_inputContigs = result[ARG_INPUT_FILENAME_CONTIG].as<string>();
+		_isFirstPass = result[ARG_FIRST_PASS].as<bool>();
 
     }
     catch (const std::exception& e){
@@ -1273,7 +1275,7 @@ void Bloocoo::createGfa(){
 
 
 
-	if(_filename_inputContigs == ""){
+	if(_isFirstPass){
 		_mdbg->dump(_outputDir + "/mdbg_nodes_init.gz");
 	}
 	
