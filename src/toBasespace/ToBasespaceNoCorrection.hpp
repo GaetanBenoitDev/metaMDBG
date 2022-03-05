@@ -285,11 +285,98 @@ public:
 
 	void extractKminmerSequences (){
 
-		auto fp = std::bind(&ToBasespaceNoCorrection::extractKminmerSequences_read, this, std::placeholders::_1, std::placeholders::_2);
-		ReadParser readParser(_inputFilename, false, !_isFirstPass);
-		readParser.parse(fp);
+		//auto fp = std::bind(&ToBasespaceNoCorrection::extractKminmerSequences_read, this, std::placeholders::_1, std::placeholders::_2);
+		//ReadParser readParser(_inputFilename, false, !_isFirstPass);
+		//readParser.parse(fp);
+		string kminmerSequence;
+		ifstream kminmerFile(_inputDir + "/kminmerData.txt");
+
+		while (true) {
+
+			u_int32_t sizeData = -1;
+			kminmerFile.read((char*)&sizeData, sizeof(sizeData));
+
+			if(kminmerFile.eof())break;
+
+			u_int32_t sizeSequence = -1;
+			kminmerFile.read((char*)&sizeSequence, sizeof(sizeSequence));
+
+			uint8_t* m_data = new uint8_t[sizeData];
+			kminmerFile.read((char*)&m_data[0], sizeData*sizeof(uint8_t));
+
+			DnaBitset* dnaBitset = new DnaBitset(m_data, sizeData, sizeSequence);
+			char* kminmerSequenceComplete = dnaBitset->to_string();
+
+			u_int32_t nodeName = -1;;
+			u_int32_t lengthStart = -1;
+			u_int32_t lengthEnd = -1;
+			//bool isReversed = false;
+
+			kminmerFile.read((char*)&nodeName, sizeof(nodeName));
+			kminmerFile.read((char*)&lengthStart, sizeof(lengthStart));
+			kminmerFile.read((char*)&lengthEnd, sizeof(lengthEnd));
+			//kminmerFile.read((char*)&isReversed, sizeof(isReversed));
+
+			//cout << nodeName << " " << lengthStart << " " << lengthEnd << " " << isReversed << " " << strlen(kminmerSequenceComplete) << endl;
+			//cout << kminmerSequenceComplete << endl;
+			//getchar();
+			//u_int32_t nodeName = _mdbg->_dbg_nodes[kminmers[i]]._index;
+			//ReadKminmer& kminmerInfo = kminmersInfo[i];
+
+			//cout << i << endl;
+			//ContigNode contigNode = {nodeName, readIndex};
+			//void extractKminmerSequence(const char* kminmerSequenceComplete, bool isReversed, u_int32_t lengthStart, u_int32_t lengthEnd, u_int32_tLoadType loadType, string& sequence){
+
+
+			if(_nodeName_entire.find(nodeName) != _nodeName_entire.end() && _nodeName_entire[nodeName]._sequence == nullptr){
+				extractKminmerSequence(kminmerSequenceComplete, lengthStart, lengthEnd, LoadType::Entire, kminmerSequence);
+				_nodeName_entire[nodeName] = {0, new DnaBitset(kminmerSequence)};
+			}
+			
+
+			if(_nodeName_left.find(nodeName) != _nodeName_left.end() && _nodeName_left[nodeName]._sequence == nullptr){
+				
+				extractKminmerSequence(kminmerSequenceComplete, lengthStart, lengthEnd, LoadType::Left, kminmerSequence);
+				_nodeName_left[nodeName] = {0, new DnaBitset(kminmerSequence)};
+
+			}
+			
+
+			if(_nodeName_right.find(nodeName) != _nodeName_right.end() && _nodeName_right[nodeName]._sequence == nullptr){
+				extractKminmerSequence(kminmerSequenceComplete, lengthStart, lengthEnd, LoadType::Right, kminmerSequence);
+				_nodeName_right[nodeName] = {0, new DnaBitset(kminmerSequence)};
+			}
+
+			free(kminmerSequenceComplete);
+			delete dnaBitset;
+
+		}
+
+		kminmerFile.close();
 	}
 
+	/*
+			if(_mdbg->_dbg_nodes[vec]._abundance == 2){
+				//DnaBitset* contigSequenceBitset = new DnaBitset(contigSequence);
+				u_int32_t sizeData = sequenceBitset->_bitsetSize;
+				u_int32_t sizeSeq = sequenceBitset->m_len;
+				uint8_t* m_data = sequenceBitset->m_data;
+				_kminmerFile.write((const char*)&sizeData, sizeof(sizeData));
+				_kminmerFile.write((const char*)&sizeSeq, sizeof(sizeSeq));
+				_kminmerFile.write((const char*)&m_data[0], sizeData*sizeof(uint8_t));
+				delete sequenceBitset;
+
+				u_int32_t lengthStart = kminmerInfo._seq_length_start;
+				u_int32_t lengthEnd = kminmerInfo._seq_length_end;
+				bool isReversed = kminmerInfo._isReversed;
+
+				_kminmerFile.write((const char*)&lengthStart, sizeof(lengthStart));
+				_kminmerFile.write((const char*)&lengthEnd, sizeof(lengthEnd));
+				_kminmerFile.write((const char*)&isReversed, sizeof(isReversed));
+			}
+	*/
+
+	/*
 	void extractKminmerSequences_read(kseq_t* read, u_int64_t readIndex){
 		//cout << readIndex << endl;
 		//ottalSize += strlen(read->seq.s);
@@ -313,15 +400,7 @@ public:
 		vector<ReadKminmer> kminmersInfo;
 		MDBG::getKminmers(_minimizerSize, _kminmerSize, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex, false);
 
-		/*
-		for(auto& it : _mdbg->_dbg_nodes){
-			cout << it.second._index << endl;
-			if(it.second._index == 21594){
-				cout << "wesh ? " << endl;
-				getchar();
-			}
-		}
-		*/
+
 
 		for(size_t i=0; i<kminmers.size(); i++){
 			if(_mdbg->_dbg_nodes.find(kminmers[i]) == _mdbg->_dbg_nodes.end()) continue;
@@ -358,10 +437,77 @@ public:
 
 		//cout << readIndex << " " << _nodeName_left.size() << " " << _nodeName_right.size() << endl;
 	}
+	*/
 
 
+	void extractKminmerSequence(const char* kminmerSequenceComplete, u_int32_t lengthStart, u_int32_t lengthEnd, LoadType loadType, string& sequence){
+
+		u_int32_t startPosition = 0;
+		u_int32_t len = 0;
+
+		/*
+		//cout << "lala    " << string(sequenceOriginal) << endl;
 
 
+		startPosition = kminmerInfo._read_pos_start;
+		len = kminmerInfo._read_pos_end - kminmerInfo._read_pos_start;
+
+		char subbuff[len+1];
+		memcpy( subbuff, &sequenceOriginal[startPosition], len);
+		subbuff[len] = '\0';
+		sequence = string(subbuff);
+		*/
+
+		sequence = string(kminmerSequenceComplete);
+
+		//if(isReversed){
+		//	Utils::revcomp(sequence);
+		//}
+
+
+		if(loadType == LoadType::Entire){
+			return;
+			//startPosition = kminmerInfo._read_pos_start;
+			//len = kminmerInfo._read_pos_end - kminmerInfo._read_pos_start;
+		}
+		else if(loadType == LoadType::Left){
+			startPosition = 0; //kminmerInfo._read_pos_start;
+			len = lengthStart; //kminmerInfo._position_of_second_minimizer_seq - kminmerInfo._read_pos_start;
+			//cout << kminmerInfo._read_pos_start << " " << kminmerInfo._position_of_second_minimizer << endl;
+		}
+		else if(loadType == LoadType::Right){
+			//return;
+			startPosition = sequence.size() - lengthEnd;  //kminmerInfo._position_of_second_to_last_minimizer_seq;
+			len = lengthEnd; //kminmerInfo._read_pos_end - kminmerInfo._position_of_second_to_last_minimizer_seq;
+			//return;
+			//cout << kminmerInfo._read_pos_end << " " << kminmerInfo._position_of_second_to_last_minimizer << endl;
+		}
+		
+		/*
+		if(startPosition > 99999999){
+			//cout << readIndex << endl;
+			//cout << sequenceOriginal << endl << endl;
+			cout << sequence << endl;
+			cout << sequence.size() << endl;
+			cout << kminmerInfo._read_pos_start << endl;
+			cout << kminmerInfo._read_pos_end << endl;
+			cout << kminmerInfo._seq_length_start << endl;
+			cout << kminmerInfo._seq_length_end << endl;
+			cout << len << endl;
+			cout << kminmerInfo._isReversed << endl;
+			cout << loadType << endl;
+			cout << startPosition << endl;
+			getchar();
+		}
+		*/
+
+
+		sequence = sequence.substr(startPosition, len);
+
+
+	}
+
+	/*
 	void extractKminmerSequence(const char* sequenceOriginal, const ReadKminmer& kminmerInfo, LoadType loadType, string& sequence){
 
 		//cout << "lala    " << string(sequenceOriginal) << endl;
@@ -400,29 +546,14 @@ public:
 			//cout << kminmerInfo._read_pos_end << " " << kminmerInfo._position_of_second_to_last_minimizer << endl;
 		}
 		
-		/*
-		if(startPosition > 99999999){
-			//cout << readIndex << endl;
-			//cout << sequenceOriginal << endl << endl;
-			cout << sequence << endl;
-			cout << sequence.size() << endl;
-			cout << kminmerInfo._read_pos_start << endl;
-			cout << kminmerInfo._read_pos_end << endl;
-			cout << kminmerInfo._seq_length_start << endl;
-			cout << kminmerInfo._seq_length_end << endl;
-			cout << len << endl;
-			cout << kminmerInfo._isReversed << endl;
-			cout << loadType << endl;
-			cout << startPosition << endl;
-			getchar();
-		}
-		*/
+
 
 
 		sequence = sequence.substr(startPosition, len);
 
 
 	}
+	*/
 
 
 	void createBaseContigs(const string& contigFilename, const string& outputFilename){

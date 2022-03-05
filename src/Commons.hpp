@@ -1048,9 +1048,6 @@ public:
 
 	void addNode(const KmerVec& vec, u_int16_t length, u_int16_t overlapLength_start, u_int16_t overlapLength_end, bool isReversed){
 
-
-
-
 		if(_dbg_nodes.find(vec) != _dbg_nodes.end()){
 			//if(_dbg_nodes[vec]._abundance > 1000){
 			//	cout << _dbg_nodes[vec]._index << " " << _dbg_nodes[vec]._abundance << endl;
@@ -1059,8 +1056,8 @@ public:
 			return;
 		}
 
-
-		DbgNode node = {_node_id, 1, length, overlapLength_start, overlapLength_end, isReversed};
+		//Abundance = 2 since we first check that the kminmer is not unique
+		DbgNode node = {_node_id, 2, length, overlapLength_start, overlapLength_end, isReversed};
 		_dbg_nodes[vec] = node;
 
 		_dbg_edges[vec.prefix().normalize()].push_back(vec);
@@ -2664,28 +2661,30 @@ public:
 
 	void parse(const std::function<void(vector<u_int64_t>, vector<KmerVec>, vector<ReadKminmer>, u_int64_t)>& fun){
 
-		gzFile file_readData = gzopen(_inputFilename.c_str(),"rb");
+		ifstream file_readData(_inputFilename);
 
 		u_int64_t readIndex = 0;
 
 		while(true){
 			
+
 			u_int16_t size;
 			vector<u_int64_t> minimizers;
 			vector<u_int16_t> minimizersPosOffsets; 
-			gzread(file_readData, (char*)&size, sizeof(size));
-
-			if(gzeof(file_readData)) break;
 			
+			file_readData.read((char*)&size, sizeof(size));
+
+			if(file_readData.eof())break;
+
 			minimizers.resize(size);
 			minimizersPosOffsets.resize(size);
-			gzread(file_readData, (char*)&minimizers[0], size * sizeof(u_int64_t));
-			if(_usePos) gzread(file_readData, (char*)&minimizersPosOffsets[0], size * sizeof(u_int16_t));
+			file_readData.read((char*)&minimizers[0], size*sizeof(u_int64_t));
+			if(_usePos) file_readData.read((char*)&minimizersPosOffsets[0], size*sizeof(u_int16_t));
 
-			if(_isReadProcessed.size() > 0 && _isReadProcessed.find(readIndex) != _isReadProcessed.end()){
-				readIndex += 1;
-				continue;
-			}
+			//if(_isReadProcessed.size() > 0 && _isReadProcessed.find(readIndex) != _isReadProcessed.end()){
+			//	readIndex += 1;
+			//	continue;
+			//}
 
 			//cout << "----" << endl;
 			vector<u_int64_t> minimizersPos; 
@@ -2710,10 +2709,11 @@ public:
 			readIndex += 1;
 		}
 
-		gzclose(file_readData);
+		file_readData.close();
 
 	}
 
+	/*
 	void parseMinspace(const std::function<void(vector<u_int64_t>, vector<ReadKminmerComplete>, u_int64_t)>& fun){
 
 		gzFile file_readData = gzopen(_inputFilename.c_str(),"rb");
@@ -2759,7 +2759,7 @@ public:
 		gzclose(file_readData);
 
 	}
-
+	*/
 	/*
 	void parseDuo(const std::function<void(vector<KmerVec>, vector<ReadKminmer>, u_int64_t, vector<KmerVec>, vector<ReadKminmer>)>& fun){
 
@@ -2817,7 +2817,7 @@ public:
 
 	}
 	*/
-
+	/*
 	void parse_mContigs(const std::function<void(vector<KmerVec>, vector<ReadKminmer>, u_int64_t)>& fun){
 
 		gzFile file_mContigs = gzopen(_inputFilename.c_str(), "rb");
@@ -2894,6 +2894,7 @@ public:
 		gzclose(file_mContigs);
 	
 	}
+	*/
 
 };
 

@@ -163,12 +163,12 @@ public:
 			}
 
 			//Read selection
-			command = _filename_exe + " readSelection -i " + inputFilename + " -o " + _inputDir + " -f " + _inputDir + "/read_data.gz";
-			if(pass == 0) command += " --firstpass";
-			executeCommand(command);
+			//command = _filename_exe + " readSelection -i " + inputFilename + " -o " + _inputDir + " -f " + _inputDir + "/read_data.gz";
+			//if(pass == 0) command += " --firstpass";
+			//executeCommand(command);
 
 
-			command = _filename_exe + " graph -o " + _inputDir;
+			command = _filename_exe + " graph -i " + inputFilename + " -o " + _inputDir;
 			if(pass == 0) command += " --firstpass";
 			executeCommand(command);
 			//getchar();
@@ -192,19 +192,19 @@ public:
 			executeCommand(command);
 
 			//if(pass > 0){
-				//Generate contigs
-				command = _filename_exe + " contig " + " -o " + _inputDir;
-				if(!_truthInputFilename.empty()) command += " --itruth " + _truthInputFilename;
-				//if(pass == 0) command += " --firstpass";
-				executeCommand(command);	
+			//Generate contigs
+			command = _filename_exe + " contig " + " -o " + _inputDir;
+			if(!_truthInputFilename.empty()) command += " --itruth " + _truthInputFilename;
+			//if(pass == 0) command += " --firstpass";
+			executeCommand(command);	
 
-				command = _filename_exe + " toBasespaceFast " + " -o " + _inputDir + " -i " + inputFilename + " -c " + _inputDir + "/contigs.nodepath.gz --fasta";
-				if(pass == 0) command += " --firstpass";
-				executeCommand(command);	
+			command = _filename_exe + " toBasespaceFast " + " -o " + _inputDir + " -i " + inputFilename + " -c " + _inputDir + "/contigs.nodepath.gz --fasta";
+			if(pass == 0) command += " --firstpass";
+			executeCommand(command);	
 
-				command = _filename_exe + " toBasespace " + " -o " + _inputDir + " -i " + _inputFilename + " -c " + _inputDir + "/contigs.nodepath.gz.fasta.gz --fasta";
-				if(pass == 0) command += " --firstpass";
-				executeCommand(command);	
+			//command = _filename_exe + " toBasespace " + " -o " + _inputDir + " -i " + _inputFilename + " -c " + _inputDir + "/contigs.nodepath.gz.fasta.gz --fasta";
+			//if(pass == 0) command += " --firstpass";
+			//executeCommand(command);	
 
 			//}
 

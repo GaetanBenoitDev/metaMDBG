@@ -201,7 +201,7 @@ public:
 
 		_outputFilename = _inputDir + "/minimizer_contigs.gz";
 		_outputFilename_complete = _inputDir + "/minimizer_contigs_complete.gz";
-		_filename_readMinimizers = _inputDir + "/read_data.gz";
+		_filename_readMinimizers = _inputDir + "/read_data.txt";
 		_filename_hifiasmGroundtruth = _inputDir + "/hifiasmGroundtruth.gz";
 		_filename_outputContigs = _inputDir + "/contigs.min.gz";
 		_filename_solidKminmers = _inputDir + "/solid.min.gz";
