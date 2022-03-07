@@ -391,16 +391,53 @@ public:
 		vector<u_int64_t> minimizers_pos;
 		_minimizerParser->parse(rleSequence, minimizers, minimizers_pos);
 
+
+		
+		//if(readIndex == 31){
+			//minimizers.erase(minimizers.begin()+920);
+			//minimizers_pos.erase(minimizers_pos.begin()+920);
+		//}
 		//for(size_t i=0; i<minimizers.size(); i++){
 		//	cout << i << ": " << minimizers[i] << " " << minimizers_pos[i] << endl;
 		//}
 
 		
 
+
+
 		vector<KmerVec> kminmers; 
 		vector<ReadKminmer> kminmersInfo;
 		MDBG::getKminmers(_minimizerSize, _kminmerSize, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex, false);
-
+		
+		/*
+		while(true){
+		
+			if(minimizers.size() == 0){
+				cout << "cant fix erroneous contig" << endl;
+				//exit(1);
+				break;
+			}
+			
+			bool isError = false;
+			kminmers.clear();
+			kminmersInfo.clear();
+			
+			MDBG::getKminmers(_minimizerSize, _kminmerSize, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex, false);
+		
+			
+			for(size_t i=0; i<kminmers.size(); i++){
+				if(_mdbg->_dbg_nodes.find(kminmers[i]) == _mdbg->_dbg_nodes.end()){
+					cout << "Fixing erroneous contig: " << readIndex << " " <<  i << " " << minimizers.size() << endl;
+					isError = true;
+					minimizers.erase(minimizers.begin()+i+_kminmerSize-1);
+					minimizers_pos.erase(minimizers_pos.begin()+i+_kminmerSize-1);
+					break;
+				}
+			}
+			
+			if(!isError) break;
+		}
+		*/
 		/*
 		for(auto& it : _mdbg->_dbg_nodes){
 			cout << it.second._index << endl;
@@ -414,11 +451,14 @@ public:
 		for(size_t i=0; i<kminmers.size(); i++){
 			if(_mdbg->_dbg_nodes.find(kminmers[i]) == _mdbg->_dbg_nodes.end()){
 				cout << "Unknown original kminmer" << endl;
-				exit(1);
+				cout << readIndex << " " << strlen(sequenceOriginal) << " " << minimizers.size() << endl;
+				cout << i << endl;
+				//exit(1);
 				continue;
 			}
 
 			u_int32_t nodeName = _mdbg->_dbg_nodes[kminmers[i]]._index;
+			//cout << nodeName << endl;
 			_kminmerCounts[nodeName] += 1;
 
 			bool orientation = true;
@@ -847,24 +887,52 @@ public:
 		vector<u_int64_t> minimizers_pos;
 		_minimizerParser->parse(rleSequence, minimizers, minimizers_pos);
 
-
-
+		
 		vector<KmerVec> kminmers; 
 		vector<ReadKminmer> kminmersInfo;
 		MDBG::getKminmers(_minimizerSize, _kminmerSize, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex, false);
-
+		
+		/*
+		while(true){
+		
+			if(minimizers.size() == 0){
+				cout << "cant fix erroneous contig" << endl;
+				//exit(1);
+				break;
+			}
+			
+			bool isError = false;
+			kminmers.clear();
+			kminmersInfo.clear();
+			
+			MDBG::getKminmers(_minimizerSize, _kminmerSize, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex, false);
+		
+			for(size_t i=0; i<kminmers.size(); i++){
+				if(_mdbg->_dbg_nodes.find(kminmers[i]) == _mdbg->_dbg_nodes.end()){
+					cout << "Fixing erroneous contig: " << i << " " << minimizers.size() << endl;
+					isError = true;
+					minimizers.erase(minimizers.begin()+_kminmerSize-1);
+					minimizers_pos.erase(minimizers_pos.begin()+_kminmerSize-1);
+					break;
+				}
+			}
+			
+			if(!isError) break;
+		}
+		*/
+		
 		string contigSequence = "";
 
 
 		for(size_t i=0; i<kminmers.size(); i++){
 			if(_mdbg->_dbg_nodes.find(kminmers[i]) == _mdbg->_dbg_nodes.end()){
 				cout << "Unknown original kminmer" << endl;
-				exit(1);
+				//exit(1);
 				continue;
 			}
 
 			u_int32_t nodeName = _mdbg->_dbg_nodes[kminmers[i]]._index;
-			cout << nodeName << endl;
+			//cout << nodeName << endl;
 
 			bool orientation = true;
 			if(kminmersInfo[i]._isReversed){
@@ -873,6 +941,7 @@ public:
 
 			if(i == 0){
 				if(orientation){ //+
+					if(_kminmerSequence_entire.find(nodeName) == _kminmerSequence_entire.end() || _kminmerSequence_entire[nodeName] == nullptr) continue;
 					char* seq = _kminmerSequence_entire[nodeName]->to_string();
 					string kminmerSequence = string(seq);
 					free(seq);
@@ -882,6 +951,7 @@ public:
 				}
 				else{
 					
+					if(_kminmerSequence_entire.find(nodeName) == _kminmerSequence_entire.end() || _kminmerSequence_entire[nodeName] == nullptr) continue;
 					char* seq = _kminmerSequence_entire[nodeName]->to_string();
 					string kminmerSequence = string(seq);
 					free(seq);
@@ -893,6 +963,7 @@ public:
 			else {
 				if(orientation){
 
+					if(_kminmerSequence_right.find(nodeName) == _kminmerSequence_right.end() || _kminmerSequence_right[nodeName] == nullptr) continue;
 					char* seq = _kminmerSequence_right[nodeName]->to_string();
 					string kminmerSequence = string(seq);
 					free(seq);
@@ -903,6 +974,7 @@ public:
 				}
 				else{
 					
+					if(_kminmerSequence_left.find(nodeName) == _kminmerSequence_left.end() || _kminmerSequence_left[nodeName] == nullptr) continue;
 					char* seq = _kminmerSequence_left[nodeName]->to_string();
 					string kminmerSequence = string(seq);
 					free(seq);

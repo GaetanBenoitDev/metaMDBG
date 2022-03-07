@@ -202,11 +202,18 @@ public:
 			if(pass == 0) command += " --firstpass";
 			executeCommand(command);	
 
-			//command = _filename_exe + " toBasespace " + " -o " + _inputDir + " -i " + _inputFilename + " -c " + _inputDir + "/contigs.nodepath.gz.fasta.gz --fasta";
-			//if(pass == 0) command += " --firstpass";
-			//executeCommand(command);	
+			if(k == 10){
+				command = _filename_exe + " toBasespace " + " -o " + _inputDir + " -i " + _inputFilename + " -c " + _inputDir + "/contigs.nodepath.gz.fasta.gz --fasta";
+				if(pass == 0) command += " --firstpass";
+				executeCommand(command);
+				getchar();
+			}	
 
 			//}
+			
+			//time ./bin/mdbgAsmMeta countKmer -i ~/workspace/data/AD/shortreads/input_10.txt -c /home/gats/workspace/run/overlap_test_multik_AD/contigs.nodepath.gz.fasta.gz.fasta.gz  -o ~/workspace/run/overlap_test_multik_AD/contig_coverages.tsv
+			//!!!Binning: assembly2, permettre de choisir le nom du fichier de contig via -c, actuellement c'est contigs.fasta.gz
+			//./bin/mdbgAsmMeta bin -o ~/workspace/run/overlap_test_multik_AD/ -a ~/workspace/run/overlap_test_multik_AD/contig_coverages.tsv
 
 			/*
 			//Contig selection
@@ -226,7 +233,7 @@ public:
 			//exit(1);
 			//break;
 			cout << "pass done" << endl;
-			getchar();
+			//getchar();
 		}
 
     }
