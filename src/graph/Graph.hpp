@@ -699,6 +699,9 @@ int main()
 */
 
 class BiGraph{
+
+
+
     /*
     adjNode* getAdjListNode(u_int32_t to, float weight, adjNode* head)   {
         adjNode* newNode = new adjNode;
@@ -721,6 +724,9 @@ public:
     vector<u_int32_t> distance;
     vector<u_int32_t> prev;
 
+    vector<u_int32_t> _nodeAbundances;
+    vector<u_int32_t> _nodeLengths;
+    
     BiGraph(u_int32_t nbNodes){
         _nbNodes = nbNodes * 2;
         _nodes.resize(_nbNodes);

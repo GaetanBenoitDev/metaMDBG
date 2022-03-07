@@ -104,7 +104,6 @@ public:
 		gzread(file_parameters, (char*)&_minimizerDensity, sizeof(_minimizerDensity));
 		gzclose(file_parameters);
 
-		_kminmerSize = 4;
 
 		cout << endl;
 		cout << "Input dir: " << _inputDir << endl;
@@ -122,7 +121,7 @@ public:
     void execute (){
 		
 		cout << "Loading mdbg" << endl;
-		string mdbg_filename = _inputDir + "/mdbg_nodes_init.gz";
+		string mdbg_filename = _inputDir + "/mdbg_nodes.gz";
 		_mdbg = new MDBG(_kminmerSize);
 		_mdbg->load(mdbg_filename);
 		cout << "MDBG nodes: " << _mdbg->_dbg_nodes.size() << endl;
@@ -132,6 +131,7 @@ public:
 
 		extractKminmerSequences();
 		//lalalala();
+		delete _mdbg;
 
 		//exit(1);
 		//loadKminmerSequences();
@@ -141,7 +141,6 @@ public:
 		//createBaseContigs(_inputDir + "/eval/composition//3//debug_longUnitigsNeighbors.gz", _inputDir + "/eval/composition//3/debug_longUnitigsNeighbors.fasta.gz");
 
 		cout << endl << "Contig filename: " << _filename_outputContigs << endl;
-		delete _mdbg;
 	}
 
 	void removeVariants(){
@@ -162,43 +161,34 @@ public:
 
 
 
-
 	void loadContigs_min(const string& contigFilename){
 
-		cout << "Extracting kminmers (contigs)" << endl;
-		KminmerParser parser(contigFilename, _minimizerSize, _kminmerSize, false);
-		auto fp = std::bind(&ToBasespaceNoCorrection::loadContigs_min_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-		parser.parseMinspace<u_int32_t>(fp);
-
-		/*
 		cout << "Loading mContigs: " << contigFilename << endl;
 		gzFile contigFile = gzopen(contigFilename.c_str(),"rb");
 		u_int64_t nbContigs = 0;
 		
 		while(true){
 
-			vector<u_int32_t> minimizers;
-			//vector<u_int64_t> supportingReads;
+			vector<u_int32_t> nodePath;
+			vector<u_int64_t> supportingReads;
 			u_int64_t size;
 			gzread(contigFile, (char*)&size, sizeof(size));
 			
 
 			if(gzeof(contigFile)) break;
 
-			minimizers.resize(size);
-			//supportingReads.resize(size);
-			gzread(contigFile, (char*)&minimizers[0], size * sizeof(u_int32_t));
+			nodePath.resize(size);
+			supportingReads.resize(size);
+			gzread(contigFile, (char*)&nodePath[0], size * sizeof(u_int32_t));
 			//gzread(contigFile, (char*)&supportingReads[0], size * sizeof(u_int64_t));
 			
-
-
 			
 			//for(u_int32_t nodeIndex : nodePath){
-			for(size_t i=0; i<minimizers.size(); i++){
+			for(size_t i=0; i<nodePath.size(); i++){
 				u_int32_t nodeIndex = nodePath[i];
 				bool orientation;
 				u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex, orientation);
-				//u_int32_t readIndex = supportingReads[i];
+				u_int32_t readIndex = supportingReads[i];
 
 				//if(nbContigs == 0) cout << nodeName << endl;
 				//if(nodeName == 21594){
@@ -253,7 +243,6 @@ public:
 				}
 
 			}
-			
 
 			nbContigs += 1;
 			//cout << nodePath.size() << endl;
@@ -262,52 +251,6 @@ public:
 		gzclose(contigFile);
 
 		cout << "Nb contigs: " << nbContigs << endl;
-		*/
-	}
-
-	void loadContigs_min_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
-
-		cout << readIndex << " " << kminmersInfos.size() << endl;
-		for(size_t i=0; i<kminmersInfos.size(); i++){
-			
-			const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
-
-			KmerVec vec = kminmerInfo._vec;
-			
-			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
-				cout << "Not found" << endl;
-				continue;
-			}
-
-			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
-			
-			//vector<u_int64_t> minimizerSeq;
-			
-			//for(size_t i=kminmerInfo._read_pos_start; i<=kminmerInfo._read_pos_end; i++){
-			//	minimizerSeq.push_back(readMinimizers[i]);
-			//}
-			
-
-			//if(kminmerInfo._isReversed){
-			//	std::reverse(minimizerSeq.begin(), minimizerSeq.end());
-			//}
-
-			bool orientation = !kminmerInfo._isReversed;
-
-			if(i == 0){
-				initKminmerSequence(nodeName, readIndex, _nodeName_entire);
-			}
-			else {
-				if(orientation){ //+
-					initKminmerSequence(nodeName, readIndex, _nodeName_right);
-				}
-				else{ //-
-					initKminmerSequence(nodeName, readIndex, _nodeName_left);
-				}
-			}
-
-		}
-
 	}
 
 	void initKminmerSequence(u_int32_t nodeName, u_int32_t readIndex, auto& dictSimple){
@@ -342,7 +285,6 @@ public:
 
 	void extractKminmerSequences (){
 
-		cout << "Extracting kminmer sequences" << endl;
 		//auto fp = std::bind(&ToBasespaceNoCorrection::extractKminmerSequences_read, this, std::placeholders::_1, std::placeholders::_2);
 		//ReadParser readParser(_inputFilename, false, !_isFirstPass);
 		//readParser.parse(fp);
@@ -374,6 +316,14 @@ public:
 			kminmerFile.read((char*)&lengthStart, sizeof(lengthStart));
 			kminmerFile.read((char*)&lengthEnd, sizeof(lengthEnd));
 
+			KmerVec vec;
+			u_int64_t minimizer;
+			for(size_t i=0; i<_kminmerSize; i++){
+				kminmerFile.read((char*)&minimizer, sizeof(minimizer));
+				vec._kmers.push_back(minimizer);
+			}
+
+
 			//kminmerFile.read((char*)&isReversed, sizeof(isReversed));
 
 			//cout << nodeName << " " << lengthStart << " " << lengthEnd << " " << isReversed << " " << strlen(kminmerSequenceComplete) << endl;
@@ -387,16 +337,14 @@ public:
 			//void extractKminmerSequence(const char* kminmerSequenceComplete, bool isReversed, u_int32_t lengthStart, u_int32_t lengthEnd, u_int32_tLoadType loadType, string& sequence){
 
 
-
 			if(_nodeName_entire.find(nodeName) != _nodeName_entire.end() && _nodeName_entire[nodeName]._sequence == nullptr){
-				//cout << "entire" << endl;
 				extractKminmerSequence(kminmerSequenceComplete, lengthStart, lengthEnd, LoadType::Entire, kminmerSequence);
 				_nodeName_entire[nodeName] = {0, new DnaBitset(kminmerSequence)};
 			}
 			
 
 			if(_nodeName_left.find(nodeName) != _nodeName_left.end() && _nodeName_left[nodeName]._sequence == nullptr){
-				//cout << "left" << endl;
+				
 				extractKminmerSequence(kminmerSequenceComplete, lengthStart, lengthEnd, LoadType::Left, kminmerSequence);
 				_nodeName_left[nodeName] = {0, new DnaBitset(kminmerSequence)};
 
@@ -404,15 +352,9 @@ public:
 			
 
 			if(_nodeName_right.find(nodeName) != _nodeName_right.end() && _nodeName_right[nodeName]._sequence == nullptr){
-				//cout << "right" << endl;
 				extractKminmerSequence(kminmerSequenceComplete, lengthStart, lengthEnd, LoadType::Right, kminmerSequence);
 				_nodeName_right[nodeName] = {0, new DnaBitset(kminmerSequence)};
 			}
-
-			//if(nodeName == 2108){
-			//	cout << "lala" << endl;
-			//	getchar();
-			//}
 
 			free(kminmerSequenceComplete);
 			delete dnaBitset;
@@ -622,174 +564,198 @@ public:
 	}
 	*/
 
+
 	void createBaseContigs(const string& contigFilename, const string& outputFilename){
 
 		cout << "Creating basespace contigs: " << contigFilename << " " << outputFilename << endl;
 
-		if(_isOutputFasta){
-			_basespaceContigFile = gzopen(outputFilename.c_str(),"wb");
-		}
-		else{
-			_contigFile_bitset = ofstream(contigFilename + ".bitset");
-		}
-
-		KminmerParser parser(contigFilename, _minimizerSize, _kminmerSize, false);
-		auto fp = std::bind(&ToBasespaceNoCorrection::createBaseContigs_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-		parser.parseMinspace<u_int32_t>(fp);
-
-		if(_isOutputFasta){
-			gzclose(_basespaceContigFile);
-		}
-		else{
-			_contigFile_bitset.close();
-		}
-		
-
-	}
-
-	gzFile _basespaceContigFile;
-	ofstream _contigFile_bitset;
-
-	void createBaseContigs_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
+		auto alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kNW, 3, -5, -3);  // linear gaps
+		spoa::Graph graph{};
 
 
-		cout << readIndex << " " << kminmersInfos.size() << endl;
-		
-		string contigSequence = "";
+		gzFile basespaceContigFile = gzopen(outputFilename.c_str(),"wb");
 
-		for(size_t i=0; i<kminmersInfos.size(); i++){
+
+		cout << endl;
+		cout << "Creating basespace contigs" << endl;
+		cout << endl;
+
+
+		gzFile contigFile = gzopen(contigFilename.c_str(),"rb");
+		ofstream contigFile_bitset(contigFilename + ".bitset");
+
+		u_int64_t contig_index = 0;
+
+		while(true){
+
+			if(contig_index % 100000 == 0) cout << contig_index << endl;
 			
-			//cout << i << endl;
-			const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
-
-			KmerVec vec = kminmerInfo._vec;
+			vector<u_int32_t> nodePath;
+			vector<u_int64_t> supportingReads;
+			u_int64_t size;
+			gzread(contigFile, (char*)&size, sizeof(size));
 			
-			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
-				cout << "Not found" << endl;
-				continue;
+
+			if(gzeof(contigFile)) break;
+
+			nodePath.resize(size);
+			supportingReads.resize(size);
+			gzread(contigFile, (char*)&nodePath[0], size * sizeof(u_int32_t));
+			//gzread(contigFile, (char*)&supportingReads[0], size * sizeof(u_int64_t));
+
+
+			string contigSequence = "";
+
+			//for(u_int32_t nodeIndex : nodePath){
+			for(size_t i=0; i<nodePath.size(); i++){
+				//cout << "|||||||||||||||||||||||||||||||||||||||||||||||" << endl;
+				//cout << endl << "Step: " << i << endl;
+				u_int32_t nodeIndex = nodePath[i];
+				bool orientation;
+				u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex, orientation);
+				u_int64_t readIndex = supportingReads[i];
+				ContigNode contigNode = {nodeName, readIndex};
+
+				//_usedNodeNames.insert(nodeName);
+
+				if(i == 0){
+					//cout << nodeName << " " << orientation << endl;
+					if(orientation){ //+
+						//cout << "Entire" << endl;
+
+						//string seq = _nodeName_entire[contigNode];
+						//string correctedSequence;
+						if(_nodeName_entire.find(nodeName) == _nodeName_entire.end() || _nodeName_entire[nodeName]._sequence == nullptr){
+							cout << "entire " << nodeName << endl;
+						}
+						
+						char* seq = _nodeName_entire[nodeName]._sequence->to_string();
+						string kminmerSequence = string(seq);
+						free(seq);
+
+
+						//performErrorCorrection(nodeName, getKminmerSequence(nodeName, readIndex, _nodeName_entire, _nodeName_entire_multi), _kminmerSequenceCopies_entire[contigNode], correctedSequence, alignment_engine, graph);
+						
+
+						contigSequence += kminmerSequence;
+						//cout << contigSequence << endl;
+					}
+					else{
+						//cout << "Entire RC" << endl;
+						//string seq = ;
+						//string correctedSequence;
+						//performErrorCorrection(nodeName, getKminmerSequence(nodeName, readIndex, _nodeName_entire, _nodeName_entire_multi), _kminmerSequenceCopies_entire[contigNode], correctedSequence, alignment_engine, graph);
+						
+						if(_nodeName_entire.find(nodeName) == _nodeName_entire.end() || _nodeName_entire[nodeName]._sequence == nullptr){
+							cout << "entire " << nodeName << endl;
+						}
+
+						char* seq = _nodeName_entire[nodeName]._sequence->to_string();
+						string kminmerSequence = string(seq);
+						free(seq);
+
+						Utils::revcomp(kminmerSequence);
+						contigSequence += kminmerSequence;
+						//cout << contigSequence << endl;
+					}
+				}
+				else {
+					if(orientation){
+						
+						if(_nodeName_right.find(nodeName) == _nodeName_right.end() || _nodeName_right[nodeName]._sequence == nullptr){
+							cout << "right " << nodeName << endl;
+						}
+						//cout << (_nodeName_right.find(nodeName) != _nodeName_right.end()) << endl;
+						//cout << (_nodeName_right[nodeName]._sequence == nullptr) << endl;
+						//cout << nodeName << endl;
+
+						char* seq = _nodeName_right[nodeName]._sequence->to_string();
+						string kminmerSequence = string(seq);
+						free(seq);
+
+						//string kminmerSequence = _nodeName_right[nodeName];
+						contigSequence += kminmerSequence;
+						
+
+					}
+					else{
+						
+						if(_nodeName_left.find(nodeName) == _nodeName_left.end() || _nodeName_left[nodeName]._sequence == nullptr){
+							cout << "left " << nodeName << endl;
+						}
+						//cout << (_nodeName_left.find(nodeName) != _nodeName_left.end()) << endl;
+						//cout << (_nodeName_left[nodeName]._sequence == nullptr) << endl;
+						//cout << nodeName << endl;
+
+						char* seq = _nodeName_left[nodeName]._sequence->to_string();
+						string kminmerSequence = string(seq);
+						free(seq);
+
+						//string correctedSequence;
+						//performErrorCorrection(nodeName, getKminmerSequence(nodeName, readIndex, _nodeName_left, _nodeName_left_multi), _kminmerSequenceCopies_left[contigNode], correctedSequence, alignment_engine, graph);
+						
+						//string kminmerSequence = _nodeName_left[nodeName];
+
+						Utils::revcomp(kminmerSequence);
+						contigSequence += kminmerSequence;
+
+
+					}
+				}
+				
+
 			}
 
-			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
-			
-			//vector<u_int64_t> minimizerSeq;
-			
-			//for(size_t i=kminmerInfo._read_pos_start; i<=kminmerInfo._read_pos_end; i++){
-			//	minimizerSeq.push_back(readMinimizers[i]);
-			//}
-			
-
-			//if(kminmerInfo._isReversed){
-			//	std::reverse(minimizerSeq.begin(), minimizerSeq.end());
-			//}
-
-			bool orientation = !kminmerInfo._isReversed;
-
-			if(i == 0){
-				//cout << nodeName << " " << orientation << endl;
-				if(orientation){ //+
-					//cout << "Entire" << endl;
-
-					//string seq = _nodeName_entire[contigNode];
-					//string correctedSequence;
-					if(_nodeName_entire.find(nodeName) == _nodeName_entire.end() || _nodeName_entire[nodeName]._sequence == nullptr){
-						cout << "not found entire " << nodeName << endl;
-					}
-					
-					char* seq = _nodeName_entire[nodeName]._sequence->to_string();
-					string kminmerSequence = string(seq);
-					free(seq);
+			//cout << contigSequence.substr(362170, 100) << endl;
+			/*
+			cout << endl << endl;
+			cout << nodePath.size() << endl;
+			cout << contigSequence.size() << endl;
+			*/
+			//cout << contigSequence << endl;
 
 
-					//performErrorCorrection(nodeName, getKminmerSequence(nodeName, readIndex, _nodeName_entire, _nodeName_entire_multi), _kminmerSequenceCopies_entire[contigNode], correctedSequence, alignment_engine, graph);
-					
 
-					contigSequence += kminmerSequence;
-					//cout << contigSequence << endl;
-				}
-				else{
-					//cout << "Entire RC" << endl;
-					//string seq = ;
-					//string correctedSequence;
-					//performErrorCorrection(nodeName, getKminmerSequence(nodeName, readIndex, _nodeName_entire, _nodeName_entire_multi), _kminmerSequenceCopies_entire[contigNode], correctedSequence, alignment_engine, graph);
-					
-					if(_nodeName_entire.find(nodeName) == _nodeName_entire.end() || _nodeName_entire[nodeName]._sequence == nullptr){
-						cout << "not found entire RC " << nodeName << endl;
-					}
-
-					char* seq = _nodeName_entire[nodeName]._sequence->to_string();
-					string kminmerSequence = string(seq);
-					free(seq);
-
-					Utils::revcomp(kminmerSequence);
-					contigSequence += kminmerSequence;
-					//cout << contigSequence << endl;
-				}
+			if(_isOutputFasta){
+				string header = ">ctg" + to_string(contig_index) + '\n';
+				gzwrite(basespaceContigFile, (const char*)&header[0], header.size());
+				contigSequence +=  '\n';
+				gzwrite(basespaceContigFile, (const char*)&contigSequence[0], contigSequence.size());
 			}
-			else {
-				if(orientation){
-					
-					if(_nodeName_right.find(nodeName) == _nodeName_right.end() || _nodeName_right[nodeName]._sequence == nullptr){
-						cout << "not found right " << nodeName << endl;
-					}
-					//cout << (_nodeName_right.find(nodeName) != _nodeName_right.end()) << endl;
-					//cout << (_nodeName_right[nodeName]._sequence == nullptr) << endl;
-					//cout << nodeName << endl;
-
-					char* seq = _nodeName_right[nodeName]._sequence->to_string();
-					string kminmerSequence = string(seq);
-					free(seq);
-
-					//string kminmerSequence = _nodeName_right[nodeName];
-					contigSequence += kminmerSequence;
-					
-
-				}
-				else{
-					
-					if(_nodeName_left.find(nodeName) == _nodeName_left.end() || _nodeName_left[nodeName]._sequence == nullptr){
-						cout << "not found left " << nodeName << endl;
-					}
-					//cout << (_nodeName_left.find(nodeName) != _nodeName_left.end()) << endl;
-					//cout << (_nodeName_left[nodeName]._sequence == nullptr) << endl;
-					//cout << nodeName << endl;
-
-					char* seq = _nodeName_left[nodeName]._sequence->to_string();
-					string kminmerSequence = string(seq);
-					free(seq);
-
-					//string correctedSequence;
-					//performErrorCorrection(nodeName, getKminmerSequence(nodeName, readIndex, _nodeName_left, _nodeName_left_multi), _kminmerSequenceCopies_left[contigNode], correctedSequence, alignment_engine, graph);
-					
-					//string kminmerSequence = _nodeName_left[nodeName];
-
-					Utils::revcomp(kminmerSequence);
-					contigSequence += kminmerSequence;
-
-
-				}
+			else{
+				DnaBitset* contigSequenceBitset = new DnaBitset(contigSequence);
+				u_int32_t sizeData = contigSequenceBitset->_bitsetSize;
+				u_int32_t sizeSeq = contigSequenceBitset->m_len;
+				uint8_t* m_data = contigSequenceBitset->m_data;
+				contigFile_bitset.write((const char*)&sizeData, sizeof(sizeData));
+				contigFile_bitset.write((const char*)&sizeSeq, sizeof(sizeSeq));
+				contigFile_bitset.write((const char*)&m_data[0], sizeData*sizeof(uint8_t));
+				delete contigSequenceBitset;
 			}
 
 
+			
+			//cout << contigSequence.size() << " " << bitsetSize << endl;
+			//contigFile_bitset << m_len << m_data << endl;
+
+
+			/*
+			if(contig_index == 2531 || contig_index == 2530 || contig_index == 2532){
+				//7529 4156 7528 7527 4546 8715 9953 7574 5461 12436 9194 6077 9195 8966 7326 9196 8767 9197 9306 6899 7540 5416 13278 7910 897 9199 8669 9517 7733 7806
+				for(u_int32_t nodeIndex : nodePath){
+					cout << BiGraph::nodeIndex_to_nodeName(nodeIndex) << " ";
+				}
+				cout << endl;
+				cout << contigSequence << endl;
+				getchar();
+			}
+			*/
+			contig_index += 1;
 		}
 
-		
-		if(_isOutputFasta){
-			string header = ">ctg" + to_string(readIndex) + '\n';
-			gzwrite(_basespaceContigFile, (const char*)&header[0], header.size());
-			contigSequence +=  '\n';
-			gzwrite(_basespaceContigFile, (const char*)&contigSequence[0], contigSequence.size());
-		}
-		else{
-			DnaBitset* contigSequenceBitset = new DnaBitset(contigSequence);
-			u_int32_t sizeData = contigSequenceBitset->_bitsetSize;
-			u_int32_t sizeSeq = contigSequenceBitset->m_len;
-			uint8_t* m_data = contigSequenceBitset->m_data;
-			_contigFile_bitset.write((const char*)&sizeData, sizeof(sizeData));
-			_contigFile_bitset.write((const char*)&sizeSeq, sizeof(sizeSeq));
-			_contigFile_bitset.write((const char*)&m_data[0], sizeData*sizeof(uint8_t));
-			delete contigSequenceBitset;
-		}
-
+		gzclose(contigFile);
+		gzclose(basespaceContigFile);
+		contigFile_bitset.close();
 
 	}
 

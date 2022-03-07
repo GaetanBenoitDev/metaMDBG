@@ -202,6 +202,13 @@ public:
         delete fields;
         delete fields_optional;
 
+        //cout << "allo ?? : " << graph->_nbNodes << endl;
+        graph->_nodeAbundances.resize(graph->_nbNodes/2, 0);
+        graph->_nodeLengths.resize(graph->_nbNodes/2, 0);
+        //cout << graph->_nodeAbundances.size() << endl;
+        GfaParser::getNodeData(filename, graph->_nodeAbundances, graph->_nodeLengths);
+        //cout << graph->_nodeAbundances.size() << endl;
+
         return graph;
     }
 
@@ -404,8 +411,8 @@ public:
 
     static void getNodeData(const string& filename, vector<u_int32_t>& nodeAbundances, vector<u_int32_t>& nodeLengths){ //unordered_map<u_int32_t, u_int32_t>& nodeAbundances, unordered_map<u_int32_t, u_int32_t>& nodeLengths){
 
-        nodeAbundances.clear();
-        nodeLengths.clear();
+        //nodeAbundances.clear();
+        //nodeLengths.clear();
 
         ifstream infile(filename);
 

@@ -2713,7 +2713,7 @@ public:
 
 	}
 
-	/*
+	template<typename SizeType>
 	void parseMinspace(const std::function<void(vector<u_int64_t>, vector<ReadKminmerComplete>, u_int64_t)>& fun){
 
 		gzFile file_readData = gzopen(_inputFilename.c_str(),"rb");
@@ -2722,7 +2722,7 @@ public:
 
 		while(true){
 			
-			u_int16_t size;
+			SizeType size;
 			vector<u_int64_t> minimizers;
 			vector<u_int16_t> minimizersPosOffsets; 
 			gzread(file_readData, (char*)&size, sizeof(size));
@@ -2732,7 +2732,7 @@ public:
 			minimizers.resize(size);
 			minimizersPosOffsets.resize(size);
 			gzread(file_readData, (char*)&minimizers[0], size * sizeof(u_int64_t));
-			gzread(file_readData, (char*)&minimizersPosOffsets[0], size * sizeof(u_int16_t));
+			if(_usePos) gzread(file_readData, (char*)&minimizersPosOffsets[0], size * sizeof(u_int16_t));
 
 			
 			//cout << "----" << endl;
@@ -2759,7 +2759,7 @@ public:
 		gzclose(file_readData);
 
 	}
-	*/
+	
 	/*
 	void parseDuo(const std::function<void(vector<KmerVec>, vector<ReadKminmer>, u_int64_t, vector<KmerVec>, vector<ReadKminmer>)>& fun){
 

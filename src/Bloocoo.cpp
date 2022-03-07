@@ -466,6 +466,7 @@ void Bloocoo::createMDBG_collectKminmers_read(kseq_t* read, u_int64_t readIndex)
 		const KmerVec& vec = kminmers[i];
 		const ReadKminmer& kminmerInfo = kminmersInfos[i];
 
+
 		if(_kminmerExist.find(vec) != _kminmerExist.end()){
 			_mdbg->addNode(vec, kminmerInfo._length - _minimizerSize, kminmerInfo._seq_length_start, kminmerInfo._seq_length_end, kminmersInfos[i]._isReversed);
 
@@ -550,6 +551,14 @@ void Bloocoo::createMDBG (){
 
 	_kminmerFile.close();
 	_readFile.close();
+
+	if(_isFirstPass){
+		//if(fs::exists(_outputDir + "/read_data_init.txt")){
+		//	fs::remove(_outputDir + "/read_data_init.txt");
+		//}
+		const auto copyOptions = fs::copy_options::overwrite_existing;
+		fs::copy(_outputDir + "/read_data.txt", _outputDir + "/read_data_init.txt", copyOptions);
+	}
 
 	cout << "Nb kminmers (reads): " << _kminmerExist.size() << endl;
 

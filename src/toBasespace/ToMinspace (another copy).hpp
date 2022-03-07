@@ -36,7 +36,7 @@ public:
 	string _filename_readMinimizers;
 	string _filename_outputContigs;
 	string _filename_kminmerSequences;
-	//string _filename_nodeContigs;
+	string _filename_nodeContigs;
 	MDBG* _mdbg;
 	
 	unordered_map<u_int32_t, KminmerSequenceEntire> _nodeName_entire;
@@ -55,6 +55,25 @@ public:
 		getParser()->push_back (new OptionOneParam (STR_INPUT_DIR, "input dir", true));
 		//getParser()->push_back (new OptionOneParam (STR_OUTPUT, "output contig filename in basespace", true));
 		*/
+	}
+
+    void execute (){
+    
+		loadContigs();
+
+		cout << "Loading mdbg" << endl;
+		string mdbg_filename = _inputDir + "/mdbg_nodes.gz";
+		_mdbg = new MDBG(_kminmerSize);
+		_mdbg->load(mdbg_filename);
+		cout << "MDBG nodes: " << _mdbg->_dbg_nodes.size() << endl;
+
+		extractKminmerSequences();
+		//cout << "delete mdbg a remetre !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << endl;
+		delete _mdbg;
+
+		createMinimizerContigs();
+
+		cout << endl << "Contig filename: " << _filename_outputContigs << endl;
 	}
 
 	void parseArgs(int argc, char* argv[]){
@@ -111,42 +130,20 @@ public:
 		cout << endl;
 
 		_filename_outputContigs = _inputDir + "/contigs.min.gz";
-		_filename_readMinimizers = _inputDir + "/read_data.txt";
-		//_filename_nodeContigs = _inputDir + "/contigs.nodepath.gz";
+		_filename_readMinimizers = _inputDir + "/read_data.gz";
+		_filename_nodeContigs = _inputDir + "/contigs.nodepath.gz";
 	}
-
-
-    void execute (){
-    
-		loadContigs();
-
-		cout << "Loading mdbg" << endl;
-		string mdbg_filename = _inputDir + "/mdbg_nodes.gz";
-		_mdbg = new MDBG(_kminmerSize);
-		_mdbg->load(mdbg_filename);
-		cout << "MDBG nodes: " << _mdbg->_dbg_nodes.size() << endl;
-
-		extractKminmerSequences();
-		//cout << "delete mdbg a remetre !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << endl;
-		delete _mdbg;
-
-		createMinimizerContigs();
-
-		cout << endl << "Contig filename: " << _filename_outputContigs << endl;
-	}
-
-
 
 	void loadContigs(){
 
 		cout << "Loading contigs" << endl;
-		gzFile contigFile = gzopen(_filename_inputContigs.c_str(),"rb");
+		gzFile contigFile = gzopen(_filename_nodeContigs.c_str(),"rb");
 		u_int64_t nbContigs = 0;
 		
 		while(true){
 
 			vector<u_int32_t> nodePath;
-			//vector<u_int64_t> supportingReads;
+			vector<u_int64_t> supportingReads;
 			u_int64_t size;
 			gzread(contigFile, (char*)&size, sizeof(size));
 			
@@ -157,9 +154,9 @@ public:
 			//gzread(contigFile, (char*)&isCircular, sizeof(isCircular));
 
 			nodePath.resize(size);
-			//supportingReads.resize(size);
+			supportingReads.resize(size);
 			gzread(contigFile, (char*)&nodePath[0], size * sizeof(u_int32_t));
-			//gzread(contigFile, (char*)&supportingReads[0], size * sizeof(u_int64_t));
+			gzread(contigFile, (char*)&supportingReads[0], size * sizeof(u_int64_t));
 
 			//for(u_int32_t nodeIndex : nodePath){
 			for(size_t i=0; i<nodePath.size(); i++){
@@ -275,7 +272,7 @@ public:
 				//	std::reverse(vec._kmers.begin(), vec._kmers.end());
 				//}
 				if(kminmerInfo._isReversed){
-					//std::reverse(minimizerSeq.begin(), minimizerSeq.end());
+					std::reverse(minimizerSeq.begin(), minimizerSeq.end());
 				}
 				_nodeName_entire[nodeName] = {minimizerSeq, true};
 			}
@@ -363,11 +360,17 @@ public:
 
 
 		cout << "Extracting kminmers (reads)" << endl;
-		KminmerParser parser(_filename_readMinimizers, _minimizerSize, _kminmerSize, true);
+		KminmerParser parser(_filename_readMinimizers, _minimizerSize, _kminmerSize);
 		auto fp = std::bind(&ToMinspace::extractKminmerSequences_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-		parser.parseMinspace<u_int16_t>(fp);
+		parser.parseMinspace(fp);
 
 		
+		if(_filename_inputContigs != ""){
+			cout << "Extracting kminmers (contigs)" << endl;
+			KminmerParser contigParser(_filename_inputContigs, _minimizerSize, _kminmerSize);
+			auto fp2 = std::bind(&ToMinspace::extractKminmerSequences_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+			contigParser.parse_mContigs_minSpace(fp2);
+		}
 		
 		/*
 		gzFile file_readData = gzopen(_filename_readMinimizers.c_str(),"rb");
@@ -472,25 +475,23 @@ public:
 
 	void createMinimizerContigs(){
 
-		size_t firstK = 4;
-
 		cout << endl;
 		cout << "Creating mContigs" << endl;
 		cout << endl;
 
 		string mdbg_filename =  _inputDir + "/mdbg_nodes_init.gz";
-		MDBG* mdbg = new MDBG(firstK);
+		MDBG* mdbg = new MDBG(3);
 		mdbg->load(mdbg_filename);
 
-		//ofstream testCsv(_inputDir + "/minimizerContigsDebug.csv");
-		//testCsv << "Name,Colour" << endl;
+		ofstream testCsv(_inputDir + "/minimizerContigsDebug.csv");
+		testCsv << "Name,Colour" << endl;
 
 		gzFile outputContigFile = gzopen(_filename_outputContigs.c_str(),"wb");
 
 
 
 
-		gzFile contigFile = gzopen(_filename_inputContigs.c_str(), "rb");
+		gzFile contigFile = gzopen(_filename_nodeContigs.c_str(), "rb");
 
 		u_int64_t contig_index = 0;
 
@@ -498,7 +499,7 @@ public:
 		while(true){
 
 			vector<u_int32_t> nodePath;
-			//vector<u_int64_t> supportingReads;
+			vector<u_int64_t> supportingReads;
 			u_int64_t size;
 			gzread(contigFile, (char*)&size, sizeof(size));
 			
@@ -510,9 +511,9 @@ public:
 			//gzread(contigFile, (char*)&isCircular, sizeof(isCircular));
 
 			nodePath.resize(size);
-			//supportingReads.resize(size);
+			supportingReads.resize(size);
 			gzread(contigFile, (char*)&nodePath[0], size * sizeof(u_int32_t));
-			//gzread(contigFile, (char*)&supportingReads[0], size * sizeof(u_int64_t));
+			gzread(contigFile, (char*)&supportingReads[0], size * sizeof(u_int64_t));
 
 
 			vector<u_int64_t> contigSequence;
@@ -534,13 +535,13 @@ public:
 					//cout << endl << endl << endl << endl << "Entire" << endl;
 					
 					if(orientation){ //+
-						cout << endl << endl << endl << endl << "Entire" << endl;
+						//cout << endl << endl << endl << endl << "Entire" << endl;
 
 						vector<u_int64_t> minimizers = _nodeName_entire[nodeName]._minimizers;
 						for(u_int64_t minimizer : minimizers) contigSequence.push_back(minimizer);
 					}
 					else{
-						cout << endl << endl << endl << endl << "Entire RC" << endl;
+						//cout << endl << endl << endl << endl << "Entire RC" << endl;
 						//cout << _debugMinimizers_isReversed[nodeName] << endl;
 						vector<u_int64_t> minimizers = _nodeName_entire[nodeName]._minimizers;
 						std::reverse(minimizers.begin(), minimizers.end());
@@ -664,7 +665,7 @@ public:
 			//cout << contigSequence << endl;
 
 
-			u_int32_t contigSize = contigSequence.size();
+			u_int64_t contigSize = contigSequence.size();
 			gzwrite(outputContigFile, (const char*)&contigSize, sizeof(contigSize));
 			gzwrite(outputContigFile, (const char*)&contigSequence[0], contigSize * sizeof(u_int64_t));
 
@@ -689,7 +690,7 @@ public:
 			vector<ReadKminmer> kminmersInfo;
 			vector<u_int64_t> minimizersPos; 
 			vector<u_int64_t> rlePositions;
-			MDBG::getKminmers(_minimizerSize, firstK, contigSequence, minimizersPos, kminmers, kminmersInfo, rlePositions, -1, false);
+			MDBG::getKminmers(_minimizerSize, 3, contigSequence, minimizersPos, kminmers, kminmersInfo, rlePositions, -1, false);
 
 			cout << "Nb kminmers: " << kminmers.size() << endl;
 			u_int64_t nbFoundMinimizers = 0;
@@ -726,7 +727,7 @@ public:
 				if(mdbg->_dbg_nodes.find(vec) == mdbg->_dbg_nodes.end()){
 					//if(i==2){ nbFailed += 1; }
 					cout << "Not good: " << i << endl;
-					cout << vec._kmers[0] << " " << vec._kmers[1] << " " << vec._kmers[2] << " " << vec._kmers[3] << endl;
+					cout << vec._kmers[0] << " " << vec._kmers[1] << " " << vec._kmers[2] << endl;
 					
 					//if(mdbg->_dbg_nodes.find(kminmers[i-1]) != mdbg->_dbg_nodes.end()){
 					//	cout << mdbg->_dbg_nodes[kminmers[i-1]]._index << endl;
@@ -749,17 +750,22 @@ public:
 				nbFoundMinimizers += 1;
 				//ReadKminmer& kminmerInfo = kminmersInfo[i];
 
-				//testCsv << nodeName << "," << contig_index << endl;
+				testCsv << nodeName << "," << contig_index << endl;
 
 			}
 
 			//cout << "Is circular: " << ((int)isCircular) << endl;
 			cout << "Found nodes: " << nbFoundMinimizers << endl;
-			if(nbFoundMinimizers != kminmers.size()) getchar();
+			//if(nbFoundMinimizers != kminmers.size()) getchar();
 
 			//if(contigSequence.size() > 10000)
 			//getchar();
 			
+
+
+
+
+
 
 			contig_index += 1;
 		}
@@ -767,7 +773,7 @@ public:
 		//cout << nbFailed << " " << contig_index << endl;
 		gzclose(contigFile);
 		gzclose(outputContigFile);
-		//testCsv.close();
+		testCsv.close();
 
 		//if(_kminmerSize == 21) exit(1);
 	}

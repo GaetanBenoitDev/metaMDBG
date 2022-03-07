@@ -253,7 +253,7 @@ public:
 		_unitigDatas.resize(_mdbg->_dbg_nodes.size());
 		_graph->clear(0);
 		_graph->compact(false, _unitigDatas);
-		generateContigs();
+		//generateContigs();
 		removeUnsupportedEdges(_gfaFilename, gfa_filename_noUnsupportedEdges, _graph);
 		
 
@@ -264,14 +264,32 @@ public:
 			//cout << graphSimplify->_graphSuccessors->_nbEdges << endl;
 			//graphSimplify->execute(5, _kminmerSize);
 			//graphSimplify->debug_writeGfaErrorfree(1000, PathExplorer::computeAbundanceCutoff(1000, 0, CutoffType::ERROR), -1, _kminmerSize, false, true, false, _unitigDatas);
-			_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true);
-			
+
+
+			cout << "Cleanning graph 1" << endl;
+			_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, true);
 			_isBubble = _graph->_isBubble;
+			
+			cout << "Cleanning graph 2" << endl;
+			_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, false, true);
 
-			_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, false);
+			//!
 
+			cout << "done" << endl;
 			_graph->loadState2(0, -1, _unitigDatas);
 		//}
+
+		/*
+		ofstream file_correction(_inputDir + "/roundabout.csv");
+		file_correction << "Name,Colour" << endl;
+		for(u_int32_t nodeName : _graph->_isNodenameRoundabout){
+			if(_isBubble[BiGraph::nodeName_to_nodeIndex(nodeName, true)]){
+				file_correction << nodeName << ",red" << endl;
+			}
+		}
+		file_correction.close();
+		*/
+		//getchar();
 
 		_partitionDir = _inputDir + "/" + "partitions";
 		fs::path path(_partitionDir);
@@ -1637,6 +1655,7 @@ public:
 
 	void correctReads(){
 
+		_nbUncorrectedReads = 0;
 
 		_graph->loadState2(0, -1, _unitigDatas);
 		
@@ -1677,6 +1696,9 @@ public:
 
 		//file_correction.close();
 		gzclose(_outputFile_correctedReads);
+
+		cout << "Nb uncorrected reads: " << _nbUncorrectedReads << endl;
+		//getchar();
 		
 	}
 
@@ -1877,6 +1899,9 @@ public:
 		gzwrite(_outputFile_correctedReads, (const char*)&size, sizeof(size));
 		gzwrite(_outputFile_correctedReads, (const char*)&readpath[0], size * sizeof(u_int32_t));
 
+		if(readpath.size() < nodePath.size()){
+			_nbUncorrectedReads += 1;
+		}
 		//vector<ReadIndexType> unitigIndexex;
 
 		/*
@@ -1907,6 +1932,8 @@ public:
 
 	}
 
+	u_int64_t _nbUncorrectedReads = 0;
+
 	void applyReadCorrection(const vector<u_int32_t>& nodePath, vector<u_int32_t>& readpath, bool print_read){
 
 		
@@ -1923,6 +1950,7 @@ public:
 			u_int32_t nodeIndex = BiGraph::nodeName_to_nodeIndex(nodeName, true);
 
 			if(_graph->_isNodeValid2.find(nodeIndex) == _graph->_isNodeValid2.end()) continue;
+			if(_graph->_isNodenameRoundabout.find(nodeName) != _graph->_isNodenameRoundabout.end()) continue;
 			if(_isBubble[nodeIndex]) continue;
 
 			nodePath_errorFree.push_back(nodeName);
@@ -1940,7 +1968,38 @@ public:
 		if(nodePath_errorFree.size() == 0) return;
 
 
+
+
+		/*
 		//cout << nodePath_errorFree.size() << endl;
+		//if(print_read) cout << "\tDetecting readpath bubble" << endl;
+		unordered_set<u_int32_t> allBubbleNodeNames;
+		for(u_int32_t nodeName : nodePath_errorFree){
+			//cout << "\t\t" << nodeName << endl;
+			if(!_graph->isEdgeNode(BiGraph::nodeName_to_nodeIndex(nodeName, true))) continue;
+			//cout << nodeName << " " << nodePath_errorFree.size() << endl;
+			detectRoundabouts(nodeName, allBubbleNodeNames);
+		}
+		//getchar();
+
+		vector<u_int32_t> nodePath_errorFree_noRoundAbout;
+		for(u_int32_t nodeName : nodePath_errorFree){
+			if(allBubbleNodeNames.find(nodeName) != allBubbleNodeNames.end()) continue;
+			nodePath_errorFree_noRoundAbout.push_back(nodeName);
+		}
+
+		if(print_read){
+			cout << "\tRead error free no roundabout:" << endl;
+			cout << "\t";
+			for(u_int32_t nodeName : nodePath_errorFree_noRoundAbout){
+				cout << nodeName << " ";
+			}
+			cout << endl;
+		}
+
+		if(nodePath_errorFree_noRoundAbout.size() == 0) return;
+		*/
+
 
 
 
@@ -2804,6 +2863,9 @@ public:
 
 	}
 
+
+
+	/*
 	void generateContigs(){
 		if(_kminmerSize < 10) return;
 
@@ -2831,6 +2893,7 @@ public:
 		
 		gzclose(outputContigFile_min);
 	}
+	*/
 
 };
 

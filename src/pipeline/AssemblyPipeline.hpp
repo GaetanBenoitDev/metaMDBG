@@ -178,6 +178,12 @@ public:
 			//if(pass > 0) command += " -c " +  _inputDir + "/contig_data.gz";
 			executeCommand(command);
 
+			//command = ./bin/mdbgAsmMeta toMinspace -o ~/workspace/run/overlap_test_multik_AD/ -c ~/workspace/run/overlap_test_multik_AD/contigs.nodepath.gz
+
+			command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/correctedReads_" + to_string(k) + ".min.gz";
+			executeCommand(command);
+
+			/*
 			//command = _filename_exe + " toBasespace -i " + _inputFilename +  " -o " + _inputDir;
 			//if(pass > 0) command += " -c " +  _inputDir + "/contigs.min.gz";
 			//executeCommand(command);
@@ -187,9 +193,9 @@ public:
 			//if(pass == 0) command += " --firstpass";
 			//executeCommand(command);
 
-			command = _filename_exe + " toBasespaceFast " + " -o " + _inputDir + " -i " + inputFilename + " -c " + _inputDir + "/correctedReads_" + to_string(k) + ".min.gz";
-			if(pass == 0) command += " --firstpass";
-			executeCommand(command);
+			//command = _filename_exe + " toBasespaceFast " + " -o " + _inputDir + " -i " + inputFilename + " -c " + _inputDir + "/correctedReads_" + to_string(k) + ".min.gz";
+			//if(pass == 0) command += " --firstpass";
+			//executeCommand(command);
 
 			//if(pass > 0){
 			//Generate contigs
@@ -198,16 +204,17 @@ public:
 			//if(pass == 0) command += " --firstpass";
 			executeCommand(command);	
 
-			command = _filename_exe + " toBasespaceFast " + " -o " + _inputDir + " -i " + inputFilename + " -c " + _inputDir + "/contigs.nodepath.gz --fasta";
-			if(pass == 0) command += " --firstpass";
-			executeCommand(command);	
+			//command = _filename_exe + " toBasespaceFast " + " -o " + _inputDir + " -i " + inputFilename + " -c " + _inputDir + "/contigs.nodepath.gz --fasta";
+			//if(pass == 0) command += " --firstpass";
+			//executeCommand(command);	
 
-			if(k == 10){
+			if(k == 10 || k == 16 || k == 21 || k == 26 || k == 31){
 				command = _filename_exe + " toBasespace " + " -o " + _inputDir + " -i " + _inputFilename + " -c " + _inputDir + "/contigs.nodepath.gz.fasta.gz --fasta";
 				if(pass == 0) command += " --firstpass";
 				executeCommand(command);
 				getchar();
 			}	
+			*/
 
 			//}
 			
@@ -233,7 +240,7 @@ public:
 			//exit(1);
 			//break;
 			cout << "pass done" << endl;
-			//getchar();
+			getchar();
 		}
 
     }
