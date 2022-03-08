@@ -832,6 +832,16 @@ public:
 
 	}
 
+    struct NodeNameAbundance{
+        u_int32_t _nodeName;
+        u_int32_t _abundance;
+    };
+    
+    struct NodeNameAbundance_Comparator {
+        bool operator()(NodeNameAbundance const& p1, NodeNameAbundance const& p2){
+            return p1._abundance > p2._abundance;
+        }
+    };
 
 	static bool UnitigComparator_ByLength2(const UnitigLength &a, const UnitigLength &b){
 		return a._length > b._length;
@@ -1715,7 +1725,7 @@ public:
 
 		cout << "Nb reads: " << _nbreadsLala << endl;
 		cout << "Nb uncorrected reads: " << _nbUncorrectedReads << endl;
-		getchar();
+		//getchar();
 		
 	}
 
@@ -2077,7 +2087,6 @@ public:
 
 
 
-
 		
 		vector<u_int32_t> nodePath_anchor = nodePath_errorFree_fixed;
 		//for(u_int32_t nodeName : nodePath_errorFree_fixed)
@@ -2090,7 +2099,102 @@ public:
 		u_int32_t nodeIndex_source = -1;
 		//u_int32_t nodeIndex_dest = -1;
 
-		
+		for(long i=0; i<((long)nodePath_connected.size())-1; i++){
+			
+			u_int32_t nodeName_source = nodePath_connected[i];
+			u_int32_t nodeName_dest = nodePath_connected[i+1];
+
+
+			if(nodeIndex_source != -1){
+				if(tryFindPathDirect(nodeIndex_source, nodeName_dest, readpath)){
+					nodeIndex_source = readpath[readpath.size()-1];
+					continue;
+				}
+			}
+			/*
+			else{
+				if(tryFindPathDirect(BiGraph::nodeName_to_nodeIndex(nodeName_source, true), nodeName_dest, readpath)){
+					nodeIndex_source = readpath[readpath.size()-1];
+					continue;
+				}
+				else if(tryFindPathDirect(BiGraph::nodeName_to_nodeIndex(nodeName_source, false), nodeName_dest, readpath)){
+					nodeIndex_source = readpath[readpath.size()-1];
+					continue;
+				}
+			}
+			*/
+
+
+
+			bool foundPath = false;
+
+
+			priority_queue<NodeNameAbundance, vector<NodeNameAbundance> , NodeNameAbundance_Comparator> queue;
+			for(u_int32_t nodeName : nodePath_errorFree_fixed){
+				queue.push({nodeName, _graph->getNodeUnitigAbundance(BiGraph::nodeName_to_nodeIndex(nodeName, true))});
+			}
+
+			while(!queue.empty()){
+
+				NodeNameAbundance nodeNameAbundance = queue.top();
+				queue.pop();
+
+				u_int32_t anchorNodeName = nodeNameAbundance._nodeName;
+
+				unordered_set<u_int32_t> unallowedNodeNames;
+				for(long j=0; j<nodePath_connected.size(); j++){
+					if(nodePath_connected[j] == nodeName_source || nodePath_connected[j] == nodeName_dest) continue;
+					unallowedNodeNames.insert(nodePath_connected[j]);
+				}
+
+				//cout << "\tSearching path: " << nodeName_source << " " << nodeName_dest << endl;
+				//cout << Utils::computeSharedReads(_unitigDatas[nodeName_source], _unitigDatas[nodeName_dest]) << endl;
+
+				//cout << nodePath_anchor.size() << endl;
+				vector<u_int32_t> path;
+				_graph->shortestPath_nodeName(nodeName_source, nodeName_dest, path, true, true, maxDepth, _unitigDatas, unallowedNodeNames, nodeIndex_source, anchorNodeName);
+
+				if(path.size() == 0){
+					foundPath = false;
+					break;
+				}
+
+				foundPath = true;
+				//cout << "done" << endl;
+
+				std::reverse(path.begin(), path.end());
+
+				//cout << "\t";
+				if(readpath.size() == 0){
+					for(u_int32_t nodeIndex : path){
+						readpath.push_back(nodeIndex);
+					}
+				}
+				else{ //Discard source
+					for(size_t i=1; i<path.size(); i++){ 
+						//cout << BiGraph::nodeIndex_to_nodeName(nodeIndex) << " ";
+						readpath.push_back(path[i]);
+					}
+				}
+				prevNodename = nodeName_source;
+				
+				if(readpath.size() > 0){
+					nodeIndex_source = readpath[readpath.size()-1];
+				}
+				//cout << endl;
+
+				if(foundPath){
+					//nodePath_anchor = nodePath_errorFree_fixed;
+					break;
+				}
+
+			}
+
+
+		}
+
+
+		/*
 		for(long i=0; i<((long)nodePath_connected.size())-1; i++){
 			
 			u_int32_t nodeName_source = nodePath_connected[i];
@@ -2202,7 +2306,7 @@ public:
 
 
 		}
-
+		*/
 		
 
 		if(print_read){
@@ -2536,6 +2640,35 @@ public:
 		}
 		*/
 
+	}
+
+	bool tryFindPathDirect(u_int32_t nodeIndex_source, u_int32_t nodeName_dest, vector<u_int32_t>& readpath){
+
+		u_int32_t unitigIndex_source = _graph->nodeIndex_to_unitigIndex(nodeIndex_source);
+
+		vector<u_int32_t> successors;
+		_graph->getSuccessors(nodeIndex_source, 0, successors);
+
+		for(u_int32_t nodeIndexSuccessor: successors){
+
+			u_int32_t unitigIndex = _graph->nodeIndex_to_unitigIndex(nodeIndexSuccessor);
+			if(unitigIndex != unitigIndex_source) continue;
+
+			if(BiGraph::nodeIndex_to_nodeName(nodeIndexSuccessor) == nodeName_dest){
+				if(readpath.size() == 0){
+					readpath.push_back(nodeIndex_source);
+					readpath.push_back(nodeIndexSuccessor);
+					return true;
+				}
+				else{
+					readpath.push_back(nodeIndexSuccessor);
+					return true;
+				}
+			}
+
+		}
+
+		return false;
 	}
 
 	void extendReadpath(const vector<u_int32_t>& originalNodePath, vector<u_int32_t>& readpath, bool print_read){

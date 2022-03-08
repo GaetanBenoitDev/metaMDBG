@@ -212,7 +212,7 @@ public:
 
 
 			
-			if(k == 10 || k == 16 || k == 21 || k == 26 || k == 31){
+			if(k == 5 || k == 10 || k == 16 || k == 21 || k == 26 || k == 31){
 
 				//Generate contigs
 				command = _filename_exe + " contig " + " -o " + _inputDir;
@@ -255,7 +255,7 @@ public:
 			//exit(1);
 			//break;
 			cout << "pass done" << endl;
-			getchar();
+			//getchar();
 		}
 
     }

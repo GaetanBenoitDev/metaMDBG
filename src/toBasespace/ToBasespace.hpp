@@ -411,7 +411,8 @@ public:
 			KmerVec vec = kminmerInfo._vec;
 			
 			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
-				cout << "Not found" << endl;
+				cout << "Not found kminmer" << endl;
+				getchar();
 				continue;
 			}
 

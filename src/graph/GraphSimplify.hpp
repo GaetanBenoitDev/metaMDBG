@@ -7377,7 +7377,7 @@ getStronglyConnectedComponent_node
         nodepath = prevNodes;    
     }
 
-    void shortestPath_nodeName(u_int32_t source_nodeName, u_int32_t dest_nodeName, vector<u_int32_t>& path, bool includeSource, bool includeSink, u_int32_t maxDistance, const vector<UnitigData>& unitigDatas, unordered_set<u_int32_t>& unallowedNodenames, u_int32_t nodeIndex_sourceLala, vector<u_int32_t>& anchorNodeNames){
+    void shortestPath_nodeName(u_int32_t source_nodeName, u_int32_t dest_nodeName, vector<u_int32_t>& path, bool includeSource, bool includeSink, u_int32_t maxDistance, const vector<UnitigData>& unitigDatas, unordered_set<u_int32_t>& unallowedNodenames, u_int32_t nodeIndex_sourceLala, u_int32_t anchorNodeName){ //vector<u_int32_t>& anchorNodeNames
         /*
         path.clear();
 
@@ -7417,7 +7417,7 @@ getStronglyConnectedComponent_node
         */
 
         
-        const vector<u_int64_t>& readIndexes_source = unitigDatas[source_nodeName]._readIndexes;
+        const vector<u_int64_t>& readIndexes_source = unitigDatas[anchorNodeName]._readIndexes;
 
         path.clear();
 		unordered_set<u_int32_t> isVisited1;
@@ -7504,7 +7504,7 @@ getStronglyConnectedComponent_node
 
                         if (isVisited1.find(nodeIndex_successor) != isVisited1.end()) continue;
                     
-
+                        /*
                         vector<u_int32_t> nodeNames = anchorNodeNames;
                         //vector<u_int32_t> nodeNames = prevNodeNames;
                         //for(u_int32_t nodeName : anchorNodeNames){
@@ -7519,10 +7519,11 @@ getStronglyConnectedComponent_node
                         //u_int32_t nbSharedReads = Utils::computeSharedReads(readIndexes_source, readIndexes);
                         u_int32_t nbSharedReads = Utils::computeSharedReads(nodeNames, unitigDatas);
 
+                        */
 
 
-                        //const vector<u_int64_t>& readIndexes = unitigDatas[BiGraph::nodeIndex_to_nodeName(nodeIndex_successor)]._readIndexes;
-                        //u_int32_t nbSharedReads = Utils::computeSharedReads(readIndexes_source, readIndexes);
+                        const vector<u_int64_t>& readIndexes = unitigDatas[BiGraph::nodeIndex_to_nodeName(nodeIndex_successor)]._readIndexes;
+                        u_int32_t nbSharedReads = Utils::computeSharedReads(readIndexes_source, readIndexes);
                         //cout << "\tNeighborsL: " << BiGraph::nodeIndex_to_nodeName(nodeIndex_successor) << " " << nbSharedReads << endl;
 
                         if(nbSharedReads <= 1) continue;
