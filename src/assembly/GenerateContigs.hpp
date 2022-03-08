@@ -197,7 +197,7 @@ public:
 		cout << "done" << endl;
 	
 
-		_graph->debug_writeGfaErrorfree(500, 500, -1, _kminmerSize, false, true, false, _unitigDatas, true, false);
+		_graph->debug_writeGfaErrorfree(500, 500, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false);
 			
 	}
 

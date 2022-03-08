@@ -2661,14 +2661,14 @@ public:
 
 	void parse(const std::function<void(vector<u_int64_t>, vector<KmerVec>, vector<ReadKminmer>, u_int64_t)>& fun){
 
-		ifstream file_readData(_inputFilename);
+		ifstream file_readData(_inputFilename, std::ios::binary);
 
 		u_int64_t readIndex = 0;
 
 		while(true){
 			
 
-			u_int16_t size;
+			u_int32_t size;
 			vector<u_int64_t> minimizers;
 			vector<u_int16_t> minimizersPosOffsets; 
 			
@@ -2707,32 +2707,37 @@ public:
 			fun(minimizers, kminmers, kminmersInfo, readIndex);
 
 			readIndex += 1;
+
 		}
 
 		file_readData.close();
 
 	}
 
-	template<typename SizeType>
+	//template<typename SizeType>
 	void parseMinspace(const std::function<void(vector<u_int64_t>, vector<ReadKminmerComplete>, u_int64_t)>& fun){
 
-		gzFile file_readData = gzopen(_inputFilename.c_str(),"rb");
+		ifstream file_readData(_inputFilename, std::ios::binary);
 
 		u_int64_t readIndex = 0;
 
 		while(true){
 			
-			SizeType size;
+			u_int32_t size;
 			vector<u_int64_t> minimizers;
 			vector<u_int16_t> minimizersPosOffsets; 
-			gzread(file_readData, (char*)&size, sizeof(size));
-
-			if(gzeof(file_readData)) break;
 			
+			file_readData.read((char*)&size, sizeof(size));
+
+			if(file_readData.eof())break;
+
 			minimizers.resize(size);
 			minimizersPosOffsets.resize(size);
-			gzread(file_readData, (char*)&minimizers[0], size * sizeof(u_int64_t));
-			if(_usePos) gzread(file_readData, (char*)&minimizersPosOffsets[0], size * sizeof(u_int16_t));
+
+			file_readData.read((char*)&minimizers[0], size*sizeof(u_int64_t));
+			if(_usePos){
+				file_readData.read((char*)&minimizersPosOffsets[0], size*sizeof(u_int16_t));
+			}
 
 			
 			//cout << "----" << endl;
@@ -2756,7 +2761,7 @@ public:
 			readIndex += 1;
 		}
 
-		gzclose(file_readData);
+		file_readData.close();
 
 	}
 	

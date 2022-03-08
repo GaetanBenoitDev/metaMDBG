@@ -102,6 +102,7 @@ public:
 		options.add_options()
 		(ARG_INPUT_FILENAME, "", cxxopts::value<string>())
 		(ARG_INPUT_FILENAME_CONTIG, "", cxxopts::value<string>())
+		(ARG_OUTPUT_FILENAME, "", cxxopts::value<string>())
 		(ARG_FIRST_PASS, "", cxxopts::value<bool>()->default_value("false"))
 		(ARG_FASTA, "", cxxopts::value<bool>()->default_value("false"))
 		(ARG_OUTPUT_DIR, "", cxxopts::value<string>());
@@ -125,6 +126,7 @@ public:
 			_inputFilenameContig = result[ARG_INPUT_FILENAME_CONTIG].as<string>();
 			_isFirstPass = result[ARG_FIRST_PASS].as<bool>();
 			_isOutputFasta = result[ARG_FASTA].as<bool>();
+			_filename_outputContigs = result[ARG_OUTPUT_FILENAME].as<string>();
 			
 		}
 		catch (const std::exception& e){
@@ -157,7 +159,7 @@ public:
 		cout << endl;
 
 		//_filename_outputContigs = _inputDir + "/contigs.fasta.gz";
-		_filename_outputContigs = _inputFilenameContig + ".fasta.gz"; //_inputDir + "/tmpContigs.fasta.gz";
+		//_filename_outputContigs = _inputFilenameContig + ".fasta.gz"; //_inputDir + "/tmpContigs.fasta.gz";
 		_minimizerParser = new MinimizerParser(_minimizerSize, _minimizerDensity);
 	}
 
@@ -178,7 +180,7 @@ public:
 		//_mdbgInit->load(mdbg_filename);
 		//cout << "MDBG nodes: " << _mdbgInit->_dbg_nodes.size() << endl;
 
-		loadContigs_fasta(_inputFilenameContig);
+		loadContigs_min(_inputFilenameContig);
 		//extractKminmerSequences_all();
 		extractKminmerSequences_allVariants();
 
@@ -348,6 +350,7 @@ public:
 	u_int64_t _nbContigs;
 	unordered_map<u_int32_t, u_int32_t> _kminmerCounts;
 
+	/*
 	void loadContigs_fasta (const string& contigFilename){
 
 
@@ -371,8 +374,83 @@ public:
 
 		_kminmerCounts.clear();
 	}
-	
+	*/
 
+	void loadContigs_min(const string& contigFilename){
+
+		_nbContigs = 0;
+
+		cout << "Extracting kminmers (contigs)" << endl;
+		KminmerParser parser(contigFilename, _minimizerSize, _kminmerSize, false);
+		auto fp = std::bind(&ToBasespace::loadContigs_min_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+		parser.parseMinspace(fp);
+
+		cout << "Nb contigs: " << _nbContigs << endl;
+
+		double nbRepeatedKminmers = 0;
+		for(auto& it : _kminmerCounts){
+			if(it.second > 1){
+				nbRepeatedKminmers += 1;
+			}
+		}
+		cout << "Nb kminmer: " << _kminmerCounts.size() << endl;
+		cout << "Repeated kminmer: " << nbRepeatedKminmers << endl;
+		cout << "Repeated kminmer rate: " << (nbRepeatedKminmers / _kminmerCounts.size()) << endl;
+
+		_kminmerCounts.clear();
+	}
+
+	
+	void loadContigs_min_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
+
+		//cout << readIndex << " " << kminmersInfos.size() << endl;
+		for(size_t i=0; i<kminmersInfos.size(); i++){
+			
+			const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
+
+			KmerVec vec = kminmerInfo._vec;
+			
+			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
+				cout << "Not found" << endl;
+				continue;
+			}
+
+			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
+			
+			_kminmerCounts[nodeName] += 1;
+
+			//vector<u_int64_t> minimizerSeq;
+			
+			//for(size_t i=kminmerInfo._read_pos_start; i<=kminmerInfo._read_pos_end; i++){
+			//	minimizerSeq.push_back(readMinimizers[i]);
+			//}
+			
+
+			//if(kminmerInfo._isReversed){
+			//	std::reverse(minimizerSeq.begin(), minimizerSeq.end());
+			//}
+
+			bool orientation = !kminmerInfo._isReversed;
+
+			if(i == 0){
+				_kminmerSequenceCopies_all_entire[nodeName] = {};
+			}
+			else {
+				if(orientation){ //+
+					_kminmerSequenceCopies_all_right[nodeName] = {};
+				}
+				else{ //-
+					_kminmerSequenceCopies_all_left[nodeName] = {};
+				}
+			}
+
+		}
+
+		_nbContigs += 1;
+
+	}
+
+	/*
 	void loadContigs_fasta_read(kseq_t* read, u_int64_t readIndex){
 		//cout << readIndex << endl;
 		//ottalSize += strlen(read->seq.s);
@@ -409,44 +487,6 @@ public:
 		vector<ReadKminmer> kminmersInfo;
 		MDBG::getKminmers(_minimizerSize, _kminmerSize, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex, false);
 		
-		/*
-		while(true){
-		
-			if(minimizers.size() == 0){
-				cout << "cant fix erroneous contig" << endl;
-				//exit(1);
-				break;
-			}
-			
-			bool isError = false;
-			kminmers.clear();
-			kminmersInfo.clear();
-			
-			MDBG::getKminmers(_minimizerSize, _kminmerSize, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex, false);
-		
-			
-			for(size_t i=0; i<kminmers.size(); i++){
-				if(_mdbg->_dbg_nodes.find(kminmers[i]) == _mdbg->_dbg_nodes.end()){
-					cout << "Fixing erroneous contig: " << readIndex << " " <<  i << " " << minimizers.size() << endl;
-					isError = true;
-					minimizers.erase(minimizers.begin()+i+_kminmerSize-1);
-					minimizers_pos.erase(minimizers_pos.begin()+i+_kminmerSize-1);
-					break;
-				}
-			}
-			
-			if(!isError) break;
-		}
-		*/
-		/*
-		for(auto& it : _mdbg->_dbg_nodes){
-			cout << it.second._index << endl;
-			if(it.second._index == 21594){
-				cout << "wesh ? " << endl;
-				getchar();
-			}
-		}
-		*/
 
 		for(size_t i=0; i<kminmers.size(); i++){
 			if(_mdbg->_dbg_nodes.find(kminmers[i]) == _mdbg->_dbg_nodes.end()){
@@ -484,6 +524,7 @@ public:
 
 		_nbContigs += 1;
 	}
+	*/
 
 
 
@@ -860,6 +901,7 @@ public:
 
 	gzFile _basespaceContigFile;
 
+	/*
 	void createBaseContigs (const string& contigFilename, const string& outputFilename){
 
 		cout << "Creating basespace contigs: " << contigFilename << " " << outputFilename << endl;
@@ -873,7 +915,112 @@ public:
 		
 		gzclose(_basespaceContigFile);
 	}
+	*/
 	
+	void createBaseContigs(const string& contigFilename, const string& outputFilename){
+
+		cout << "Creating basespace contigs: " << contigFilename << " " << outputFilename << endl;
+
+		_basespaceContigFile = gzopen(outputFilename.c_str(),"wb");
+
+		KminmerParser parser(contigFilename, _minimizerSize, _kminmerSize, false);
+		auto fp = std::bind(&ToBasespace::createBaseContigs_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+		parser.parseMinspace(fp);
+
+		gzclose(_basespaceContigFile);
+	}
+
+	void createBaseContigs_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
+
+
+		cout << readIndex << " " << kminmersInfos.size() << endl;
+		
+		string contigSequence = "";
+
+		for(size_t i=0; i<kminmersInfos.size(); i++){
+			
+			//cout << i << endl;
+			const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
+
+			KmerVec vec = kminmerInfo._vec;
+			
+			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
+				cout << "Not found" << endl;
+				continue;
+			}
+
+			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
+			
+			//vector<u_int64_t> minimizerSeq;
+			
+			//for(size_t i=kminmerInfo._read_pos_start; i<=kminmerInfo._read_pos_end; i++){
+			//	minimizerSeq.push_back(readMinimizers[i]);
+			//}
+			
+
+			//if(kminmerInfo._isReversed){
+			//	std::reverse(minimizerSeq.begin(), minimizerSeq.end());
+			//}
+
+			bool orientation = !kminmerInfo._isReversed;
+
+			if(i == 0){
+				if(orientation){ //+
+					if(_kminmerSequence_entire.find(nodeName) == _kminmerSequence_entire.end() || _kminmerSequence_entire[nodeName] == nullptr) continue;
+					char* seq = _kminmerSequence_entire[nodeName]->to_string();
+					string kminmerSequence = string(seq);
+					free(seq);
+
+					contigSequence += kminmerSequence;
+					//cout << contigSequence << endl;
+				}
+				else{
+					
+					if(_kminmerSequence_entire.find(nodeName) == _kminmerSequence_entire.end() || _kminmerSequence_entire[nodeName] == nullptr) continue;
+					char* seq = _kminmerSequence_entire[nodeName]->to_string();
+					string kminmerSequence = string(seq);
+					free(seq);
+
+					Utils::revcomp(kminmerSequence);
+					contigSequence += kminmerSequence;
+				}
+			}
+			else {
+				if(orientation){
+
+					if(_kminmerSequence_right.find(nodeName) == _kminmerSequence_right.end() || _kminmerSequence_right[nodeName] == nullptr) continue;
+					char* seq = _kminmerSequence_right[nodeName]->to_string();
+					string kminmerSequence = string(seq);
+					free(seq);
+					
+					contigSequence += kminmerSequence;
+					
+
+				}
+				else{
+					
+					if(_kminmerSequence_left.find(nodeName) == _kminmerSequence_left.end() || _kminmerSequence_left[nodeName] == nullptr) continue;
+					char* seq = _kminmerSequence_left[nodeName]->to_string();
+					string kminmerSequence = string(seq);
+					free(seq);
+
+					Utils::revcomp(kminmerSequence);
+					contigSequence += kminmerSequence;
+
+
+				}
+			}
+		}
+
+		
+		string header = ">ctg" + to_string(readIndex) + '\n';
+		gzwrite(_basespaceContigFile, (const char*)&header[0], header.size());
+		contigSequence +=  '\n';
+		gzwrite(_basespaceContigFile, (const char*)&contigSequence[0], contigSequence.size());
+
+	}
+
+	/*
 	void createBaseContigs_read(kseq_t* read, u_int64_t readIndex){
 
 		string kminmerSequence;
@@ -892,34 +1039,6 @@ public:
 		vector<ReadKminmer> kminmersInfo;
 		MDBG::getKminmers(_minimizerSize, _kminmerSize, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex, false);
 		
-		/*
-		while(true){
-		
-			if(minimizers.size() == 0){
-				cout << "cant fix erroneous contig" << endl;
-				//exit(1);
-				break;
-			}
-			
-			bool isError = false;
-			kminmers.clear();
-			kminmersInfo.clear();
-			
-			MDBG::getKminmers(_minimizerSize, _kminmerSize, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex, false);
-		
-			for(size_t i=0; i<kminmers.size(); i++){
-				if(_mdbg->_dbg_nodes.find(kminmers[i]) == _mdbg->_dbg_nodes.end()){
-					cout << "Fixing erroneous contig: " << i << " " << minimizers.size() << endl;
-					isError = true;
-					minimizers.erase(minimizers.begin()+_kminmerSize-1);
-					minimizers_pos.erase(minimizers_pos.begin()+_kminmerSize-1);
-					break;
-				}
-			}
-			
-			if(!isError) break;
-		}
-		*/
 		
 		string contigSequence = "";
 
@@ -998,6 +1117,7 @@ public:
 
 		//cout << readIndex << " " << _nodeName_left.size() << " " << _nodeName_right.size() << endl;
 	}
+	*/
 
 	/*
 	void createBaseContigs(const string& contigFilename, const string& outputFilename){

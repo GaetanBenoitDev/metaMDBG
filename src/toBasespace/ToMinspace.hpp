@@ -34,8 +34,9 @@ public:
 
 	string _filename_inputContigs;
 	string _filename_readMinimizers;
-	string _filename_outputContigs;
+	//string _filename_outputContigs;
 	string _filename_kminmerSequences;
+	string _filename_output;
 	//string _filename_nodeContigs;
 	MDBG* _mdbg;
 	
@@ -67,6 +68,7 @@ public:
 		options.add_options()
 		//(ARG_INPUT_FILENAME, "", cxxopts::value<string>())
 		(ARG_OUTPUT_DIR, "", cxxopts::value<string>())
+		(ARG_OUTPUT_FILENAME, "", cxxopts::value<string>())
 		(ARG_INPUT_FILENAME_CONTIG, "", cxxopts::value<string>()->default_value(""));
 
 		//("k,kminmerSize", "File name", cxxopts::value<std::string>())
@@ -86,6 +88,7 @@ public:
 			//_inputFilename = result[ARG_INPUT_FILENAME].as<string>();
 			_inputDir = result[ARG_OUTPUT_DIR].as<string>();
 			_filename_inputContigs = result[ARG_INPUT_FILENAME_CONTIG].as<string>();
+			_filename_output = result[ARG_OUTPUT_FILENAME].as<string>();
 			
 		}
 		catch (const std::exception& e){
@@ -110,8 +113,11 @@ public:
 		cout << "Density: " << _minimizerDensity << endl;
 		cout << endl;
 
-		_filename_outputContigs = _inputDir + "/contigs.min.gz";
+		//_filename_outputContigs = _inputDir + "/contigs.min.gz";
+		//_filename_output = _filename_inputContigs + ".min";
+		//_filename_readMinimizers = _inputDir + "/readData_" + to_string(_kminmerSize) + ".txt";
 		_filename_readMinimizers = _inputDir + "/read_data.txt";
+		//_filename_readMinimizers_output = _filename_readMinimizers + ".corrected.txt";
 		//_filename_nodeContigs = _inputDir + "/contigs.nodepath.gz";
 	}
 
@@ -132,7 +138,7 @@ public:
 
 		createMinimizerContigs();
 
-		cout << endl << "Contig filename: " << _filename_outputContigs << endl;
+		cout << endl << "Contig filename: " << _filename_output << endl;
 	}
 
 
@@ -365,7 +371,7 @@ public:
 		cout << "Extracting kminmers (reads)" << endl;
 		KminmerParser parser(_filename_readMinimizers, _minimizerSize, _kminmerSize, true);
 		auto fp = std::bind(&ToMinspace::extractKminmerSequences_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-		parser.parseMinspace<u_int16_t>(fp);
+		parser.parseMinspace(fp);
 
 		
 		
@@ -485,8 +491,8 @@ public:
 		//ofstream testCsv(_inputDir + "/minimizerContigsDebug.csv");
 		//testCsv << "Name,Colour" << endl;
 
-		gzFile outputContigFile = gzopen(_filename_outputContigs.c_str(),"wb");
-
+		//gzFile outputContigFile = gzopen(_filename_outputContigs.c_str(),"wb");
+		ofstream outputFile(_filename_output, std::ios::binary);
 
 
 
@@ -665,8 +671,17 @@ public:
 
 
 			u_int32_t contigSize = contigSequence.size();
-			gzwrite(outputContigFile, (const char*)&contigSize, sizeof(contigSize));
-			gzwrite(outputContigFile, (const char*)&contigSequence[0], contigSize * sizeof(u_int64_t));
+			//cout << "Write: " << contigSize << endl;
+			//getchar();
+			outputFile.write((const char*)&contigSize, sizeof(contigSize));
+			outputFile.write((const char*)&contigSequence[0], contigSize*sizeof(u_int64_t));
+
+
+			//vector<u_int16_t> minimizerPosOffset(contigSequence.size(), 0);
+			//outputFile.write((const char*)&minimizerPosOffset[0], size*sizeof(u_int16_t));
+
+			//gzwrite(outputContigFile, (const char*)&contigSize, sizeof(contigSize));
+			//gzwrite(outputContigFile, (const char*)&contigSequence[0], contigSize * sizeof(u_int64_t));
 
 			/*
 			if(contigSequence.size() > 4000){
@@ -764,13 +779,19 @@ public:
 			contig_index += 1;
 		}
 
+
 		//cout << nbFailed << " " << contig_index << endl;
 		gzclose(contigFile);
-		gzclose(outputContigFile);
+		outputFile.close();
+		//gzclose(outputContigFile);
 		//testCsv.close();
 
 		//if(_kminmerSize == 21) exit(1);
+
+
 	}
+
+
 };	
 
 

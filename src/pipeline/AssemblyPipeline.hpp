@@ -154,21 +154,25 @@ public:
 			//	continue;
 			//}
 
-			string inputFilename = "";
-			if(pass == 0){
-				inputFilename = _inputFilename;
-			}
-			else{
-				inputFilename = createInputFile(prevK);
-			}
+			//string inputFilename = "";
+			//if(pass == 0){
+			//	inputFilename = _inputFilename;
+			//}
+			//else{
+			//	inputFilename = createInputFile(prevK);
+			//}
 
 			//Read selection
 			//command = _filename_exe + " readSelection -i " + inputFilename + " -o " + _inputDir + " -f " + _inputDir + "/read_data.gz";
 			//if(pass == 0) command += " --firstpass";
 			//executeCommand(command);
 
-
-			command = _filename_exe + " graph -i " + inputFilename + " -o " + _inputDir;
+			if(pass == 0){
+				command = _filename_exe + " graph -i " + _inputFilename + " -o " + _inputDir;
+			}
+			else{
+				command = _filename_exe + " graph -i " + _inputDir + "/read_data.txt.corrected.txt " + " -o " + _inputDir;	
+			}
 			if(pass == 0) command += " --firstpass";
 			executeCommand(command);
 			//getchar();
@@ -180,10 +184,10 @@ public:
 
 			//command = ./bin/mdbgAsmMeta toMinspace -o ~/workspace/run/overlap_test_multik_AD/ -c ~/workspace/run/overlap_test_multik_AD/contigs.nodepath.gz
 
-			command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/correctedReads_" + to_string(k) + ".min.gz";
+			command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/correctedReads_" + to_string(k) + ".min.gz" + " -f "  + _inputDir + "/read_data.txt.corrected.txt";
 			executeCommand(command);
 
-			/*
+			
 			//command = _filename_exe + " toBasespace -i " + _inputFilename +  " -o " + _inputDir;
 			//if(pass > 0) command += " -c " +  _inputDir + "/contigs.min.gz";
 			//executeCommand(command);
@@ -197,24 +201,35 @@ public:
 			//if(pass == 0) command += " --firstpass";
 			//executeCommand(command);
 
+			
 			//if(pass > 0){
-			//Generate contigs
-			command = _filename_exe + " contig " + " -o " + _inputDir;
-			if(!_truthInputFilename.empty()) command += " --itruth " + _truthInputFilename;
-			//if(pass == 0) command += " --firstpass";
-			executeCommand(command);	
 
-			//command = _filename_exe + " toBasespaceFast " + " -o " + _inputDir + " -i " + inputFilename + " -c " + _inputDir + "/contigs.nodepath.gz --fasta";
+			
+
+			//command = _filename_exe + " toBasespaceFast " + " -o " + _inputDir + " -i " + _inputFilename + " -c " + _inputDir + "/contig_data.txt " + " -f " + _inputDir + "/contigs.fasta.gz " +  " --fasta";
 			//if(pass == 0) command += " --firstpass";
 			//executeCommand(command);	
 
+
+			
 			if(k == 10 || k == 16 || k == 21 || k == 26 || k == 31){
-				command = _filename_exe + " toBasespace " + " -o " + _inputDir + " -i " + _inputFilename + " -c " + _inputDir + "/contigs.nodepath.gz.fasta.gz --fasta";
+
+				//Generate contigs
+				command = _filename_exe + " contig " + " -o " + _inputDir;
+				if(!_truthInputFilename.empty()) command += " --itruth " + _truthInputFilename;
+				//if(pass == 0) command += " --firstpass";
+				executeCommand(command);	
+
+				command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/contigs.nodepath.gz" + " -f " + _inputDir + "/contig_data.txt";
+				executeCommand(command);
+
+				command = _filename_exe + " toBasespace " + " -o " + _inputDir + " -i " + _inputFilename + " -c " + _inputDir + "/contig_data.txt " + " -f " + _inputDir + "/contigs.fasta.gz " + " --fasta";
 				if(pass == 0) command += " --firstpass";
 				executeCommand(command);
-				getchar();
+
 			}	
-			*/
+			
+			
 
 			//}
 			
@@ -289,7 +304,8 @@ public:
 		string inputFilename = _inputDir + "/input.txt";
 		ofstream inputFile(inputFilename);
 
-		const string& filename = _inputDir + "/correctedReads_" + to_string(k) + ".min.gz.bitset";
+		//const string& filename = _inputDir + "/correctedReads_" + to_string(k) + ".min.gz.bitset";
+		const string& filename = _inputDir + "/read_data.txt.corrected.txt";
 		inputFile << filename << endl;
 		/*
 		ReadParser readParser(_inputFilename, false);

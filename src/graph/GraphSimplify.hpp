@@ -902,7 +902,7 @@ public:
             //cout << "\tVisited: " << BiGraph::nodeIndex_to_nodeName(_unitigs[v]._startNode) << " " << BiGraph::nodeIndex_to_nodeName(_unitigs[v]._endNode) << endl;
             queue.pop_back();
 
-            if(pathLength[v] > maxLength) continue;
+            //if(pathLength[v] > maxLength) continue;
             //cout << pathLength[v] << " " << _kminmerSize << endl;
             if(pathLength[v] > maxLength) continue;
 
@@ -3051,7 +3051,7 @@ public:
         }
     }
 
-    void debug_writeGfaErrorfree(u_int32_t currentAbundance, float abundanceCutoff_min, u_int32_t nodeIndex_source, u_int64_t k, bool saveGfa, bool doesSaveState, bool doesLoadState, const vector<UnitigData>& unitigDatas, bool crushBubble, bool smallBubbleOnly){
+    void debug_writeGfaErrorfree(u_int32_t currentAbundance, float abundanceCutoff_min, u_int32_t nodeIndex_source, u_int64_t k, bool saveGfa, bool doesSaveState, bool doesLoadState, const vector<UnitigData>& unitigDatas, bool crushBubble, bool smallBubbleOnly, bool detectRoundabout){
 
         u_int64_t maxBubbleLength;
         if(smallBubbleOnly){
@@ -3060,6 +3060,7 @@ public:
         else{
             maxBubbleLength = _kminmerSize * 10;
         }
+
 
         _cachedGraphStates.clear();
 
@@ -3285,7 +3286,7 @@ public:
                     isModSub = true;
                 }
 
-
+                
                 //3526895 2681795
                 if(crushBubble){
                     while(true){
@@ -3391,7 +3392,7 @@ public:
 
                     if(currentCutoff == 0){
 
-                        if(crushBubble && smallBubbleOnly){
+                        if(detectRoundabout){
                             detectRoundabouts(maxBubbleLength, unitigDatas);
                         }
                         

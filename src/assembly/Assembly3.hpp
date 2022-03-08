@@ -267,11 +267,11 @@ public:
 
 
 			cout << "Cleanning graph 1" << endl;
-			_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, true);
+			_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, true);
 			_isBubble = _graph->_isBubble;
 			
 			cout << "Cleanning graph 2" << endl;
-			_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, false, true);
+			_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, false, false, false);
 
 			//!
 
@@ -279,17 +279,27 @@ public:
 			_graph->loadState2(0, -1, _unitigDatas);
 		//}
 
+		
 		/*
+		cout << _graph->_isNodenameRoundabout.size() << endl;
+		
 		ofstream file_correction(_inputDir + "/roundabout.csv");
 		file_correction << "Name,Colour" << endl;
 		for(u_int32_t nodeName : _graph->_isNodenameRoundabout){
-			if(_isBubble[BiGraph::nodeName_to_nodeIndex(nodeName, true)]){
+			//if(_isBubble[BiGraph::nodeName_to_nodeIndex(nodeName, true)]){
 				file_correction << nodeName << ",red" << endl;
+			//}
+		}
+		for(u_int32_t nodeIndex : _graph->_isNodeValid2){
+			if(_isBubble[nodeIndex]){
+				file_correction << BiGraph::nodeIndex_to_nodeName(nodeIndex) << ",red" << endl;
 			}
 		}
 		file_correction.close();
 		*/
 		//getchar();
+		
+		
 
 		_partitionDir = _inputDir + "/" + "partitions";
 		fs::path path(_partitionDir);
@@ -416,6 +426,8 @@ public:
 	
 	void removeUnsupportedEdges(const string& gfaFilename, const string& gfa_filename_noUnsupportedEdges, GraphSimplify* graph){
 
+		cout << _filename_readMinimizers << endl;
+		
 		KminmerParser parser(_filename_readMinimizers, _minimizerSize, _kminmerSize, true);
 		//auto fp = std::bind(&Assembly::indexReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5);
 		auto fp = std::bind(&Assembly3::indexReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
@@ -1652,9 +1664,11 @@ public:
 
 	//ofstream file_correction;
 	gzFile _outputFile_correctedReads;
+	ofstream _file_uncorrectedReads;
 
 	void correctReads(){
 
+		_nbreadsLala = 0;
 		_nbUncorrectedReads = 0;
 
 		_graph->loadState2(0, -1, _unitigDatas);
@@ -1662,6 +1676,7 @@ public:
 		const string& outputFilename_correctedReads = _inputDir + "/correctedReads_" + to_string(_kminmerSize) + ".min.gz";
 		_outputFile_correctedReads = gzopen(outputFilename_correctedReads.c_str(),"wb");
 
+		_file_uncorrectedReads = ofstream(_inputDir + "/read_uncorrected.txt");
 		/*
 		u_int32_t cutoffLevel = 0;
 		for(const SaveState2& saveState : _graph->_cachedGraphStates){
@@ -1696,11 +1711,15 @@ public:
 
 		//file_correction.close();
 		gzclose(_outputFile_correctedReads);
+		_file_uncorrectedReads.close();
 
+		cout << "Nb reads: " << _nbreadsLala << endl;
 		cout << "Nb uncorrected reads: " << _nbUncorrectedReads << endl;
-		//getchar();
+		getchar();
 		
 	}
+
+	u_int64_t _nbreadsLala;
 
 	void correctReads_read(const vector<u_int64_t>& minimizers, const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex){//}, const vector<KmerVec>& kminmers_k3, const vector<ReadKminmer>& kminmersInfos_k3){
 
@@ -1895,12 +1914,19 @@ public:
 			cout << endl;
 		}
 
-		u_int64_t size = readpath.size();
-		gzwrite(_outputFile_correctedReads, (const char*)&size, sizeof(size));
-		gzwrite(_outputFile_correctedReads, (const char*)&readpath[0], size * sizeof(u_int32_t));
+		_nbreadsLala += 1;
 
 		if(readpath.size() < nodePath.size()){
+			u_int32_t readSize = minimizers.size();
+			_file_uncorrectedReads.write((const char*)&readSize, sizeof(readSize));
+			_file_uncorrectedReads.write((const char*)&minimizers[0], readSize*sizeof(u_int64_t));
+
 			_nbUncorrectedReads += 1;
+		}
+		else{
+			u_int64_t size = readpath.size();
+			gzwrite(_outputFile_correctedReads, (const char*)&size, sizeof(size));
+			gzwrite(_outputFile_correctedReads, (const char*)&readpath[0], size * sizeof(u_int32_t));
 		}
 		//vector<ReadIndexType> unitigIndexex;
 
@@ -1935,13 +1961,12 @@ public:
 	u_int64_t _nbUncorrectedReads = 0;
 
 	void applyReadCorrection(const vector<u_int32_t>& nodePath, vector<u_int32_t>& readpath, bool print_read){
-
 		
 		float minSupportingReads = 2;
 		u_int32_t maxDepth = nodePath.size()*2;
 
 		readpath.clear();
-
+		
 
 
 		vector<u_int32_t> nodePath_errorFree;

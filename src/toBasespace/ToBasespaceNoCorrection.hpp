@@ -60,6 +60,7 @@ public:
 		options.add_options()
 		(ARG_INPUT_FILENAME, "", cxxopts::value<string>())
 		(ARG_INPUT_FILENAME_CONTIG, "", cxxopts::value<string>())
+		(ARG_OUTPUT_FILENAME, "", cxxopts::value<string>())
 		//(ARG_INPUT_FILENAME_CONTIG_FASTA, "", cxxopts::value<string>()->default_value(""))
 		(ARG_FIRST_PASS, "", cxxopts::value<bool>()->default_value("false"))
 		(ARG_FASTA, "", cxxopts::value<bool>()->default_value("false"))
@@ -85,6 +86,7 @@ public:
 			//_inputFilenameContig_fasta = result[ARG_INPUT_FILENAME_CONTIG_FASTA].as<string>();
 			_isFirstPass = result[ARG_FIRST_PASS].as<bool>();
 			_isOutputFasta = result[ARG_FASTA].as<bool>();
+			_filename_outputContigs = result[ARG_OUTPUT_FILENAME].as<string>();
 		}
 		catch (const std::exception& e){
 			std::cout << options.help() << std::endl;
@@ -114,7 +116,7 @@ public:
 		cout << "Density: " << _minimizerDensity << endl;
 		cout << endl;
 
-		_filename_outputContigs = _inputFilenameContig + ".fasta.gz"; //_inputDir + "/tmpContigs.fasta.gz";
+		//_filename_outputContigs = _inputFilenameContig + ".fasta.gz"; //_inputDir + "/tmpContigs.fasta.gz";
 		_minimizerParser = new MinimizerParser(_minimizerSize, _minimizerDensity);
 	}
 
@@ -168,7 +170,7 @@ public:
 		cout << "Extracting kminmers (contigs)" << endl;
 		KminmerParser parser(contigFilename, _minimizerSize, _kminmerSize, false);
 		auto fp = std::bind(&ToBasespaceNoCorrection::loadContigs_min_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-		parser.parseMinspace<u_int32_t>(fp);
+		parser.parseMinspace(fp);
 
 		/*
 		cout << "Loading mContigs: " << contigFilename << endl;
@@ -267,7 +269,7 @@ public:
 
 	void loadContigs_min_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
 
-		cout << readIndex << " " << kminmersInfos.size() << endl;
+		//cout << readIndex << " " << kminmersInfos.size() << endl;
 		for(size_t i=0; i<kminmersInfos.size(); i++){
 			
 			const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
@@ -635,7 +637,7 @@ public:
 
 		KminmerParser parser(contigFilename, _minimizerSize, _kminmerSize, false);
 		auto fp = std::bind(&ToBasespaceNoCorrection::createBaseContigs_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-		parser.parseMinspace<u_int32_t>(fp);
+		parser.parseMinspace(fp);
 
 		if(_isOutputFasta){
 			gzclose(_basespaceContigFile);

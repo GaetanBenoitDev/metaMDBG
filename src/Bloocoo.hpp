@@ -100,6 +100,8 @@ public:
 	void parseContigs();
 	float computeKmerVecAbundance(const vector<u_int64_t>& minimizers, bool isContig);
 	void computeContigAbundance();
+	void createMDBG_collectKminmers_minspace_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex);
+
 	//void createSimilarityGraph(GraphInfo* graphInfo);
 	//void execute_binning();
 	//void execute_binning_cleanGraph();
