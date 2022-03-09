@@ -25,6 +25,14 @@ void Bloocoo::execute (){
 	//parseArgs();
 	createMDBG();
 	createGfa();
+
+	if(_isFirstPass){
+		ofstream file_data(_outputDir + "/data.txt");
+
+		file_data.write((const char*)&_nbReads, sizeof(_nbReads));
+
+		file_data.close();
+	}
 }
 
 void Bloocoo::parseArgs(int argc, char* argv[]){
@@ -411,7 +419,8 @@ void Bloocoo::createMDBG_collectKminmers(const vector<u_int64_t>& minimizers, co
 
 
 void Bloocoo::createMDBG_collectKminmers_read(kseq_t* read, u_int64_t readIndex){
-				
+
+	_nbReads += 1;		
 	if(readIndex % 100000 == 0) cout << "Processed reads: " << readIndex << endl;
 	
 	string kminmerSequence;
@@ -537,6 +546,8 @@ void Bloocoo::extractKminmerSequence(const char* sequenceOriginal, const ReadKmi
 
 void Bloocoo::createMDBG_collectKminmers_minspace_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
 
+	//if(_parseReads && readMinimizers.size() > 100) return;
+	
 	//cout << readIndex << endl;
 	//cout << readMinimizers.size() << endl;
 	vector<u_int16_t> minimizerPosOffset(readMinimizers.size());
@@ -544,7 +555,7 @@ void Bloocoo::createMDBG_collectKminmers_minspace_read(const vector<u_int64_t>& 
 		minimizerPosOffset[i] = 200;
 	}
 
-	if(!_isFirstPass){
+	if(!_isFirstPass && _parseReads){
 		u_int32_t size = readMinimizers.size();
 		_readFile.write((const char*)&size, sizeof(size));
 		_readFile.write((const char*)&readMinimizers[0], size*sizeof(u_int64_t));
@@ -669,6 +680,8 @@ void Bloocoo::createMDBG (){
 
 	if(_isFirstPass){
 		
+		_nbReads = 0;
+		
 		_readFile = ofstream(_outputDir + "/read_data.txt", std::ios::binary);
 		_minimizerParser = new MinimizerParser(_minimizerSize, _minimizerDensity);
 		_kminmerFile = ofstream(_outputDir + "/kminmerData.txt", std::ios::binary);
@@ -683,6 +696,8 @@ void Bloocoo::createMDBG (){
 
 		delete _minimizerParser;
 		_readFile.close();
+		
+		//cout << _nbReads << endl;
 		
 		//inputFilename = _outputDir + "/read_data.txt";
 	}
@@ -732,18 +747,28 @@ void Bloocoo::createMDBG (){
 	}
 	_kminmerFile = ofstream(_outputDir + "/kminmerData_min.txt");
 
-
+	_parseReads = true;
 	cout << "Extracting kminmers (read)" << endl;
 	KminmerParser parser(inputFilename_min, _minimizerSize, _kminmerSize, usePos);
 	auto fp = std::bind(&Bloocoo::createMDBG_collectKminmers_minspace_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 	parser.parseMinspace(fp);
-	
+
 	if(!_isFirstPass){
 		const string& filename_uncorrectedReads = _outputDir + "/read_uncorrected.txt";
 
 		KminmerParser parser2(filename_uncorrectedReads, _minimizerSize, _kminmerSize, false);
 		auto fp2 = std::bind(&Bloocoo::createMDBG_collectKminmers_minspace_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 		parser2.parseMinspace(fp2);
+
+		
+		_parseReads = false;
+		const string& filename_contigs = _outputDir + "/contig_data.txt";
+
+		//KminmerParser parser3(filename_contigs, _minimizerSize, _kminmerSize, false);
+		//auto fp3 = std::bind(&Bloocoo::createMDBG_collectKminmers_minspace_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+		//parser3.parseMinspace(fp3);
+		//parser3.parseMinspace(fp3); //Solidify contigs
+		
 	}
 	
 	_kminmerFile.close();

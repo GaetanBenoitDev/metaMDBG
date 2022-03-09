@@ -64,6 +64,7 @@ public:
 	//string _input_extractKminmers;
 	KmerVec _lala;
 
+	u_int64_t _nbReads;
 	bool _isFirstPass;
 	string _filename_readMinimizers;
 	string _filename_contigMinimizers;
@@ -79,6 +80,7 @@ public:
 	//string _filename_readCompositions;
 
 	//vector<u_int32_t> _evaluation_readToDataset;
+	bool _parseReads;
 	MDBG* _mdbg;
 	//MinimizerPairMap* _minimizerPairMap;
 

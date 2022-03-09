@@ -275,7 +275,7 @@ public:
 		//	parserContig.parse(fpContig);
 		//}
 
-		//if(_kminmerSize > 4) return;
+		if(_kminmerSize > 3) return;
 
 		vector<DbgEdge> removedEdges;
 
@@ -1261,6 +1261,13 @@ public:
 					nodeCounts[BiGraph::nodeIndex_to_nodeName(nodeIndex)] += 1;
 				}
 
+				/*
+				vector<u_int32_t> nodepath = contig._nodePath;
+				if(nodepath.size() > 100){
+				nodepath.erase(nodepath.begin(), nodepath.begin()+20);
+				nodepath.resize(nodepath.size()-20);
+				}
+				*/
 				
 				u_int64_t size = contig._nodePath.size();
 				gzwrite(outputContigFile_min, (const char*)&size, sizeof(size));

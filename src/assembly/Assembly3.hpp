@@ -127,6 +127,7 @@ public:
 	//ToBasespaceOnTheFly _toBasespace;
 	//ContigFeature _contigFeature;
 	string _gfaFilename;
+	u_int64_t _nbReads;
 
 	Assembly3(): Tool (){
 
@@ -191,13 +192,20 @@ public:
 		gzread(file_parameters, (char*)&_minimizerDensity, sizeof(_minimizerDensity));
 		gzclose(file_parameters);
 
+		ifstream file_data(_inputDir + "/data.txt");
+		file_data.read((char*)&_nbReads, sizeof(_nbReads));
+		file_data.close();
+
 		cout << endl;
 		cout << "Input dir: " << _inputDir << endl;
 		//cout << "Output filename: " << _outputFilename << endl;
 		cout << "Minimizer length: " << _minimizerSize << endl;
 		cout << "Kminmer length: " << _kminmerSize << endl;
 		cout << "Density: " << _minimizerDensity << endl;
+		cout << "Nb reads: " << _nbReads << endl;
 		cout << endl;
+
+		//getchar();
 
 		_outputFilename = _inputDir + "/minimizer_contigs.gz";
 		_outputFilename_complete = _inputDir + "/minimizer_contigs_complete.gz";
@@ -205,6 +213,9 @@ public:
 		_filename_hifiasmGroundtruth = _inputDir + "/hifiasmGroundtruth.gz";
 		_filename_outputContigs = _inputDir + "/contigs.min.gz";
 		_filename_solidKminmers = _inputDir + "/solid.min.gz";
+
+
+		
 
 	}
 
@@ -365,6 +376,7 @@ public:
 
 	void indexReads_read(const vector<u_int64_t>& minimizers, const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex){//}, const vector<KmerVec>& kminmers_k3, const vector<ReadKminmer>& kminmersInfos_k3){
 
+		if(_indexingContigs) readIndex += 2000000000ull;
 		//vector<ReadIndexType> unitigIndexex;
 
 		for(const KmerVec& vec : kminmers){
@@ -424,14 +436,22 @@ public:
 
 	}
 	
+	bool _indexingContigs;
+
 	void removeUnsupportedEdges(const string& gfaFilename, const string& gfa_filename_noUnsupportedEdges, GraphSimplify* graph){
 
-		cout << _filename_readMinimizers << endl;
+		_indexingContigs = false;
 		
 		KminmerParser parser(_filename_readMinimizers, _minimizerSize, _kminmerSize, true);
 		//auto fp = std::bind(&Assembly::indexReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5);
 		auto fp = std::bind(&Assembly3::indexReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
 		parser.parse(fp);
+		
+		//_indexingContigs = true;
+		//KminmerParser parser2(_inputDir + "/contig_data.txt", _minimizerSize, _kminmerSize, false);
+		//auto fp = std::bind(&Assembly::indexReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5);
+		//auto fp2 = std::bind(&Assembly3::indexReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
+		//parser2.parse(fp2);
 		
 		//if(_filename_inputContigs != ""){
 		//	KminmerParser parserContig(_filename_inputContigs, _minimizerSize, _kminmerSize, true);
@@ -439,7 +459,7 @@ public:
 		//	parserContig.parse(fpContig);
 		//}
 
-		//if(_kminmerSize > 4) return;
+		if(_kminmerSize > 3) return;
 
 		vector<DbgEdge> removedEdges;
 
@@ -1733,6 +1753,15 @@ public:
 
 	void correctReads_read(const vector<u_int64_t>& minimizers, const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex){//}, const vector<KmerVec>& kminmers_k3, const vector<ReadKminmer>& kminmersInfos_k3){
 
+		/*
+		if(readIndex >= _nbReads){
+			u_int32_t readSize = minimizers.size();
+			_file_uncorrectedReads.write((const char*)&readSize, sizeof(readSize));
+			_file_uncorrectedReads.write((const char*)&minimizers[0], readSize*sizeof(u_int64_t));
+			return;
+		}
+		*/
+
 		bool print_read = false;
 		if(readIndex % 10000 == 0) print_read = true;
 
@@ -1926,7 +1955,7 @@ public:
 
 		_nbreadsLala += 1;
 
-		if(readpath.size() < nodePath.size()){
+		if(readpath.size() < nodePath.size() || nodePath.size() == 0){
 			u_int32_t readSize = minimizers.size();
 			_file_uncorrectedReads.write((const char*)&readSize, sizeof(readSize));
 			_file_uncorrectedReads.write((const char*)&minimizers[0], readSize*sizeof(u_int64_t));
@@ -1972,6 +2001,8 @@ public:
 
 	void applyReadCorrection(const vector<u_int32_t>& nodePath, vector<u_int32_t>& readpath, bool print_read){
 		
+
+
 		float minSupportingReads = 2;
 		u_int32_t maxDepth = nodePath.size()*2;
 
@@ -2673,6 +2704,12 @@ public:
 
 	void extendReadpath(const vector<u_int32_t>& originalNodePath, vector<u_int32_t>& readpath, bool print_read){
 
+		unordered_set<u_int32_t> unallowedNodeNames;
+		for(u_int32_t nodeIndex : readpath){
+			unallowedNodeNames.insert(BiGraph::nodeIndex_to_nodeName(nodeIndex));
+		}
+
+
 		#ifdef PRINT_DEBUG_PREVRANK
 			cout << "\tExtending read path" << endl;
 			cout << "\t";
@@ -2725,8 +2762,8 @@ public:
 
 		if(print_read) cout << "\tExtend: " << nbExtendLeft << " " << nbExtendRight << endl;
 
-		extendReadpath2(readpath, true, nbExtendRight);
-		extendReadpath2(readpath, false, nbExtendLeft);
+		extendReadpath2(readpath, true, nbExtendRight, unallowedNodeNames);
+		extendReadpath2(readpath, false, nbExtendLeft, unallowedNodeNames);
 		/*
 		vector<u_int32_t> prevNodes;
 
@@ -2785,7 +2822,7 @@ public:
 		bool _isSupported;
 	};
 
-	void extendReadpath2(vector<u_int32_t>& nodePath, bool forward, size_t nbSuccessors){
+	void extendReadpath2(vector<u_int32_t>& nodePath, bool forward, size_t nbSuccessors, unordered_set<u_int32_t>& unallowedNodeNames){
 
 		#ifdef PRINT_DEBUG_PREVRANK
 			if(forward){
@@ -2821,6 +2858,7 @@ public:
 			}
 			else if(successors.size() == 1){
 				nodeIndex = successors[0];
+				if(unallowedNodeNames.find(BiGraph::nodeIndex_to_nodeName(nodeIndex)) != unallowedNodeNames.end()) return;
 				if(forward){
 					nodePath.push_back(nodeIndex);
 				}
@@ -2831,8 +2869,10 @@ public:
 			}
 			else{
 
-				nodeIndex = determineBestSupportedSuccessors(nodePath, forward, successors);
+				nodeIndex = determineBestSupportedSuccessors(nodePath, forward, unallowedNodeNames, successors);
 				if(nodeIndex == -1) return;
+
+				if(unallowedNodeNames.find(BiGraph::nodeIndex_to_nodeName(nodeIndex)) != unallowedNodeNames.end()) return;
 
 				if(forward){
 					nodePath.push_back(nodeIndex);
@@ -2847,7 +2887,7 @@ public:
 		//if()
 	}
 
-	u_int32_t determineBestSupportedSuccessors(vector<u_int32_t>& nodePath, bool forward, const vector<u_int32_t>& successors){
+	u_int32_t determineBestSupportedSuccessors(vector<u_int32_t>& nodePath, bool forward, unordered_set<u_int32_t>& unallowedNodeNames, const vector<u_int32_t>& successors){
 
 		#ifdef PRINT_DEBUG_PREVRANK
 			cout << "\t-------------------------" << endl;
@@ -2894,7 +2934,7 @@ public:
 					cout << nodeName_successor << " " << nbShared << "    ";
 				#endif
 
-				if(nbShared <= 1){
+				if(nbShared <= 2){
 					successorData._isSupported = false;
 				}
 
@@ -2918,6 +2958,8 @@ public:
 			}
 
 			prevRank += 1;
+
+			if(prevRank > 10) return -1;
 		}
 
 		return -1;
