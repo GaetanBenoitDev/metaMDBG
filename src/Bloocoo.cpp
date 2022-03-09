@@ -473,6 +473,8 @@ void Bloocoo::createMDBG_collectKminmers_read(kseq_t* read, u_int64_t readIndex)
 
 			if(_mdbg->_dbg_nodes[vec]._abundance == 2){
 				
+				//writtenNodeNames.insert(_mdbg->_dbg_nodes[vec]._index);
+
 				extractKminmerSequence(sequenceOriginal, kminmerInfo, kminmerSequence);
 				DnaBitset* sequenceBitset = new DnaBitset(kminmerSequence);
 
@@ -535,17 +537,19 @@ void Bloocoo::extractKminmerSequence(const char* sequenceOriginal, const ReadKmi
 
 void Bloocoo::createMDBG_collectKminmers_minspace_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
 
+	//cout << readIndex << endl;
 	//cout << readMinimizers.size() << endl;
 	vector<u_int16_t> minimizerPosOffset(readMinimizers.size());
 	for(size_t i=0; i<minimizerPosOffset.size(); i++){
 		minimizerPosOffset[i] = 200;
 	}
 
-	u_int32_t size = readMinimizers.size();
-	_readFile.write((const char*)&size, sizeof(size));
-	_readFile.write((const char*)&readMinimizers[0], size*sizeof(u_int64_t));
-	_readFile.write((const char*)&minimizerPosOffset[0], size*sizeof(u_int16_t));
-
+	if(!_isFirstPass){
+		u_int32_t size = readMinimizers.size();
+		_readFile.write((const char*)&size, sizeof(size));
+		_readFile.write((const char*)&readMinimizers[0], size*sizeof(u_int64_t));
+		_readFile.write((const char*)&minimizerPosOffset[0], size*sizeof(u_int16_t));
+	}
 
 	//cout << readIndex << " " << kminmersInfos.size() << endl;
 	for(size_t i=0; i<kminmersInfos.size(); i++){
@@ -561,12 +565,92 @@ void Bloocoo::createMDBG_collectKminmers_minspace_read(const vector<u_int64_t>& 
 
 		//u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
 		
-		if(_kminmerExist.find(vec) != _kminmerExist.end()){
-			_mdbg->addNode(vec, 200, 50, 50, kminmerInfo._isReversed);
+		if(_isFirstPass){
+			
+			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()) continue;
+
+			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
+
+			if(writtenNodeNames.find(nodeName) != writtenNodeNames.end()) continue;
+			writtenNodeNames.insert(nodeName);
+
+			/*
+			vector<u_int64_t> minimizerSeq;
+			for(size_t i=kminmerInfo._read_pos_start; i<=kminmerInfo._read_pos_end; i++){
+				minimizerSeq.push_back(readMinimizers[i]);
+			}
+			if(kminmerInfo._isReversed){
+				std::reverse(minimizerSeq.begin(), minimizerSeq.end());
+			}
+			*/
+
+			vector<u_int64_t> minimizerSeq;
+			for(size_t i=kminmerInfo._read_pos_start; i<=kminmerInfo._read_pos_end; i++){
+				minimizerSeq.push_back(readMinimizers[i]);
+			}
+			if(kminmerInfo._isReversed){
+				std::reverse(minimizerSeq.begin(), minimizerSeq.end());
+			}
+
+			u_int16_t size = minimizerSeq.size();
+			//cout << size << endl;
+			_kminmerFile.write((const char*)&size, sizeof(size));
+			_kminmerFile.write((const char*)&minimizerSeq[0], size*sizeof(uint64_t));
+
+			//u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
+			u_int32_t length = kminmerInfo._read_pos_end - kminmerInfo._read_pos_start;
+			u_int32_t lengthStart = kminmerInfo._seq_length_start;
+			u_int32_t lengthEnd = kminmerInfo._seq_length_end;
+			//bool isReversed = kminmerInfo._isReversed;
+
+			_kminmerFile.write((const char*)&nodeName, sizeof(nodeName));
+			_kminmerFile.write((const char*)&length, sizeof(length));
+			_kminmerFile.write((const char*)&lengthStart, sizeof(lengthStart));
+			_kminmerFile.write((const char*)&lengthEnd, sizeof(lengthEnd));
+
 		}
 		else{
-			_kminmerExist.insert(vec);
+			if(_kminmerExist.find(vec) != _kminmerExist.end()){
+				_mdbg->addNode(vec, 200, 50, 50, kminmerInfo._isReversed);
+
+				if(_mdbg->_dbg_nodes[vec]._abundance == 2){
+					
+					vector<u_int64_t> minimizerSeq;
+					for(size_t i=kminmerInfo._read_pos_start; i<=kminmerInfo._read_pos_end; i++){
+						minimizerSeq.push_back(readMinimizers[i]);
+					}
+					if(kminmerInfo._isReversed){
+						std::reverse(minimizerSeq.begin(), minimizerSeq.end());
+					}
+
+					u_int16_t size = minimizerSeq.size();
+					_kminmerFile.write((const char*)&size, sizeof(size));
+					_kminmerFile.write((const char*)&minimizerSeq[0], size*sizeof(uint64_t));
+
+					u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
+					u_int32_t length = kminmerInfo._read_pos_end - kminmerInfo._read_pos_start;
+					u_int32_t lengthStart = kminmerInfo._seq_length_start;
+					u_int32_t lengthEnd = kminmerInfo._seq_length_end;
+					//bool isReversed = kminmerInfo._isReversed;
+
+					_kminmerFile.write((const char*)&nodeName, sizeof(nodeName));
+					_kminmerFile.write((const char*)&length, sizeof(length));
+					_kminmerFile.write((const char*)&lengthStart, sizeof(lengthStart));
+					_kminmerFile.write((const char*)&lengthEnd, sizeof(lengthEnd));
+					//_kminmerFile.write((const char*)&isReversed, sizeof(isReversed));
+
+					//if(_mdbg->_dbg_nodes[vec]._index <= 0){
+					//	cout << nodeName << " " << lengthStart << " " << lengthEnd << " " << isReversed << " " << kminmerSequence.size() << endl;
+					//	cout << kminmerSequence << endl;
+					//}
+				}
+
+			}
+			else{
+				_kminmerExist.insert(vec);
+			}
 		}
+
 
 	}
 
@@ -582,9 +666,10 @@ void Bloocoo::createMDBG (){
 	_mdbg = new MDBG(_kminmerSize);
 
 	string inputFilename = _inputFilename;
-	_readFile = ofstream(_outputDir + "/read_data.txt", std::ios::binary);
 
 	if(_isFirstPass){
+		
+		_readFile = ofstream(_outputDir + "/read_data.txt", std::ios::binary);
 		_minimizerParser = new MinimizerParser(_minimizerSize, _minimizerDensity);
 		_kminmerFile = ofstream(_outputDir + "/kminmerData.txt", std::ios::binary);
 
@@ -597,9 +682,13 @@ void Bloocoo::createMDBG (){
 		_kminmerFile.close();
 
 		delete _minimizerParser;
+		_readFile.close();
+		
 		//inputFilename = _outputDir + "/read_data.txt";
 	}
-	else{
+
+
+	//else{
 		
 		/*
 		ifstream file_uncorrectedReads(_inputDir + "/read_uncorrected.txt");
@@ -626,23 +715,45 @@ void Bloocoo::createMDBG (){
 
 		//cout << _inputFilename << endl;
 
-		cout << "Extracting kminmers (read)" << endl;
-		KminmerParser parser(_inputFilename, _minimizerSize, _kminmerSize, false);
-		auto fp = std::bind(&Bloocoo::createMDBG_collectKminmers_minspace_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-		parser.parseMinspace(fp);
-		
+
+
+	if(!_isFirstPass){
+		_readFile = ofstream(_outputDir + "/read_data.txt");
+	}
+
+	string inputFilename_min;
+	bool usePos = false;
+	if(_isFirstPass){
+		usePos = true;
+		inputFilename_min = _outputDir + "/read_data.txt";
+	}
+	else{
+		inputFilename_min = _outputDir + "/read_data.txt.corrected.txt";
+	}
+	_kminmerFile = ofstream(_outputDir + "/kminmerData_min.txt");
+
+
+	cout << "Extracting kminmers (read)" << endl;
+	KminmerParser parser(inputFilename_min, _minimizerSize, _kminmerSize, usePos);
+	auto fp = std::bind(&Bloocoo::createMDBG_collectKminmers_minspace_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+	parser.parseMinspace(fp);
+	
+	if(!_isFirstPass){
 		const string& filename_uncorrectedReads = _outputDir + "/read_uncorrected.txt";
 
-		
 		KminmerParser parser2(filename_uncorrectedReads, _minimizerSize, _kminmerSize, false);
 		auto fp2 = std::bind(&Bloocoo::createMDBG_collectKminmers_minspace_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 		parser2.parseMinspace(fp2);
-		
+	}
+	
+	_kminmerFile.close();
+	
+	if(!_isFirstPass){
+		_readFile.close();
 	}
 
-	_readFile.close();
 
-
+	writtenNodeNames.clear();
 
 	if(_isFirstPass){
 		//if(fs::exists(_outputDir + "/read_data_init.txt")){

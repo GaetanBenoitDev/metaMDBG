@@ -209,6 +209,7 @@ public:
 		
 	}
 
+	/*
 	void extractKminmerSequences_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
 
 		//cout << "----" << endl;
@@ -237,28 +238,13 @@ public:
 			//if(kminmerInfo._length != 3){
 			//	getchar();
 			//}
-			/*
-			if(12424 == nodeName){
-				for(u_int64_t minimizer : vec._kmers){
-					cout << minimizer << " ";
-				}
-				cout << endl;
-			}*/
-			
+
 
 			if(kminmerInfo._isReversed){
 				std::reverse(minimizerSeq.begin(), minimizerSeq.end());
 			}
 
-			/*
-			if(12424 == nodeName){
-				for(u_int64_t minimizer : vec._kmers){
-					cout << minimizer << " ";
-				}
-				cout << endl;
-				//exit(1);
-			}*/
-			
+
 
 			//_debugMinimizers_isReversed[nodeName] = kminmerInfo._isReversed;
 			//_debugMinimizers[nodeName] = vec._kmers;
@@ -293,15 +279,7 @@ public:
 				//getchar();
 			}
 			
-			/*
-			found = _nodeName_entireRC.find(nodeName);
-			if(found != _nodeName_entireRC.end() && !found->second._loaded){
 
-				//if(kminmerInfo._isReversed){
-				//	std::reverse(vec._kmers.begin(), vec._kmers.end());
-				//}
-				_nodeName_entireRC[nodeName] = {vec._kmers, true};
-			}*/
 
 
 			auto found2 = _nodeName_left.find(nodeName);
@@ -313,14 +291,7 @@ public:
 				//	cout << "left: " <<  vec._kmers[0] << " " << vec._kmers[vec._kmers.size()-1] << endl;
 				//}
 
-				/*
-				if(kminmerInfo._isReversed){
-					_nodeName_left[nodeName] = {{vec._kmers[vec._kmers.size()-1]}, true};
-				}
-				else{
-					_nodeName_left[nodeName] = {{vec._kmers[0]}, true};
-				}
-				*/
+
 				vector<u_int64_t> minimizerSeq_sub;
 
 				u_int32_t startPosition = 0; //kminmerInfo._read_pos_start;
@@ -345,14 +316,7 @@ public:
 			if(_nodeName_right.find(nodeName) != _nodeName_right.end() && !found2->second._loaded){
 
 				//cout << "right" << endl;
-				/*
-				if(kminmerInfo._isReversed){
-					_nodeName_right[nodeName] = {{vec._kmers[0]}, true};
-				}
-				else{
-					_nodeName_right[nodeName] = {{vec._kmers[vec._kmers.size()-1]}, true};
-				}
-				*/
+
 			
 				vector<u_int64_t> minimizerSeq_sub;
 
@@ -382,7 +346,134 @@ public:
 
 		//cout << "done" << endl;
 	}
+	*/
+	
+	void extractKminmerSequences (){
 
+		cout << "Extracting kminmer sequences" << endl;
+		
+		
+		ifstream kminmerFile(_inputDir + "/kminmerData_min.txt");
+
+		while (true) {
+
+			u_int16_t size;
+			kminmerFile.read((char*)&size, sizeof(size));
+
+			if(kminmerFile.eof())break;
+
+			vector<u_int64_t> minimizerSeq;
+			minimizerSeq.resize(size);
+			kminmerFile.read((char*)&minimizerSeq[0], size*sizeof(u_int64_t));
+
+			u_int32_t nodeName;
+			u_int32_t length;
+			u_int32_t lengthStart;
+			u_int32_t lengthEnd;
+			//bool isReversed = false;
+
+			kminmerFile.read((char*)&nodeName, sizeof(nodeName));
+			kminmerFile.read((char*)&length, sizeof(length));
+			kminmerFile.read((char*)&lengthStart, sizeof(lengthStart));
+			kminmerFile.read((char*)&lengthEnd, sizeof(lengthEnd));
+
+
+			auto found = _nodeName_entire.find(nodeName);
+			if(found != _nodeName_entire.end() && !found->second._loaded){
+
+				//cout << "entire" << endl;
+				
+				u_int32_t startPosition = 0; //kminmerInfo._read_pos_start;
+				u_int32_t len = length; //startPosition + kminmerInfo._read_pos_end - kminmerInfo._read_pos_start;
+				
+
+				//cout << startPosition << " " << len << " "  << minimizerSeq.size() << endl;
+				vector<u_int64_t> minimizerSeq_sub; 
+				for(size_t i=startPosition; i <= len; i++){
+					//cout << i << " " << " " << minimizerSeq.size() << endl;
+					minimizerSeq_sub.push_back(minimizerSeq[i]);
+					//cout << minimizerSeq[i] << " ";
+				}
+			
+				//cout << startPosition << " " << len << " " << minimizerSeq_sub.size() << endl;
+
+				//if(kminmerInfo._isReversed){
+				//	std::reverse(vec._kmers.begin(), vec._kmers.end());
+				//}
+				//if(kminmerInfo._isReversed){
+					//std::reverse(minimizerSeq.begin(), minimizerSeq.end());
+				//}
+				_nodeName_entire[nodeName] = {minimizerSeq, true};
+
+				//getchar();
+			}
+
+
+
+			auto found2 = _nodeName_left.find(nodeName);
+			if(_nodeName_left.find(nodeName) != _nodeName_left.end() && !found2->second._loaded){
+				
+				//cout << "left" << endl;
+				//std::reverse(vec._kmers.begin(), vec._kmers.end());
+				//if(12424 == nodeName){
+				//	cout << "left: " <<  vec._kmers[0] << " " << vec._kmers[vec._kmers.size()-1] << endl;
+				//}
+
+
+				vector<u_int64_t> minimizerSeq_sub;
+
+				u_int32_t startPosition = 0; //kminmerInfo._read_pos_start;
+				u_int32_t len = startPosition+lengthStart;
+
+				//cout << "left: " << startPosition << " " << len << endl;
+				
+				for(size_t i=startPosition; i<len; i++){
+					//cout << i << " " << " " << minimizerSeq.size() << endl;
+					minimizerSeq_sub.push_back(minimizerSeq[i]);
+					//cout << minimizerSeq[i] << " ";
+				}
+				//cout << endl;
+
+				_nodeName_left[nodeName] = {minimizerSeq_sub, true};
+				
+				//getchar();
+			}
+			
+
+			found2 = _nodeName_right.find(nodeName);
+			if(_nodeName_right.find(nodeName) != _nodeName_right.end() && !found2->second._loaded){
+
+				//cout << "right" << endl;
+
+			
+				vector<u_int64_t> minimizerSeq_sub;
+
+				u_int32_t startPosition = minimizerSeq.size() - lengthEnd;  //kminmerInfo._position_of_second_to_last_minimizer_seq;
+				u_int32_t len = startPosition+lengthEnd; //kminmerInfo._read_pos_end
+
+				//cout << "right: " << startPosition << " " << len << endl;
+
+				for(size_t i=startPosition; i<len; i++){
+					//cout << i << " " << " " << minimizerSeq.size() << endl;
+
+					minimizerSeq_sub.push_back(minimizerSeq[i]);
+					//cout << minimizerSeq[i] << " ";
+				}
+				//cout << endl;
+
+				_nodeName_right[nodeName] = {minimizerSeq_sub, true};
+				//getchar();
+
+			}
+
+
+		}
+
+		kminmerFile.close();
+	}
+	
+
+	/*
 	void extractKminmerSequences (){
 
 
@@ -390,109 +481,9 @@ public:
 		KminmerParser parser(_filename_readMinimizers, _minimizerSize, _kminmerSize, true);
 		auto fp = std::bind(&ToMinspace::extractKminmerSequences_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 		parser.parseMinspace(fp);
-
-		
-		
-		/*
-		gzFile file_readData = gzopen(_filename_readMinimizers.c_str(),"rb");
-		ReadIndexType readIndex = 0;
-
-		while(true){
-			
-			u_int16_t size;
-			vector<u_int64_t> minimizers;
-			gzread(file_readData, (char*)&size, sizeof(size));
-
-			if(gzeof(file_readData)) break;
-			
-			minimizers.resize(size);
-			gzread(file_readData, (char*)&minimizers[0], size * sizeof(u_int64_t));
-
-			vector<KmerVec> kminmers; 
-			vector<ReadKminmer> kminmersInfo;
-			vector<u_int64_t> minimizersPos; 
-			vector<u_int64_t> rlePositions;
-			MDBG::getKminmers(_minimizerSize, _kminmerSize, minimizers, minimizersPos, kminmers, kminmersInfo, rlePositions, readIndex);
-
-
-
-			for(size_t i=0; i<kminmers.size(); i++){
-				KmerVec& vec = kminmers[i];
-				//for(KmerVec& vec : kminmers){
-				if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()) continue;
-
-				u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
-				ReadKminmer& kminmerInfo = kminmersInfo[i];
-
-				
-				if(12424 == nodeName){
-					for(u_int64_t minimizer : vec._kmers){
-						cout << minimizer << " ";
-					}
-					cout << endl;
-				}
-				
-
-				if(kminmerInfo._isReversed){
-					std::reverse(vec._kmers.begin(), vec._kmers.end());
-				}
-
-				
-				if(12424 == nodeName){
-					for(u_int64_t minimizer : vec._kmers){
-						cout << minimizer << " ";
-					}
-					cout << endl;
-					//exit(1);
-				}
-				
-
-
-				//_debugMinimizers[nodeName] = vec._kmers;
-				
-				auto found = _nodeName_entire.find(nodeName);
-				if(found != _nodeName_entire.end() && !found->second._loaded){
-					_nodeName_entire[nodeName] = {vec._kmers, true};
-				}
-				
-				auto found2 = _nodeName_left.find(nodeName);
-				if(_nodeName_left.find(nodeName) != _nodeName_left.end() && !found2->second._loaded){
-					//std::reverse(vec._kmers.begin(), vec._kmers.end());
-					//if(12424 == nodeName){
-					//	cout << "left: " <<  vec._kmers[0] << " " << vec._kmers[vec._kmers.size()-1] << endl;
-					//}
-					if(kminmerInfo._isReversed){
-						_nodeName_left[nodeName] = {vec._kmers[vec._kmers.size()-1], true};
-					}
-					else{
-						_nodeName_left[nodeName] = {vec._kmers[0], true};
-					}
-				}
-				
-				found2 = _nodeName_right.find(nodeName);
-				if(_nodeName_right.find(nodeName) != _nodeName_right.end() && !found2->second._loaded){
-					if(kminmerInfo._isReversed){
-						_nodeName_right[nodeName] = {vec._kmers[0], true};
-					}
-					else{
-						_nodeName_right[nodeName] = {vec._kmers[vec._kmers.size()-1], true};
-					}
-				}
-
-				if(12424 == nodeName){
-					//exit(1);
-				}
-
-			}
-
-
-			
-			readIndex += 1;
-		}
-		*/
-
-
 	}
+	*/
+	
 
 	void createMinimizerContigs(){
 
@@ -558,13 +549,13 @@ public:
 					//cout << endl << endl << endl << endl << "Entire" << endl;
 					
 					if(orientation){ //+
-						cout << endl << endl << endl << endl << "Entire" << endl;
+						//cout << endl << endl << endl << endl << "Entire" << endl;
 
 						vector<u_int64_t> minimizers = _nodeName_entire[nodeName]._minimizers;
 						for(u_int64_t minimizer : minimizers) contigSequence.push_back(minimizer);
 					}
 					else{
-						cout << endl << endl << endl << endl << "Entire RC" << endl;
+						//cout << endl << endl << endl << endl << "Entire RC" << endl;
 						//cout << _debugMinimizers_isReversed[nodeName] << endl;
 						vector<u_int64_t> minimizers = _nodeName_entire[nodeName]._minimizers;
 						std::reverse(minimizers.begin(), minimizers.end());
@@ -683,7 +674,7 @@ public:
 			//cout << endl << endl;
 
 			//if(contigSequence.size() > 3000){
-			cout << nodePath.size() << " " << contigSequence.size() << endl;
+			//cout << nodePath.size() << " " << contigSequence.size() << endl;
 			//}
 			//cout << contigSequence << endl;
 
@@ -724,7 +715,6 @@ public:
 			vector<u_int64_t> rlePositions;
 			MDBG::getKminmers(_minimizerSize, firstK, contigSequence, minimizersPos, kminmers, kminmersInfo, rlePositions, -1, false);
 
-			cout << "Nb kminmers: " << kminmers.size() << endl;
 			u_int64_t nbFoundMinimizers = 0;
 			for(size_t i=0; i<kminmers.size(); i++){
 				KmerVec& vec = kminmers[i];
@@ -787,9 +777,14 @@ public:
 			}
 
 			//cout << "Is circular: " << ((int)isCircular) << endl;
-			cout << "Found nodes: " << nbFoundMinimizers << endl;
-			if(nbFoundMinimizers != kminmers.size()) getchar();
-
+			//cout << "Found nodes: " << nbFoundMinimizers << endl;
+			if(nbFoundMinimizers != kminmers.size()){
+				cout << "Nb kminmers: " << kminmers.size() << endl;
+				cout << "Found nodes: " << nbFoundMinimizers << endl;
+				cout << nodePath.size() << " " << contigSequence.size() << endl;
+				cout << "issue minspace" << endl;
+				getchar();
+			}
 			//if(contigSequence.size() > 10000)
 			//getchar();
 			

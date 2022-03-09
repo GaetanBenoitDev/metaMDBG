@@ -70,8 +70,10 @@ public:
 	string _filename_inputContigs;
 	string _filename_solidKminmers;
 
+	unordered_set<u_int32_t> writtenNodeNames;
 	unordered_set<KmerVec> _kminmerExist;
 	ofstream _kminmerFile;
+	ofstream _kminmerFile2;
 	ofstream _readFile;
 	//string _filename_filteredMinimizers;
 	//string _filename_readCompositions;

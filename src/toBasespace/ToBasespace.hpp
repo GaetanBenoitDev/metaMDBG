@@ -623,7 +623,7 @@ public:
 
 	void extractKminmerSequences_allVariants_read(kseq_t* read, u_int64_t readIndex){
 
-		if(readIndex % 100 == 0){
+		if(readIndex % 1000 == 0){
 			cout << "Correcting kminmer " << readIndex << endl;
 		}
 		//ottalSize += strlen(read->seq.s);
@@ -934,7 +934,7 @@ public:
 	void createBaseContigs_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
 
 
-		cout << readIndex << " " << kminmersInfos.size() << endl;
+		//cout << readIndex << " " << kminmersInfos.size() << endl;
 		
 		string contigSequence = "";
 

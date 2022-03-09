@@ -137,7 +137,7 @@ public:
 		u_int32_t prevK = -1;
 		size_t firstK = -1;
 
-		for(size_t k=4; k<31; k+=1){
+		for(size_t k=4; k<100; k+=1){
 
 			if(firstK == -1){
 				firstK = k;
@@ -212,7 +212,8 @@ public:
 
 
 			
-			if(k == 5 || k == 10 || k == 16 || k == 21 || k == 26 || k == 31){
+			//if(k == 5 || k == 10 || k == 16 || k == 21 || k == 26 || k == 31){
+			if(k == 31 || k==41 || k==51 || k==61 || k==71 || k==81 || k==91){
 
 				//Generate contigs
 				command = _filename_exe + " contig " + " -o " + _inputDir;
@@ -223,7 +224,7 @@ public:
 				command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/contigs.nodepath.gz" + " -f " + _inputDir + "/contig_data.txt";
 				executeCommand(command);
 
-				command = _filename_exe + " toBasespace " + " -o " + _inputDir + " -i " + _inputFilename + " -c " + _inputDir + "/contig_data.txt " + " -f " + _inputDir + "/contigs.fasta.gz " + " --fasta";
+				command = _filename_exe + " toBasespace " + " -o " + _inputDir + " -i " + _inputFilename + " -c " + _inputDir + "/contig_data.txt " + " -f " + _inputDir + "/contigs_" + to_string(k) + ".fasta.gz " + " --fasta";
 				if(pass == 0) command += " --firstpass";
 				executeCommand(command);
 
