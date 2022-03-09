@@ -55,6 +55,7 @@ public:
 	float _minimizerDensity;
     size_t _minimizerSize;
     size_t _kminmerSize;
+    size_t _kminmerSizeFirst;
     //IBank* _inputBank;
 
 	//vector<ReadData> _readData;
@@ -82,7 +83,17 @@ public:
 	//vector<u_int32_t> _evaluation_readToDataset;
 	bool _parseReads;
 	MDBG* _mdbg;
+	MDBG* _mdbgInit;
 	//MinimizerPairMap* _minimizerPairMap;
+
+	double _minimizerSpacingMean;
+	double _kminmerLengthMean;
+	double _kminmerOverlapMean;
+
+	double _minimizerSpacing_sum;
+	double _minimizerSpacing_n;
+	double _kminmerLength_sum;
+	double _kminmerLength_n;
 
     Bloocoo ();
     void execute ();
