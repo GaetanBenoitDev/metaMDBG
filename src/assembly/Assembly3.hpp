@@ -282,7 +282,7 @@ public:
 			_isBubble = _graph->_isBubble;
 			
 			cout << "Cleanning graph 2" << endl;
-			_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, false, false, false);
+			_graph->debug_writeGfaErrorfree(500, 500, -1, _kminmerSize, false, true, false, _unitigDatas, false, false, false);
 
 			//!
 
@@ -359,7 +359,7 @@ public:
 		//getchar();
 		//debug_checkReads();
 		//cout << endl << endl;
-		//partitionReads();
+		partitionReads();
 		correctReads();
 		//getchar();
 
@@ -1599,7 +1599,7 @@ public:
 	}
 
 
-	unordered_map<u_int32_t, gzFile> _readPartitions;
+	unordered_map<u_int32_t, ofstream> _readPartitions;
 
 	
 	void partitionReads(){
@@ -1609,7 +1609,7 @@ public:
 		u_int32_t cutoffLevel = 0;
 		for(const SaveState2& saveState : _graph->_cachedGraphStates){
 			const string filename = _partitionDir + "/part_" + to_string(cutoffLevel) + ".gz";
-			_readPartitions[cutoffLevel] = gzopen(filename.c_str(),"wb");
+			_readPartitions[cutoffLevel] = ofstream(filename);
 			cutoffLevel += 1;
 		}
 
@@ -1621,7 +1621,7 @@ public:
 		parser.parse(fp);
 
 		for(auto& it : _readPartitions){
-			gzclose(it.second);
+			it.second.close();
 		}
 	}
 
@@ -1631,15 +1631,15 @@ public:
 
 		for(const KmerVec& vec : kminmers){
 			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
-				cout << "XXXXX ";
+				//cout << "XXXXX ";
 				continue;
 			}
 			
 			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
 			nodePath.push_back(nodeName);
-			cout << nodeName << " ";
+			//cout << nodeName << " ";
 		}
-		cout << endl;
+		//cout << endl;
 
 		double n = 0;
 		double sum = 0;
@@ -1659,20 +1659,30 @@ public:
 			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
 
 			for(u_int32_t nodeIndex : u._nodes){
+				if(_graph->_isNodenameRoundabout.find(BiGraph::nodeIndex_to_nodeName(nodeIndex)) != _graph->_isNodenameRoundabout.end()) continue;
+				if(_isBubble[nodeIndex]) continue;
+
 				readpathAbudance_values.push_back(u._abundance);
-				cout << u._abundance << " ";
+				//cout << u._abundance << " ";
 				n += 1;
 				sum += u._abundance;
 			}
 		}
-		cout << endl;
+		//cout << endl;
 		
-		float readPathAbundance = sum / n; ////Utils::compute_median_float(readpathAbudance_values);
-		cout << "Read path abundance: " << readPathAbundance << " " << (sum / n) << endl;
-		//if(readPathAbundance < 10) getchar();
+		float cutoff = 0;
 
-		float cutoff = readPathAbundance * 0.1;
-		cutoff = 0;
+		if(n > 0){
+			float readPathAbundance = sum / n; ////Utils::compute_median_float(readpathAbudance_values);
+			//cout << "Read path abundance: " << readPathAbundance << " " << (sum / n) << endl;
+			//if(readPathAbundance < 10) getchar();
+
+			//if(readPathAbundance > 50) getchar();
+			cutoff = readPathAbundance * 0.2;
+			//cout << cutoff << endl;
+		}
+
+		//cutoff = 4;
 		//if(_kminmerSize != 4) 
 		//cutoff = 0;
 
@@ -1684,11 +1694,11 @@ public:
 			cutoffLevel += 1;
 		}
 
-		gzFile& file = _readPartitions[cutoffLevel];
+		ofstream& file = _readPartitions[cutoffLevel];
 		
-		u_int16_t size = minimizers.size();
-		gzwrite(file, (const char*)&size, sizeof(size));
-		gzwrite(file, (const char*)&minimizers[0], size * sizeof(u_int64_t));
+		u_int32_t size = minimizers.size();
+		file.write((const char*)&size, sizeof(size));
+		file.write((const char*)&minimizers[0], size * sizeof(u_int64_t));
 	}
 
 
@@ -1707,11 +1717,11 @@ public:
 		_outputFile_correctedReads = gzopen(outputFilename_correctedReads.c_str(),"wb");
 
 		_file_uncorrectedReads = ofstream(_inputDir + "/read_uncorrected.txt");
-		/*
+		
 		u_int32_t cutoffLevel = 0;
 		for(const SaveState2& saveState : _graph->_cachedGraphStates){
 
-			//cout << cutoffLevel << " " << saveState._abundanceCutoff_min << endl;
+			cout << cutoffLevel << " " << saveState._abundanceCutoff_min << endl;
 			//getchar();
 
 			_graph->loadState2(saveState._abundanceCutoff_min, -1, _unitigDatas);
@@ -1729,15 +1739,15 @@ public:
 			//_readPartitions[cutoffLevel] = gzopen(filename.c_str(),"wb");
 			cutoffLevel += 1;
 		}
-		*/
-
-
-
 		
+
+
+
+		/*
 		KminmerParser parser(_filename_readMinimizers, _minimizerSize, _kminmerSize, true);
 		auto fp = std::bind(&Assembly3::correctReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
 		parser.parse(fp);
-		
+		*/
 
 		//file_correction.close();
 		gzclose(_outputFile_correctedReads);
@@ -1955,7 +1965,7 @@ public:
 
 		_nbreadsLala += 1;
 
-		if(readpath.size() < nodePath.size() || nodePath.size() == 0){
+		if(readpath.size() < nodePath_withMissing.size() || nodePath.size() == 0){
 			u_int32_t readSize = minimizers.size();
 			_file_uncorrectedReads.write((const char*)&readSize, sizeof(readSize));
 			_file_uncorrectedReads.write((const char*)&minimizers[0], readSize*sizeof(u_int64_t));
