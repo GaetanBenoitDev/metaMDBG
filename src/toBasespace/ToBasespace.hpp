@@ -37,6 +37,7 @@ public:
 	string _filename_kminmerSequences;
 	MDBG* _mdbg;
 	MinimizerParser* _minimizerParser;
+	string _truthInputFilename;
 	
 	//unordered_map<ContigNode, string> _debug_node_sequences;
 	//unordered_map<u_int32_t, KminmerSequence> _nodeName_entire;
@@ -102,6 +103,7 @@ public:
 		options.add_options()
 		(ARG_INPUT_FILENAME, "", cxxopts::value<string>())
 		(ARG_INPUT_FILENAME_CONTIG, "", cxxopts::value<string>())
+		(ARG_INPUT_FILENAME_TRUTH, "", cxxopts::value<string>()->default_value(""))
 		(ARG_OUTPUT_FILENAME, "", cxxopts::value<string>())
 		(ARG_FIRST_PASS, "", cxxopts::value<bool>()->default_value("false"))
 		(ARG_FASTA, "", cxxopts::value<bool>()->default_value("false"))
@@ -127,6 +129,7 @@ public:
 			_isFirstPass = result[ARG_FIRST_PASS].as<bool>();
 			_isOutputFasta = result[ARG_FASTA].as<bool>();
 			_filename_outputContigs = result[ARG_OUTPUT_FILENAME].as<string>();
+			_truthInputFilename = result[ARG_INPUT_FILENAME_TRUTH].as<string>();
 			
 		}
 		catch (const std::exception& e){
@@ -166,6 +169,11 @@ public:
 
     void execute (){
 		
+
+
+
+
+
 		//_kminmerSize = 4;
 
 		cout << "Loading mdbg" << endl;
@@ -173,6 +181,10 @@ public:
 		_mdbg = new MDBG(_kminmerSize);
 		_mdbg->load(mdbg_filename);
 		cout << "MDBG nodes: " << _mdbg->_dbg_nodes.size() << endl;
+
+		if(_truthInputFilename != ""){
+			extract_truth_kminmers();
+		}
 
 		//cout << "Loading original mdbg" << endl;
 		//string mdbg_filename = _inputDir + "/mdbg_nodes_init.gz";
@@ -702,6 +714,7 @@ public:
 
 		if(queue.size() < 20) return;
 
+
 		//cout << "correcting" << endl;
 		//DnaBitset* sequenceModel = models[nodeName];
 
@@ -918,7 +931,15 @@ public:
 	}
 	*/
 	
+	ofstream _fileHifiasmAll;
+	u_int64_t _hifiasmContigIndex;
+	unordered_set<string> _hifiasmWrittenNodeNames;
+
 	void createBaseContigs(const string& contigFilename, const string& outputFilename){
+
+		_hifiasmContigIndex = 0;
+		_fileHifiasmAll = ofstream(_inputDir + "/binning_results_hifiasm.csv");
+		_fileHifiasmAll << "Name,Colour" << endl;
 
 		cout << "Creating basespace contigs: " << contigFilename << " " << outputFilename << endl;
 
@@ -929,6 +950,7 @@ public:
 		parser.parseMinspace(fp);
 
 		gzclose(_basespaceContigFile);
+		_fileHifiasmAll.close();
 	}
 
 	void createBaseContigs_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
@@ -1018,6 +1040,36 @@ public:
 		gzwrite(_basespaceContigFile, (const char*)&header[0], header.size());
 		contigSequence +=  '\n';
 		gzwrite(_basespaceContigFile, (const char*)&contigSequence[0], contigSequence.size());
+
+		if(contigSequence.size() > 100000){
+
+			if(_truthInputFilename != ""){
+				
+				for(size_t i=0; i<kminmersInfos.size(); i++){
+					const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
+					KmerVec vec = kminmerInfo._vec;
+				
+					if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
+						continue;
+					}
+
+					u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
+
+					if(_evaluation_hifiasmGroundTruth_nodeName_to_unitigName.find(nodeName) != _evaluation_hifiasmGroundTruth_nodeName_to_unitigName.end()){
+						for(string& unitigName : _evaluation_hifiasmGroundTruth_nodeName_to_unitigName[nodeName]){
+							if(_hifiasmWrittenNodeNames.find(unitigName) != _hifiasmWrittenNodeNames.end()) continue;
+							_fileHifiasmAll << unitigName << "," << _hifiasmContigIndex << endl;
+							_hifiasmWrittenNodeNames.insert(unitigName);
+						}
+					}
+				}
+
+				_hifiasmContigIndex += 1;
+
+			}
+
+		}
+
 
 	}
 
@@ -1184,6 +1236,100 @@ public:
 
 	}
 	*/
+
+
+
+
+	//MinimizerParser* _minimizerParser;
+	u_int32_t _extract_truth_kminmers_read_position;
+	unordered_map<u_int32_t, vector<string>> _evaluation_hifiasmGroundTruth_nodeName_to_unitigName;
+	vector<u_int32_t> _evaluation_hifiasmGroundTruth_path;
+	unordered_set<u_int32_t> _hifiasm_startingNodenames;
+	ofstream _file_groundTruth_hifiasm_position;
+
+	void extract_truth_kminmers_read(kseq_t* read, u_int64_t readIndex){
+		//ottalSize += strlen(read->seq.s);
+
+
+
+		string rleSequence;
+		vector<u_int64_t> rlePositions;
+		Encoder::encode_rle(read->seq.s, strlen(read->seq.s), rleSequence, rlePositions);
+
+		vector<u_int64_t> minimizers;
+		vector<u_int64_t> minimizers_pos;
+		_minimizerParser->parse(rleSequence, minimizers, minimizers_pos);
+
+		vector<KmerVec> kminmers; 
+		vector<ReadKminmer> kminmersInfo;
+		MDBG::getKminmers(_minimizerSize, _kminmerSize, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex, false);
+
+		for(size_t i=0; i<kminmers.size(); i++){
+
+			KmerVec& vec = kminmers[i];
+			//if(_mdbg->_dbg_nodes.find(kminmers[i]) == _mdbg->_dbg_nodes.end()) continue;
+
+			//u_int32_t nodeName = _mdbg->_dbg_nodes[kminmers[i]]._index;
+			if(_mdbg->_dbg_nodes.find(vec) != _mdbg->_dbg_nodes.end()){
+
+				u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
+				//2262408
+				//if("utg009434l" == string(read->name.s)){
+				//	cout << nodeName << endl;
+				//	_hifiasm_startingNodenames.insert(nodeName);
+				//}
+				//cout << _evaluation_hifiasmGroundTruth_nodeName_to_unitigName.size() << endl;
+
+				_evaluation_hifiasmGroundTruth_nodeName_to_unitigName[_mdbg->_dbg_nodes[vec]._index].push_back(string(read->name.s));
+				_evaluation_hifiasmGroundTruth_path.push_back(_mdbg->_dbg_nodes[vec]._index);
+
+				//if(_evaluation_hifiasmGroundTruth_nodeNamePosition.find(_mdbg->_dbg_nodes[vec]._index) == _evaluation_hifiasmGroundTruth_nodeNamePosition.end()){
+				//	_evaluation_hifiasmGroundTruth_nodeNamePosition[_mdbg->_dbg_nodes[vec]._index] = _extract_truth_kminmers_read_position;
+				//}
+				//cout << mdbg->_dbg_nodes[vec]._index << " " << sequence.getComment() << endl;
+				
+				//_file_groundTruth_hifiasm_position << nodeName << "," << _extract_truth_kminmers_read_position << endl;
+			}
+			else{
+				//cout << "Not found position: " << position << endl;
+				_evaluation_hifiasmGroundTruth_path.push_back(-1);
+			}
+
+
+			//if(_evaluation_hifiasmGroundTruth.find(vec) != _evaluation_hifiasmGroundTruth.end()){
+				//cout << position << endl;
+			//	continue;
+			//}
+
+
+			//_evaluation_hifiasmGroundTruth[vec] = datasetID;
+			//_evaluation_hifiasmGroundTruth_position[vec] = _extract_truth_kminmers_read_position;
+			//_extract_truth_kminmers_read_position += 1;
+
+			
+			//cout << _extract_truth_kminmers_read_position << endl;
+		}
+
+
+	}
+
+
+	void extract_truth_kminmers(){
+
+		_file_groundTruth_hifiasm_position.open(_inputDir + "/groundtruth_hifiasm_position.csv");
+		_file_groundTruth_hifiasm_position << "Name,Position" << endl;
+
+		_extract_truth_kminmers_read_position = 0;
+		_minimizerParser = new MinimizerParser(_minimizerSize, _minimizerDensity);
+		
+		auto fp = std::bind(&ToBasespace::extract_truth_kminmers_read, this, std::placeholders::_1, std::placeholders::_2);
+		ReadParser readParser(_truthInputFilename, true, false);
+		readParser.parse(fp);
+
+		_file_groundTruth_hifiasm_position.close();
+
+		//delete _minimizerParser;
+	}
 
 };	
 

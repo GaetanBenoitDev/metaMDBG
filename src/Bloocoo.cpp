@@ -660,7 +660,7 @@ void Bloocoo::createMDBG_collectKminmers_minspace_read(const vector<u_int64_t>& 
 
 				if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
 
-					_mdbg->addNode(vec, _kminmerLengthMean, _kminmerOverlapMean, _kminmerOverlapMean, kminmerInfo._isReversed);
+					_mdbg->addNode(vec, _kminmerLengthMean, _minimizerSpacingMean, _minimizerSpacingMean, kminmerInfo._isReversed);
 
 					vector<u_int64_t> minimizerSeq;
 					for(size_t i=kminmerInfo._read_pos_start; i<=kminmerInfo._read_pos_end; i++){

@@ -399,7 +399,7 @@ public:
 		//cout << graphSimplify->_graphSuccessors->_nbEdges << endl;
 		//graphSimplify->execute(5, _kminmerSize);
 		//graphSimplify->debug_writeGfaErrorfree(1000, PathExplorer::computeAbundanceCutoff(1000, 0, CutoffType::ERROR), -1, _kminmerSize, false, true, false, _unitigDatas);
-		_graph->debug_writeGfaErrorfree(500, 500, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false);
+		_graph->debug_writeGfaErrorfree(500, 500, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false, false);
 
 
 
@@ -1681,7 +1681,7 @@ public:
 		parser.parse(fp);
 		
 		if(_kminmerSize > 3) return;
-		
+
 		vector<DbgEdge> removedEdges;
 
 		for(Unitig& unitig : graph->_unitigs){

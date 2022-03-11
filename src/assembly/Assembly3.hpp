@@ -278,11 +278,11 @@ public:
 
 
 			cout << "Cleanning graph 1" << endl;
-			_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, true);
-			_isBubble = _graph->_isBubble;
+			//_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, true);
+			//_isBubble = _graph->_isBubble;
 			
 			cout << "Cleanning graph 2" << endl;
-			_graph->debug_writeGfaErrorfree(500, 500, -1, _kminmerSize, false, true, false, _unitigDatas, false, false, false);
+			_graph->debug_writeGfaErrorfree(500, 500, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, true, false);
 
 			//!
 
@@ -291,9 +291,10 @@ public:
 		//}
 
 		
-		/*
+		
 		cout << _graph->_isNodenameRoundabout.size() << endl;
 		
+		/*
 		ofstream file_correction(_inputDir + "/roundabout.csv");
 		file_correction << "Name,Colour" << endl;
 		for(u_int32_t nodeName : _graph->_isNodenameRoundabout){
@@ -302,15 +303,19 @@ public:
 			//}
 		}
 		for(u_int32_t nodeIndex : _graph->_isNodeValid2){
-			if(_isBubble[nodeIndex]){
+			if(_graph->_isBubble[nodeIndex]){
 				file_correction << BiGraph::nodeIndex_to_nodeName(nodeIndex) << ",red" << endl;
 			}
 		}
 		file_correction.close();
 		*/
+		//cout << _graph->nodeIndex_to_unitig(BiGraph::nodeName_to_nodeIndex(12871, true))._nbNodes << " " << _graph->nodeIndex_to_unitig(BiGraph::nodeName_to_nodeIndex(12871, true))._length << endl;
 		//getchar();
 		
 		
+		_graph->loadState2(100, -1, _unitigDatas);
+		_graph->saveGraph(_inputDir + "/minimizer_graph_contigs.gfa");
+		_graph->loadState2(0, -1, _unitigDatas);
 
 		_partitionDir = _inputDir + "/" + "partitions";
 		fs::path path(_partitionDir);
@@ -1660,7 +1665,7 @@ public:
 
 			for(u_int32_t nodeIndex : u._nodes){
 				if(_graph->_isNodenameRoundabout.find(BiGraph::nodeIndex_to_nodeName(nodeIndex)) != _graph->_isNodenameRoundabout.end()) continue;
-				if(_isBubble[nodeIndex]) continue;
+				if(_graph->_isBubble[nodeIndex]) continue;
 
 				readpathAbudance_values.push_back(u._abundance);
 				//cout << u._abundance << " ";
@@ -1763,6 +1768,11 @@ public:
 
 	void correctReads_read(const vector<u_int64_t>& minimizers, const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex){//}, const vector<KmerVec>& kminmers_k3, const vector<ReadKminmer>& kminmersInfos_k3){
 
+		//u_int32_t readSize = minimizers.size();
+		//_file_uncorrectedReads.write((const char*)&readSize, sizeof(readSize));
+		//_file_uncorrectedReads.write((const char*)&minimizers[0], readSize*sizeof(u_int64_t));
+		//return;
+
 		/*
 		if(readIndex >= _nbReads){
 			u_int32_t readSize = minimizers.size();
@@ -1800,7 +1810,7 @@ public:
 			
 			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
 
-			if(_isBubble[BiGraph::nodeName_to_nodeIndex(nodeName, true)]){
+			if(_graph->_isBubble[BiGraph::nodeName_to_nodeIndex(nodeName, true)]){
 				if(print_read) cout << nodeName << "B ";
 				//continue;
 			}
@@ -1965,7 +1975,7 @@ public:
 
 		_nbreadsLala += 1;
 
-		if(readpath.size() < nodePath_withMissing.size() || nodePath.size() == 0){
+		if(readpath.size() < nodePath_withMissing.size() || nodePath.size() == 0 || readpath.size() == 0){
 			u_int32_t readSize = minimizers.size();
 			_file_uncorrectedReads.write((const char*)&readSize, sizeof(readSize));
 			_file_uncorrectedReads.write((const char*)&minimizers[0], readSize*sizeof(u_int64_t));
@@ -2027,7 +2037,7 @@ public:
 
 			if(_graph->_isNodeValid2.find(nodeIndex) == _graph->_isNodeValid2.end()) continue;
 			if(_graph->_isNodenameRoundabout.find(nodeName) != _graph->_isNodenameRoundabout.end()) continue;
-			if(_isBubble[nodeIndex]) continue;
+			if(_graph->_isBubble[nodeIndex]) continue;
 
 			nodePath_errorFree.push_back(nodeName);
 		}
@@ -2096,6 +2106,9 @@ public:
     		_graph->finUniquePath(nodeName_source, nodeName_dest, path, false, false, maxDepth);
 
 			if(path.size() == 0){
+				//readpath.clear();
+				//return;
+
 				continue;
 			}
 			else{
@@ -2128,16 +2141,17 @@ public:
 
 
 
-		
 		vector<u_int32_t> nodePath_anchor = nodePath_errorFree_fixed;
-		//for(u_int32_t nodeName : nodePath_errorFree_fixed)
-
-
-
 		vector<u_int32_t> nodePath_connected = nodePath_errorFree_fixed;
 		
 		u_int32_t prevNodename = -1;
 		u_int32_t nodeIndex_source = -1;
+		/*
+		//for(u_int32_t nodeName : nodePath_errorFree_fixed)
+
+
+
+		
 		//u_int32_t nodeIndex_dest = -1;
 
 		for(long i=0; i<((long)nodePath_connected.size())-1; i++){
@@ -2152,18 +2166,7 @@ public:
 					continue;
 				}
 			}
-			/*
-			else{
-				if(tryFindPathDirect(BiGraph::nodeName_to_nodeIndex(nodeName_source, true), nodeName_dest, readpath)){
-					nodeIndex_source = readpath[readpath.size()-1];
-					continue;
-				}
-				else if(tryFindPathDirect(BiGraph::nodeName_to_nodeIndex(nodeName_source, false), nodeName_dest, readpath)){
-					nodeIndex_source = readpath[readpath.size()-1];
-					continue;
-				}
-			}
-			*/
+
 
 
 
@@ -2234,22 +2237,50 @@ public:
 
 		}
 
+		*/
 
-		/*
+		
 		for(long i=0; i<((long)nodePath_connected.size())-1; i++){
 			
 			u_int32_t nodeName_source = nodePath_connected[i];
 			u_int32_t nodeName_dest = nodePath_connected[i+1];
 
+			if(nodeIndex_source != -1){
+				if(tryFindPathDirect(nodeIndex_source, nodeName_dest, readpath)){
+					nodeIndex_source = readpath[readpath.size()-1];
+					continue;
+				}
+				else{
+					readpath.clear();
+					return;
+				}
+			}
+			else{
+				if(tryFindPathDirect(BiGraph::nodeName_to_nodeIndex(nodeName_source, true), nodeName_dest, readpath)){
+					nodeIndex_source = readpath[readpath.size()-1];
+					continue;
+				}
+				else if(tryFindPathDirect(BiGraph::nodeName_to_nodeIndex(nodeName_source, false), nodeName_dest, readpath)){
+					nodeIndex_source = readpath[readpath.size()-1];
+					continue;
+				}
+				else{
+					readpath.clear();
+					return;
+				}
+			}
+
+			unordered_set<u_int32_t> unallowedNodeNames;
+			for(long j=0; j<nodePath_connected.size(); j++){
+				if(nodePath_connected[j] == nodeName_source || nodePath_connected[j] == nodeName_dest) continue;
+				unallowedNodeNames.insert(nodePath_connected[j]);
+			}
+
 			bool foundPath = false;
 
-			while(true){
+			//while(true){
 
-				unordered_set<u_int32_t> unallowedNodeNames;
-				for(long j=0; j<nodePath_connected.size(); j++){
-					if(nodePath_connected[j] == nodeName_source || nodePath_connected[j] == nodeName_dest) continue;
-					unallowedNodeNames.insert(nodePath_connected[j]);
-				}
+
 
 				//cout << "\tSearching path: " << nodeName_source << " " << nodeName_dest << endl;
 				//cout << Utils::computeSharedReads(_unitigDatas[nodeName_source], _unitigDatas[nodeName_dest]) << endl;
@@ -2259,8 +2290,8 @@ public:
 				_graph->shortestPath_nodeName(nodeName_source, nodeName_dest, path, true, true, maxDepth, _unitigDatas, unallowedNodeNames, nodeIndex_source, nodePath_anchor);
 
 				if(path.size() == 0){
-					foundPath = false;
-					break;
+					//foundPath = false;
+					//break;
 				}
 
 				foundPath = true;
@@ -2287,6 +2318,7 @@ public:
 				}
 				//cout << endl;
 
+				/*
 				if(foundPath){
 					nodePath_anchor = nodePath_errorFree_fixed;
 					break;
@@ -2341,13 +2373,13 @@ public:
 						nodePath_anchor = nodePath_errorFree_fixed;
 						break;
 					}
-				}
+				}*/
 
-			}
+			//}
 
 
 		}
-		*/
+		
 		
 
 		if(print_read){
@@ -2359,6 +2391,8 @@ public:
 			cout << endl;
 		}
 
+		//if(readpath.size() < nodePath.size())
+		
 		/*
 		long supportSize = 6;
 		if(nodePath_existing.size() < supportSize) return;
@@ -2774,6 +2808,7 @@ public:
 
 		extendReadpath2(readpath, true, nbExtendRight, unallowedNodeNames);
 		extendReadpath2(readpath, false, nbExtendLeft, unallowedNodeNames);
+		
 		/*
 		vector<u_int32_t> prevNodes;
 
@@ -2867,18 +2902,21 @@ public:
 				return;
 			}
 			else if(successors.size() == 1){
-				nodeIndex = successors[0];
-				if(unallowedNodeNames.find(BiGraph::nodeIndex_to_nodeName(nodeIndex)) != unallowedNodeNames.end()) return;
+				u_int32_t nodeIndexSuccessor = successors[0];
+				if(unallowedNodeNames.find(BiGraph::nodeIndex_to_nodeName(nodeIndexSuccessor)) != unallowedNodeNames.end()) return;
+				if(_graph->nodeIndex_to_unitigIndex(nodeIndex) != _graph->nodeIndex_to_unitigIndex(nodeIndexSuccessor)) return;
 				if(forward){
-					nodePath.push_back(nodeIndex);
+					nodePath.push_back(nodeIndexSuccessor);
 				}
 				else{
-					nodePath.insert(nodePath.begin(), nodeIndex);
+					nodePath.insert(nodePath.begin(), nodeIndexSuccessor);
 				}
+				nodeIndex = nodeIndexSuccessor;
 
 			}
 			else{
-
+				return;
+				/*
 				nodeIndex = determineBestSupportedSuccessors(nodePath, forward, unallowedNodeNames, successors);
 				if(nodeIndex == -1) return;
 
@@ -2890,6 +2928,7 @@ public:
 				else{
 					nodePath.insert(nodePath.begin(), nodeIndex);
 				}
+				*/
 			}
 			
 		}

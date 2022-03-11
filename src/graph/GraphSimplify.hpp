@@ -2157,6 +2157,7 @@ public:
             }
             else{
                 u_int16_t overlapLength = _graphSuccessors->getOverlap(lastNode, node);
+                //if(_kminmerSize > 4) cout << _graphSuccessors->_nodeLengths[nodeName] << " " << overlapLength << endl;
                 length += _graphSuccessors->_nodeLengths[nodeName] - overlapLength;
             }
 
@@ -3051,7 +3052,7 @@ public:
         }
     }
 
-    void debug_writeGfaErrorfree(u_int32_t currentAbundance, float abundanceCutoff_min, u_int32_t nodeIndex_source, u_int64_t k, bool saveGfa, bool doesSaveState, bool doesLoadState, const vector<UnitigData>& unitigDatas, bool crushBubble, bool smallBubbleOnly, bool detectRoundabout){
+    void debug_writeGfaErrorfree(u_int32_t currentAbundance, float abundanceCutoff_min, u_int32_t nodeIndex_source, u_int64_t k, bool saveGfa, bool doesSaveState, bool doesLoadState, const vector<UnitigData>& unitigDatas, bool crushBubble, bool smallBubbleOnly, bool detectRoundabout, bool insertBubble){
 
         u_int64_t maxBubbleLength;
         if(smallBubbleOnly){
@@ -3377,10 +3378,10 @@ public:
             }
             
             //if(doesSaveState){
-            checkSaveState(currentCutoff, unitigDatas, detectRoundabout, maxBubbleLength, currentSaveState);
+            checkSaveState(currentCutoff, unitigDatas, detectRoundabout, maxBubbleLength, currentSaveState, insertBubble);
             //}
 
-            u_int64_t nbErrorRemoved = removeErrors_2(k, abundanceCutoff_min, currentCutoff, currentSaveState, unitigDatas, detectRoundabout, maxBubbleLength);
+            u_int64_t nbErrorRemoved = removeErrors_2(k, abundanceCutoff_min, currentCutoff, currentSaveState, unitigDatas, detectRoundabout, maxBubbleLength, insertBubble);
             
             if(nbErrorRemoved > 0){
                 isModification = true;
@@ -3700,7 +3701,7 @@ getStronglyConnectedComponent_node
         //exit(1);
     }
 
-    void checkSaveState(float currentCutoff, const vector<UnitigData>& unitigDatas, bool detectRoundabout, u_int64_t maxBubbleLength, SaveState2 currentSaveState){
+    void checkSaveState(float currentCutoff, const vector<UnitigData>& unitigDatas, bool detectRoundabout, u_int64_t maxBubbleLength, SaveState2 currentSaveState, bool insertBubble){
         
         bool saveStateExist = false;
         for(const SaveState2& saveState : _cachedGraphStates){
@@ -3748,7 +3749,7 @@ getStronglyConnectedComponent_node
             
             
             ///---------------------------- Inserting bubbles
-            /*
+            if(insertBubble){
             #ifdef PRINT_DEBUG_SIMPLIFICATION
                 cout << "inserting bubbles" << endl;
             #endif
@@ -3844,8 +3845,9 @@ getStronglyConnectedComponent_node
                 currentSaveState._nodeNameRemoved_tmp.erase(nodeName);
                 //currentSaveState._nodeNameRemoved.erase(std::remove(currentSaveState._nodeNameRemoved.begin(), currentSaveState._nodeNameRemoved.end(), nodeName), currentSaveState._nodeNameRemoved.end());
             }
-            */
+            
             //------------------------------ End
+            }
             
 
             for(u_int32_t nodeName : currentSaveState._nodeNameRemoved_tmp){
@@ -3956,7 +3958,9 @@ getStronglyConnectedComponent_node
             currentSaveState = {0, {}, {}, {}, {}};
             //cout << "insert graph state" << currentCutoff << endl;
 
-            //_isNodeValid2 = isNodeValid2_memo; //!
+            if(insertBubble){
+                _isNodeValid2 = isNodeValid2_memo; //!
+            }
             std::reverse(_bubbles.begin(), _bubbles.end());
             compact(false, unitigDatas);
 
@@ -4175,7 +4179,7 @@ getStronglyConnectedComponent_node
 
     }
 
-    u_int64_t removeErrors_2(size_t k, float abundanceCutoff_min, float& currentCutoff, SaveState2& saveState, const vector<UnitigData>& unitigDatas, bool detectRoundabout, u_int64_t maxBubbleLength){
+    u_int64_t removeErrors_2(size_t k, float abundanceCutoff_min, float& currentCutoff, SaveState2& saveState, const vector<UnitigData>& unitigDatas, bool detectRoundabout, u_int64_t maxBubbleLength, bool insertBubble){
 
         //return 0;
         
@@ -4189,7 +4193,7 @@ getStronglyConnectedComponent_node
         u_int32_t prevCutoff = -1;
         while(t < abundanceCutoff_min){ 
             
-            checkSaveState(currentCutoff, unitigDatas, detectRoundabout, maxBubbleLength, saveState);
+            checkSaveState(currentCutoff, unitigDatas, detectRoundabout, maxBubbleLength, saveState, insertBubble);
 
             currentCutoff = t;
             unordered_set<u_int32_t> removedNodes;
@@ -7387,7 +7391,7 @@ getStronglyConnectedComponent_node
         nodepath = prevNodes;    
     }
 
-    void shortestPath_nodeName(u_int32_t source_nodeName, u_int32_t dest_nodeName, vector<u_int32_t>& path, bool includeSource, bool includeSink, u_int32_t maxDistance, const vector<UnitigData>& unitigDatas, unordered_set<u_int32_t>& unallowedNodenames, u_int32_t nodeIndex_sourceLala, u_int32_t anchorNodeName){ //vector<u_int32_t>& anchorNodeNames
+    void shortestPath_nodeName(u_int32_t source_nodeName, u_int32_t dest_nodeName, vector<u_int32_t>& path, bool includeSource, bool includeSink, u_int32_t maxDistance, const vector<UnitigData>& unitigDatas, unordered_set<u_int32_t>& unallowedNodenames, u_int32_t nodeIndex_sourceLala, vector<u_int32_t>& anchorNodeNames){
         /*
         path.clear();
 
@@ -7427,7 +7431,7 @@ getStronglyConnectedComponent_node
         */
 
         
-        const vector<u_int64_t>& readIndexes_source = unitigDatas[anchorNodeName]._readIndexes;
+        //const vector<u_int64_t>& readIndexes_source = unitigDatas[anchorNodeName]._readIndexes;
 
         path.clear();
 		unordered_set<u_int32_t> isVisited1;
@@ -7514,7 +7518,7 @@ getStronglyConnectedComponent_node
 
                         if (isVisited1.find(nodeIndex_successor) != isVisited1.end()) continue;
                     
-                        /*
+                        
                         vector<u_int32_t> nodeNames = anchorNodeNames;
                         //vector<u_int32_t> nodeNames = prevNodeNames;
                         //for(u_int32_t nodeName : anchorNodeNames){
@@ -7529,11 +7533,11 @@ getStronglyConnectedComponent_node
                         //u_int32_t nbSharedReads = Utils::computeSharedReads(readIndexes_source, readIndexes);
                         u_int32_t nbSharedReads = Utils::computeSharedReads(nodeNames, unitigDatas);
 
-                        */
+                        
 
 
-                        const vector<u_int64_t>& readIndexes = unitigDatas[BiGraph::nodeIndex_to_nodeName(nodeIndex_successor)]._readIndexes;
-                        u_int32_t nbSharedReads = Utils::computeSharedReads(readIndexes_source, readIndexes);
+                        //const vector<u_int64_t>& readIndexes = unitigDatas[BiGraph::nodeIndex_to_nodeName(nodeIndex_successor)]._readIndexes;
+                        //u_int32_t nbSharedReads = Utils::computeSharedReads(readIndexes_source, readIndexes);
                         //cout << "\tNeighborsL: " << BiGraph::nodeIndex_to_nodeName(nodeIndex_successor) << " " << nbSharedReads << endl;
 
                         if(nbSharedReads <= 1) continue;
@@ -7590,8 +7594,12 @@ getStronglyConnectedComponent_node
 
                         if (isVisited2.find(nodeIndex_successor) != isVisited2.end()) continue;
                     
-                        const vector<u_int64_t>& readIndexes = unitigDatas[BiGraph::nodeIndex_to_nodeName(nodeIndex_successor)]._readIndexes;
-                        u_int32_t nbSharedReads = Utils::computeSharedReads(readIndexes_source, readIndexes);
+                        vector<u_int32_t> nodeNames = anchorNodeNames;
+                        nodeNames.push_back(BiGraph::nodeIndex_to_nodeName(nodeIndex_successor));
+                        u_int32_t nbSharedReads = Utils::computeSharedReads(nodeNames, unitigDatas);
+
+                        //const vector<u_int64_t>& readIndexes = unitigDatas[BiGraph::nodeIndex_to_nodeName(nodeIndex_successor)]._readIndexes;
+                        //u_int32_t nbSharedReads = Utils::computeSharedReads(readIndexes_source, readIndexes);
                         //cout << "\tNeighborsR: " << BiGraph::nodeIndex_to_nodeName(nodeIndex_successor) << " " << nbSharedReads << endl;
 
                         if(nbSharedReads <= 1) continue;
@@ -7656,8 +7664,13 @@ getStronglyConnectedComponent_node
 
                         if (isVisited1.find(nodeIndex_successor) != isVisited1.end()) continue;
                     
-                        const vector<u_int64_t>& readIndexes = unitigDatas[BiGraph::nodeIndex_to_nodeName(nodeIndex_successor)]._readIndexes;
-                        u_int32_t nbSharedReads = Utils::computeSharedReads(readIndexes_source, readIndexes);
+                        vector<u_int32_t> nodeNames = anchorNodeNames;
+                        nodeNames.push_back(BiGraph::nodeIndex_to_nodeName(nodeIndex_successor));
+                        u_int32_t nbSharedReads = Utils::computeSharedReads(nodeNames, unitigDatas);
+
+
+                        //const vector<u_int64_t>& readIndexes = unitigDatas[BiGraph::nodeIndex_to_nodeName(nodeIndex_successor)]._readIndexes;
+                        //u_int32_t nbSharedReads = Utils::computeSharedReads(readIndexes_source, readIndexes);
                         //cout << "\tNeighbors: " << BiGraph::nodeIndex_to_nodeName(nodeIndex_successor) << " " << nbSharedReads << endl;
 
                         if(nbSharedReads <= 1) continue;
@@ -7844,6 +7857,9 @@ getStronglyConnectedComponent_node
 
         if(found){
 
+            //cout << "---" << endl;
+            //cout << nodeIndex_to_unitigIndex(dest_nodeIndex) << " " << nodeIndex_to_unitigIndex(source_nodeIndex) << endl;
+            
             u_int32_t n = dest_nodeIndex;
             while(n != source_nodeIndex){
 
