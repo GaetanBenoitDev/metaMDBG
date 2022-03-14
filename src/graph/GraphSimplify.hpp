@@ -3052,7 +3052,7 @@ public:
         }
     }
 
-    void debug_writeGfaErrorfree(u_int32_t currentAbundance, float abundanceCutoff_min, u_int32_t nodeIndex_source, u_int64_t k, bool saveGfa, bool doesSaveState, bool doesLoadState, const vector<UnitigData>& unitigDatas, bool crushBubble, bool smallBubbleOnly, bool detectRoundabout, bool insertBubble){
+    void debug_writeGfaErrorfree(u_int32_t currentAbundance, float abundanceCutoff_min, u_int32_t nodeIndex_source, u_int64_t k, bool saveGfa, bool doesSaveState, bool doesLoadState, const vector<UnitigData>& unitigDatas, bool crushBubble, bool smallBubbleOnly, bool detectRoundabout, bool insertBubble, bool saveAllState){
 
         u_int64_t maxBubbleLength;
         if(smallBubbleOnly){
@@ -3381,7 +3381,7 @@ public:
             checkSaveState(currentCutoff, unitigDatas, detectRoundabout, maxBubbleLength, currentSaveState, insertBubble);
             //}
 
-            u_int64_t nbErrorRemoved = removeErrors_2(k, abundanceCutoff_min, currentCutoff, currentSaveState, unitigDatas, detectRoundabout, maxBubbleLength, insertBubble);
+            u_int64_t nbErrorRemoved = removeErrors_2(k, abundanceCutoff_min, currentCutoff, currentSaveState, unitigDatas, detectRoundabout, maxBubbleLength, insertBubble, saveAllState);
             
             if(nbErrorRemoved > 0){
                 isModification = true;
@@ -3711,6 +3711,7 @@ getStronglyConnectedComponent_node
             }
         }
 
+        //cout << saveStateExist << endl;
         //cout << saveStateExist << " " << _cachedGraphStates.size() << endl;
         //getchar();
 
@@ -4179,7 +4180,7 @@ getStronglyConnectedComponent_node
 
     }
 
-    u_int64_t removeErrors_2(size_t k, float abundanceCutoff_min, float& currentCutoff, SaveState2& saveState, const vector<UnitigData>& unitigDatas, bool detectRoundabout, u_int64_t maxBubbleLength, bool insertBubble){
+    u_int64_t removeErrors_2(size_t k, float abundanceCutoff_min, float& currentCutoff, SaveState2& saveState, const vector<UnitigData>& unitigDatas, bool detectRoundabout, u_int64_t maxBubbleLength, bool insertBubble, bool saveAllState){
 
         //return 0;
         
@@ -4193,7 +4194,7 @@ getStronglyConnectedComponent_node
         u_int32_t prevCutoff = -1;
         while(t < abundanceCutoff_min){ 
             
-            checkSaveState(currentCutoff, unitigDatas, detectRoundabout, maxBubbleLength, saveState, insertBubble);
+            if(saveAllState) checkSaveState(currentCutoff, unitigDatas, detectRoundabout, maxBubbleLength, saveState, insertBubble);
 
             currentCutoff = t;
             unordered_set<u_int32_t> removedNodes;
@@ -4276,7 +4277,7 @@ getStronglyConnectedComponent_node
 
             t = t * (1+aplha);
 
-            cout << nbErrorsRemoved << endl;
+            //cout << nbErrorsRemoved << endl;
             if(nbErrorsRemoved > 0) break;
         }
 

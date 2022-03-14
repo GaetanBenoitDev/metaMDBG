@@ -284,7 +284,7 @@ public:
 
 
 			cout << "Cleanning graph 1" << endl;
-			_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, true, false);
+			_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, true, false, true);
 			_isBubble = _graph->_isBubble;
 			
 			//cout << "Cleanning graph 2" << endl;
@@ -1994,7 +1994,6 @@ public:
 			}
 			cout << endl;
 		}
-
 
 		if(nodePathSolid.size() != 2){
 			if(print_read) cout << "\tcorrection failed" << endl;

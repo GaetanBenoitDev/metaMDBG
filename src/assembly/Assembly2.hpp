@@ -294,7 +294,7 @@ public:
 		_mdbg->load(mdbg_filename);
 		cout << "Nb nodes: " <<  _mdbg->_dbg_nodes.size() << endl;
 
-		extractContigKminmers2(_inputDir + "/contigs.fasta.gz");
+		extractContigKminmers2();
 
 		if(_truthInputFilename != ""){
 			extract_truth_kminmers();
@@ -399,7 +399,7 @@ public:
 		//cout << graphSimplify->_graphSuccessors->_nbEdges << endl;
 		//graphSimplify->execute(5, _kminmerSize);
 		//graphSimplify->debug_writeGfaErrorfree(1000, PathExplorer::computeAbundanceCutoff(1000, 0, CutoffType::ERROR), -1, _kminmerSize, false, true, false, _unitigDatas);
-		_graph->debug_writeGfaErrorfree(500, 500, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false, false);
+		_graph->debug_writeGfaErrorfree(500, 500, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false, false, false);
 
 
 
@@ -2964,7 +2964,7 @@ public:
 		vector<float> abundancesModel;
 		vector<float> abundancesModel_var;
 		bool isAbValid = _contigFeature.sequenceToAbundance(unitig_model._nodes, abundancesModel, abundancesModel_var);
-		if(!isAbValid) return;
+		//if(!isAbValid) return;
 			
 		componentContigIndex.insert(contigIndex_model);
 		ContigFeatures contigFeatureModel = {contigIndex_model, compositionModel, abundancesModel, abundancesModel_var};
@@ -3196,7 +3196,8 @@ public:
 				writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
 
 				//if(isContigBinned(u._nodes, processedNodeNames)) continue;
-				if(u._length < 2500) continue;
+				//if(u._length < 2500) continue;
+				if(u._nbNodes < _kminmerSize*2) continue;
 				//if(u._abundance < _minUnitigAbundance) continue;
 				//if(u._nbNodes <= _kminmerSize*2) continue;
 				
@@ -3245,26 +3246,26 @@ public:
 				ContigFeatures contigFeature = {contigIndex, composition, abundances, abundancesVar};
 
 
-
-
+			
+				cout << "\tComposition dist: " << -log10(_contigFeature.computeCompositionProbability(compositionModel, composition)) << " " << _contigFeature.cal_tnf_dist(compositionModel, composition, contigIndex_model, contigIndex) << endl; // << " " << _contigFeature.computeEuclideanDistance(abundancesModel, abundances_init) << " " << _contigFeature.computeProbability(contigFeatureModel, contigFeature_init)  << endl; 
+				//cout << "\tComposition dist (extended): " << _contigFeature.computeEuclideanDistance(compositionModel_init, composition) << " " << _contigFeature.computeEuclideanDistance(abundancesModel, abundances) << " " << _contigFeature.computeProbability(contigFeatureModel, contigFeature)  << endl; 
+				int nnz = 0;
+				cout << "\tMetabat Abudance: " << _contigFeature.cal_abd_dist(contigFeatureModel, contigFeature, nnz) << endl;// << " " << _contigFeature.cal_abd_dist(contigFeatureModel, contigFeature, nnz) << endl;
+				cout << "\tMetabat Abudance new: " << _contigFeature.cal_abd_dist_new(contigFeatureModel, contigFeature, nnz) << endl; // << " " << _contigFeature.cal_abd_dist_new(contigFeatureModel, contigFeature, nnz) << endl;
+				cout << "\tMetacoag abundance: " << -log10(_contigFeature.computeAbundanceProbability_new(abundancesModel, abundances)) << endl; // << " " << -log10(_contigFeature.computeAbundanceProbability_new(abundancesModel, abundances)) << endl;
+				cout << "\tCorrelation: " << _contigFeature.computeAbundanceCorrelation(abundancesModel, abundances) << endl; // << " " << _contigFeature.computeAbundanceCorrelation(abundancesModel, abundances) << endl;
+				//cout << "\tCorrelation: " << _contigFeature.computeAbundanceCorrelation_new(abundancesModel, abundances_init) << " " << _contigFeature.computeAbundanceCorrelation_new(abundancesModel, abundances) << endl;
+				cout << "\t";
+				for(u_int32_t count : abundancesModel) cout << count << " ";
+				cout << endl;
+				cout << "\t";
+				for(u_int32_t count : abundances) cout << count << " ";
+				cout << endl;
 
 
 				if(_contigFeature.isIntra(contigFeatureModel, contigFeature, hasComposition, hasAbundances)){
 
-					cout << "\tComposition dist: " << -log10(_contigFeature.computeCompositionProbability(compositionModel, composition)) << " " << _contigFeature.cal_tnf_dist(compositionModel, composition, contigIndex_model, contigIndex) << endl; // << " " << _contigFeature.computeEuclideanDistance(abundancesModel, abundances_init) << " " << _contigFeature.computeProbability(contigFeatureModel, contigFeature_init)  << endl; 
-					//cout << "\tComposition dist (extended): " << _contigFeature.computeEuclideanDistance(compositionModel_init, composition) << " " << _contigFeature.computeEuclideanDistance(abundancesModel, abundances) << " " << _contigFeature.computeProbability(contigFeatureModel, contigFeature)  << endl; 
-					int nnz = 0;
-					cout << "\tMetabat Abudance: " << _contigFeature.cal_abd_dist(contigFeatureModel, contigFeature, nnz) << endl;// << " " << _contigFeature.cal_abd_dist(contigFeatureModel, contigFeature, nnz) << endl;
-					cout << "\tMetabat Abudance new: " << _contigFeature.cal_abd_dist_new(contigFeatureModel, contigFeature, nnz) << endl; // << " " << _contigFeature.cal_abd_dist_new(contigFeatureModel, contigFeature, nnz) << endl;
-					cout << "\tMetacoag abundance: " << -log10(_contigFeature.computeAbundanceProbability_new(abundancesModel, abundances)) << endl; // << " " << -log10(_contigFeature.computeAbundanceProbability_new(abundancesModel, abundances)) << endl;
-					cout << "\tCorrelation: " << _contigFeature.computeAbundanceCorrelation(abundancesModel, abundances) << endl; // << " " << _contigFeature.computeAbundanceCorrelation(abundancesModel, abundances) << endl;
-					//cout << "\tCorrelation: " << _contigFeature.computeAbundanceCorrelation_new(abundancesModel, abundances_init) << " " << _contigFeature.computeAbundanceCorrelation_new(abundancesModel, abundances) << endl;
-					cout << "\t";
-					for(u_int32_t count : abundancesModel) cout << count << " ";
-					cout << endl;
-					cout << "\t";
-					for(u_int32_t count : abundances) cout << count << " ";
-					cout << endl;
+
 					cout << "\t>" << u._length << ": " << contigIndex << endl;
 				
 					//lala[BiGraph::nodeIndex_to_nodeName(u._startNode)] += 1;
@@ -4088,13 +4089,13 @@ public:
 
 	ofstream _file_contigToNode;
 
-	void extractContigKminmers2 (const string& outputFilename_fasta){
+	void extractContigKminmers2 (){
 
 		_file_contigToNode = ofstream(_inputDir + "/nodeToContig.csv");
 		_file_contigToNode << "Name,Color" << endl;
 		_contigFeature.loadAbundanceFile_metabat(_filename_abundance);
 
-		ReadParser parser(outputFilename_fasta, true, _minimizerSize, _kminmerSize, _minimizerDensity);
+		ReadParser parser(_filename_inputContigs, true, _minimizerSize, _kminmerSize, _minimizerDensity);
 		auto fp = std::bind(&Assembly2::extractContigKminmers_read2, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6);
 		parser.parseKminmers(fp);
 

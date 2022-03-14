@@ -59,6 +59,7 @@ public:
 
 	ContigFeature(){
 
+		_nbDatasets = 0;
 
 		_kmerSize = 4;
 		_kmerModel = new KmerModel(_kmerSize);
@@ -217,6 +218,10 @@ public:
 
 	void loadAbundanceFile_metabat(const string& filename){
 
+		if(filename.empty()){
+			cout << "No abundance file provided" << endl;
+			return;
+		}
 
 		ifstream infile(filename);
 
@@ -309,7 +314,7 @@ public:
 			composition[_kmerToCompositionIndex[kmer]] += 1;
 		}
 
-		
+		/*
 		float rsum = 0;
 		for(size_t i = 0; i < composition.size(); ++i) {
 			rsum += composition[i] * composition[i];
@@ -318,7 +323,8 @@ public:
 		for(size_t i = 0; i < composition.size(); ++i) {
 			composition[i] /= rsum;
 		}
-		/*
+		*/
+		
 		float sum = 0;
 		for(size_t i = 0; i < composition.size(); ++i) {
 			sum += composition[i];
@@ -329,7 +335,7 @@ public:
 		for(size_t i = 0; i < composition.size(); ++i) {
 			composition[i] /= sum;
 		}
-		*/
+		
 	}
 
 	bool nodepathToComposition(const vector<u_int32_t>& sequence, vector<float>& composition){
@@ -373,6 +379,8 @@ public:
 
 	bool nodepathToContigSequence(const vector<u_int32_t>& nodepath, string& sequence, u_int32_t& contigIndexResult){
 		
+		unordered_map<u_int32_t, u_int32_t> contigCounts;
+
 		u_int32_t existingContigIndex = -1;
 
 		contigIndexResult = -1;
@@ -385,6 +393,7 @@ public:
 			
 			u_int32_t contigIndex = _nodeName_to_contigIndex[nodeName];
 
+			/*
 			if(existingContigIndex == -1){
 				existingContigIndex = contigIndex;
 			}
@@ -397,11 +406,35 @@ public:
 
 			contigIndexResult = contigIndex;
 			sequence = _contigSequences[contigIndex];
-
+			*/
+			contigCounts[contigIndex]  += 1;
 		}
 
-		return true;
+		u_int32_t maxCount = 0;
+		for(const auto& it : contigCounts){
+			if(it.second > maxCount){
+				maxCount = it.second;
+			}
+		}
 
+		u_int32_t maxContigIndex = -1;
+		u_int32_t nbMaxCount = 0;
+		for(const auto& it : contigCounts){
+			if(it.second == maxCount){
+				nbMaxCount += 1;
+				maxContigIndex = it.first;
+			}
+		}
+
+		//cout << nbMaxCount << endl;
+
+		if(nbMaxCount == 1){
+			contigIndexResult = maxContigIndex;
+			sequence = _contigSequences[maxContigIndex];
+			return true;
+		}
+
+		return false;
 	}
 
 	bool sequenceToAbundance(const vector<u_int32_t>& sequence, vector<float>& abundances, vector<float>& abundancesVar){
@@ -913,6 +946,12 @@ public:
 	}
 
 	bool isIntra(const ContigFeatures& f1, const ContigFeatures& f2, bool hasComposition, bool hasAbundances){
+
+
+		float compositionProb = -log10(computeCompositionProbability(f1._composition, f2._composition));
+		if(isinf(compositionProb)) return false;
+		return compositionProb < 5;
+
 
 		if(!hasAbundances) return false;
 		

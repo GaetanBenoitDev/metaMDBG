@@ -145,6 +145,7 @@ public:
 			//cout << "Start asm: " << k << endl;
 
 
+
 			writeParameters(minimizerSize, k, density, firstK);
 			//if(pass > 0) createInputFile(true);
 
@@ -215,7 +216,7 @@ public:
 
 			
 			//if(k == 5 || k == 10 || k == 16 || k == 21 || k == 26 || k == 31){
-			if(k == 19 || k==31 || k==41 || k==51 || k==61 || k==71 || k==81 || k==91){
+			if(k == 10 || k == 19 || k==31 || k==41 || k==51 || k==61 || k==71 || k==81 || k==91){
 
 				//Generate contigs
 				command = _filename_exe + " contig " + " -o " + _inputDir;
@@ -231,7 +232,8 @@ public:
 				executeCommand(command);
 
 			}	
-			
+		
+			//./bin/mdbgAsmMeta bin -o ~/workspace/run/overlap_test_multik_201/pass_0 -c ~/workspace/run/overlap_test_multik_201/contigs_10.fasta.gz
 			
 
 			//}
@@ -250,6 +252,9 @@ public:
 			command = _filename_exe + " readSelection -i " + inputFilenameContig + " -f " + _inputDir + "/contig_data.gz" + " -o " + _inputDir;
 			executeCommand(command);
 			*/
+
+			savePassData(k);
+
 			prevK = k;
 			//getchar();
 			pass += 1;
@@ -258,10 +263,28 @@ public:
 			//exit(1);
 			//break;
 			cout << "pass done" << endl;
-			getchar();
+			if(k == 10) getchar();
 		}
 
     }
+
+	void savePassData(u_int64_t k){
+
+		const string& dir = _inputDir + "/pass_k" + to_string(k);
+
+		if(fs::exists(dir)){
+			fs::remove_all(dir);
+		}
+
+		fs::create_directory(dir);
+
+		//const auto copyOptions = fs::copy_options::overwrite_existing;
+		fs::copy(_inputDir + "/read_data.txt", dir + "/read_data.txt");
+		fs::copy(_inputDir + "/minimizer_graph.gfa", dir + "/minimizer_graph.gfa");
+		fs::copy(_inputDir + "/parameters.gz", dir + "/parameters.gz");
+		fs::copy(_inputDir + "/mdbg_nodes.gz", dir + "/mdbg_nodes.gz");
+		//fs::copy(_inputDir + "/mdbg_nodes_init.gz", dir + "/mdbg_nodes_init.gz", copyOptions);
+	}
 
 	void executeCommand(const string& command){
 		cout << command << endl;
