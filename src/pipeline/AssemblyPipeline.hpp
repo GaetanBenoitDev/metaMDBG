@@ -119,29 +119,23 @@ public:
     void execute_pipeline(){
 		float density = 0.005;
 		u_int16_t minimizerSize = 21;
+		size_t firstK = 4;
 
 		string command = "";
 
-		/*
-		writeParameters(minimizerSize, 4, density);
-		createInputFile(false);
+		writeParameters(minimizerSize, firstK, density, firstK);
+		//createInputFile(false);
 
 		//Read selection
-		command = _filename_exe + " readSelection -i " + _inputFilename + " -o " + _inputDir + " -f " + _inputDir + "/read_data.gz";
+		command = _filename_exe + " readSelection -i " + _inputFilename + " -o " + _inputDir + " -f " + _inputDir + "/read_data_init.txt";
 		executeCommand(command);
-		*/
-
-
+		
 
 		u_int64_t pass = 0;
 		u_int32_t prevK = -1;
-		size_t firstK = -1;
 
-		for(size_t k=4; k<100; k+=1){
+		for(size_t k=firstK; k<100; k+=1){
 
-			if(firstK == -1){
-				firstK = k;
-			}
 			//cout << "Start asm: " << k << endl;
 
 

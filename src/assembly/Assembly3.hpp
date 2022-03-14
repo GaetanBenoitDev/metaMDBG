@@ -688,112 +688,6 @@ public:
 		return distinctContigIndex.size() == 1;
 	}
 
-	/*
-	ofstream _fileTestLala;
-
-	void extractContigKminmers (const string& outputFilename_fasta){
-		
-		_fileTestLala = ofstream(outputFilename_fasta + ".nodes.csv");
-		_fileTestLala << "Name,Color" << endl;
-
-		_mdbg = new MDBG(_kminmerSize);
-		_mdbg->load(_inputDir + "/mdbg_nodes.gz");
-
-		ReadParser parser(outputFilename_fasta, true, _minimizerSize, _kminmerSize, _minimizerDensity);
-		auto fp = std::bind(&Assembly3::extractContigKminmers_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6);
-		parser.parseKminmers(fp);
-
-		for(auto& it: _contigFeature._nodeNameDuplicate){
-			if(it.second == 1){
-				_fileTestLala << it.first << "," << "blue" << endl;
-			}
-			else{
-				_fileTestLala << it.first << "," << "red" << endl;
-			}
-		}
-
-		delete _mdbg;
-		_fileTestLala.close();
-	}
-
-
-	void extractContigKminmers_read(const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex, u_int64_t datasetIndex, const string& header, const string& seq){
-
-		for(size_t i=0; i<kminmersInfos.size(); i++){
-			
-
-			KmerVec vec = kminmers[i];
-			//for(KmerVec& vec : kminmers){
-			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()) continue;
-
-			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
-			_contigFeature._nodeNameDuplicate[nodeName] += 1;
-			//_fileTestLala << nodeName << "," << "0" << endl;
-			//_kminmerCounts[nodeName] = _countsInit;
-			
-		}
-
-	}
-
-	ofstream _file_contigToNode;
-
-	void extractContigKminmers2 (const string& outputFilename_fasta){
-
-		_file_contigToNode = ofstream(_inputDir + "/nodeToContig.csv");
-		_file_contigToNode << "Name,Color" << endl;
-		_contigFeature.loadAbundanceFile(_filename_abundance);
-
-		ReadParser parser(outputFilename_fasta, true, _minimizerSize, _kminmerSize, _minimizerDensity);
-		auto fp = std::bind(&Assembly3::extractContigKminmers_read2, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6);
-		parser.parseKminmers(fp);
-
-		_file_contigToNode.close();
-		//vector<u_int32_t> nodePath = {933376, 1651014, 1762772, 732878};
-		//vector<float> lala1;
-		//vector<float> lala2;
-		//_contigFeature.sequenceToAbundance(nodePath, lala1, lala2);
-
-		//exit(1);
-	}
-
-
-	void extractContigKminmers_read2(const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex, u_int64_t datasetIndex, const string& header, const string& seq){
-
-		if(seq.size() < 15000) return;
-		//cout << seq.size() << endl;
-
-		vector<float> composition;
-		_contigFeature.sequenceToComposition(seq, composition);
-		_contigFeature._contigCompositions[readIndex] = composition;
-
-		unordered_set<u_int32_t> nodeNames;
-
-		for(size_t i=0; i<kminmersInfos.size(); i++){
-			
-
-			KmerVec vec = kminmers[i];
-			//for(KmerVec& vec : kminmers){
-			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()) continue;
-			
-			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
-			//_file_contigToNode << nodeName << "," << readIndex << endl;
-			//if(nodeName == 933376) cout << "HAHAHAHA" << endl;
-
-			//if(_contigFeature._nodeName_to_contigIndex.find(nodeName) == _contigFeature._nodeName_to_contigIndex.end()) continue;
-
-			_contigFeature._nodeNameDuplicate[nodeName] += 1;
-			_contigFeature._nodeName_to_contigIndex[nodeName] = readIndex;
-			//_fileTestLala << nodeName << "," << "0" << endl;
-			//_kminmerCounts[nodeName] = _countsInit;
-			
-			nodeNames.insert(nodeName);
-		}
-		
-		//std::sort(nodeNames.begin(), nodeNames.end());
-		_contigFeature._contigNodes[readIndex] = nodeNames;
-
-	}
-	*/
 
 	static bool ContigComparator_ByLength(const Contig &a, const Contig &b){
 		return a._nodePath.size() > b._nodePath.size();
@@ -1998,10 +1892,13 @@ public:
 		if(nodePathSolid.size() != 2){
 			if(print_read) cout << "\tcorrection failed" << endl;
 			readpath = minimizers;
+			_nbUncorrectedReads += 1;
 		}
 		else{
 			extendReadpath(minimizers, kminmers, nodePathSolid, readpath, print_read);
 		}
+		
+		//readpath = minimizers;
 		//vector<u_int32_t> contigpath;
 
 		if(print_read){
@@ -2014,6 +1911,7 @@ public:
 		}
 
 
+		_nbreadsLala += 1;
 		/*
 
 		bool isPathErroneous = false;
@@ -2238,8 +2136,10 @@ public:
 			u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
 
 			if(_graph->_isNodeValid2.find(nodeIndex) == _graph->_isNodeValid2.end()) continue;
-			if(_graph->_isNodenameRoundabout.find(nodeName) != _graph->_isNodenameRoundabout.end()) continue;
-			if(_graph->_isBubble[nodeIndex]) continue;
+			
+			//if(!_isBubble[nodeIndex]){
+				//if(_graph->_isNodenameRoundabout.find(nodeName) != _graph->_isNodenameRoundabout.end()) continue;
+			//}
 
 			nodePath_errorFree.push_back(nodeIndex);
 		}

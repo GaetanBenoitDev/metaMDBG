@@ -23,7 +23,7 @@ public:
 	u_int64_t _debug_nbMinimizers;
 	//unordered_map<u_int64_t, u_int64_t> _minimizerCounts;
 	//unordered_map<KmerVec, KminmerData> _kminmersData;
-	gzFile _file_readData;
+	ofstream _file_readData;
 	//gzFile _file_minimizerPos;
 	MinimizerParser* _minimizerParser;
 
@@ -92,14 +92,15 @@ public:
     void readSelection(){
 		_debug_nbMinimizers = 0;
 		_minimizerParser = new MinimizerParser(_minimizerSize, _minimizerDensity);
-		_file_readData = gzopen(_filename_readMinimizers.c_str(),"wb");
+		_file_readData = ofstream(_filename_readMinimizers);
 		//_file_minimizerPos = gzopen(_filename_readMinimizers.c_str(),"wb");
 		
 		auto fp = std::bind(&ReadSelection::readSelection_read, this, std::placeholders::_1, std::placeholders::_2);
-		ReadParser readParser(_inputFilename, false, !_isFirstPass);
+		ReadParser readParser(_inputFilename, false, false);
 		readParser.parse(fp);
 
-		gzclose(_file_readData);
+
+		_file_readData.close();
 		delete _minimizerParser;
     }
 
@@ -165,11 +166,17 @@ public:
 				//cout << pos << " " << posOffset << endl;
 			}
 		}
+ 
+		u_int32_t size = minimizers.size();
+		_file_readData.write((const char*)&size, sizeof(size));
+		_file_readData.write((const char*)&minimizers[0], size*sizeof(u_int64_t));
+		_file_readData.write((const char*)&minimizerPosOffset[0], size*sizeof(u_int16_t));
 
-		u_int16_t size = minimizers.size();
-		gzwrite(_file_readData, (const char*)&size, sizeof(size));
-		gzwrite(_file_readData, (const char*)&minimizers[0], size * sizeof(u_int64_t));
-		gzwrite(_file_readData, (const char*)&minimizerPosOffset[0], size * sizeof(u_int16_t));
+
+		//u_int16_t size = minimizers.size();
+		//gzwrite(_file_readData, (const char*)&size, sizeof(size));
+		//gzwrite(_file_readData, (const char*)&minimizers[0], size * sizeof(u_int64_t));
+		//gzwrite(_file_readData, (const char*)&minimizerPosOffset[0], size * sizeof(u_int16_t));
 
 
 	}

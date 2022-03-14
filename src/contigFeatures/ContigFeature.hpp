@@ -101,7 +101,7 @@ public:
 	unordered_map<u_int32_t, vector<float>> _contigCoverages;
 	unordered_map<u_int32_t, vector<float>> _contigCompositions;
 	unordered_map<u_int32_t, vector<float>> _contigCoveragesVar;
-	unordered_map<u_int32_t, u_int32_t> _nodeName_to_contigIndex;
+	unordered_map<u_int32_t, vector<u_int32_t>> _nodeName_to_contigIndex;
 	float _w_intra;
 	float _w_inter;
 
@@ -338,8 +338,15 @@ public:
 		
 	}
 
-	bool nodepathToComposition(const vector<u_int32_t>& sequence, vector<float>& composition){
+	bool nodepathToComposition(const vector<u_int32_t>& nodepath, vector<float>& composition){
 		
+		u_int32_t contigIndex = nodepathToContigIndex(nodepath);
+		if(contigIndex == -1) return false;
+
+		composition = _contigCompositions[contigIndex];
+		
+		return true;
+		/*
 		vector<vector<float>> values_mean;
 		values_mean.resize(_compositionVectorSize);
 		//vector<vector<float>> values_var;
@@ -374,11 +381,20 @@ public:
 		}
 
 		return true;
-
+		*/
 	}
 
 	bool nodepathToContigSequence(const vector<u_int32_t>& nodepath, string& sequence, u_int32_t& contigIndexResult){
 		
+		u_int32_t contigIndex = nodepathToContigIndex(nodepath);
+		if(contigIndex == -1) return false;
+
+		contigIndexResult = contigIndex;
+		sequence = _contigSequences[contigIndex];
+		
+		return true;
+
+		/*
 		unordered_map<u_int32_t, u_int32_t> contigCounts;
 
 		u_int32_t existingContigIndex = -1;
@@ -393,7 +409,7 @@ public:
 			
 			u_int32_t contigIndex = _nodeName_to_contigIndex[nodeName];
 
-			/*
+			
 			if(existingContigIndex == -1){
 				existingContigIndex = contigIndex;
 			}
@@ -406,7 +422,7 @@ public:
 
 			contigIndexResult = contigIndex;
 			sequence = _contigSequences[contigIndex];
-			*/
+			
 			contigCounts[contigIndex]  += 1;
 		}
 
@@ -435,11 +451,75 @@ public:
 		}
 
 		return false;
+		*/
 	}
 
-	bool sequenceToAbundance(const vector<u_int32_t>& sequence, vector<float>& abundances, vector<float>& abundancesVar){
+	u_int32_t nodepathToContigIndex(const vector<u_int32_t>& nodepath){
 
+		unordered_map<u_int32_t, u_int32_t> contigCounts;
+
+
+
+		for(u_int32_t nodeIndex : nodepath){
+			u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
+			
+			if(_nodeName_to_contigIndex.find(nodeName) == _nodeName_to_contigIndex.end()) continue;
+			
+			const vector<u_int32_t>& contigIndexes = _nodeName_to_contigIndex[nodeName];
+
+			for(u_int32_t contigIndex : contigIndexes){
+				contigCounts[contigIndex]  += 1;
+			}
+		}
+
+		u_int32_t maxCount = 0;
+		for(const auto& it : contigCounts){
+			if(it.second > maxCount){
+				maxCount = it.second;
+			}
+		}
+
+		u_int32_t maxContigIndex = -1;
+		u_int32_t nbMaxCount = 0;
+		for(const auto& it : contigCounts){
+			if(it.second == maxCount){
+				nbMaxCount += 1;
+				maxContigIndex = it.first;
+			}
+		}
+
+		//cout << nbMaxCount << endl;
+
+		if(nbMaxCount == 1){
+			return maxContigIndex;
+		}
+
+		return -1;
+
+	}
+
+	bool sequenceToAbundance(const vector<u_int32_t>& nodepath, vector<float>& abundances, vector<float>& abundancesVar){
+
+		abundances.clear();
+		abundancesVar.clear();
+
+		u_int32_t contigIndex = nodepathToContigIndex(nodepath);
+		if(contigIndex == -1) return false;
+
+		abundances = _contigCoverages[contigIndex];
+		abundancesVar = _contigCoveragesVar[contigIndex];
 		
+		float sum = 0.0;
+		for(float val : abundances){
+			sum += val;
+		}
+		if(sum == 0) return false;
+
+
+		return true;
+
+
+		/*
 		vector<vector<float>> values_mean;
 		values_mean.resize(_nbDatasets);
 		vector<vector<float>> values_var;
@@ -491,6 +571,7 @@ public:
 		if(sum == 0) return false;
 
 		return true;
+		*/
 		/*
 		if(n <= 1){
 			for(size_t i=0; i<abundancesVar.size(); i++){
@@ -950,7 +1031,7 @@ public:
 
 		float compositionProb = -log10(computeCompositionProbability(f1._composition, f2._composition));
 		if(isinf(compositionProb)) return false;
-		return compositionProb < 5;
+		return compositionProb < 0.5;
 
 
 		if(!hasAbundances) return false;
