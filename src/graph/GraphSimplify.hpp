@@ -7748,123 +7748,56 @@ getStronglyConnectedComponent_node
 
 
 
-    void finUniquePath(u_int32_t source_nodeName, u_int32_t dest_nodeName, vector<u_int32_t>& path, bool includeSource, bool includeSink, u_int32_t maxDistance){
+    void findUniquePath(u_int32_t source_nodeIndex, u_int32_t dest_nodeIndex, vector<u_int32_t>& path, bool includeSource, bool includeSink, u_int32_t maxDistance){
 
 
 
         path.clear();
-		unordered_set<u_int32_t> isVisited1;
-		unordered_map<u_int32_t, u_int32_t> prev1;
-        queue<u_int32_t> queue1;
-		unordered_set<u_int32_t> isVisited2;
-		unordered_map<u_int32_t, u_int32_t> prev2;
-        queue<u_int32_t> queue2;
-		unordered_map<u_int32_t, u_int32_t> distance1;
-		unordered_map<u_int32_t, u_int32_t> distance2;
-
+		unordered_set<u_int32_t> isVisited;
 		unordered_map<u_int32_t, u_int32_t> prev;
+        queue<u_int32_t> queue;
+		unordered_map<u_int32_t, u_int32_t> distance;
 
-        u_int32_t source_nodeIndex_1 = BiGraph::nodeName_to_nodeIndex(source_nodeName, true);
-        u_int32_t source_nodeIndex_2 = BiGraph::nodeName_to_nodeIndex(source_nodeName, false);
-
-        prev1[source_nodeIndex_1] = -1;
-        queue1.push(source_nodeIndex_1);
-        prev2[source_nodeIndex_2] = -1;
-        queue2.push(source_nodeIndex_2);
+        prev[source_nodeIndex] = -1;
+        queue.push(source_nodeIndex);
 
         bool found = false;
-
-        u_int32_t source_nodeIndex = -1;
-        u_int32_t dest_nodeIndex = -1;
         
-        while(!found){
+        while(!queue.empty() && !found){
 
-            if(queue1.empty() && queue2.empty()) break;
+            u_int32_t nodeIndex_current = queue.front();
+            queue.pop();
 
-            if(!queue1.empty() && !found){
+            vector<u_int32_t> successors;
+            getSuccessors(nodeIndex_current, 0, successors);
 
-                u_int32_t nodeIndex_current = queue1.front();
-                queue1.pop();
+            if(successors.size() != 1) continue;
 
-                vector<u_int32_t> successors;
-                getSuccessors(nodeIndex_current, 0, successors);
-
-                if(successors.size() != 1) continue;
-
-                u_int32_t nodeIndex_successor = successors[0];
+            u_int32_t nodeIndex_successor = successors[0];
+        
+            if (isVisited.find(nodeIndex_successor) != isVisited.end()) continue;
             
-                if (isVisited1.find(nodeIndex_successor) != isVisited1.end()) continue;
-                
-                distance1[nodeIndex_successor] = distance1[nodeIndex_current] + 1;
-                if(distance1[nodeIndex_successor] > maxDistance) continue;
+            distance[nodeIndex_successor] = distance[nodeIndex_current] + 1;
+            if(distance[nodeIndex_successor] > maxDistance) continue;
 
-                queue1.push(nodeIndex_successor);
-                prev1[nodeIndex_successor] = nodeIndex_current;
-                isVisited1.insert(nodeIndex_successor);
-            
-                        
-                if(BiGraph::nodeIndex_to_nodeName(nodeIndex_successor) == dest_nodeName){
-                    source_nodeIndex = source_nodeIndex_1;
-                    dest_nodeIndex = nodeIndex_successor;
-                    found = true;
-                    prev = prev1;
-                    break;
-                }
-
-                if(found) break;
-            }
-
-            //cout << "\tTop2: " << BiGraph::nodeIndex_to_nodeName(queue2.top()._nodeIndex) << " " << queue2.top()._nbSupportingReads << endl;
-            
-            if(!queue2.empty() && !found){
-
-                u_int32_t nodeIndex_current = queue2.front();
-                queue2.pop();
-
-                vector<u_int32_t> successors;
-                getSuccessors(nodeIndex_current, 0, successors);
-
-                if(successors.size() != 1) continue;
-
-                u_int32_t nodeIndex_successor = successors[0];
-            
-                if (isVisited1.find(nodeIndex_successor) != isVisited1.end()) continue;
-                
-                distance2[nodeIndex_successor] = distance2[nodeIndex_current] + 1;
-                if(distance2[nodeIndex_successor] > maxDistance) continue;
-
-                queue2.push(nodeIndex_successor);
-                prev2[nodeIndex_successor] = nodeIndex_current;
-                isVisited1.insert(nodeIndex_successor);
-            
-                        
-                if(BiGraph::nodeIndex_to_nodeName(nodeIndex_successor) == dest_nodeName){
-                    source_nodeIndex = source_nodeIndex_2;
-                    dest_nodeIndex = nodeIndex_successor;
-                    found = true;
-                    prev = prev2;
-                    break;
-                }
-
-                if(found) break;    
+            queue.push(nodeIndex_successor);
+            prev[nodeIndex_successor] = nodeIndex_current;
+            isVisited.insert(nodeIndex_successor);
+        
+                    
+            if(nodeIndex_successor == dest_nodeIndex){
+                found = true;
+                break;
             }
 
         }
 
-            
-
-        //cout << "\tFound: " << found << endl;
 
         if(found){
 
-            //cout << "---" << endl;
-            //cout << nodeIndex_to_unitigIndex(dest_nodeIndex) << " " << nodeIndex_to_unitigIndex(source_nodeIndex) << endl;
-            
             u_int32_t n = dest_nodeIndex;
             while(n != source_nodeIndex){
 
-                //cout << BiGraph::nodeIndex_to_nodeName(source_nodeIndex) << " " << BiGraph::nodeIndex_to_nodeName(dest_nodeIndex) << " " << BiGraph::nodeIndex_to_nodeName(n) << " " << n << endl;
-                //cout << "haaaaa" << endl;
 
                 if(n == dest_nodeIndex){
                     if(includeSink) path.push_back(n);
@@ -7877,11 +7810,7 @@ getStronglyConnectedComponent_node
             }
             if(includeSource) path.push_back(source_nodeIndex);
 
-            //return distance[dest_nodeIndex];
         }
-
-
-        //return -1;
 
         
     }

@@ -123,6 +123,7 @@ public:
 	gzFile _outputContigFile;
 	gzFile _outputContigFile_complete;
 	MDBG* _mdbg;
+	MDBG* _mdbgNoFilter;
 	GraphSimplify* _graph;
 	//ToBasespaceOnTheFly _toBasespace;
 	//ContigFeature _contigFeature;
@@ -235,6 +236,9 @@ public:
 
 
 		
+		_mdbgNoFilter = new MDBG(_kminmerSize);
+		_mdbgNoFilter->load(_inputDir + "/mdbg_nodes_noFilter.gz");
+
 		cout << _gfaFilename << endl;
 		_mdbg = new MDBG(_kminmerSize);
 		_mdbg->load(mdbg_filename);
@@ -1806,6 +1810,8 @@ public:
 	}
 
 	u_int64_t _nbreadsLala;
+	u_int64_t _nbUncorrectedReads = 0;
+	unordered_map<u_int32_t, vector<u_int64_t>> _nodeIndex_to_kminmerSequence;
 
 	void correctReads_read(const vector<u_int64_t>& minimizers, const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex){//}, const vector<KmerVec>& kminmers_k3, const vector<ReadKminmer>& kminmersInfos_k3){
 
@@ -1823,7 +1829,7 @@ public:
 		}
 		*/
 
-		bool print_read = true;
+		bool print_read = false;
 		if(readIndex % 10000 == 0) print_read = true;
 
 		//file_correction = ofstream(_inputDir + "/correction.csv");
@@ -1834,7 +1840,7 @@ public:
 		//if(print_read) cout << minimizers.size() << endl;
 
 
-
+		/*
 		bool isHere = false;
 		vector<u_int32_t> nodePath;
 		vector<u_int32_t> nodePath_withMissing;
@@ -1877,8 +1883,23 @@ public:
 		}
 
 		//if(_kminmerSize == 7 && isHere) getchar();
+		*/
 
-		vector<u_int32_t> nodeIndexPath;
+		if(print_read){
+			cout << "\tRead original: " << endl;
+			cout << "\t";
+			for(u_int64_t m : minimizers){
+				cout << m << " ";
+			}
+			cout << endl;
+
+			cout << "\tRead nodes: " << endl;
+			cout << "\t";
+		}
+
+
+		_nodeIndex_to_kminmerSequence.clear();
+		vector<u_int32_t> nodepath;
 
 		for(size_t i=0; i<kminmers.size(); i++){
 
@@ -1893,33 +1914,32 @@ public:
 			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
 			u_int32_t nodeIndex = BiGraph::nodeName_to_nodeIndex(nodeName, !info._isReversed);
 
+			vector<u_int64_t> kminmerSeq = _nodeName_to_kminmerSequence[nodeName];
+
 			if(_graph->_isBubble[BiGraph::nodeName_to_nodeIndex(nodeName, true)]){
-				if(print_read) cout << nodeIndex << "B ";
+				if(print_read) cout << nodeName << "B ";
 				//continue;
 			}
 			else{
-				if(print_read) cout << nodeIndex << " ";
+				if(print_read) cout << nodeName << " ";
 			}
 
-			nodeIndexPath.push_back(nodeIndex);
-		}
-		cout << endl;
-
-		for(u_int32_t nodeIndex : nodeIndexPath){
-
-			cout << BiGraph::nodeToString(nodeIndex) << endl;
-			
-			vector<u_int32_t> successors;
-			_graph->getSuccessors(nodeIndex, 0, successors);
-
-			for(u_int32_t s :successors ){
-				cout << "\t" << BiGraph::nodeToString(s) << endl;
+			if(info._isReversed){
+				std::reverse(kminmerSeq.begin(), kminmerSeq.end());
 			}
 
-		}
+			nodepath.push_back(nodeIndex);
+			//_nodeIndex_to_kminmerSequence[nodeIndex] = kminmerSeq;
 
-		getchar();
-		return;
+			//cout << BiGraph::nodeToString(nodeIndex) << ": ";
+			//for(u_int64_t m : kminmerSeq){
+			//	cout << m << " ";
+			//}
+			//cout << endl;
+		}
+		if(print_read) cout << endl;
+
+
 		/*
 		double n = 0;
 		double sum = 0;
@@ -1954,9 +1974,17 @@ public:
 
 		vector<u_int32_t> nodePathSolid;
 		vector<u_int64_t> readpath;
-		applyReadCorrection(nodeIndexPath, readpath, print_read, minimizers, kminmers, nodePathSolid);
+		applyReadCorrection(nodepath, readpath, print_read, minimizers, kminmers, kminmersInfos, nodePathSolid);
 
 
+		if(print_read){
+			cout << "\tRead original: " << endl;
+			cout << "\t";
+			for(u_int64_t m : minimizers){
+				cout << m << " ";
+			}
+			cout << endl;
+		}
 
 		if(print_read){
 			cout << "\tRead minimizers corrected: " << endl;
@@ -2086,7 +2114,7 @@ public:
 		checkCorrectedSequence(readpath, print_read);
 
 		//if(readIndex == 6) getchar();
-		getchar();
+		//getchar();
 		
 		u_int32_t readSize = readpath.size();
 		_file_uncorrectedReads.write((const char*)&readSize, sizeof(readSize));
@@ -2147,50 +2175,54 @@ public:
 
 	}
 
-	void fillUncorrectedArea(u_int32_t position_source, u_int32_t nodeName_dest, const vector<u_int64_t>& readMinimizers, vector<u_int64_t>& minimizers, const vector<KmerVec>& kminmers, bool isFirstIteration){
+	void fillUncorrectedArea(u_int32_t position_source, u_int32_t nodeIndex_dest, const vector<u_int64_t>& readMinimizers, vector<u_int64_t>& readpath, const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, bool isFirstIteration, bool print_read){
 		
 		bool adding = false;
 
-		size_t i=0;
 
-		for(const KmerVec& vec : kminmers){
+		for(size_t i=position_source; i<kminmers.size(); i++){
 
-			//cout << i << endl;
+			const KmerVec& vec = kminmers[i];
+			const ReadKminmer& info = kminmersInfos[i];
 
-			u_int32_t nodeName = -1;
-			if(_mdbg->_dbg_nodes.find(vec) != _mdbg->_dbg_nodes.end()){
-				nodeName = _mdbg->_dbg_nodes[vec]._index;
-				//i += 1;
-				//continue;
-			}
 			
-			//cout << i << " " << nodeName << " " << adding << endl;
-			if(i == position_source){
-				if(isFirstIteration){
-					for(size_t j=i; j<i+_kminmerSize-1; j++){
-						u_int64_t minimizer = readMinimizers[j];
-						cout << "\tFill uncorrected area (start): " << j << " " << minimizer << endl;
-						minimizers.push_back(minimizer);
+
+			if(!adding){
+				
+				u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
+				u_int32_t nodeIndex = BiGraph::nodeName_to_nodeIndex(nodeName, !info._isReversed);
+
+				if(readpath.size() == 0){
+					if(isFirstIteration){
+						for(size_t j=i; j<i+_kminmerSize; j++){
+							u_int64_t minimizer = readMinimizers[j];
+							if(print_read)  cout << "\tFill uncorrected area (start): " << j << " " << minimizer << endl;
+							readpath.push_back(minimizer);
+						}
 					}
 				}
-				cout << "Source position: " << nodeName << " " << i << " " << readMinimizers[i] << endl;
+
+				if(print_read)  cout << "Source position: " << nodeName << " " << i << " " << readMinimizers[i] << endl;
 				adding = true;
 			}
 			else if(adding){
-				u_int64_t minimizer = readMinimizers[i+_kminmerSize-2];
-				minimizers.push_back(minimizer);
-				cout << "\tFill uncorrected area: " << i << " " << minimizer << endl;
+				u_int64_t minimizer = readMinimizers[i+_kminmerSize-1];
+				readpath.push_back(minimizer);
+				if(print_read)  cout << "\tFill uncorrected area: " << i << " " << minimizer << endl;
 			}
 
-			if(nodeName == nodeName_dest) return;
+			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()) continue;
+			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
+			u_int32_t nodeIndex = BiGraph::nodeName_to_nodeIndex(nodeName, !info._isReversed);
 
-			i += 1;
+			if(nodeIndex == nodeIndex_dest) return;
+
 		}
+
 	}
 
-	u_int64_t _nbUncorrectedReads = 0;
 
-	void applyReadCorrection(const vector<u_int32_t>& nodePath, vector<u_int64_t>& readpath, bool print_read, const vector<u_int64_t>& readMinimizers, const vector<KmerVec>& kminmers, vector<u_int32_t>& nodePathSolid){
+	void applyReadCorrection(const vector<u_int32_t>& nodePath, vector<u_int64_t>& readpath, bool print_read, const vector<u_int64_t>& readMinimizers, const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, vector<u_int32_t>& nodePathSolid){
 		
 
 
@@ -2229,60 +2261,6 @@ public:
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-		/*
-		//cout << nodePath_errorFree.size() << endl;
-		//if(print_read) cout << "\tDetecting readpath bubble" << endl;
-		unordered_set<u_int32_t> allBubbleNodeNames;
-		for(u_int32_t nodeName : nodePath_errorFree){
-			//cout << "\t\t" << nodeName << endl;
-			if(!_graph->isEdgeNode(BiGraph::nodeName_to_nodeIndex(nodeName, true))) continue;
-			//cout << nodeName << " " << nodePath_errorFree.size() << endl;
-			detectRoundabouts(nodeName, allBubbleNodeNames);
-		}
-		//getchar();
-
-		vector<u_int32_t> nodePath_errorFree_noRoundAbout;
-		for(u_int32_t nodeName : nodePath_errorFree){
-			if(allBubbleNodeNames.find(nodeName) != allBubbleNodeNames.end()) continue;
-			nodePath_errorFree_noRoundAbout.push_back(nodeName);
-		}
-
-		if(print_read){
-			cout << "\tRead error free no roundabout:" << endl;
-			cout << "\t";
-			for(u_int32_t nodeName : nodePath_errorFree_noRoundAbout){
-				cout << nodeName << " ";
-			}
-			cout << endl;
-		}
-
-		if(nodePath_errorFree_noRoundAbout.size() == 0) return;
-		*/
-
-
-
-
-
-
-
-		bool isFix = false;
 		vector<u_int32_t> nodePath_errorFree_fixed;
 
 		for(long i=0; i<((long)nodePath_errorFree.size())-1; i++){
@@ -2294,22 +2272,19 @@ public:
 
 			vector<u_int32_t> path;
 			//_graph->shortestPath_nodeName(nodeName_source, nodeName_dest, path, true, true, maxDepth, _unitigDatas, unallowedNodeNames, nodeIndex_source, nodePath_anchor);
-    		_graph->finUniquePath(nodeIndex_source, nodeIndex_dest, path, false, false, maxDepth);
+    		_graph->findUniquePath(nodeIndex_source, nodeIndex_dest, path, false, false, maxDepth);
 
 			if(path.size() == 0){
-				//readpath.clear();
-				//return;
-
 				continue;
 			}
 			else{
-				isFix = true;
+				//isFix = true;
 			}
 
 			std::reverse(path.begin(), path.end());
 
 			for(u_int32_t nodeIndex : path){
-				nodePath_errorFree_fixed.push_back(BiGraph::nodeIndex_to_nodeName(nodeIndex));
+				nodePath_errorFree_fixed.push_back(nodeIndex);
 			}
 			
 		}
@@ -2318,25 +2293,19 @@ public:
 		if(print_read){
 			cout << "\tRead error free (fixed):" << endl;
 			cout << "\t";
-			for(u_int32_t nodeName : nodePath_errorFree_fixed){
-				cout << nodeName << " ";
+			for(u_int32_t nodeIndex : nodePath_errorFree_fixed){
+				cout << BiGraph::nodeIndex_to_nodeName(nodeIndex) << " ";
 			}
 			cout << endl;
 			//if(isFix) getchar();
 		}
 
 
-
-
-
-
-
-
-		vector<u_int32_t> nodePath_anchor = nodePath_errorFree_fixed;
-		vector<u_int32_t> nodePath_connected = nodePath_errorFree_fixed;
+		//vector<u_int32_t> nodePath_anchor = nodePath_errorFree_fixed;
+		//vector<u_int32_t> nodePath_connected = nodePath_errorFree_fixed;
 		
-		u_int32_t prevNodename = -1;
-		u_int32_t nodeIndex_source = -1;
+		//u_int32_t prevNodename = -1;
+		//u_int32_t nodeIndex_source = -1;
 		/*
 		//for(u_int32_t nodeName : nodePath_errorFree_fixed)
 
@@ -2430,13 +2399,12 @@ public:
 
 		*/
 
-		nodePathSolid.clear();
-		//nodePathSolid.push_back(nodePath_connected[0]);
-		//nodePathSolid.push_back(nodePath_connected[nodePath_connected.size()-1]);
+		u_int32_t nodeIndex_source;
+		u_int32_t nodeIndexFinal = -1;
 
 		unordered_set<u_int32_t> isNodenameSolid;
-		for(u_int32_t nodeName : nodePath_connected){
-			isNodenameSolid.insert(nodeName);
+		for(u_int32_t nodeIndex : nodePath_errorFree_fixed){
+			isNodenameSolid.insert(BiGraph::nodeIndex_to_nodeName(nodeIndex));
 		}
 
 		vector<u_int32_t> readpath_nodes;
@@ -2447,122 +2415,103 @@ public:
 		for(size_t i=0; i<kminmers.size()-1; i++){
 
 			const KmerVec& vec = kminmers[i];
+			const ReadKminmer& info = kminmersInfos[i];
 
 			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()) continue;
 			
 			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
 			if(isNodenameSolid.find(nodeName) == isNodenameSolid.end()) continue;
 
+			u_int32_t nodeIndex_source = BiGraph::nodeName_to_nodeIndex(nodeName, !info._isReversed);
+
 			//for(long i=0; i<((long)nodePath_connected.size())-1; i++){
 			
-			u_int32_t nodeName_source = nodeName; //nodePath_connected[i];
-			u_int32_t nodeName_dest = -1;
+			//u_int32_t nodeName_source = nodeName; //nodePath_connected[i];
+			u_int32_t nodeIndex_dest = -1;
 			for(size_t j=i+1; j<kminmers.size(); j++){
 				const KmerVec& vec = kminmers[j];
+				const ReadKminmer& info = kminmersInfos[j];
 				if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()) continue;
 				u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
 				if(isNodenameSolid.find(nodeName) == isNodenameSolid.end()) continue;
-				nodeName_dest = nodeName;
+				nodeIndex_dest = BiGraph::nodeName_to_nodeIndex(nodeName, !info._isReversed);
 				break;
 			}
 
-			cout << nodeName_source << " -> " << nodeName_dest << endl;
-			u_int32_t lastSolidNodeIndex = -1;
+			if(print_read)  cout << BiGraph::nodeIndex_to_nodeName(nodeIndex_source) << " -> " << BiGraph::nodeIndex_to_nodeName(nodeIndex_dest) << endl;
 
-			if(nodeIndex_source != -1){
-				if(tryFindPathDirect(nodeIndex_source, nodeName_dest, readpath_nodes)){
-					isLastSuccess = true;
-					isFirstIteration = false;
-					
+			if(tryFindPathDirect(nodeIndex_source, nodeIndex_dest, readpath_nodes)){
+				isLastSuccess = true;
+				
+
+
+				if(readpath.size() == 0){
+
 					bool orientation;
 					u_int32_t nodeName_start = BiGraph::nodeIndex_to_nodeName(nodeIndex_source, orientation);
 					vector<u_int64_t> minimizerSeq = _nodeName_to_kminmerSequence[nodeName_start];
 
 					if(orientation){
-						cout << "Add: " << minimizerSeq[minimizerSeq.size()-1] << endl;
-						readpath.push_back(minimizerSeq[minimizerSeq.size()-1]);
+						if(isFirstIteration){
+							for(u_int64_t m : minimizerSeq){
+								readpath.push_back(m);
+								if(print_read)  cout << "Add: " << m << endl;
+							}
+						}
+						else{
+							if(print_read)  cout << "Add: " << minimizerSeq[minimizerSeq.size()-1] << endl;
+							readpath.push_back(minimizerSeq[minimizerSeq.size()-1]);
+						}
 					}
 					else{
-						cout << "Add: " << minimizerSeq[0] << endl;
-						readpath.push_back(minimizerSeq[0]);
+						if(isFirstIteration){
+							std::reverse(minimizerSeq.begin(), minimizerSeq.end());
+							for(u_int64_t m : minimizerSeq){
+								readpath.push_back(m);
+								if(print_read)  cout << "Add: " << m << endl;
+							}
+						}
+						else{
+							if(print_read)  cout << "Add: " << minimizerSeq[0] << endl;
+							readpath.push_back(minimizerSeq[0]);
+						}
+
 					}
-
-					lastSolidNodeIndex = nodeIndex_source;
-
-					nodeIndex_source = readpath_nodes[readpath_nodes.size()-1];
+				}
 
 
-					//continue;
+				bool orientation;
+				u_int32_t nodeName_dest = BiGraph::nodeIndex_to_nodeName(nodeIndex_dest, orientation);
+				vector<u_int64_t> minimizerSeq = _nodeName_to_kminmerSequence[nodeName_dest];
+
+				if(orientation){
+					if(print_read)  cout << "Add: " << minimizerSeq[minimizerSeq.size()-1] << endl;
+					readpath.push_back(minimizerSeq[minimizerSeq.size()-1]);
 				}
 				else{
-					cout << "failed" << endl;
-					lastSolidNodeIndex = -1;
-					isLastSuccess = false;
-					fillUncorrectedArea(i, nodeName_dest, readMinimizers, readpath, kminmers, isFirstIteration);
-					isFirstIteration = false;
-					//getchar();
+					if(print_read)  cout << "Add: " << minimizerSeq[0] << endl;
+					readpath.push_back(minimizerSeq[0]);
 				}
+
+				//lastSolidNodeIndex = nodeIndex_source;
+
+				nodeIndex_source = nodeIndex_dest; //readpath_nodes[readpath_nodes.size()-1];
+				nodeIndexFinal = nodeIndex_dest;
+
+
+				isFirstIteration = false;
+				//continue;
 			}
 			else{
-
-				if(tryFindPathDirect(BiGraph::nodeName_to_nodeIndex(nodeName_source, true), nodeName_dest, readpath_nodes)){
-					
-					isLastSuccess = true;
-					isFirstIteration = false;
-
-					u_int32_t nodeIndex_start = BiGraph::nodeName_to_nodeIndex(nodeName_source, true);
-					//u_int32_t nodeIndex_end = readpath_nodes[readpath_nodes.size()-1];
-
-					bool orientation;
-					u_int32_t nodeName_start = BiGraph::nodeIndex_to_nodeName(nodeIndex_start, orientation);
-					vector<u_int64_t> minimizerSeq = _nodeName_to_kminmerSequence[nodeName_start];
-					if(!orientation){
-						std::reverse(minimizerSeq.begin(), minimizerSeq.end());
-					}
-
-					readpath = minimizerSeq;
-					nodePathSolid.push_back(nodeIndex_start);
-
-					nodeIndex_source = readpath_nodes[readpath_nodes.size()-1];
-					
-					//continue;
-				}
-				else if(tryFindPathDirect(BiGraph::nodeName_to_nodeIndex(nodeName_source, false), nodeName_dest, readpath_nodes)){
-					
-					isLastSuccess = true;
-					isFirstIteration = false;
-
-					u_int32_t nodeIndex_start = BiGraph::nodeName_to_nodeIndex(nodeName_source, false);
-					//u_int32_t nodeIndex_end = readpath_nodes[readpath_nodes.size()-1];
-
-					bool orientation;
-					u_int32_t nodeName_start = BiGraph::nodeIndex_to_nodeName(nodeIndex_start, orientation);
-					vector<u_int64_t> minimizerSeq = _nodeName_to_kminmerSequence[nodeName_start];
-					if(!orientation){
-						std::reverse(minimizerSeq.begin(), minimizerSeq.end());
-					}
-
-					readpath = minimizerSeq;
-					nodePathSolid.push_back(nodeIndex_start);
-
-
-					nodeIndex_source = readpath_nodes[readpath_nodes.size()-1];
-					//continue;
-				}
-				else{
-					cout << "failed: " << i << endl;
-					fillUncorrectedArea(i, nodeName_dest, readMinimizers, readpath, kminmers, isFirstIteration);
-					isLastSuccess = false;
-					isFirstIteration = false;
-
-					nodePathSolid.push_back(-1);
-					//getchar();
-					//readpath.clear();
-					//return;
-				}
+				if(print_read) cout << "failed" << endl;
+				//lastSolidNodeIndex = -1;
+				isLastSuccess = false;
+				fillUncorrectedArea(i, nodeIndex_dest, readMinimizers, readpath, kminmers, kminmersInfos, isFirstIteration, print_read);
+				nodeIndexFinal = nodeIndex_dest;
+				isFirstIteration = false;
+				//getchar();
 			}
 
-			nodePathSolid.push_back(lastSolidNodeIndex);
 
 			/*
 			if(print_read){
@@ -2631,6 +2580,14 @@ public:
 
 		}
 		
+		
+		nodePathSolid.clear();
+		nodePathSolid.push_back(nodePath_errorFree_fixed[0]);
+		if(nodeIndexFinal != -1){
+			nodePathSolid.push_back(nodeIndexFinal);
+		}
+
+		/*
 		if(isLastSuccess && nodeIndex_source != -1){
 			bool orientation;
 			u_int32_t nodeName_start = BiGraph::nodeIndex_to_nodeName(nodeIndex_source, orientation);
@@ -2638,14 +2595,18 @@ public:
 
 			if(orientation){
 				readpath.push_back(minimizerSeq[minimizerSeq.size()-1]);
+				cout << "Add: " << minimizerSeq[minimizerSeq.size()-1] << endl;
 			}
 			else{
 				readpath.push_back(minimizerSeq[0]);
+				cout << "Add: " << minimizerSeq[0] << endl;
 			}
 		}
+		*/
 
 		//nodePathSolid = readpath_nodes;
 
+		/*
 		if(print_read){
 			cout << "\tRead solid:" << endl;
 			cout << "\t";
@@ -2654,7 +2615,7 @@ public:
 			}
 			cout << endl;
 			//if(isFix) getchar();
-		}
+		}*/
 
 		if(print_read){
 			cout << "\tRead corrected (minimizers):" << endl;
@@ -3055,7 +3016,7 @@ public:
 
 
 
-	bool tryFindPathDirect(u_int32_t nodeIndex_source, u_int32_t nodeName_dest, vector<u_int32_t>& readpath){
+	bool tryFindPathDirect(u_int32_t nodeIndex_source, u_int32_t nodeIndex_dest, vector<u_int32_t>& readpath){
 
 		u_int32_t unitigIndex_source = _graph->nodeIndex_to_unitigIndex(nodeIndex_source);
 
@@ -3067,6 +3028,8 @@ public:
 			u_int32_t unitigIndex = _graph->nodeIndex_to_unitigIndex(nodeIndexSuccessor);
 			if(unitigIndex != unitigIndex_source) continue;
 
+			if(nodeIndexSuccessor == nodeIndex_dest) return true;
+			/*
 			if(BiGraph::nodeIndex_to_nodeName(nodeIndexSuccessor) == nodeName_dest){
 				if(readpath.size() == 0){
 					readpath.push_back(nodeIndex_source);
@@ -3078,6 +3041,7 @@ public:
 					return true;
 				}
 			}
+			*/
 
 		}
 
@@ -3095,14 +3059,14 @@ public:
 		}
 
 
-		#ifdef PRINT_DEBUG_PREVRANK
+		if(print_read){
 			cout << "\tExtending read path" << endl;
 			cout << "\t";
 			for(u_int32_t nodeIndex : nodePathSolid){
 				cout << BiGraph::nodeIndex_to_nodeName(nodeIndex) << " ";
 			}
 			cout << endl;
-		#endif
+		}
 
 		//if(readpath.size() == 0) return;
 
@@ -3192,14 +3156,16 @@ public:
 			cout << "\tRight solid position: " << nodeNameSolidRight << " " << solidPositionRight << endl;
 		}
 
+		nbExtendLeft += 2;
+		nbExtendRight += 2;
 		
 		if(print_read) cout << "\tExtend: " << nbExtendLeft << " " << nbExtendRight << endl;
 
 		solidPositionLeft -= 1;
 		solidPositionRight += _kminmerSize;
 
-		extendReadpath2(readpath, nodePathSolid, true, nbExtendRight, unallowedNodeNames, solidPositionRight, readMinimizers);
-		extendReadpath2(readpath, nodePathSolid, false, nbExtendLeft, unallowedNodeNames, solidPositionLeft, readMinimizers);
+		extendReadpath2(readpath, nodePathSolid, true, nbExtendRight, unallowedNodeNames, solidPositionRight, readMinimizers, print_read);
+		extendReadpath2(readpath, nodePathSolid, false, nbExtendLeft, unallowedNodeNames, solidPositionLeft, readMinimizers, print_read);
 		
 		/*
 		vector<u_int32_t> prevNodes;
@@ -3259,16 +3225,16 @@ public:
 		bool _isSupported;
 	};
 
-	void extendReadpath2(vector<u_int64_t>& readpath, const vector<u_int32_t>& nodePath, bool forward, size_t nbSuccessors, unordered_set<u_int32_t>& unallowedNodeNames, u_int64_t extendPosition, const vector<u_int64_t>& readMinimizers){
+	void extendReadpath2(vector<u_int64_t>& readpath, const vector<u_int32_t>& nodePath, bool forward, size_t nbSuccessors, unordered_set<u_int32_t>& unallowedNodeNames, u_int64_t extendPosition, const vector<u_int64_t>& readMinimizers, bool print_read){
 
-		#ifdef PRINT_DEBUG_PREVRANK
+		if(print_read){
 			if(forward){
 				cout << "\tExtending right" << endl;
 			}
 			else{
 				cout << "\tExtending left" << endl;
 			}
-		#endif
+		}
 
 		if(nodePath.size() == 0) return;
 
@@ -3335,7 +3301,11 @@ public:
 				}
 
 
-				cout << "Add: " << minimizer << endl;
+				//cout << "Add: " << nodeName_start << " " <<  minimizer << endl;
+				//for(u_int64_t m : minimizerSeq){
+				//	cout << m << " ";
+				//}
+				//cout << endl;
 
 				if(forward){
 					readpath.push_back(minimizer);
@@ -3343,6 +3313,10 @@ public:
 					//nodePath.push_back(nodeIndexSuccessor);
 				}
 				else{
+					//for(u_int64_t m : minimizerSeq){
+					//	cout << m <<  " ";
+					//}
+					//cout << endl;
 					readpath.insert(readpath.begin(), minimizer);
 					extendPosition -= 1;
 					//nodePath.insert(nodePath.begin(), nodeIndexSuccessor);
@@ -3373,26 +3347,28 @@ public:
 		//vector<u_int32_t> prevNodes;
 		//if()
 
+		/*
 		if(failed){
 			
 
 			cout << "failed" << endl;
-
 			if(forward){
+				cout << extendPosition << " " << readMinimizers.size() << endl;
 				//cout << nbRemainingExtension << " " << extendPosition << endl;
 				for(size_t i=extendPosition; i<readMinimizers.size(); i++){
 					readpath.push_back(readMinimizers[i]);
-					cout << "Add: " << extendPosition << " " << readMinimizers[i] << endl;
+					cout << "Add: " << i << " " << readMinimizers[i] << endl;
 				}
 			}
 			else{
 				//cout << nbRemainingExtension << " " << extendPosition << endl;
 				for(long i=extendPosition; i>=0; i--){
 					readpath.insert(readpath.begin(), readMinimizers[i]);
-					cout << "Add: " << extendPosition << " " << readMinimizers[i] << endl;
+					cout << "Add: " << i << " " << readMinimizers[i] << endl;
 				}
 			}
 		}
+		*/
 	}
 
 	u_int32_t determineBestSupportedSuccessors(vector<u_int32_t>& nodePath, bool forward, unordered_set<u_int32_t>& unallowedNodeNames, const vector<u_int32_t>& successors){
@@ -3608,6 +3584,8 @@ public:
 		//MDBG* mdbg = new MDBG(_kminmerSize);
 		//mdbg->load(_inputDir + "/mdbg_nodes_init.gz");
 
+		bool notGood = false;
+
 		vector<KmerVec> kminmers; 
 		vector<ReadKminmer> kminmersInfo;
 		vector<u_int64_t> minimizersPos; 
@@ -3619,11 +3597,12 @@ public:
 			KmerVec& vec = kminmers[i];
 			
 
-			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
+			if(_mdbgNoFilter->_dbg_nodes.find(vec) == _mdbgNoFilter->_dbg_nodes.end()){
 				//if(i==2){ nbFailed += 1; }
 				cout << "Not good: " << i << endl;
 				cout << vec._kmers[0] << " " << vec._kmers[1] << " " << vec._kmers[2] << " " << vec._kmers[3] << endl;
 
+				notGood = true;
 				continue;	
 			}
 
@@ -3636,7 +3615,8 @@ public:
 		if(print_read){
 			cout << "\tNb minimizers: " << kminmers.size() << endl;
 			cout << "\tFound minimizers: " << nbFoundMinimizers << endl;
-			if(kminmers.size() != nbFoundMinimizers) getchar();
+			//if(kminmers.size() != nbFoundMinimizers) getchar();
+			if(notGood) getchar();
 		}
 	}
 };

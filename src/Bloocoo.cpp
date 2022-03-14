@@ -510,7 +510,9 @@ void Bloocoo::createMDBG_collectKminmers_read(kseq_t* read, u_int64_t readIndex)
 		const ReadKminmer& kminmerInfo = kminmersInfos[i];
 
 
-		//if(_kminmerExist.find(vec) != _kminmerExist.end()){
+		_mdbgNoFilter->addNode(vec, kminmerInfo._length - _minimizerSize, kminmerInfo._seq_length_start, kminmerInfo._seq_length_end, kminmersInfos[i]._isReversed);
+
+		if(_kminmerExist.find(vec) != _kminmerExist.end()){
 			_mdbg->addNode(vec, kminmerInfo._length - _minimizerSize, kminmerInfo._seq_length_start, kminmerInfo._seq_length_end, kminmersInfos[i]._isReversed);
 
 
@@ -545,10 +547,10 @@ void Bloocoo::createMDBG_collectKminmers_read(kseq_t* read, u_int64_t readIndex)
 				//	cout << kminmerSequence << endl;
 				//}
 			}
-		//}
-		//else{
-		//	_kminmerExist.insert(vec);
-		//}
+		}
+		else{
+			_kminmerExist.insert(vec);
+		}
 
 			
 	}
@@ -656,6 +658,9 @@ void Bloocoo::createMDBG_collectKminmers_minspace_read(const vector<u_int64_t>& 
 
 		}
 		else{
+			
+			_mdbgNoFilter->addNode(vec, _kminmerLengthMean, _minimizerSpacingMean, _minimizerSpacingMean, kminmerInfo._isReversed);
+
 			if(_kminmerExist.find(vec) != _kminmerExist.end()){
 
 				if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
@@ -750,6 +755,7 @@ void Bloocoo::createMDBG (){
 
 	//_kminmerExist.clear();
 	_mdbg = new MDBG(_kminmerSize);
+	_mdbgNoFilter = new MDBG(_kminmerSize);
 
 	string inputFilename = _inputFilename;
 
@@ -1746,6 +1752,7 @@ void Bloocoo::createGfa(){
 		_mdbg->dump(_outputDir + "/mdbg_nodes_init.gz");
 	}
 	
+	_mdbgNoFilter->dump(_outputDir + "/mdbg_nodes_noFilter.gz");
 	_mdbg->dump(_outputDir + "/mdbg_nodes.gz");
 	//_mdbg->_dbg_nodes.clear();
 	//_mdbg->_dbg_edges.clear();

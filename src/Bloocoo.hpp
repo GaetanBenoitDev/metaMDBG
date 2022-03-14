@@ -84,6 +84,7 @@ public:
 	bool _parseReads;
 	MDBG* _mdbg;
 	MDBG* _mdbgInit;
+	MDBG* _mdbgNoFilter;
 	//MinimizerPairMap* _minimizerPairMap;
 
 	double _minimizerSpacingMean;
