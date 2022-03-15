@@ -1059,25 +1059,25 @@ public:
 
 
 			
-				cout << "\tComposition dist: " << -log10(_contigFeature.computeCompositionProbability(compositionModel, composition)) << " " << _contigFeature.cal_tnf_dist(compositionModel, composition, contigIndex_model, contigIndex) << endl; // << " " << _contigFeature.computeEuclideanDistance(abundancesModel, abundances_init) << " " << _contigFeature.computeProbability(contigFeatureModel, contigFeature_init)  << endl; 
-				//cout << "\tComposition dist (extended): " << _contigFeature.computeEuclideanDistance(compositionModel_init, composition) << " " << _contigFeature.computeEuclideanDistance(abundancesModel, abundances) << " " << _contigFeature.computeProbability(contigFeatureModel, contigFeature)  << endl; 
-				int nnz = 0;
-				cout << "\tMetabat Abudance: " << _contigFeature.cal_abd_dist(contigFeatureModel, contigFeature, nnz) << endl;// << " " << _contigFeature.cal_abd_dist(contigFeatureModel, contigFeature, nnz) << endl;
-				cout << "\tMetabat Abudance new: " << _contigFeature.cal_abd_dist_new(contigFeatureModel, contigFeature, nnz) << endl; // << " " << _contigFeature.cal_abd_dist_new(contigFeatureModel, contigFeature, nnz) << endl;
-				cout << "\tMetacoag abundance: " << -log10(_contigFeature.computeAbundanceProbability_new(abundancesModel, abundances)) << endl; // << " " << -log10(_contigFeature.computeAbundanceProbability_new(abundancesModel, abundances)) << endl;
-				cout << "\tCorrelation: " << _contigFeature.computeAbundanceCorrelation(abundancesModel, abundances) << endl; // << " " << _contigFeature.computeAbundanceCorrelation(abundancesModel, abundances) << endl;
-				//cout << "\tCorrelation: " << _contigFeature.computeAbundanceCorrelation_new(abundancesModel, abundances_init) << " " << _contigFeature.computeAbundanceCorrelation_new(abundancesModel, abundances) << endl;
-				cout << "\t";
-				for(u_int32_t count : abundancesModel) cout << count << " ";
-				cout << endl;
-				cout << "\t";
-				for(u_int32_t count : abundances) cout << count << " ";
-				cout << endl;
+
 
 
 				if(_contigFeature.isIntra(contigFeatureModel, contigFeature, hasComposition, hasAbundances)){
 
-
+					cout << "\tComposition dist: " << -log10(_contigFeature.computeCompositionProbability(compositionModel, composition)) << " " << _contigFeature.cal_tnf_dist(compositionModel, composition, contigIndex_model, contigIndex) << endl; // << " " << _contigFeature.computeEuclideanDistance(abundancesModel, abundances_init) << " " << _contigFeature.computeProbability(contigFeatureModel, contigFeature_init)  << endl; 
+					//cout << "\tComposition dist (extended): " << _contigFeature.computeEuclideanDistance(compositionModel_init, composition) << " " << _contigFeature.computeEuclideanDistance(abundancesModel, abundances) << " " << _contigFeature.computeProbability(contigFeatureModel, contigFeature)  << endl; 
+					int nnz = 0;
+					cout << "\tMetabat Abudance: " << _contigFeature.cal_abd_dist(contigFeatureModel, contigFeature, nnz) << endl;// << " " << _contigFeature.cal_abd_dist(contigFeatureModel, contigFeature, nnz) << endl;
+					cout << "\tMetabat Abudance new: " << _contigFeature.cal_abd_dist_new(contigFeatureModel, contigFeature, nnz) << endl; // << " " << _contigFeature.cal_abd_dist_new(contigFeatureModel, contigFeature, nnz) << endl;
+					cout << "\tMetacoag abundance: " << -log10(_contigFeature.computeAbundanceProbability_new(abundancesModel, abundances)) << endl; // << " " << -log10(_contigFeature.computeAbundanceProbability_new(abundancesModel, abundances)) << endl;
+					cout << "\tCorrelation: " << _contigFeature.computeAbundanceCorrelation(abundancesModel, abundances) << endl; // << " " << _contigFeature.computeAbundanceCorrelation(abundancesModel, abundances) << endl;
+					//cout << "\tCorrelation: " << _contigFeature.computeAbundanceCorrelation_new(abundancesModel, abundances_init) << " " << _contigFeature.computeAbundanceCorrelation_new(abundancesModel, abundances) << endl;
+					cout << "\t";
+					for(u_int32_t count : abundancesModel) cout << count << " ";
+					cout << endl;
+					cout << "\t";
+					for(u_int32_t count : abundances) cout << count << " ";
+					cout << endl;
 					cout << "\t>" << u._length << ": " << contigIndex << endl;
 				
 					//lala[BiGraph::nodeIndex_to_nodeName(u._startNode)] += 1;
@@ -1157,7 +1157,7 @@ public:
 			delete fields;
 			cout << "Result: " << completeness << " " << contamination << endl;
 
-			if(completeness > 0.3){
+			if(completeness > 0.65 && contamination < 0.05){
 
 				for(u_int32_t nodeName : allComponentNodenames){
 					fileComponentNodeAll << nodeName << "," << clusterIndex << endl;
@@ -1190,7 +1190,7 @@ public:
 			}
 
 			if(contamination > 0.2){
-				getchar();
+				//getchar();
 			}
 
 		}
