@@ -817,7 +817,7 @@ public:
         //_unitigs[unitigIndex]._nodes;
     }
 
-    u_int64_t superbubble(u_int64_t maxLength, vector<bool>& isBubble, SaveState2& saveState, bool useReadpathSubgraph){
+    u_int64_t superbubble(u_int64_t maxLength, vector<bool>& isBubble, SaveState2& saveState, bool useReadpathSubgraph, GraphSimplify* graphMain){
 
 
         unordered_set<u_int32_t> removedNodes;
@@ -927,9 +927,9 @@ public:
                     seen.insert(u);
                     long length = _unitigs[u]._length - node._overlap;
                     //cout << _unitigs[u]._length << " " << node._overlap << endl;
-                    if(length < 0) length = _unitigs[u]._length;
-                    //pathLength[u] = pathLength[v] + length;
-                    pathLength[u] = pathLength[v] + _unitigs[u]._nbNodes;
+                    //if(length < 0) length = _unitigs[u]._length;
+                    pathLength[u] = pathLength[v] + length;
+                    //pathLength[u] = pathLength[v] + _unitigs[u]._nbNodes;
                 }
 
             }
@@ -1287,7 +1287,7 @@ public:
 
 	}
 
-    u_int64_t bubble(float maxLength, SaveState2& saveState, bool useReadpathSubgraph){
+    u_int64_t bubble(float maxLength, SaveState2& saveState, bool useReadpathSubgraph, GraphSimplify* graphMain){
 
         unordered_set<u_int32_t> removedNodes;
 
@@ -1425,8 +1425,8 @@ public:
 
                     if(_unitigs[_nodeToUnitig[neighbors_utg3[0]]]._index != utg_4._index) continue;
                     if(_graphSuccessors->nodeIndex_to_nodeName(utg_1._endNode, dummy) == _graphSuccessors->nodeIndex_to_nodeName(utg_4._startNode, dummy)) continue; //Repeated unitig with a cycle on on side
-                    //if(utg_2._length > maxLength || utg_3._length > maxLength) continue;
-                    if(utg_2._nbNodes > maxLength || utg_3._nbNodes > maxLength) continue;
+                    if(utg_2._length > maxLength || utg_3._length > maxLength) continue;
+                    //if(utg_2._nbNodes > maxLength || utg_3._nbNodes > maxLength) continue;
 
                     #ifdef PRINT_DEBUG_SIMPLIFICATION
                         cout << "\tBubble: " << _graphSuccessors->nodeIndex_to_nodeName(utg_1._endNode, dummy) << " " << _graphSuccessors->nodeIndex_to_nodeName(utg_2._startNode, dummy) << " " << _graphSuccessors->nodeIndex_to_nodeName(utg_3._startNode, dummy) << " " << _graphSuccessors->nodeIndex_to_nodeName(utg_4._startNode, dummy) << " " << utg_2._length << " " << utg_3._length << endl;
@@ -2154,11 +2154,13 @@ public:
 
             if(i == 0){
                 length += _graphSuccessors->_nodeLengths[nodeName];
+                //cout << "lala: " << length << endl;
             }
             else{
                 u_int16_t overlapLength = _graphSuccessors->getOverlap(lastNode, node);
                 //if(_kminmerSize > 4) cout << _graphSuccessors->_nodeLengths[nodeName] << " " << overlapLength << endl;
                 length += _graphSuccessors->_nodeLengths[nodeName] - overlapLength;
+                //cout << "\t" << _graphSuccessors->_nodeLengths[nodeName] << " " << overlapLength << " " << (_graphSuccessors->_nodeLengths[nodeName] - overlapLength) << endl;
             }
 
             //if(BiGraph::nodeIndex_to_nodeName(startNode) == 5304){
@@ -3004,7 +3006,7 @@ public:
         //getchar();
     }
 
-    void detectBubbles(const unordered_set<u_int32_t>& validNodeNames, u_int64_t maxLength, const vector<UnitigData>& unitigDatas, unordered_set<u_int32_t>& bubbleNodeNames){
+    void detectBubbles(GraphSimplify* graphMain, const unordered_set<u_int32_t>& validNodeNames, u_int64_t maxLength, const vector<UnitigData>& unitigDatas, unordered_set<u_int32_t>& bubbleNodeNames){
 
         SaveState2 currentSaveState = {0, {}, {}, {}, {}};
         
@@ -3020,7 +3022,7 @@ public:
 
             while(true){
                 compact(true, unitigDatas);
-                u_int64_t nbSuperbubblesRemoved = superbubble(maxLength, isBubble, currentSaveState, false);
+                u_int64_t nbSuperbubblesRemoved = superbubble(maxLength, isBubble, currentSaveState, false, graphMain);
                 #ifdef PRINT_DEBUG_SIMPLIFICATION
                     cout << "Nb superbubble removed: " << nbSuperbubblesRemoved << endl;
                 #endif
@@ -3033,7 +3035,7 @@ public:
 
             while(true){
                 compact(true, unitigDatas);
-                u_int64_t nbBubblesRemoved = bubble(maxLength, currentSaveState, false);
+                u_int64_t nbBubblesRemoved = bubble(maxLength, currentSaveState, false, graphMain);
                 #ifdef PRINT_DEBUG_SIMPLIFICATION
                     cout << "Nb bubble removed: " << nbBubblesRemoved << endl;
                 #endif
@@ -3062,6 +3064,7 @@ public:
             maxBubbleLength = _kminmerSize * 10;
         }
 
+        maxBubbleLength = 50000;
 
         _cachedGraphStates.clear();
 
@@ -3292,7 +3295,7 @@ public:
                 if(crushBubble){
                     while(true){
                         compact(true, unitigDatas);
-                        u_int64_t nbSuperbubblesRemoved = superbubble(maxBubbleLength, isBubble, currentSaveState, false);
+                        u_int64_t nbSuperbubblesRemoved = superbubble(maxBubbleLength, isBubble, currentSaveState, false, nullptr);
                         #ifdef PRINT_DEBUG_SIMPLIFICATION
                             cout << "Nb superbubble removed: " << nbSuperbubblesRemoved << endl;
                         #endif
@@ -3306,7 +3309,7 @@ public:
 
                     while(true){
                         compact(true, unitigDatas);
-                        nbBubblesRemoved = bubble(maxBubbleLength, currentSaveState, false);
+                        nbBubblesRemoved = bubble(maxBubbleLength, currentSaveState, false, nullptr);
                         #ifdef PRINT_DEBUG_SIMPLIFICATION
                             cout << "Nb bubble removed: " << nbBubblesRemoved << endl;
                         #endif
@@ -7826,35 +7829,14 @@ getStronglyConnectedComponent_node
 
         unordered_set<u_int32_t> isProcessedNodename;
 
-        for(u_int32_t nodeIndex : _isNodeValid2){
-            if(!isEdgeNode(nodeIndex)) continue;
+        for(const Unitig& unitig : _unitigs){
+            if(unitig._startNode == -1) continue;
+            //for(u_int32_t nodeIndex : _isNodeValid2){
+            //if(!isEdgeNode(nodeIndex)) continue;
 
-            u_int32_t source_nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
-            
-            if(isProcessedNodename.find(source_nodeName) != isProcessedNodename.end()) continue;
-            isProcessedNodename.insert(source_nodeName);
-
-            //cout << "1" << endl;
-
-            unordered_set<u_int32_t> readpathNodeNames;
-            extractReadpathSubgraph(source_nodeName, unitigDatas, readpathNodeNames);
-
-            //cout << "2" << endl;
-            GraphSimplify* graph = new GraphSimplify(this, readpathNodeNames);
-            
-            //cout << "3" << endl;
-            unordered_set<u_int32_t> bubbleNodeNames;
-            graph->detectBubbles(readpathNodeNames, maxLength, unitigDatas, bubbleNodeNames);
-
-            //cout << "4" << endl;
-            for(u_int32_t nodeName : bubbleNodeNames){
-                _isNodenameRoundabout.insert(nodeName);
-            }
-
-            //cout << "5" << endl;
-            delete graph;
-            //cout << "6" << endl;
-
+            detectRoundabouts2(unitig._startNode, maxLength, unitigDatas, isProcessedNodename);
+            detectRoundabouts2(unitig._endNode, maxLength, unitigDatas, isProcessedNodename);
+    
         }
 
         #ifdef PRINT_DEBUG_SIMPLIFICATION
@@ -7863,6 +7845,34 @@ getStronglyConnectedComponent_node
 
 
 	}
+
+	void detectRoundabouts2(u_int32_t nodeIndex_source, u_int64_t maxLength, const vector<UnitigData>& unitigDatas, unordered_set<u_int32_t>& isProcessedNodename){
+        u_int32_t source_nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex_source);
+        
+        if(isProcessedNodename.find(source_nodeName) != isProcessedNodename.end()) return;
+        isProcessedNodename.insert(source_nodeName);
+
+        //cout << "1" << endl;
+
+        unordered_set<u_int32_t> readpathNodeNames;
+        extractReadpathSubgraph(source_nodeName, unitigDatas, readpathNodeNames);
+
+        //cout << "2" << endl;
+        GraphSimplify* graph = new GraphSimplify(this, readpathNodeNames);
+        
+        //cout << "3" << endl;
+        unordered_set<u_int32_t> bubbleNodeNames;
+        graph->detectBubbles(this, readpathNodeNames, maxLength, unitigDatas, bubbleNodeNames);
+
+        //cout << "4" << endl;
+        for(u_int32_t nodeName : bubbleNodeNames){
+            _isNodenameRoundabout.insert(nodeName);
+        }
+
+        //cout << "5" << endl;
+        delete graph;
+        //cout << "6" << endl;
+    }
 
     void extractReadpathSubgraph(u_int32_t source_nodeName, const vector<UnitigData>& unitigDatas, unordered_set<u_int32_t>& component){
 
@@ -7897,23 +7907,44 @@ getStronglyConnectedComponent_node
             //cout << "Shared reads: " << nbSharedReads << " " << readIndexes._readIndexes.size() << " " << source_readIndexes._readIndexes.size() << endl;
             if(nbSharedReads <= 1) continue;
 
-			component.insert(nodeName);
+            const Unitig& unitig = nodeIndex_to_unitig(BiGraph::nodeName_to_nodeIndex(nodeName, false));
+            for(u_int32_t nodeIndex : unitig._nodes){
+			    component.insert(BiGraph::nodeIndex_to_nodeName(nodeIndex));
+            }
+
             //for(u_int32_t nodeIndex : _unitigs[unitigIndex]._nodes){
             //    file_scc << BiGraph::nodeIndex_to_nodeName(nodeIndex) << "," << "red" << endl;
             //}
+
+            vector<u_int32_t> neighbors;
 
             vector<u_int32_t> successors;
             getSuccessors(BiGraph::nodeName_to_nodeIndex(nodeName, false), 0, successors);
             
             for(u_int32_t nodeIndexSuccessor : successors){
-                queue.push(BiGraph::nodeIndex_to_nodeName(nodeIndexSuccessor));
+                neighbors.push_back(nodeIndexSuccessor);
             }
 
             vector<u_int32_t> predecessors;
             getSuccessors(BiGraph::nodeName_to_nodeIndex(nodeName, true), 0, predecessors);
             
             for(u_int32_t nodeIndexSuccessor : predecessors){
-                queue.push(BiGraph::nodeIndex_to_nodeName(nodeIndexSuccessor));
+                neighbors.push_back(nodeIndexSuccessor);
+            }
+
+
+            for(u_int32_t nodeIndexNeighbor : neighbors){
+                const Unitig& unitig = nodeIndex_to_unitig(nodeIndexNeighbor);
+                queue.push(BiGraph::nodeIndex_to_nodeName(unitig._startNode));
+                queue.push(BiGraph::nodeIndex_to_nodeName(unitig._endNode));
+                //for(u_int32_t nodeIndex : unitig._nodes){
+
+			        //component.insert(BiGraph::nodeIndex_to_nodeName(nodeIndex));
+
+                //    if(isEdgeNode(nodeIndex)){
+                //        queue.push(BiGraph::nodeIndex_to_nodeName(nodeIndex));
+                //    }
+                //}
             }
 
         }

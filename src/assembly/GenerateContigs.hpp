@@ -73,12 +73,6 @@ public:
 
 	}
 
-	void execute (){
-
-		loadGraph();
-		generateContigs2(_inputDir + "/contigs.nodepath.gz", _inputDir + "/contigs.fasta.gz");
-
-	}
 
 	void parseArgs(int argc, char* argv[]){
 
@@ -147,6 +141,14 @@ public:
 
 	unordered_map<u_int64_t, vector<u_int32_t>> _debug_readPath;
     vector<bool> _isBubble;
+
+
+	void execute (){
+
+		loadGraph();
+		generateContigs2(_inputDir + "/contigs.nodepath.gz", _inputDir + "/contigs.fasta.gz");
+
+	}
 
 	void loadGraph(){
 
@@ -711,6 +713,9 @@ public:
 			_graph->loadState2(cutoff, -1, _unitigDatas);
 			_minUnitigAbundance = cutoff / 0.2;
 
+			if(cutoff == 102.862){
+				_graph->saveGraph(_inputDir + "/minimizer_graph_contigs.gfa");
+			}
 
 			for(const Unitig& unitig : _graph->_unitigs){
 				//cout << unitig._length << " " << unitig._abundance << endl;
@@ -839,6 +844,7 @@ public:
 		
 	}
 
+	/*
 	void getSupportingReads(const vector<u_int32_t>& pathNodes, vector<u_int64_t>& supportingReads){
 
 		//cout << "lala" << endl;
@@ -898,7 +904,7 @@ public:
 		
 		cout << "loulou" << endl;
 	}
-
+	*/
 
 
 

@@ -300,27 +300,27 @@ public:
 		
 		cout << _graph->_isNodenameRoundabout.size() << endl;
 		
-		/*
+		
 		ofstream file_correction(_inputDir + "/roundabout.csv");
 		file_correction << "Name,Colour" << endl;
 		for(u_int32_t nodeName : _graph->_isNodenameRoundabout){
-			//if(_isBubble[BiGraph::nodeName_to_nodeIndex(nodeName, true)]){
+			if(!_isBubble[BiGraph::nodeName_to_nodeIndex(nodeName, true)]){
 				file_correction << nodeName << ",red" << endl;
-			//}
+			}
 		}
 		for(u_int32_t nodeIndex : _graph->_isNodeValid2){
 			if(_graph->_isBubble[nodeIndex]){
-				file_correction << BiGraph::nodeIndex_to_nodeName(nodeIndex) << ",red" << endl;
+				//file_correction << BiGraph::nodeIndex_to_nodeName(nodeIndex) << ",red" << endl;
 			}
 		}
 		file_correction.close();
-		*/
+		
 		//cout << _graph->nodeIndex_to_unitig(BiGraph::nodeName_to_nodeIndex(12871, true))._nbNodes << " " << _graph->nodeIndex_to_unitig(BiGraph::nodeName_to_nodeIndex(12871, true))._length << endl;
 		//getchar();
 		
 		
-		_graph->loadState2(100, -1, _unitigDatas);
-		_graph->saveGraph(_inputDir + "/minimizer_graph_contigs.gfa");
+		//_graph->loadState2(100, -1, _unitigDatas);
+		//_graph->saveGraph(_inputDir + "/minimizer_graph_contigs.gfa");
 		_graph->loadState2(0, -1, _unitigDatas);
 
 		_partitionDir = _inputDir + "/" + "partitions";
