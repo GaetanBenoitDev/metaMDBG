@@ -208,7 +208,7 @@ public:
 			//executeCommand(command);	
 
 
-			
+			bool generatedContigs = false;
 			//if(k == 5 || k == 10 || k == 16 || k == 21 || k == 26 || k == 31){
 			if(k == 10 || k == 19 || k==31 || k==41 || k==51 || k==61 || k==71 || k==81 || k==91){
 
@@ -225,6 +225,7 @@ public:
 				if(pass == 0) command += " --firstpass";
 				executeCommand(command);
 
+				generatedContigs = true;
 			}	
 		
 			//./bin/mdbgAsmMeta bin -o ~/workspace/run/overlap_test_multik_201/pass_0 -c ~/workspace/run/overlap_test_multik_201/contigs_10.fasta.gz
@@ -257,7 +258,8 @@ public:
 			//exit(1);
 			//break;
 			cout << "pass done" << endl;
-			if(k == 10) getchar();
+			if(generatedContigs) getchar();
+			//getchar();
 		}
 
     }

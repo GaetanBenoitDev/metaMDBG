@@ -729,7 +729,7 @@ void Bloocoo::createMDBG_collectKminmers_minspace_read(const vector<u_int64_t>& 
 
 				}
 				else{
-					if(!_isFirstPass){
+					if(_isFirstPass){
 						_mdbg->addNode(vec, _kminmerLengthMean, _minimizerSpacingMean, _minimizerSpacingMean, kminmerInfo._isReversed);
 					}
 				}
