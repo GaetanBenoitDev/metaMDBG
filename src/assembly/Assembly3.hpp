@@ -1645,7 +1645,7 @@ public:
 
 
 	//ofstream file_correction;
-	gzFile _outputFile_correctedReads;
+	//gzFile _outputFile_correctedReads;
 	ofstream _file_uncorrectedReads;
 
 	void correctReads(){
@@ -1656,8 +1656,8 @@ public:
 		_graph->loadState2(0, -1, _unitigDatas);
 		_graph->_isBubble = _isBubble;
 
-		const string& outputFilename_correctedReads = _inputDir + "/correctedReads_" + to_string(_kminmerSize) + ".min.gz";
-		_outputFile_correctedReads = gzopen(outputFilename_correctedReads.c_str(),"wb");
+		//const string& outputFilename_correctedReads = _inputDir + "/correctedReads_" + to_string(_kminmerSize) + ".min.gz";
+		//_outputFile_correctedReads = gzopen(outputFilename_correctedReads.c_str(),"wb");
 
 		_file_uncorrectedReads = ofstream(_inputDir + "/read_uncorrected.txt");
 		
@@ -1694,7 +1694,7 @@ public:
 		
 
 		//file_correction.close();
-		gzclose(_outputFile_correctedReads);
+		//gzclose(_outputFile_correctedReads);
 		_file_uncorrectedReads.close();
 
 		cout << "Nb reads: " << _nbreadsLala << endl;

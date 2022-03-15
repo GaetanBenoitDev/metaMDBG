@@ -127,8 +127,8 @@ public:
 		//createInputFile(false);
 
 		//Read selection
-		command = _filename_exe + " readSelection -i " + _inputFilename + " -o " + _inputDir + " -f " + _inputDir + "/read_data_init.txt";
-		executeCommand(command);
+		//command = _filename_exe + " readSelection -i " + _inputFilename + " -o " + _inputDir + " -f " + _inputDir + "/read_data_init.txt";
+		//executeCommand(command);
 		
 
 		u_int64_t pass = 0;
@@ -179,8 +179,8 @@ public:
 
 			//command = ./bin/mdbgAsmMeta toMinspace -o ~/workspace/run/overlap_test_multik_AD/ -c ~/workspace/run/overlap_test_multik_AD/contigs.nodepath.gz
 
-			command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/correctedReads_" + to_string(k) + ".min.gz" + " -f "  + _inputDir + "/read_data.txt.corrected.txt";
-			executeCommand(command);
+			//command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/correctedReads_" + to_string(k) + ".min.gz" + " -f "  + _inputDir + "/read_data.txt.corrected.txt";
+			//executeCommand(command);
 
 
 

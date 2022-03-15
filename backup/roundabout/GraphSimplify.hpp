@@ -15,6 +15,8 @@
 #include <limits>
 //#include <experimental/filesystem>
 
+const float BUBBLE_ABUNDANCE_CUTOFF = 1;
+
 //using namespace std;
 //namespace fs = std::experimental::filesystem;
 
@@ -856,7 +858,7 @@ public:
             #endif
 
             //cout << "Found superbubble: " << BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex_exit]._startNode) << endl;
-            simplifySuperbubble(unitig._index, unitigIndex_exit, removedNodes, isBubble, saveState);
+            simplifySuperbubble(unitig._index, unitigIndex_exit, removedNodes, isBubble, saveState, graphMain);
 
 
             nbRemoved += 1;
@@ -919,8 +921,8 @@ public:
 
             for(const AdjNode& node : successors){
                 u_int32_t u = node._index;
-                if(isBubble[_unitigs[u]._startNode]) return -1;
-                if(isBubble[nodeIndex_toReverseDirection(_unitigs[u]._startNode)]) return -1;
+                if(_isBubble[_unitigs[u]._startNode]) return -1;
+                if(_isBubble[nodeIndex_toReverseDirection(_unitigs[u]._startNode)]) return -1;
                 if(u == unitigIndex_source) return -1; //cycle including s
 
                 if(isVisited.find(u) == isVisited.end()){
@@ -979,7 +981,7 @@ public:
 
 
 
-    void simplifySuperbubble(u_int32_t source_unitigIndex, u_int32_t sink_unitigIndex, unordered_set<u_int32_t>& removedNodes, vector<bool>& isBubble, SaveState2& saveState){
+    void simplifySuperbubble(u_int32_t source_unitigIndex, u_int32_t sink_unitigIndex, unordered_set<u_int32_t>& removedNodes, vector<bool>& isBubble, SaveState2& saveState, GraphSimplify* graphMain){
 
         vector<u_int32_t> unitigIndexes;
         collectNodes_betweenSourceSink_unitig(source_unitigIndex, sink_unitigIndex, unitigIndexes, 0, {}, true);
@@ -990,6 +992,8 @@ public:
         //vector<u_int32_t> removedNodes;
         Bubble bubble = {_unitigs[source_unitigIndex]._endNode, _unitigs[source_unitigIndex]._startNode, {}};
         Bubble bubbleRC = {nodeIndex_toReverseDirection(_unitigs[source_unitigIndex]._startNode), nodeIndex_toReverseDirection(_unitigs[source_unitigIndex]._endNode), {}};;
+
+        vector<float> abundances;
 
         //Choose one path in the superbubble
         u_int32_t unitigIndex = source_unitigIndex;
@@ -1010,9 +1014,16 @@ public:
             unitigIndex = maxV;
             path.push_back(unitigIndex);
 
+            const Unitig& unitig = _unitigs[unitigIndex];
+            for(u_int32_t nodeIndex : unitig._nodes){
+                abundances.push_back(unitig._abundance);
+            }
+
             if(unitigIndex == sink_unitigIndex) break;
         }
         
+        float abundance = Utils::compute_median_float(abundances);
+        float abundanceMin = abundance * BUBBLE_ABUNDANCE_CUTOFF;
         /*
         bool print_superbubble = false;
         for(u_int32_t unitigIndex : unitigIndexes){
@@ -1039,6 +1050,8 @@ public:
             for(u_int32_t nodeIndex : nodes){
                 //cout << "\tKeep nodes: " << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
                 keepNodes.insert(nodeIndex);
+
+
                 //if(print_superbubble){
                 //    cout << "keep node: " << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
                 //}
@@ -1050,19 +1063,45 @@ public:
 
         //Mark all nodes as bubble
         for(u_int32_t unitigIndex : unitigIndexes){
-            getUnitigNodes(_unitigs[unitigIndex], nodes);
+
             for(u_int32_t nodeIndex : nodes){
+
+
                 isBubble[nodeIndex] = true;
                 isBubble[nodeIndex_toReverseDirection(nodeIndex)] = true;
                 _isBubble[nodeIndex] = true;
                 _isBubble[nodeIndex_toReverseDirection(nodeIndex)] = true;
 
                 saveState._isBubble.push_back(BiGraph::nodeIndex_to_nodeName(nodeIndex));
+            }
+
+            if(graphMain != nullptr){
+                unordered_set<u_int32_t> mainNbUnitigs;
+
+                getUnitigNodes(_unitigs[unitigIndex], nodes);
+                for(u_int32_t nodeIndex : nodes){
+                    mainNbUnitigs.insert(graphMain->nodeIndex_to_unitigIndex(nodeIndex));
+                }
+
+                if(mainNbUnitigs.size() > 1) continue;
+            }
+
+
+            for(u_int32_t nodeIndex : nodes){
+
                 //if(print_superbubble){
                 //    cout << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
                 //}
+                if(getNodeUnitigAbundance(nodeIndex) >= abundanceMin){
+                    //keepNodes.insert(nodeIndex);
+                    //continue;
+                }
 
                 if(keepNodes.find(nodeIndex) != keepNodes.end()) continue;
+
+
+
+
                 //if(keepNodes.find(nodeIndex_toReverseDirection(nodeIndex)) != keepNodes.end()) continue;
                 //removedNodes.push_back(nodeIndex);
                 bubble._nodes.push_back({nodeIndex, getNodeUnitigAbundance(nodeIndex)});
@@ -1077,9 +1116,11 @@ public:
 
         std::reverse(bubbleRC._nodes.begin(), bubbleRC._nodes.end());
 
+        
         bool cancelBubble = false;
 
         if(bubble._nodes.size() == 0){ 
+            /*
             cout << "1" << endl;
             cout << path.size() << " " << unitigIndexes.size() << endl;
             //cout << source_unitigIndex << endl;
@@ -1094,9 +1135,11 @@ public:
             }
 
             //return;
-
+            */
             cancelBubble = true;
+           //return;
         }
+        
 
         for(NodeAbundance& nodeIndex : bubble._nodes){ //removed nodes
              //cout << "1" << endl;
@@ -1104,6 +1147,9 @@ public:
             removedNodes.insert(nodeIndex._nodeIndex);
             removedNodes.insert(nodeIndex_toReverseDirection(nodeIndex._nodeIndex));
             saveState._nodeNameRemoved_tmp.insert(BiGraph::nodeIndex_to_nodeName(nodeIndex._nodeIndex));
+
+            //if(getNodeUnitigAbundance(nodeIndex._nodeIndex) > 10)
+            //cout << "Removed: " << getNodeUnitigAbundance(nodeIndex._nodeIndex) << " " << abundance << " " << abundanceMin << endl;
             //_isNodeValid2.erase(nodeIndex_toReverseDirection(nodeIndex));
              //cout << "2" << endl;
         }
@@ -1294,7 +1340,7 @@ public:
         u_int64_t nbBubblesRemoved = 0;
         //vector<u_int32_t> removedUnitigs;
 
-        vector<bool> isVisited(_graphSuccessors->_nbNodes, false);
+        //vector<bool> isVisited(_graphSuccessors->_nbNodes, false);
         vector<u_int32_t> unitigNodes;
         bool dummy = false;
 
@@ -1304,9 +1350,9 @@ public:
 
             //u_int32_t startNodeName = _graphSuccessors->nodeIndex_to_nodeName(unitig._startNode, dummy);
             //u_int32_t visitedNodeIndex = unitig._startNode;
-            if(isVisited[unitig._startNode] || isVisited[nodeIndex_toReverseDirection(unitig._startNode)]) continue;
-            //if(_isBubble[unitig._startNode]) continue;
-            //if(_isBubble[nodeIndex_toReverseDirection(unitig._startNode)]) continue;
+            //if(isVisited[unitig._startNode] || isVisited[nodeIndex_toReverseDirection(unitig._startNode)]) continue;
+            if(_isBubble[unitig._startNode]) continue;
+            if(_isBubble[nodeIndex_toReverseDirection(unitig._startNode)]) continue;
             
 
             //cout << "--------------" << endl;
@@ -1386,9 +1432,9 @@ public:
 
                 Unitig& utg_2 = _unitigs[_nodeToUnitig[neighbors_utg1[i]]];
                 //visitedNodeIndex = _graphSuccessors->nodeIndex_to_nodeName(utg_2._startNode, dummy);
-                //if(_isBubble[utg_2._startNode]) continue;
-                //if(_isBubble[nodeIndex_toReverseDirection(utg_2._startNode)]) continue;
-                if(isVisited[utg_2._startNode] || isVisited[nodeIndex_toReverseDirection(utg_2._startNode)]) continue;
+                if(_isBubble[utg_2._startNode]) continue;
+                if(_isBubble[nodeIndex_toReverseDirection(utg_2._startNode)]) continue;
+                //if(isVisited[utg_2._startNode] || isVisited[nodeIndex_toReverseDirection(utg_2._startNode)]) continue;
                 //isVisited[startNodeName] = true;
 
 
@@ -1396,9 +1442,9 @@ public:
                 for(size_t j=i+1; j<neighbors_utg1.size(); j++){
                     Unitig& utg_3 = _unitigs[_nodeToUnitig[neighbors_utg1[j]]];
                     //startNodeName = _graphSuccessors->nodeIndex_to_nodeName(utg_3._startNode, dummy);
-                    if(isVisited[utg_3._startNode] || isVisited[nodeIndex_toReverseDirection(utg_3._startNode)]) continue;
-                    //if(_isBubble[utg_3._startNode]) continue;
-                    //if(_isBubble[nodeIndex_toReverseDirection(utg_3._startNode)]) continue;
+                    //if(isVisited[utg_3._startNode] || isVisited[nodeIndex_toReverseDirection(utg_3._startNode)]) continue;
+                    if(_isBubble[utg_3._startNode]) continue;
+                    if(_isBubble[nodeIndex_toReverseDirection(utg_3._startNode)]) continue;
                     //isVisited[startNodeName] = true;
 
 
@@ -1411,9 +1457,9 @@ public:
                     Unitig& utg_4 = _unitigs[_nodeToUnitig[neighbors_utg2[0]]];
 
                     //startNodeName = _graphSuccessors->nodeIndex_to_nodeName(utg_4._startNode, dummy);
-                    if(isVisited[utg_4._startNode] || isVisited[nodeIndex_toReverseDirection(utg_4._startNode)]) continue;
-                    //if(_isBubble[utg_4._startNode]) continue;
-                    //if(_isBubble[nodeIndex_toReverseDirection(utg_4._startNode)]) continue;
+                    //if(isVisited[utg_4._startNode] || isVisited[nodeIndex_toReverseDirection(utg_4._startNode)]) continue;
+                    if(_isBubble[utg_4._startNode]) continue;
+                    if(_isBubble[nodeIndex_toReverseDirection(utg_4._startNode)]) continue;
                     //isVisited[startNodeName] = true;
 
 
@@ -1458,43 +1504,95 @@ public:
 
                     }
                     
-                    
-                    //remove bubble
-                    if(utg_2._abundance > utg_3._abundance){
-                        getUnitigNodes(utg_3, unitigNodes);
+                    unitigNodes.clear();
 
-                        isVisited[utg_3._startNode] = true;
-                        isVisited[utg_3._endNode] = true;
-                        isVisited[nodeIndex_toReverseDirection(utg_3._startNode)] = true;
-                        isVisited[nodeIndex_toReverseDirection(utg_3._endNode)] = true;
-                        //isVisited[utg_3._endNode] = true;
-                        //isVisited[nodeIndex_toReverseDirection(utg_3._startNode)] = true;
-                        //isVisited[nodeIndex_toReverseDirection(utg_3._endNode)] = true;
+                    if(graphMain != nullptr){
 
 
-                        //startNodeName = _graphSuccessors->nodeIndex_to_nodeName(utg_3._startNode, dummy);
-                        //isVisited[startNodeName] = true;
-                        //startNodeName = _graphSuccessors->nodeIndex_to_nodeName(utg_3._endNode, dummy);
-                        //isVisited[startNodeName] = true;
+                        //cout << "-----------" << endl;
+                        //cout << BiGraph::nodeIndex_to_nodeName(utg_2._startNode) << " " << BiGraph::nodeIndex_to_nodeName(utg_3._startNode)  << endl;
+                        
+                        unordered_set<u_int32_t> utg2_nbUnitigs;
+                        for(u_int32_t nodeIndex : utg_2._nodes){
+                            utg2_nbUnitigs.insert(graphMain->nodeIndex_to_unitigIndex(nodeIndex));
+                        } 
+
+
+                        unordered_set<u_int32_t> utg3_nbUnitigs;
+                        for(u_int32_t nodeIndex : utg_3._nodes){
+                            utg3_nbUnitigs.insert(graphMain->nodeIndex_to_unitigIndex(nodeIndex));
+                        } 
+
+                        //cout << utg_2._abundance << " " << utg2_nbUnitigs.size() << endl;
+                        //cout << utg_3._abundance << " " << utg3_nbUnitigs.size() << endl;
+
+
+                        //bool isValidCollapse = (utg_2._abundance < utg_3._abundance*BUBBLE_ABUNDANCE_CUTOFF) || (utg_3._abundance < utg_2._abundance*BUBBLE_ABUNDANCE_CUTOFF);
+                        //if(!isValidCollapse) continue;
+
+                        if(utg2_nbUnitigs.size() == 1 && utg3_nbUnitigs.size() == 1){
+                            if(utg_2._abundance > utg_3._abundance){
+                                getUnitigNodes(utg_3, unitigNodes);
+
+                                _isBubble[utg_3._startNode] = true;
+                                _isBubble[utg_3._endNode] = true;
+                                _isBubble[nodeIndex_toReverseDirection(utg_3._startNode)] = true;
+                                _isBubble[nodeIndex_toReverseDirection(utg_3._endNode)] = true;
+                            }
+                            else{
+                                getUnitigNodes(utg_2, unitigNodes);
+
+                                _isBubble[utg_2._startNode] = true;
+                                _isBubble[utg_2._endNode] = true;
+                                _isBubble[nodeIndex_toReverseDirection(utg_2._startNode)] = true;
+                                _isBubble[nodeIndex_toReverseDirection(utg_2._endNode)] = true;
+                            }
+                        }
+                        else if(utg2_nbUnitigs.size() == 1){
+                            getUnitigNodes(utg_2, unitigNodes);
+
+                            _isBubble[utg_2._startNode] = true;
+                            _isBubble[utg_2._endNode] = true;
+                            _isBubble[nodeIndex_toReverseDirection(utg_2._startNode)] = true;
+                            _isBubble[nodeIndex_toReverseDirection(utg_2._endNode)] = true;
+                        }
+                        else if(utg3_nbUnitigs.size() == 1){
+                            getUnitigNodes(utg_3, unitigNodes);
+
+                            _isBubble[utg_3._startNode] = true;
+                            _isBubble[utg_3._endNode] = true;
+                            _isBubble[nodeIndex_toReverseDirection(utg_3._startNode)] = true;
+                            _isBubble[nodeIndex_toReverseDirection(utg_3._endNode)] = true;
+                        }
+
+                        //cout << "Removed nodes: " << unitigNodes.size() << endl;
+                        if(unitigNodes.size() == 0) continue;
                     }
                     else{
-                        getUnitigNodes(utg_2, unitigNodes);
 
+                        //bool isValidCollapse = (utg_2._abundance < utg_3._abundance*BUBBLE_ABUNDANCE_CUTOFF) || (utg_3._abundance < utg_2._abundance*BUBBLE_ABUNDANCE_CUTOFF);
+                        //if(!isValidCollapse) continue;
 
-                        isVisited[utg_2._startNode] = true;
-                        isVisited[utg_2._endNode] = true;
-                        isVisited[nodeIndex_toReverseDirection(utg_2._startNode)] = true;
-                        isVisited[nodeIndex_toReverseDirection(utg_2._endNode)] = true;
+                        if(utg_2._abundance > utg_3._abundance){
+                            getUnitigNodes(utg_3, unitigNodes);
 
-                        //isVisited[utg_2._startNode] = true;
-                        //isVisited[utg_2._endNode] = true;
-                        //isVisited[nodeIndex_toReverseDirection(utg_2._startNode)] = true;
-                        //isVisited[nodeIndex_toReverseDirection(utg_2._endNode)] = true;
-                        //startNodeName = _graphSuccessors->nodeIndex_to_nodeName(utg_2._startNode, dummy);
-                        //isVisited[startNodeName] = true;
-                        //startNodeName = _graphSuccessors->nodeIndex_to_nodeName(utg_2._endNode, dummy);
-                        //isVisited[startNodeName] = true;
+                            _isBubble[utg_3._startNode] = true;
+                            _isBubble[utg_3._endNode] = true;
+                            _isBubble[nodeIndex_toReverseDirection(utg_3._startNode)] = true;
+                            _isBubble[nodeIndex_toReverseDirection(utg_3._endNode)] = true;
+                        }
+                        else{
+                            getUnitigNodes(utg_2, unitigNodes);
+
+                            _isBubble[utg_2._startNode] = true;
+                            _isBubble[utg_2._endNode] = true;
+                            _isBubble[nodeIndex_toReverseDirection(utg_2._startNode)] = true;
+                            _isBubble[nodeIndex_toReverseDirection(utg_2._endNode)] = true;
+                        }
                     }
+                    
+                    //remove bubble
+
                     
                     Bubble bubble = {utg_1._endNode, utg_4._startNode, {}};
                     Bubble bubbleRC = {nodeIndex_toReverseDirection(utg_4._startNode), nodeIndex_toReverseDirection(utg_1._endNode), {}};;
@@ -1510,7 +1608,6 @@ public:
                         //_isNodeValid[node] = false;
                         bubble._nodes.push_back({node, getNodeUnitigAbundance(node)});
                         bubbleRC._nodes.push_back({nodeIndex_toReverseDirection(node), getNodeUnitigAbundance(nodeIndex_toReverseDirection(node))});
-
 
                         //removedUnitigs.insert(nodeIndex_to_unitigIndex(node));
                         //removedUnitigs.insert(nodeIndex_to_unitigIndex(nodeIndex_toReverseDirection(node)));
@@ -1544,11 +1641,19 @@ public:
 
         }
 
+
+        unordered_set<u_int32_t> removedUnitigs_graphMain;
         unordered_set<u_int32_t> removedUnitigs;
         for(u_int32_t nodeIndex : removedNodes){
             removedUnitigs.insert(nodeIndex_to_unitigIndex(nodeIndex));
+            if(graphMain != nullptr) removedUnitigs_graphMain.insert(graphMain->nodeIndex_to_unitigIndex(nodeIndex));
+
+            //if(graphMain->_isNodeValid2.find(nodeIndex) != graphMain->_isNodeValid2.end())
+            //if(graphMain != nullptr) cout << "removed node: " << BiGraph::nodeIndex_to_nodeName(nodeIndex) << " " << graphMain->getNodeUnitigAbundance(nodeIndex) << endl;
         }
+
         removeUnitigs(removedUnitigs);
+        if(graphMain != nullptr) graphMain->removeUnitigs(removedUnitigs_graphMain);
         for(u_int32_t nodeIndex : removedNodes){
             _isNodeValid2.erase(nodeIndex);
             //file_debug << BiGraph::nodeIndex_to_nodeName(nodeIndex) << "," << "green" << endl;
@@ -1557,7 +1662,12 @@ public:
                //     getchar();
                 //}
             //_removedFrom[nodeIndex] = 3;
+
+            if(graphMain != nullptr) graphMain->_isNodeValid2.erase(nodeIndex);
         }
+
+        //if(graphMain != nullptr) cout << (graphMain->_isNodeValid2.find(BiGraph::nodeName_to_nodeIndex(9006, true)) != graphMain->_isNodeValid2.end()) << endl;
+        
 
         return nbBubblesRemoved;
     }
@@ -3006,9 +3116,10 @@ public:
         //getchar();
     }
 
-    void detectBubbles(GraphSimplify* graphMain, const unordered_set<u_int32_t>& validNodeNames, u_int64_t maxLength, const vector<UnitigData>& unitigDatas, unordered_set<u_int32_t>& bubbleNodeNames){
+    bool detectBubbles(GraphSimplify* graphMain, const unordered_set<u_int32_t>& validNodeNames, u_int64_t maxLength, const vector<UnitigData>& unitigDatas, unordered_set<u_int32_t>& bubbleNodeNames, SaveState2& mainSaveState){
 
-        SaveState2 currentSaveState = {0, {}, {}, {}, {}};
+        bool hasChanged = false;
+        //SaveState2 currentSaveState = {0, {}, {}, {}, {}};
         
         bubbleNodeNames.clear();
 
@@ -3020,25 +3131,30 @@ public:
             vector<bool> isBubble = vector<bool>(_graphSuccessors->_nbNodes, false);
             bool isModSub = false;
 
+            
             while(true){
                 compact(true, unitigDatas);
-                u_int64_t nbSuperbubblesRemoved = superbubble(maxLength, isBubble, currentSaveState, false, graphMain);
+                graphMain->compact(true, unitigDatas);
+                u_int64_t nbSuperbubblesRemoved = superbubble(maxLength, isBubble, mainSaveState, false, graphMain);
                 #ifdef PRINT_DEBUG_SIMPLIFICATION
                     cout << "Nb superbubble removed: " << nbSuperbubblesRemoved << endl;
                 #endif
+                if(nbSuperbubblesRemoved > 0) hasChanged = true;
                 if(nbSuperbubblesRemoved == 0) break;
                 isModSub = true;
             }
-            
 
             //cout << "Nb nodes valid: " << _isNodeValid2.size() << endl;
 
             while(true){
                 compact(true, unitigDatas);
-                u_int64_t nbBubblesRemoved = bubble(maxLength, currentSaveState, false, graphMain);
+                graphMain->compact(true, unitigDatas);
+                u_int64_t nbBubblesRemoved = bubble(maxLength, mainSaveState, false, graphMain);
                 #ifdef PRINT_DEBUG_SIMPLIFICATION
                     cout << "Nb bubble removed: " << nbBubblesRemoved << endl;
                 #endif
+
+                if(nbBubblesRemoved > 0) hasChanged = true;
                 if(nbBubblesRemoved == 0) break;
                 isModSub = true;
             }
@@ -3052,6 +3168,12 @@ public:
                 bubbleNodeNames.insert(nodeName);
             }
         }
+
+        //for(u_int32_t nodeName : currentSaveState._nodeNameRemoved_tmp){
+            //mainSaveState._nodeNameRemoved_tmp.insert(nodeName);
+        //}
+
+        return hasChanged;
     }
 
     void debug_writeGfaErrorfree(u_int32_t currentAbundance, float abundanceCutoff_min, u_int32_t nodeIndex_source, u_int64_t k, bool saveGfa, bool doesSaveState, bool doesLoadState, const vector<UnitigData>& unitigDatas, bool crushBubble, bool smallBubbleOnly, bool detectRoundabout, bool insertBubble, bool saveAllState){
@@ -3317,6 +3439,8 @@ public:
                         isModification = true;
                         isModSub = true;
                     }
+
+                    //detectRoundabouts(maxBubbleLength, unitigDatas, currentSaveState);
                 }
                 
                 //cout << _isBubble[BiGraph::nodeName_to_nodeIndex(510153, true)] << " " << _isBubble[BiGraph::nodeName_to_nodeIndex(510153, false)] << endl;
@@ -3724,11 +3848,6 @@ getStronglyConnectedComponent_node
             compact(false, unitigDatas);
 
             if(currentCutoff == 0){
-
-                if(detectRoundabout){
-                    //detectRoundabouts(maxBubbleLength, unitigDatas);
-                }
-                
                 collectStartingUnitigs(_kminmerSize);
             }
 
@@ -7821,7 +7940,7 @@ getStronglyConnectedComponent_node
 
 
 
-	void detectRoundabouts(u_int64_t maxLength, const vector<UnitigData>& unitigDatas){
+	void detectRoundabouts(u_int64_t maxLength, const vector<UnitigData>& unitigDatas, SaveState2& saveState){
 
         #ifdef PRINT_DEBUG_SIMPLIFICATION
             cout << "detecting roudabout" << endl;
@@ -7829,15 +7948,25 @@ getStronglyConnectedComponent_node
 
         unordered_set<u_int32_t> isProcessedNodename;
 
-        for(const Unitig& unitig : _unitigs){
-            if(unitig._startNode == -1) continue;
-            //for(u_int32_t nodeIndex : _isNodeValid2){
-            //if(!isEdgeNode(nodeIndex)) continue;
+        while(true){
+            bool hasChanged = false;
 
-            detectRoundabouts2(unitig._startNode, maxLength, unitigDatas, isProcessedNodename);
-            detectRoundabouts2(unitig._endNode, maxLength, unitigDatas, isProcessedNodename);
-    
+            compact(true, unitigDatas);
+
+            for(const Unitig& unitig : _unitigs){
+                if(unitig._startNode == -1) continue;
+                
+                hasChanged = detectRoundabouts2(unitig._startNode, maxLength, unitigDatas, isProcessedNodename, saveState);
+                if(hasChanged) break;
+
+                hasChanged = detectRoundabouts2(unitig._endNode, maxLength, unitigDatas, isProcessedNodename, saveState);
+                if(hasChanged) break;
+        
+            }
+
+            if(!hasChanged) break;
         }
+
 
         #ifdef PRINT_DEBUG_SIMPLIFICATION
             cout << "done" << endl;
@@ -7846,32 +7975,30 @@ getStronglyConnectedComponent_node
 
 	}
 
-	void detectRoundabouts2(u_int32_t nodeIndex_source, u_int64_t maxLength, const vector<UnitigData>& unitigDatas, unordered_set<u_int32_t>& isProcessedNodename){
+	bool detectRoundabouts2(u_int32_t nodeIndex_source, u_int64_t maxLength, const vector<UnitigData>& unitigDatas, unordered_set<u_int32_t>& isProcessedNodename, SaveState2& saveState){
         u_int32_t source_nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex_source);
         
-        if(isProcessedNodename.find(source_nodeName) != isProcessedNodename.end()) return;
+        if(isProcessedNodename.find(source_nodeName) != isProcessedNodename.end()) return false;
         isProcessedNodename.insert(source_nodeName);
 
-        //cout << "1" << endl;
 
         unordered_set<u_int32_t> readpathNodeNames;
         extractReadpathSubgraph(source_nodeName, unitigDatas, readpathNodeNames);
 
-        //cout << "2" << endl;
         GraphSimplify* graph = new GraphSimplify(this, readpathNodeNames);
         
-        //cout << "3" << endl;
-        unordered_set<u_int32_t> bubbleNodeNames;
-        graph->detectBubbles(this, readpathNodeNames, maxLength, unitigDatas, bubbleNodeNames);
+        //cout << "Detecting: " << source_nodeName << endl;
 
-        //cout << "4" << endl;
+        unordered_set<u_int32_t> bubbleNodeNames;
+        bool hasChanged = graph->detectBubbles(this, readpathNodeNames, maxLength, unitigDatas, bubbleNodeNames, saveState);
+
         for(u_int32_t nodeName : bubbleNodeNames){
             _isNodenameRoundabout.insert(nodeName);
         }
 
-        //cout << "5" << endl;
         delete graph;
-        //cout << "6" << endl;
+
+        return hasChanged;
     }
 
     void extractReadpathSubgraph(u_int32_t source_nodeName, const vector<UnitigData>& unitigDatas, unordered_set<u_int32_t>& component){
@@ -7897,6 +8024,8 @@ getStronglyConnectedComponent_node
             if (isVisited.find(nodeName) != isVisited.end()) continue;
             isVisited.insert(nodeName);
 
+            u_int32_t nodeIndexLala = BiGraph::nodeName_to_nodeIndex(nodeName, false);
+            if(_nodeToUnitig.find(nodeIndexLala) == _nodeToUnitig.end()) continue;
 
             const UnitigData& readIndexes = unitigDatas[nodeName];
             //cout << _unitigDatas2[unitigIndex]._readIndexes.size() << endl;
@@ -7907,7 +8036,9 @@ getStronglyConnectedComponent_node
             //cout << "Shared reads: " << nbSharedReads << " " << readIndexes._readIndexes.size() << " " << source_readIndexes._readIndexes.size() << endl;
             if(nbSharedReads <= 1) continue;
 
-            const Unitig& unitig = nodeIndex_to_unitig(BiGraph::nodeName_to_nodeIndex(nodeName, false));
+
+
+            const Unitig& unitig = nodeIndex_to_unitig(nodeIndexLala);
             for(u_int32_t nodeIndex : unitig._nodes){
 			    component.insert(BiGraph::nodeIndex_to_nodeName(nodeIndex));
             }
@@ -7935,8 +8066,9 @@ getStronglyConnectedComponent_node
 
             for(u_int32_t nodeIndexNeighbor : neighbors){
                 const Unitig& unitig = nodeIndex_to_unitig(nodeIndexNeighbor);
-                queue.push(BiGraph::nodeIndex_to_nodeName(unitig._startNode));
-                queue.push(BiGraph::nodeIndex_to_nodeName(unitig._endNode));
+
+                if(_nodeToUnitig.find(unitig._startNode) != _nodeToUnitig.end()) queue.push(BiGraph::nodeIndex_to_nodeName(unitig._startNode));
+                if(_nodeToUnitig.find(unitig._endNode) != _nodeToUnitig.end()) queue.push(BiGraph::nodeIndex_to_nodeName(unitig._endNode));
                 //for(u_int32_t nodeIndex : unitig._nodes){
 
 			        //component.insert(BiGraph::nodeIndex_to_nodeName(nodeIndex));
@@ -7949,7 +8081,6 @@ getStronglyConnectedComponent_node
 
         }
 
-        //file_scc.close();
 
     }
 

@@ -1031,7 +1031,7 @@ public:
 
 		float compositionProb = -log10(computeCompositionProbability(f1._composition, f2._composition));
 		if(isinf(compositionProb)) return false;
-		return compositionProb < 0.05;
+		return compositionProb < 5;
 
 
 		if(!hasAbundances) return false;
