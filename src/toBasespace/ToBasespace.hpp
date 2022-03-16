@@ -623,7 +623,7 @@ public:
 
 		cout << "Extracting kminmer sequence variants" << endl;
 
-		auto fp = std::bind(&ToBasespace::extractKminmerSequences_allVariants_read, this, std::placeholders::_1, std::placeholders::_2);
+		auto fp = std::bind(&ToBasespace::extractKminmerSequences_allVariants_read, this, std::placeholders::_1);
 		ReadParser readParser(_inputFilename, false, false);
 		readParser.parse(fp);
 
@@ -633,7 +633,9 @@ public:
 	unordered_set<u_int32_t> _isDoneNodeName_left;
 	unordered_set<u_int32_t> _isDoneNodeName_right;
 
-	void extractKminmerSequences_allVariants_read(kseq_t* read, u_int64_t readIndex){
+	void extractKminmerSequences_allVariants_read(const Read& read){
+
+		u_int64_t readIndex = read._index;
 
 		if(readIndex % 1000 == 0){
 			cout << "Correcting kminmer " << readIndex << endl;
@@ -641,11 +643,11 @@ public:
 		//ottalSize += strlen(read->seq.s);
 					
 		string kminmerSequence;
-		char* sequenceOriginal = read->seq.s;
+		const char* sequenceOriginal = read._seq.c_str();
 
 		string rleSequence;
 		vector<u_int64_t> rlePositions;
-		Encoder::encode_rle(read->seq.s, strlen(read->seq.s), rleSequence, rlePositions);
+		_encoderRLE.execute(read._seq.c_str(), read._seq.size(), rleSequence, rlePositions);
 
 		vector<u_int64_t> minimizers;
 		vector<u_int64_t> minimizers_pos;
@@ -1246,15 +1248,17 @@ public:
 	vector<u_int32_t> _evaluation_hifiasmGroundTruth_path;
 	unordered_set<u_int32_t> _hifiasm_startingNodenames;
 	ofstream _file_groundTruth_hifiasm_position;
+	EncoderRLE _encoderRLE;
 
-	void extract_truth_kminmers_read(kseq_t* read, u_int64_t readIndex){
+	void extract_truth_kminmers_read(const Read& read){
 		//ottalSize += strlen(read->seq.s);
 
 
+		u_int64_t readIndex = read._index;
 
 		string rleSequence;
 		vector<u_int64_t> rlePositions;
-		Encoder::encode_rle(read->seq.s, strlen(read->seq.s), rleSequence, rlePositions);
+		_encoderRLE.execute(read._seq.c_str(), read._seq.size(), rleSequence, rlePositions);
 
 		vector<u_int64_t> minimizers;
 		vector<u_int64_t> minimizers_pos;
@@ -1280,7 +1284,7 @@ public:
 				//}
 				//cout << _evaluation_hifiasmGroundTruth_nodeName_to_unitigName.size() << endl;
 
-				_evaluation_hifiasmGroundTruth_nodeName_to_unitigName[_mdbg->_dbg_nodes[vec]._index].push_back(string(read->name.s));
+				_evaluation_hifiasmGroundTruth_nodeName_to_unitigName[_mdbg->_dbg_nodes[vec]._index].push_back(read._header);
 				_evaluation_hifiasmGroundTruth_path.push_back(_mdbg->_dbg_nodes[vec]._index);
 
 				//if(_evaluation_hifiasmGroundTruth_nodeNamePosition.find(_mdbg->_dbg_nodes[vec]._index) == _evaluation_hifiasmGroundTruth_nodeNamePosition.end()){
@@ -1322,7 +1326,7 @@ public:
 		_extract_truth_kminmers_read_position = 0;
 		_minimizerParser = new MinimizerParser(_minimizerSize, _minimizerDensity);
 		
-		auto fp = std::bind(&ToBasespace::extract_truth_kminmers_read, this, std::placeholders::_1, std::placeholders::_2);
+		auto fp = std::bind(&ToBasespace::extract_truth_kminmers_read, this, std::placeholders::_1);
 		ReadParser readParser(_truthInputFilename, true, false);
 		readParser.parse(fp);
 

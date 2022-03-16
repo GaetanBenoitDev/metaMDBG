@@ -823,20 +823,21 @@ void Bloocoo::createMDBG (){
 
 	string inputFilename_min;
 	bool usePos = false;
-	if(_isFirstPass){
-		usePos = true;
-		inputFilename_min = _outputDir + "/read_data_init.txt";
-	}
-	else{
-		inputFilename_min = _outputDir + "/read_data.txt.corrected.txt";
-	}
+	
 	_kminmerFile = ofstream(_outputDir + "/kminmerData_min.txt");
 
-	//_parseReads = true;
 	cout << "Extracting kminmers (read)" << endl;
-	KminmerParser parser(inputFilename_min, _minimizerSize, _kminmerSize, usePos);
-	auto fp = std::bind(&Bloocoo::createMDBG_collectKminmers_minspace_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-	parser.parseMinspace(fp);
+
+	if(_isFirstPass){
+		
+		usePos = true;
+		inputFilename_min = _outputDir + "/read_data_init.txt";
+
+		//_parseReads = true;
+		KminmerParser parser(inputFilename_min, _minimizerSize, _kminmerSize, usePos);
+		auto fp = std::bind(&Bloocoo::createMDBG_collectKminmers_minspace_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+		parser.parseMinspace(fp);
+	}
 
 	if(!_isFirstPass){
 		const string& filename_uncorrectedReads = _outputDir + "/read_uncorrected.txt";

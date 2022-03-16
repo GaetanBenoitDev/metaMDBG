@@ -6,6 +6,10 @@
 #include "../Commons.hpp"
 
 
+
+
+
+
 class ReadSelection : public Tool{
     
 public:
@@ -18,14 +22,13 @@ public:
     size_t _kminmerSize;
 	string _filename_readMinimizers;
 	bool _isFirstPass;
+	int _nbCores;
 	
 
 	u_int64_t _debug_nbMinimizers;
 	//unordered_map<u_int64_t, u_int64_t> _minimizerCounts;
 	//unordered_map<KmerVec, KminmerData> _kminmersData;
-	ofstream _file_readData;
 	//gzFile _file_minimizerPos;
-	MinimizerParser* _minimizerParser;
 
 	ReadSelection(): Tool (){
 	}
@@ -41,7 +44,8 @@ public:
 		(ARG_INPUT_FILENAME, "", cxxopts::value<string>())
 		(ARG_OUTPUT_DIR, "", cxxopts::value<string>())
 		(ARG_FIRST_PASS, "", cxxopts::value<bool>()->default_value("false"))
-		(ARG_OUTPUT_FILENAME, "", cxxopts::value<string>());
+		(ARG_OUTPUT_FILENAME, "", cxxopts::value<string>())
+		(ARG_NB_CORES, "", cxxopts::value<int>()->default_value("8"));
 
 		//("k,kminmerSize", "File name", cxxopts::value<std::string>())
 		//("v,verbose", "Verbose output", cxxopts::value<bool>()->default_value("false"))
@@ -61,6 +65,7 @@ public:
 			_inputDir = result[ARG_OUTPUT_DIR].as<string>();
 			_outputFilename = result[ARG_OUTPUT_FILENAME].as<string>();
 			_isFirstPass = result[ARG_FIRST_PASS].as<bool>();
+			_nbCores = result[ARG_NB_CORES].as<int>();
 
 		}
 		catch (const std::exception& e){
@@ -91,95 +96,134 @@ public:
 
     void readSelection(){
 		_debug_nbMinimizers = 0;
-		_minimizerParser = new MinimizerParser(_minimizerSize, _minimizerDensity);
-		_file_readData = ofstream(_filename_readMinimizers);
+		ofstream file_readData = ofstream(_filename_readMinimizers);
 		//_file_minimizerPos = gzopen(_filename_readMinimizers.c_str(),"wb");
 		
-		auto fp = std::bind(&ReadSelection::readSelection_read, this, std::placeholders::_1, std::placeholders::_2);
-		ReadParser readParser(_inputFilename, false, false);
-		readParser.parse(fp);
+		//auto fp = std::bind(&ReadSelection::readSelection_read, this, std::placeholders::_1);
+		ReadParserParallel readParser(_inputFilename, false, false, _nbCores);
+		readParser.parse(ReadSelectionFunctor(_minimizerSize, _minimizerDensity, file_readData));
 
 
-		_file_readData.close();
-		delete _minimizerParser;
+		file_readData.close();
+		//delete _minimizerParser;
     }
 
-	void readSelection_read(kseq_t* read, u_int64_t readIndex){
+	unordered_map<u_int32_t, u_int32_t> _lala;
+
+	//void readSelection_read(){
 		
-		if(readIndex % 100000 == 0) cout << readIndex << " " << _debug_nbMinimizers << endl;
 
-		string rleSequence;
-		vector<u_int64_t> rlePositions;
-		Encoder::encode_rle(read->seq.s, strlen(read->seq.s), rleSequence, rlePositions);
 
-		vector<u_int64_t> minimizers;
-		vector<u_int64_t> minimizers_pos;
-		_minimizerParser->parse(rleSequence, minimizers, minimizers_pos);
-		_debug_nbMinimizers += minimizers.size();
+	//}
 
-		//cout << strlen(read->seq.s) << " " << rleSequence.size() << endl;
-		//cout << minimizers.size() << " " << minimizers_pos.size() << endl;
-		
-		//for(u_int64_t minimizer : minimizers){
-		//	_minimizerCounts[minimizer] += 1;
-		//}
-		//for(size_t i=0; i<rlePositions.size(); i++){
-		//	rlePositions[i] = i;
-		//}
 
-		//vector<KmerVec> kminmers; 
-		//vector<ReadKminmer> kminmersInfo;
-		//MDBG::getKminmers(_minimizerSize, _kminmerSize, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex);
+	class ReadSelectionFunctor {
 
-		//for(size_t i=0; i<kminmers.size(); i++){
+		public:
 
-			//if(_kminmersData.find(kminmers[i]) == _kminmersData.end()){
-			//	_kminmersData[kminmers[i]] = {0, kminmersInfo[i]._length - _minimizerSize, kminmersInfo[i]._seq_length_start, kminmersInfo[i]._seq_length_end, kminmersInfo[i]._isReversed};
+		size_t _minimizerSize;
+		float _minimizerDensity;
+		MinimizerParser* _minimizerParser;
+		EncoderRLE _encoderRLE;
+		ofstream& _file_readData;
+
+		ReadSelectionFunctor(size_t minimizerSize, float minimizerDensity, ofstream& file_readData) : _file_readData(file_readData){
+			_minimizerSize = minimizerSize;
+			_minimizerDensity = minimizerDensity;
+			_minimizerParser = new MinimizerParser(minimizerSize, minimizerDensity);
+		}
+
+		ReadSelectionFunctor(const ReadSelectionFunctor& copy) : _file_readData(copy._file_readData){
+			_minimizerSize = copy._minimizerSize;
+			_minimizerDensity = copy._minimizerDensity;
+			_minimizerParser = new MinimizerParser(_minimizerSize, _minimizerDensity);
+		}
+
+		~ReadSelectionFunctor(){
+			delete _minimizerParser;
+		}
+
+		void operator () (const Read& read) {
+
+			u_int64_t readIndex = read._index;
+			if(readIndex % 100000 == 0) cout << readIndex << endl;
+			
+			string rleSequence;
+			vector<u_int64_t> rlePositions;
+			_encoderRLE.execute(read._seq.c_str(), read._seq.size(), rleSequence, rlePositions);
+
+
+			vector<u_int64_t> minimizers;
+			vector<u_int64_t> minimizers_pos;
+			_minimizerParser->parse(rleSequence, minimizers, minimizers_pos);
+			//_debug_nbMinimizers += minimizers.size();
+
+			//cout << strlen(read->seq.s) << " " << rleSequence.size() << endl;
+			//cout << minimizers.size() << " " << minimizers_pos.size() << endl;
+			
+			//for(u_int64_t minimizer : minimizers){
+			//	_minimizerCounts[minimizer] += 1;
+			//}
+			//for(size_t i=0; i<rlePositions.size(); i++){
+			//	rlePositions[i] = i;
 			//}
 
-			//_kminmersData[kminmers[i]]._count += 1;
+			//vector<KmerVec> kminmers; 
+			//vector<ReadKminmer> kminmersInfo;
+			//MDBG::getKminmers(_minimizerSize, _kminmerSize, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex);
 
-		//}
+			//for(size_t i=0; i<kminmers.size(); i++){
 
-		//DnaBitset* dnaBitset = new DnaBitset(string(read->seq.s));
+				//if(_kminmersData.find(kminmers[i]) == _kminmersData.end()){
+				//	_kminmersData[kminmers[i]] = {0, kminmersInfo[i]._length - _minimizerSize, kminmersInfo[i]._seq_length_start, kminmersInfo[i]._seq_length_end, kminmersInfo[i]._isReversed};
+				//}
 
-		//u_int32_t size = dnaBitset->m_len;
-		//gzwrite(_file_readData, (const char*)&size, sizeof(size));
-		//gzwrite(_file_readData, dnaBitset->m_data, size);
+				//_kminmersData[kminmers[i]]._count += 1;
 
-		//u_int32_t size = strlen(read->seq.s);
-		//gzwrite(_file_readData, (const char*)&size, sizeof(size));
-		//gzwrite(_file_readData, read->seq.s, size);
+			//}
 
-		//cout << "----" << endl;
-		vector<u_int16_t> minimizerPosOffset;
+			//DnaBitset* dnaBitset = new DnaBitset(string(read->seq.s));
 
-		if(minimizers.size() > 0){
-			u_int16_t pos = minimizers_pos[0];
-			//cout << pos << endl;
-			minimizerPosOffset.push_back(pos);
+			//u_int32_t size = dnaBitset->m_len;
+			//gzwrite(_file_readData, (const char*)&size, sizeof(size));
+			//gzwrite(_file_readData, dnaBitset->m_data, size);
+
+			//u_int32_t size = strlen(read->seq.s);
+			//gzwrite(_file_readData, (const char*)&size, sizeof(size));
+			//gzwrite(_file_readData, read->seq.s, size);
+
+			//cout << "----" << endl;
 			
-			for(size_t i=1; i<minimizers_pos.size(); i++){
-				u_int16_t posOffset = minimizers_pos[i] - pos;
-				minimizerPosOffset.push_back(posOffset);
-				pos = minimizers_pos[i];
-				//cout << pos << " " << posOffset << endl;
+			vector<u_int16_t> minimizerPosOffset;
+
+			if(minimizers.size() > 0){
+				u_int16_t pos = minimizers_pos[0];
+				//cout << pos << endl;
+				minimizerPosOffset.push_back(pos);
+				
+				for(size_t i=1; i<minimizers_pos.size(); i++){
+					u_int16_t posOffset = minimizers_pos[i] - pos;
+					minimizerPosOffset.push_back(posOffset);
+					pos = minimizers_pos[i];
+					//cout << pos << " " << posOffset << endl;
+				}
 			}
+	
+			//#pragma omp critical(dataupdate)
+			#pragma omp critical
+			{
+				//cout << readIndex << endl;
+				u_int32_t size = minimizers.size();
+				_file_readData.write((const char*)&size, sizeof(size));
+				_file_readData.write((const char*)&minimizers[0], size*sizeof(u_int64_t));
+				_file_readData.write((const char*)&minimizerPosOffset[0], size*sizeof(u_int16_t));
+			}
+			
+		
 		}
- 
-		u_int32_t size = minimizers.size();
-		_file_readData.write((const char*)&size, sizeof(size));
-		_file_readData.write((const char*)&minimizers[0], size*sizeof(u_int64_t));
-		_file_readData.write((const char*)&minimizerPosOffset[0], size*sizeof(u_int16_t));
 
+	};
 
-		//u_int16_t size = minimizers.size();
-		//gzwrite(_file_readData, (const char*)&size, sizeof(size));
-		//gzwrite(_file_readData, (const char*)&minimizers[0], size * sizeof(u_int64_t));
-		//gzwrite(_file_readData, (const char*)&minimizerPosOffset[0], size * sizeof(u_int16_t));
-
-
-	}
 
 };	
 

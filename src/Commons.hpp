@@ -40,6 +40,13 @@ KSEQ_INIT(gzFile, gzread)
 
 using namespace std;
 
+struct Read{
+	u_int64_t _index;
+	string _header;
+	string _seq;
+	u_int16_t _threadIndex;
+};
+
 /*
 #define STR_OUTPUT "-o"
 #define STR_INPUT "-i"
@@ -346,6 +353,7 @@ const string ARG_INPUT_FILENAME_UNITIG_CLUSTER = "cluster";
 const string ARG_INPUT_FILENAME_ABUNDANCE = "a";
 const string ARG_FIRST_PASS = "firstpass";
 const string ARG_FASTA = "fasta";
+const string ARG_NB_CORES = "t";
 
 struct UnitigData{
 	u_int32_t _index;
@@ -993,11 +1001,11 @@ public:
 };
 
 
-class Encoder{
+class EncoderRLE{
 
 public: 
 
-	static void encode_rle(const char* sequence, size_t length, string& rleSequence, vector<u_int64_t>& rlePositions) {
+	void execute(const char* sequence, size_t length, string& rleSequence, vector<u_int64_t>& rlePositions) {
 		/*
 		string sequence_str;
 
@@ -1008,7 +1016,9 @@ public:
 					lastChar = readseq[i];
 				}
 		*/
-		rleSequence = "";
+		rlePositions.size();
+		rleSequence.size();
+		
 		char lastChar = '#';
 		u_int64_t lastPos = 0;
 
@@ -2333,6 +2343,150 @@ public:
 
 };
 
+class ReadParserParallel{
+
+public:
+
+	string _inputFilename;
+	bool _isFile;
+	bool _isBitset;
+	size_t _l;
+	size_t _k;
+	float _density;
+	vector<string> _filenames;
+	u_int64_t _nbDatasets;
+	int _nbCores;
+
+	ReadParserParallel(const string& inputFilename, bool isFile, bool isBitset, int nbCores){
+		_inputFilename = inputFilename;
+		_isFile = isFile;
+		_isBitset = isBitset;
+		_nbCores = nbCores;
+		
+		if(_isFile){
+			_nbDatasets = 1;
+			_filenames.push_back(inputFilename);
+		}
+		else{
+			parseFilenames();
+		}
+	}
+
+
+	ReadParserParallel(const string& inputFilename, bool isFile, size_t l, size_t k, float density){
+		_inputFilename = inputFilename;
+		_isFile = isFile;
+		_l = l;
+		_k = k;
+		_density = density;
+
+		if(_isFile){
+			_nbDatasets = 1;
+			_filenames.push_back(inputFilename);
+		}
+		else{
+			parseFilenames();
+		}
+
+	}
+
+	void parseFilenames(){
+
+		_nbDatasets = 0;
+
+		std::ifstream infile(_inputFilename.c_str());
+		std::string line;
+
+		while (std::getline(infile, line)){
+
+    		line.erase(std::remove_if(line.begin(), line.end(), ::isspace), line.end());
+			if(line.empty()) continue;
+
+			fs::path path(line);
+
+			if(fs::exists (path)){
+				_nbDatasets += 1;
+				_filenames.push_back(line);
+			}
+			else{
+				cout << "File not found: " << line << endl;
+			}
+		}
+
+
+	}
+
+
+
+	template<typename Functor>
+	void parse(const Functor& functor){
+
+		//#pragma omp for
+		cout << _nbCores << endl;
+
+		u_int64_t readIndex = -1;
+
+		for(const string& filename : _filenames){
+
+			cout << filename << endl;
+
+			gzFile fp = gzopen(filename.c_str(), "r");
+			kseq_t *seq;
+			seq = kseq_init(fp);
+
+			#pragma omp parallel num_threads(_nbCores)
+			{
+
+				bool isEOF = false;
+				Functor functorSub(functor);
+				/*
+				cout << "t" << endl;
+				kseq_t *seq;
+
+					#pragma omp critical
+					{
+				seq = kseq_init(fp);
+					}
+
+
+				int result = 1;
+				*/
+				Read read;
+
+				while(true){
+
+
+					#pragma omp critical
+					{
+						int result = kseq_read(seq);
+						readIndex += 1;
+						isEOF = result < 0;
+
+						read = {readIndex, string(seq->name.s), string(seq->seq.s)};
+						//cout << seq->name.s << endl;
+						//cout << "1" << endl;
+
+						//getchar();
+						
+						//cout << result << endl;
+					}
+
+					if(isEOF) break;
+					functorSub(read);
+
+				}
+				
+
+			}
+			
+			kseq_destroy(seq);	
+			gzclose(fp);
+
+		}
+
+		cout << readIndex << endl;
+	}
+};
 
 class ReadParser{
 public:
@@ -2404,14 +2558,19 @@ public:
 
 	}
 
-	void parse(const std::function<void(kseq_t*, u_int64_t)>& fun){
+
+
+	void parse(const std::function<void(Read)>& fun){
 
 		u_int64_t readIndex = 0;
+
+		vector<Read> sequenceBuffer;
 
 		for(const string& filename : _filenames){
 
 			cout << filename << endl;
 
+			/*
 			if(_isBitset){
 
 				ifstream fp(filename);
@@ -2451,6 +2610,7 @@ public:
 				fp.close();
 			}
 			else{
+				*/
 				gzFile fp;
 				kseq_t *seq;
 				int slen = 0, qlen = 0;
@@ -2458,22 +2618,38 @@ public:
 				seq = kseq_init(fp);
 
 				while (kseq_read(seq) >= 0){
-					fun(seq, readIndex);
+
+					fun({readIndex, string(seq->name.s), string(seq->seq.s)});
 					readIndex += 1;
+					/*
+					sequenceBuffer.push_back({readIndex, string(seq->name.s), string(seq->seq.s)});
+					readIndex += 1;
+
+					if(sequenceBuffer.size() > 100){
+						for(const Read& read : sequenceBuffer){
+							fun(read);
+						}
+						sequenceBuffer.clear();
+					}
+
+					//fun(seq, readIndex);
+					*/
 				}
 					
 				kseq_destroy(seq);
 				gzclose(fp);
-			}
+			//}
 
 		}
 
 	}
+	
 
 
 	void parseKminmers(const std::function<void(vector<KmerVec>, vector<ReadKminmer>, u_int64_t, u_int64_t, string, string)>& fun){
 
 		MinimizerParser* _minimizerParser = new MinimizerParser(_l, _density);
+		EncoderRLE encoderRLE;
 
 		u_int64_t readIndex = 0;
 		u_int64_t datasetIndex = 0;
@@ -2493,7 +2669,7 @@ public:
 
 				string rleSequence;
 				vector<u_int64_t> rlePositions;
-				Encoder::encode_rle(read->seq.s, strlen(read->seq.s), rleSequence, rlePositions);
+				encoderRLE.execute(read->seq.s, strlen(read->seq.s), rleSequence, rlePositions);
 
 				vector<u_int64_t> minimizers;
 				vector<u_int64_t> minimizers_pos;
@@ -2610,7 +2786,7 @@ public:
 		_selectedReads = selectedReads;
 
 		//ReadParser parser(readFilename, false);
-		auto fp = std::bind(&ReadParser::extractSubsample_read, this, std::placeholders::_1, std::placeholders::_2);
+		auto fp = std::bind(&ReadParser::extractSubsample_read, this, std::placeholders::_1);
 		parse(fp);
 
 		gzclose(_extractSubsample_outputFile);
@@ -2620,11 +2796,13 @@ public:
 	gzFile _extractSubsample_outputFile;
 	unordered_set<u_int64_t> _selectedReads;
 
-	void extractSubsample_read(kseq_t* read, u_int64_t readIndex){
+	void extractSubsample_read(const Read& read){
+
+		u_int64_t readIndex = read._index;
 
 		if(_selectedReads.find(readIndex) != _selectedReads.end()){
-			string header = ">" + string(read->name.s, strlen(read->name.s)) + "\n";
-			string seq = string(read->seq.s, strlen(read->seq.s)) + "\n";
+			string header = ">" + read._header + "\n";
+			string seq = read._seq + "\n";
 			gzwrite(_extractSubsample_outputFile, (const char*)&header[0], header.size());
 			gzwrite(_extractSubsample_outputFile, (const char*)&seq[0], seq.size());
 		}

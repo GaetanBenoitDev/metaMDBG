@@ -104,7 +104,7 @@ public:
 	void extractContigKmers (){
 
 		ReadParser parser(_inputFilename_contig, true, false);
-		auto fp = std::bind(&KmerCounter::extractContigKmers_read, this, std::placeholders::_1, std::placeholders::_2);
+		auto fp = std::bind(&KmerCounter::extractContigKmers_read, this, std::placeholders::_1);
 		parser.parse(fp);
 
 		//for(const auto& it : _kmerCounts){
@@ -115,7 +115,9 @@ public:
 	}
 
 
-	void extractContigKmers_read(kseq_t* read, u_int64_t readIndex){
+	void extractContigKmers_read(const Read& read){
+
+		u_int64_t readIndex = read._index;
 
 		_contigCoverages_mean.push_back(_countsInit);
 		_contigCoverages_var.push_back(_countsInit);
@@ -125,7 +127,7 @@ public:
 
 		vector<u_int64_t> minimizers;
 		vector<u_int64_t> minimizers_pos;
-		_minimizerParser->parse(string(read->seq.s), minimizers, minimizers_pos);
+		_minimizerParser->parse(read._seq, minimizers, minimizers_pos);
 
 		cout << "----" << endl;
 		cout << readIndex << endl;
@@ -171,7 +173,7 @@ public:
 
 
 			ReadParser parserDataset(filename, true, false);
-			auto fp = std::bind(&KmerCounter::countShortreadsKmers_read, this, std::placeholders::_1, std::placeholders::_2);
+			auto fp = std::bind(&KmerCounter::countShortreadsKmers_read, this, std::placeholders::_1);
 			parserDataset.parse(fp);
 
 			if(datasetIndex % 2 == 1){
@@ -197,8 +199,9 @@ public:
 	}
 
 
-	void countShortreadsKmers_read(kseq_t* read, u_int64_t readIndex){
+	void countShortreadsKmers_read(const Read& read){
 
+		u_int64_t readIndex = read._index;
 		if(readIndex % 100000 == 0) cout << _currentDatasetIndex << " " << readIndex << endl;
 		
 		//string rleSequence;
@@ -207,7 +210,7 @@ public:
 
 		vector<u_int64_t> minimizers;
 		vector<u_int64_t> minimizers_pos;
-		_minimizerParser->parse(string(read->seq.s), minimizers, minimizers_pos);
+		_minimizerParser->parse(read._seq, minimizers, minimizers_pos);
 
 
 		for(u_int64_t minimizer : minimizers){
@@ -222,14 +225,15 @@ public:
 
 		cout << "\tComputing contig coverage" << endl;
 		ReadParser parser(_inputFilename_contig, true, false);
-		auto fp = std::bind(&KmerCounter::computeContigCoverage_read, this, std::placeholders::_1, std::placeholders::_2);
+		auto fp = std::bind(&KmerCounter::computeContigCoverage_read, this, std::placeholders::_1);
 		parser.parse(fp);
 
 	}
 
 
-	void computeContigCoverage_read(kseq_t* read, u_int64_t readIndex){
+	void computeContigCoverage_read(const Read& read){
 
+		u_int64_t readIndex = read._index;
 		//string rleSequence;
 		//vector<u_int64_t> rlePositions;
 		//Encoder::encode_rle(read->seq.s, strlen(read->seq.s), rleSequence, rlePositions);
@@ -238,7 +242,7 @@ public:
 
 		vector<u_int64_t> minimizers;
 		vector<u_int64_t> minimizers_pos;
-		_minimizerParser->parse(string(read->seq.s), minimizers, minimizers_pos);
+		_minimizerParser->parse(read._seq, minimizers, minimizers_pos);
 
 
 		for(u_int64_t minimizer : minimizers){

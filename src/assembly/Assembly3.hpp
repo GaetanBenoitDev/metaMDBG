@@ -577,14 +577,17 @@ public:
 	vector<u_int32_t> _evaluation_hifiasmGroundTruth_path;
 	unordered_set<u_int32_t> _hifiasm_startingNodenames;
 	ofstream _file_groundTruth_hifiasm_position;
+	EncoderRLE _encoderRLE;
 
-	void extract_truth_kminmers_read(kseq_t* read, u_int64_t readIndex){
+	void extract_truth_kminmers_read(const Read& read){
+
+		u_int64_t readIndex = read._index;
 		//ottalSize += strlen(read->seq.s);
 
 
 		string rleSequence;
 		vector<u_int64_t> rlePositions;
-		Encoder::encode_rle(read->seq.s, strlen(read->seq.s), rleSequence, rlePositions);
+		_encoderRLE.execute(read._seq.c_str(), read._seq.size(), rleSequence, rlePositions);
 
 		vector<u_int64_t> minimizers;
 		vector<u_int64_t> minimizers_pos;
@@ -604,12 +607,12 @@ public:
 
 				u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
 				//2262408
-				if("utg009434l" == string(read->name.s)){
-					cout << nodeName << endl;
-					_hifiasm_startingNodenames.insert(nodeName);
-				}
+				//if("utg009434l" == string(read->name.s)){
+				//	cout << nodeName << endl;
+				//	_hifiasm_startingNodenames.insert(nodeName);
+				//}
 
-				_evaluation_hifiasmGroundTruth_nodeName_to_unitigName[_mdbg->_dbg_nodes[vec]._index].push_back(string(read->name.s));
+				_evaluation_hifiasmGroundTruth_nodeName_to_unitigName[_mdbg->_dbg_nodes[vec]._index].push_back(read._header);
 				_evaluation_hifiasmGroundTruth_path.push_back(_mdbg->_dbg_nodes[vec]._index);
 
 				if(_evaluation_hifiasmGroundTruth_nodeNamePosition.find(_mdbg->_dbg_nodes[vec]._index) == _evaluation_hifiasmGroundTruth_nodeNamePosition.end()){
@@ -651,7 +654,7 @@ public:
 		_extract_truth_kminmers_read_position = 0;
 		_minimizerParser = new MinimizerParser(_minimizerSize, _minimizerDensity);
 		
-		auto fp = std::bind(&Assembly3::extract_truth_kminmers_read, this, std::placeholders::_1, std::placeholders::_2);
+		auto fp = std::bind(&Assembly3::extract_truth_kminmers_read, this, std::placeholders::_1);
 		ReadParser readParser(_truthInputFilename, true, false);
 		readParser.parse(fp);
 

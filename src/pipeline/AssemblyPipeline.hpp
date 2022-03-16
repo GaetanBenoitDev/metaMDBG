@@ -18,6 +18,7 @@ public:
 	string _filename_readMinimizers;
 	string _filename_exe;
 	string _truthInputFilename;
+	int _nbCores;
 
 	string _inputFilenameComplete;
 
@@ -35,7 +36,8 @@ public:
 		//("d,debug", "Enable debugging") // a bool parameter
 		(ARG_INPUT_FILENAME, "", cxxopts::value<string>())
 		(ARG_OUTPUT_DIR, "", cxxopts::value<string>())
-		(ARG_INPUT_FILENAME_TRUTH, "", cxxopts::value<string>()->default_value(""));
+		(ARG_INPUT_FILENAME_TRUTH, "", cxxopts::value<string>()->default_value(""))
+		(ARG_NB_CORES, "", cxxopts::value<int>()->default_value("8"));
 		//(ARG_KMINMER_LENGTH, "", cxxopts::value<int>()->default_value("3"))
 		//(ARG_MINIMIZER_LENGTH, "", cxxopts::value<int>()->default_value("21"))
 		//(ARG_MINIMIZER_DENSITY, "", cxxopts::value<float>()->default_value("0.005"));
@@ -59,6 +61,7 @@ public:
 			//_minimizerSize = result[ARG_MINIMIZER_LENGTH].as<int>(); //getInput()->getInt(STR_MINIM_SIZE);
 			_inputDir = result[ARG_OUTPUT_DIR].as<string>(); //getInput()->getStr(STR_OUTPUT);
 			_truthInputFilename = result[ARG_INPUT_FILENAME_TRUTH].as<string>();
+			_nbCores = result[ARG_NB_CORES].as<int>();
 			//_minimizerDensity = result[ARG_MINIMIZER_DENSITY].as<float>(); //getInput()->getDouble(STR_DENSITY);
 
 		}
@@ -67,7 +70,6 @@ public:
 			std::cerr << e.what() << std::endl;
 			std::exit(EXIT_FAILURE);
 		}
-
 
         fs::path path(_inputDir);
 	    if(!fs::exists (path)) fs::create_directory(path); 
@@ -127,8 +129,8 @@ public:
 		//createInputFile(false);
 
 		//Read selection
-		//command = _filename_exe + " readSelection -i " + _inputFilename + " -o " + _inputDir + " -f " + _inputDir + "/read_data_init.txt";
-		//executeCommand(command);
+		command = _filename_exe + " readSelection -i " + _inputFilename + " -o " + _inputDir + " -f " + _inputDir + "/read_data_init.txt" + " -t " + to_string(_nbCores);
+		executeCommand(command);
 		
 
 		u_int64_t pass = 0;
