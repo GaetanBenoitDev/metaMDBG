@@ -355,6 +355,9 @@ const string ARG_FIRST_PASS = "firstpass";
 const string ARG_FASTA = "fasta";
 const string ARG_NB_CORES = "t";
 
+const string NB_CORES_DEFAULT = "8";
+
+
 struct UnitigData{
 	u_int32_t _index;
 	vector<u_int64_t> _readIndexes;

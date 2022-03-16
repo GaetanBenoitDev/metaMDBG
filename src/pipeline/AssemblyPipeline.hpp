@@ -223,7 +223,7 @@ public:
 				command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/contigs.nodepath.gz" + " -f " + _inputDir + "/contig_data.txt";
 				executeCommand(command);
 
-				command = _filename_exe + " toBasespace " + " -o " + _inputDir + " -i " + _inputFilename + " -c " + _inputDir + "/contig_data.txt " + " -f " + _inputDir + "/contigs_" + to_string(k) + ".fasta.gz " + " --fasta";
+				command = _filename_exe + " toBasespace " + " -o " + _inputDir + " -i " + _inputFilename + " -c " + _inputDir + "/contig_data.txt " + " -f " + _inputDir + "/contigs_" + to_string(k) + ".fasta.gz " + " --fasta"  + " -t " + to_string(_nbCores);
 				if(pass == 0) command += " --firstpass";
 				executeCommand(command);
 

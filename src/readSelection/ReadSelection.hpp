@@ -45,7 +45,7 @@ public:
 		(ARG_OUTPUT_DIR, "", cxxopts::value<string>())
 		(ARG_FIRST_PASS, "", cxxopts::value<bool>()->default_value("false"))
 		(ARG_OUTPUT_FILENAME, "", cxxopts::value<string>())
-		(ARG_NB_CORES, "", cxxopts::value<int>()->default_value("8"));
+		(ARG_NB_CORES, "", cxxopts::value<int>()->default_value(NB_CORES_DEFAULT));
 
 		//("k,kminmerSize", "File name", cxxopts::value<std::string>())
 		//("v,verbose", "Verbose output", cxxopts::value<bool>()->default_value("false"))
