@@ -22,6 +22,9 @@ Bloocoo::Bloocoo () : Tool()
 
 
 void Bloocoo::execute (){
+
+	_file_noKminmerReads = ofstream(_filename_noKminmerReads, std::ofstream::app);
+
 	//parseArgs();
 	createMDBG();
 	createGfa();
@@ -33,6 +36,8 @@ void Bloocoo::execute (){
 
 		file_data.close();
 	}
+
+	_file_noKminmerReads.close();
 }
 
 void Bloocoo::parseArgs(int argc, char* argv[]){
@@ -126,6 +131,7 @@ void Bloocoo::parseArgs(int argc, char* argv[]){
 	_kminmerLengthMean = _minimizerSpacingMean * (_kminmerSize-1);
 	_kminmerOverlapMean = _kminmerLengthMean - _minimizerSpacingMean;
 
+	_filename_noKminmerReads = _outputDir + "/" + FILENAME_NO_KMINMER_READS;
 	//cout << _minimizerSpacingMean << endl;
 	//cout << _kminmerLengthMean << endl;
 	//cout << _kminmerOverlapMean << endl;
@@ -581,6 +587,13 @@ void Bloocoo::extractKminmerSequence(const char* sequenceOriginal, const ReadKmi
 
 
 void Bloocoo::createMDBG_collectKminmers_minspace_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
+
+	//if(kminmersInfos.size() == 0){
+	//	u_int32_t size = readMinimizers.size();
+	//	_file_noKminmerReads.write((const char*)&size, sizeof(size));
+	//	_file_noKminmerReads.write((const char*)&readMinimizers[0], size*sizeof(u_int64_t));
+	//	return;
+	//}
 
 	//if(_parseReads && readMinimizers.size() > 100) return;
 	

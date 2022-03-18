@@ -3056,6 +3056,8 @@ public:
 
     void debug_writeGfaErrorfree(u_int32_t currentAbundance, float abundanceCutoff_min, u_int32_t nodeIndex_source, u_int64_t k, bool saveGfa, bool doesSaveState, bool doesLoadState, const vector<UnitigData>& unitigDatas, bool crushBubble, bool smallBubbleOnly, bool detectRoundabout, bool insertBubble, bool saveAllState){
 
+        cout << "Cleaning graph" << endl;
+        
         u_int64_t maxBubbleLength;
         if(smallBubbleOnly){
             maxBubbleLength = _kminmerSize * 2;
@@ -3531,7 +3533,7 @@ public:
             if(useConnectComponent){
                 removeUnconnectedNodes(nodeIndex_source);
             }
-getStronglyConnectedComponent_node
+            getStronglyConnectedComponent_node
             //cout << "Error: " << _isNodeRemoved[loulou] << endl;
             //compact();
 
@@ -3702,6 +3704,9 @@ getStronglyConnectedComponent_node
         //cout << _isNodeRemoved[BiGraph::nodeName_to_nodeIndex(214, true)] << endl;
 
         //exit(1);
+
+        cout << "Cleaning graph done" << endl;
+
     }
 
     void checkSaveState(float currentCutoff, const vector<UnitigData>& unitigDatas, bool detectRoundabout, u_int64_t maxBubbleLength, SaveState2 currentSaveState, bool insertBubble){
@@ -4031,6 +4036,8 @@ getStronglyConnectedComponent_node
             //std::reverse(_bubbles.begin(), _bubbles.end());
         }
         */
+
+
     }
 
     void collectStartingUnitigs(u_int64_t k){

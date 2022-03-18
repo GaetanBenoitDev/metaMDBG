@@ -55,7 +55,8 @@ public:
 	unordered_map<u_int32_t, vector<float>> _nodenameAbundanceVar;
 	unordered_map<u_int32_t, u_int32_t> _nodeNameDuplicate;
 	unordered_map<u_int32_t, string> _contigSequences;
-
+	unordered_map<u_int32_t, u_int32_t> _contigIndex_to_binIndex;
+	unordered_map<u_int32_t, vector<u_int32_t>> _binIndex_to_contigIndex;
 
 	ContigFeature(){
 
@@ -95,13 +96,16 @@ public:
 		cout << "Kmer composition size: " << _compositionVectorSize << endl;
 
 		//exit(1);
+		setup();
 	}
 
-	unordered_map<u_int32_t, unordered_set<u_int32_t>> _contigNodes;
+	//unordered_map<u_int32_t, unordered_set<u_int32_t>> _contigNodes;
 	unordered_map<u_int32_t, vector<float>> _contigCoverages;
 	unordered_map<u_int32_t, vector<float>> _contigCompositions;
 	unordered_map<u_int32_t, vector<float>> _contigCoveragesVar;
 	unordered_map<u_int32_t, vector<u_int32_t>> _nodeName_to_contigIndex;
+	unordered_map<u_int32_t, vector<u_int32_t>> _contigIndex_to_nodeName;
+
 	float _w_intra;
 	float _w_inter;
 
@@ -122,7 +126,37 @@ public:
 
 		//_w_intra = 12;
 		//_w_intra = 1;
-		cout << "W_intra: " << _w_intra << endl;
+		cout << "W_intra: " << bin_threshold << " " << break_threshold << endl;
+	}
+
+	void loadContigBins(const string& filename){
+		
+	    if(!fs::exists (filename)){
+			cout << "No contig bin file" << endl;
+			return;
+		}
+
+		ifstream file_contigBin(filename);
+
+		while(true){
+
+			u_int32_t contigIndex;
+			u_int32_t binIndex;
+
+			file_contigBin.read((char*)&contigIndex, sizeof(contigIndex));
+
+			if(file_contigBin.eof()) break;
+			
+			file_contigBin.read((char*)&binIndex, sizeof(binIndex));
+
+			_contigIndex_to_binIndex[contigIndex] = binIndex;
+			_binIndex_to_contigIndex[binIndex].push_back(contigIndex);
+
+			//cout << contigIndex << " -> " << binIndex << endl;
+		}
+
+
+		file_contigBin.close();
 	}
 
 	void loadAbundanceFile(const string& filename){
@@ -294,6 +328,12 @@ public:
 		setup();
 	}
 	
+	u_int32_t contigIndexToBinIndex(u_int32_t contigIndex){
+		
+		if(_contigIndex_to_binIndex.find(contigIndex) == _contigIndex_to_binIndex.end()) return -1;
+
+		return _contigIndex_to_binIndex[contigIndex];
+	}
 	void sequenceToComposition(const string& sequence, vector<float>& composition){
 		
 		composition.resize(_compositionVectorSize);
@@ -1026,12 +1066,13 @@ public:
 
 	}
 
+	/*
 	bool isIntra(const ContigFeatures& f1, const ContigFeatures& f2, bool hasComposition, bool hasAbundances){
 
 
 		float compositionProb = -log10(computeCompositionProbability(f1._composition, f2._composition));
 		if(isinf(compositionProb)) return false;
-		return compositionProb < 5;
+		return compositionProb < 0.05;
 
 
 		if(!hasAbundances) return false;
@@ -1085,7 +1126,57 @@ public:
 		//cout << "\tProb: " << prob << " " << _w_intra << endl;
 		//return prob < _w_intra;
 	}
+	*/
 
+	bool isIntra(const vector<u_int32_t>& bin1, const vector<u_int32_t>& bin2){
+
+		cout << "Is intra: " << bin1.size() << " " << bin2.size() << endl;
+
+		float distance = computeDistance(bin1, bin2);
+
+		if(isinf(distance)) return false;
+
+		return distance < 1;
+
+		//(1-tnf_dist)
+		//return  cor * (1-dist) > 0.65;
+	}
+
+	float computeDistance(const vector<u_int32_t>& bin1, const vector<u_int32_t>& bin2){
+
+		double distance_sum = 0;
+		double distance_n = 0;
+
+		for(u_int32_t contigIndex1 : bin1){
+			for(u_int32_t contigIndex2 : bin2){
+				distance_sum += computeDistance(contigIndex1, contigIndex2);
+				distance_n += 1;
+			}
+		}
+
+		return distance_sum / distance_n;
+	}
+
+	float computeDistance(u_int32_t contigIndex1, u_int32_t contigIndex2){
+
+		const vector<float>& composition1 = _contigCompositions[contigIndex1];
+		const vector<float>& composition2 = _contigCompositions[contigIndex2];
+
+		float compositionProb = -log10(computeCompositionProbability(composition1, composition2));
+
+		//const vector<float>& abundance1 = _contigCoverages[contigIndex1];
+		//const vector<float>& abundance1_var = _contigCoveragesVar[contigIndex1];
+		//const vector<float>& abundance2 = _contigCoverages[contigIndex2];
+		//const vector<float>& abundance2_var = _contigCoveragesVar[contigIndex2];
+
+		//int nnz = 0;
+		//float dist_abundance = cal_abd_dist_new(abundance1, abundance1_var,  abundance2, abundance2_var, nnz);
+		//if(compositionProb < 0.05){
+			//cout << dist_abundance << endl;
+		//}
+		
+		return compositionProb;
+	}
 
 	// for normal distributions
 	Distance cal_abd_dist2(Normal& p1, Normal& p2) {
@@ -1157,10 +1248,10 @@ public:
 		return distSum / nnz;
 	}
 
-	Distance cal_abd_dist_new(const ContigFeatures& f1, const ContigFeatures& f2, int& nnz) {
+	Distance cal_abd_dist_new(const vector<float>& abundance1, const vector<float>& abundance1_var, const vector<float>& abundance2, const vector<float>& abundance2_var, int& nnz) {
 
-		vector<float> means_f1 = f1._abundance;
-		vector<float> means_f2 = f2._abundance;
+		vector<float> means_f1 = abundance1;
+		vector<float> means_f2 = abundance2;
 
 		//for(size_t i=0; i<f1._abundance.size(); i++){
 		//	if(means_f1[i] < minCV) means_f1[i] = 0;
@@ -1171,7 +1262,7 @@ public:
 
 		//cout << endl;
 		float mean_ratio = 0;
-		for(size_t i=0; i<f1._abundance.size(); i++){
+		for(size_t i=0; i<abundance1.size(); i++){
 			if (means_f1[i] > 0 || means_f2[i] > 0) {
 				if(means_f2[i] > 0){
 					float ratio = means_f1[i] / means_f2[i];
@@ -1191,7 +1282,7 @@ public:
 		mean_ratio /= nnz;
 		//cout << mean_ratio << endl;
 		
-		for(size_t i=0; i<f1._abundance.size(); i++){
+		for(size_t i=0; i<abundance1.size(); i++){
 			means_f2[i] *= mean_ratio;
 		}
 
@@ -1199,7 +1290,7 @@ public:
 		float distSum = 0.0f;
 		nnz = 0;
 
-		for (size_t i=0; i < f1._abundance.size(); ++i) {
+		for (size_t i=0; i < abundance1.size(); ++i) {
 
 			Distance d = 0;
 			Distance m1 = means_f1[i];
@@ -1209,8 +1300,8 @@ public:
 				m1 = std::max(m1, (double)0.000001);
 				m2 = std::max(m2, (double)0.000001);
 				if (m1 != m2) {
-					Distance v1 = f1._abundanceVar[i] < 1 ? 1 : f1._abundanceVar[i];
-					Distance v2 = f2._abundanceVar[i] < 1 ? 1 : f2._abundanceVar[i];
+					Distance v1 = abundance1_var[i] < 1 ? 1 : abundance1_var[i];
+					Distance v2 = abundance2_var[i] < 1 ? 1 : abundance2_var[i];
 
 					//cout << m1 << " " << m2 << " " << v1 << " " << v2 << endl;
 					Normal p1(m1, sqrt(v1)), p2(m2, sqrt(v2));

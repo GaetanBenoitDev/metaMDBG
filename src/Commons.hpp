@@ -44,8 +44,9 @@ struct Read{
 	u_int64_t _index;
 	string _header;
 	string _seq;
-	u_int16_t _threadIndex;
 };
+
+
 
 /*
 #define STR_OUTPUT "-o"
@@ -356,6 +357,7 @@ const string ARG_FASTA = "fasta";
 const string ARG_NB_CORES = "t";
 
 const string NB_CORES_DEFAULT = "8";
+const string FILENAME_NO_KMINMER_READS = "reads_noKminmers.bin";
 
 
 struct UnitigData{
@@ -668,6 +670,13 @@ static const unsigned char basemap[256] = {
 	208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223,
 	224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239,
 	240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255
+};
+
+struct KminmerList{
+	u_int64_t _readIndex;
+	vector<u_int64_t> _readMinimizers;
+	vector<KmerVec> _kminmers;
+	vector<ReadKminmer> _kminmersInfo;
 };
 
 class Utils{
@@ -2895,6 +2904,7 @@ public:
 
 	}
 
+	
 	//template<typename SizeType>
 	void parseMinspace(const std::function<void(vector<u_int64_t>, vector<ReadKminmerComplete>, u_int64_t)>& fun){
 
@@ -3079,6 +3089,228 @@ public:
 
 		gzclose(file_mContigs);
 	
+	}
+	*/
+
+};
+
+
+
+
+class KminmerParserParallel{
+
+public:
+
+	string _inputFilename;
+	size_t _l;
+	size_t _k;
+	bool _usePos;
+	int _nbCores;
+
+	unordered_set<u_int64_t> _isReadProcessed;
+
+	KminmerParserParallel(){
+	}
+
+	KminmerParserParallel(const string& inputFilename, size_t l, size_t k, bool usePos, int nbCores){
+		_inputFilename = inputFilename;
+		_l = l;
+		_k = k;
+		_usePos = usePos;
+		_nbCores = nbCores;
+	}
+
+	template<typename Functor>
+	void parse(const Functor& functor){
+	//void parse(const std::function<void(vector<u_int64_t>, vector<KmerVec>, vector<ReadKminmer>, u_int64_t)>& fun){
+
+		ifstream file_readData(_inputFilename);
+
+		u_int64_t readIndex = -1;
+
+		#pragma omp parallel num_threads(_nbCores)
+		{
+
+			bool isEOF = false;
+			Functor functorSub(functor);
+			vector<u_int64_t> minimizers;
+			vector<u_int16_t> minimizersPosOffsets; 
+			u_int32_t size;
+			KminmerList kminmerList;
+			//KminmerList kminmer;
+
+			while(true){
+				
+
+				#pragma omp critical
+				{
+
+					readIndex += 1;
+
+					kminmerList = {readIndex};
+					
+					file_readData.read((char*)&size, sizeof(size));
+
+					if(file_readData.eof()) isEOF = true;
+
+					if(!isEOF){
+						minimizers.resize(size);
+						minimizersPosOffsets.resize(size);
+						file_readData.read((char*)&minimizers[0], size*sizeof(u_int64_t));
+						if(_usePos) file_readData.read((char*)&minimizersPosOffsets[0], size*sizeof(u_int16_t));
+					}
+
+				}
+
+				
+
+				//if(_isReadProcessed.size() > 0 && _isReadProcessed.find(readIndex) != _isReadProcessed.end()){
+				//	readIndex += 1;
+				//	continue;
+				//}
+
+				//cout << "----" << endl;
+
+				if(isEOF) break;
+
+				vector<u_int64_t> minimizersPos; 
+				if(size > 0){
+					u_int64_t pos = minimizersPosOffsets[0];
+					minimizersPos.push_back(pos);
+					for(size_t i=1; i<minimizersPosOffsets.size(); i++){
+						pos += minimizersPosOffsets[i];
+						minimizersPos.push_back(pos);
+						//cout << minimizersPosOffsets[i] << " " << pos << endl;
+					}
+				}
+
+				vector<KmerVec> kminmers; 
+				vector<ReadKminmer> kminmersInfo;
+				vector<u_int64_t> rlePositions;
+				MDBG::getKminmers(_l, _k, minimizers, minimizersPos, kminmers, kminmersInfo, rlePositions, 0, false);
+				
+				//fun(minimizers, kminmers, kminmersInfo, readIndex);
+				kminmerList._readMinimizers = minimizers;
+				kminmerList._kminmers = kminmers;
+				kminmerList._kminmersInfo = kminmersInfo;
+				functorSub(kminmerList);
+			}
+		}
+
+		file_readData.close();
+
+	}
+
+	/*
+	template<typename Functor>
+	void parse(const Functor& functor){
+
+		//#pragma omp for
+		cout << _nbCores << endl;
+
+		u_int64_t readIndex = -1;
+
+		for(const string& filename : _filenames){
+
+			cout << filename << endl;
+
+			gzFile fp = gzopen(filename.c_str(), "r");
+			kseq_t *seq;
+			seq = kseq_init(fp);
+
+			#pragma omp parallel num_threads(_nbCores)
+			{
+
+				bool isEOF = false;
+				Functor functorSub(functor);
+
+				Read read;
+
+				while(true){
+
+
+					#pragma omp critical
+					{
+						int result = kseq_read(seq);
+						readIndex += 1;
+						isEOF = result < 0;
+
+						read = {readIndex, string(seq->name.s), string(seq->seq.s)};
+						//cout << seq->name.s << endl;
+						//cout << "1" << endl;
+
+						//getchar();
+						
+						//cout << result << endl;
+					}
+
+					if(isEOF) break;
+					functorSub(read);
+
+				}
+				
+
+			}
+			
+			kseq_destroy(seq);	
+			gzclose(fp);
+
+		}
+
+		cout << readIndex << endl;
+	}
+	*/
+
+	/*
+	//template<typename SizeType>
+	void parseMinspace(const std::function<void(vector<u_int64_t>, vector<ReadKminmerComplete>, u_int64_t)>& fun){
+
+		ifstream file_readData(_inputFilename, std::ios::binary);
+
+		u_int64_t readIndex = 0;
+
+		while(true){
+			
+			u_int32_t size;
+			vector<u_int64_t> minimizers;
+			vector<u_int16_t> minimizersPosOffsets; 
+			
+			file_readData.read((char*)&size, sizeof(size));
+
+			if(file_readData.eof())break;
+
+			minimizers.resize(size);
+			minimizersPosOffsets.resize(size);
+
+			file_readData.read((char*)&minimizers[0], size*sizeof(u_int64_t));
+			if(_usePos){
+				file_readData.read((char*)&minimizersPosOffsets[0], size*sizeof(u_int16_t));
+			}
+
+			
+			//cout << "----" << endl;
+			vector<u_int64_t> minimizersPos; 
+			if(size > 0){
+				u_int64_t pos = minimizersPosOffsets[0];
+				minimizersPos.push_back(pos);
+				for(size_t i=1; i<minimizersPosOffsets.size(); i++){
+					pos += minimizersPosOffsets[i];
+					minimizersPos.push_back(pos);
+					//cout << minimizersPosOffsets[i] << " " << pos << endl;
+				}
+			}
+
+
+			vector<ReadKminmerComplete> kminmersInfo;
+			MDBG::getKminmers_complete(_k, minimizers, minimizersPos, kminmersInfo, readIndex);
+
+			fun(minimizers, kminmersInfo, readIndex);
+
+			readIndex += 1;
+		}
+
+		file_readData.close();
+
 	}
 	*/
 

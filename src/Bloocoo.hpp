@@ -56,6 +56,8 @@ public:
     size_t _minimizerSize;
     size_t _kminmerSize;
     size_t _kminmerSizeFirst;
+	string _filename_noKminmerReads;
+	ofstream _file_noKminmerReads;
     //IBank* _inputBank;
 
 	//vector<ReadData> _readData;

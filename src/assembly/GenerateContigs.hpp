@@ -728,8 +728,8 @@ public:
 				if(unitig._length > unitigLength_cutoff_max) continue;
 				*/
 				if(unitig._abundance < _minUnitigAbundance) continue;
-				if(unitig._nbNodes < _kminmerSize*2) continue;
-				if(cutoff == 0 && unitig._length < 10000) continue;
+				//if(unitig._nbNodes < _kminmerSize*2) continue;
+				//if(cutoff == 0 && unitig._length < 10000) continue;
 				//if(cutoff == 0) continue;
 
 				startingUnitigs.push_back({unitig._length, unitig._abundance, unitig._startNode});

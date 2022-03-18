@@ -116,6 +116,12 @@ public:
 		gzwrite(file_parameters, (const char*)&_minimizerDensity, sizeof(_minimizerDensity));
 		gzclose(file_parameters);
 		*/
+
+		string filename = _inputDir + "/" + FILENAME_NO_KMINMER_READS;
+		if(fs::exists(filename)){
+			fs::remove(filename);
+		}
+		
 	}
 
     void execute_pipeline(){
@@ -174,7 +180,7 @@ public:
 			executeCommand(command);
 			//getchar();
 
-			command = _filename_exe + " multik -o " + _inputDir;
+			command = _filename_exe + " multik -o " + _inputDir + " -t " + to_string(_nbCores);
 			if(!_truthInputFilename.empty()) command += " --itruth " + _truthInputFilename;
 			//if(pass > 0) command += " -c " +  _inputDir + "/contig_data.gz";
 			executeCommand(command);

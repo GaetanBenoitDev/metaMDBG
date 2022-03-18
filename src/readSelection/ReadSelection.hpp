@@ -147,7 +147,7 @@ public:
 
 			u_int64_t readIndex = read._index;
 			if(readIndex % 100000 == 0) cout << readIndex << endl;
-			
+
 			string rleSequence;
 			vector<u_int64_t> rlePositions;
 			_encoderRLE.execute(read._seq.c_str(), read._seq.size(), rleSequence, rlePositions);
