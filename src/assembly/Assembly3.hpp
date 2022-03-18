@@ -226,7 +226,7 @@ public:
 	unordered_map<u_int64_t, vector<u_int32_t>> _debug_readPath;
     vector<bool> _isBubble;
 	unordered_map<u_int32_t, vector<u_int64_t>> _nodeName_to_kminmerSequence;
-	
+	unordered_set<u_int32_t> _isNodeNameUnsupported;
 
 	void loadGraph(){
 
@@ -511,6 +511,37 @@ public:
 		//	parserContig.parse(fpContig);
 		//}
 
+		for(u_int32_t nodeIndex : _graph->_isNodeValid2){
+			u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
+
+			vector<u_int32_t> successors;
+			graph->getSuccessors(nodeIndex, 0, successors);
+
+			for(u_int32_t successor : successors){
+				
+				u_int32_t nodeName_succ = BiGraph::nodeIndex_to_nodeName(successor);
+
+				u_int32_t nbSharedReads = Utils::computeSharedReads(_unitigDatas[nodeName], _unitigDatas[nodeName_succ]);
+				if(nbSharedReads <= 1){
+					_isNodeNameUnsupported.insert(nodeName);
+					_isNodeNameUnsupported.insert(nodeName_succ);
+				}
+				//if(Utils::shareAnyRead(_unitigDatas[nodeName], _unitigDatas[nodeName_succ])){
+				//	continue;
+				//}
+
+				//Unitig& unitig_succ = graph->_unitigs[graph->nodeIndex_to_unitigIndex(successor)];
+
+				//removedEdges.push_back({unitig._endNode, successor});
+				
+				
+			}
+
+		}
+
+		cout << "Nb unsupported nodes: " << _isNodeNameUnsupported.size() << endl;
+
+		return;
 		if(_kminmerSize > 3) return;
 
 		vector<DbgEdge> removedEdges;
@@ -984,14 +1015,15 @@ public:
 		unordered_map<u_int32_t, vector<u_int64_t>>& _nodeName_to_kminmerSequence;
     	size_t _kminmerSize;
 		vector<UnitigData>& _unitigDatas;
+		unordered_set<u_int32_t>& _isNodeNameUnsupported;
 
-		ReadCorrectionFunctor(Assembly3& assembly3) : _assembly3(assembly3), _nodeName_to_kminmerSequence(assembly3._nodeName_to_kminmerSequence), _unitigDatas(assembly3._unitigDatas){
+		ReadCorrectionFunctor(Assembly3& assembly3) : _assembly3(assembly3), _nodeName_to_kminmerSequence(assembly3._nodeName_to_kminmerSequence), _unitigDatas(assembly3._unitigDatas), _isNodeNameUnsupported(assembly3._isNodeNameUnsupported){
 			_mdbg = _assembly3._mdbg;
 			_graph = _assembly3._graph;
 			_kminmerSize = _assembly3._kminmerSize;
 		}
 
-		ReadCorrectionFunctor(const ReadCorrectionFunctor& copy) : _assembly3(copy._assembly3), _nodeName_to_kminmerSequence(copy._nodeName_to_kminmerSequence), _unitigDatas(copy._unitigDatas){
+		ReadCorrectionFunctor(const ReadCorrectionFunctor& copy) : _assembly3(copy._assembly3), _nodeName_to_kminmerSequence(copy._nodeName_to_kminmerSequence), _unitigDatas(copy._unitigDatas), _isNodeNameUnsupported(copy._isNodeNameUnsupported){
 			_mdbg = copy._mdbg;
 			_graph = copy._graph;
 			_kminmerSize = copy._kminmerSize;
@@ -1455,11 +1487,15 @@ public:
 
 			if(nodePathSolid.size() == 0) return;
 
-			unordered_set<u_int32_t> unallowedNodeNames;
-			for(u_int32_t nodeIndex : nodePathSolid){
-				unallowedNodeNames.insert(BiGraph::nodeIndex_to_nodeName(nodeIndex));
-			}
+			u_int32_t nodeIndex_left = nodePathSolid[0];
+			u_int32_t nodeIndex_right = nodePathSolid[nodePathSolid.size()-1];
+			u_int32_t nodeNameSolidLeft = BiGraph::nodeIndex_to_nodeName(nodeIndex_left);
+			u_int32_t nodeNameSolidRight = BiGraph::nodeIndex_to_nodeName(nodeIndex_right);
 
+			bool needExtendLeft = true; //_graph->isEdgeNode(nodeIndex_left) || _isNodeNameUnsupported.find(nodeNameSolidLeft) != _isNodeNameUnsupported.end();
+			bool needExtendRight = true; //_graph->isEdgeNode(nodeIndex_right) || _isNodeNameUnsupported.find(nodeNameSolidRight) != _isNodeNameUnsupported.end();
+
+			if(!needExtendLeft && !needExtendRight) return;
 
 			if(print_read){
 				cout << "\tExtending read path" << endl;
@@ -1470,7 +1506,6 @@ public:
 				cout << endl;
 			}
 
-			u_int32_t nodeNameSolidLeft = BiGraph::nodeIndex_to_nodeName(nodePathSolid[0]);
 
 			u_int64_t solidPositionLeft = 0;
 			for(long i=0; i < kminmers.size(); i++){
@@ -1489,7 +1524,6 @@ public:
 				}
 			}
 
-			u_int32_t nodeNameSolidRight = BiGraph::nodeIndex_to_nodeName(nodePathSolid[nodePathSolid.size()-1]);
 
 			u_int64_t solidPositionRight = 0;
 			for(long i=kminmers.size()-1; i>=0; i--){
@@ -1524,8 +1558,13 @@ public:
 			solidPositionLeft -= 1;
 			solidPositionRight += _kminmerSize;
 
-			extendReadpath2(readpath, nodePathSolid, true, nbExtendRight, unallowedNodeNames, solidPositionRight, readMinimizers, print_read);
-			extendReadpath2(readpath, nodePathSolid, false, nbExtendLeft, unallowedNodeNames, solidPositionLeft, readMinimizers, print_read);
+			unordered_set<u_int32_t> unallowedNodeNames;
+			for(u_int32_t nodeIndex : nodePathSolid){
+				unallowedNodeNames.insert(BiGraph::nodeIndex_to_nodeName(nodeIndex));
+			}
+
+			if(needExtendRight) extendReadpath2(readpath, nodePathSolid, true, nbExtendRight, unallowedNodeNames, solidPositionRight, readMinimizers, print_read);
+			if(needExtendLeft) extendReadpath2(readpath, nodePathSolid, false, nbExtendLeft, unallowedNodeNames, solidPositionLeft, readMinimizers, print_read);
 			
 
 		}

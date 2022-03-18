@@ -784,6 +784,7 @@ public:
 		vector<u_int32_t> binContigIndexes;
 		u_int32_t currentBinIndex = _contigFeature.contigIndexToBinIndex(contigIndex_model);
 		if(currentBinIndex == -1){
+			if(!_isFirstPass) return;
 			binContigIndexes.push_back(contigIndex_model);
 		}
 		else{
@@ -857,14 +858,14 @@ public:
 
 
 
-			size_t componentNbNodes = 50;
+			size_t componentNbNodes = 9999999;
 			size_t componentLength = 100000;
 
 			unordered_set<u_int32_t> component;
 			unordered_set<u_int32_t> componentNbNodes2;
 			//_graph->getConnectedComponent_readpath(unitigIndex, _unitigDatas, 1, component);
-			_graph->getConnectedComponent_unitig_nt(unitigIndex, componentLength, component);
-			_graph->getConnectedComponent_unitig(unitigIndex, componentNbNodes, componentNbNodes2);
+			//_graph->getConnectedComponent_unitig_nt(unitigIndex, componentLength, component);
+			_graph->getConnectedComponent_unitig(unitigIndex, componentNbNodes, component);
 			cout << "Component size: " << componentNbNodes2.size() << " " << component.size() << endl;
 
 
@@ -1207,7 +1208,7 @@ public:
 			}
 
 			for(u_int32_t unitigIndex : validUnitigs){
-				queue.push(unitigIndex);
+				//queue.push(unitigIndex);
 			}
 
 

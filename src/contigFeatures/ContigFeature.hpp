@@ -1136,7 +1136,9 @@ public:
 
 		if(isinf(distance)) return false;
 
-		return distance < 1;
+		//return distance < 0.015;
+		//return distance < 0.015;
+		return distance < 0.05;
 
 		//(1-tnf_dist)
 		//return  cor * (1-dist) > 0.65;
