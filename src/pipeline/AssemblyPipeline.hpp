@@ -209,7 +209,15 @@ public:
 			//if(pass > 0){
 
 			
-			
+			//Generate contigs
+			command = _filename_exe + " contig " + " -o " + _inputDir;
+			if(!_truthInputFilename.empty()) command += " --itruth " + _truthInputFilename;
+			//if(pass == 0) command += " --firstpass";
+			executeCommand(command);
+
+			command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/contigs.nodepath.gz" + " -f " + _inputDir + "/contig_data.txt";
+			executeCommand(command);
+
 
 			//command = _filename_exe + " toBasespaceFast " + " -o " + _inputDir + " -i " + _inputFilename + " -c " + _inputDir + "/contig_data.txt " + " -f " + _inputDir + "/contigs.fasta.gz " +  " --fasta";
 			//if(pass == 0) command += " --firstpass";
@@ -220,14 +228,7 @@ public:
 			//if(k == 5 || k == 10 || k == 16 || k == 21 || k == 26 || k == 31){
 			if(k == 10 || k == 19 || k==31 || k==41 || k==51 || k==61 || k==71 || k==81 || k==91){
 
-				//Generate contigs
-				command = _filename_exe + " contig " + " -o " + _inputDir;
-				if(!_truthInputFilename.empty()) command += " --itruth " + _truthInputFilename;
-				//if(pass == 0) command += " --firstpass";
-				executeCommand(command);
 
-				command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/contigs.nodepath.gz" + " -f " + _inputDir + "/contig_data.txt";
-				executeCommand(command);
 
 				command = _filename_exe + " toBasespace " + " -o " + _inputDir + " -i " + _inputFilename + " -c " + _inputDir + "/contig_data.txt " + " -f " + _inputDir + "/contigs_" + to_string(k) + ".fasta.gz " + " --fasta"  + " -t " + to_string(_nbCores);
 				if(pass == 0) command += " --firstpass";

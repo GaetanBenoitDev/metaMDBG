@@ -269,15 +269,15 @@ public:
 		
 
 		//Generate unitigs
-		cout << "Indexing reads" << endl;
-		_unitigDatas.resize(_mdbg->_dbg_nodes.size());
-		_graph->clear(0);
-		_graph->compact(false, _unitigDatas);
+		//cout << "Indexing reads" << endl;
+		//_unitigDatas.resize(_mdbg->_dbg_nodes.size());
+		//_graph->clear(0);
+		//_graph->compact(false, _unitigDatas);
 		//generateContigs();
-		removeUnsupportedEdges(_gfaFilename, gfa_filename_noUnsupportedEdges, _graph);
+		//removeUnsupportedEdges(_gfaFilename, gfa_filename_noUnsupportedEdges, _graph);
 		
 
-		cout << "done" << endl;
+		//cout << "done" << endl;
 	
 
 		//if(_kminmerSize == 4){
@@ -296,11 +296,11 @@ public:
 			//!
 
 			cout << "done" << endl;
-			_graph->loadState2(0, -1, _unitigDatas);
+			//_graph->loadState2(0, -1, _unitigDatas);
 		//}
 
 		
-		
+		/*
 		cout << _graph->_isNodenameRoundabout.size() << endl;
 		
 		
@@ -317,7 +317,7 @@ public:
 			}
 		}
 		file_correction.close();
-		
+		*/
 		//cout << _graph->nodeIndex_to_unitig(BiGraph::nodeName_to_nodeIndex(12871, true))._nbNodes << " " << _graph->nodeIndex_to_unitig(BiGraph::nodeName_to_nodeIndex(12871, true))._length << endl;
 		//getchar();
 		
@@ -1492,8 +1492,8 @@ public:
 			u_int32_t nodeNameSolidLeft = BiGraph::nodeIndex_to_nodeName(nodeIndex_left);
 			u_int32_t nodeNameSolidRight = BiGraph::nodeIndex_to_nodeName(nodeIndex_right);
 
-			bool needExtendLeft = true; //_graph->isEdgeNode(nodeIndex_left) || _isNodeNameUnsupported.find(nodeNameSolidLeft) != _isNodeNameUnsupported.end();
-			bool needExtendRight = true; //_graph->isEdgeNode(nodeIndex_right) || _isNodeNameUnsupported.find(nodeNameSolidRight) != _isNodeNameUnsupported.end();
+			bool needExtendLeft = _graph->isEdgeNode(nodeIndex_left);// || _isNodeNameUnsupported.find(nodeNameSolidLeft) != _isNodeNameUnsupported.end();
+			bool needExtendRight = _graph->isEdgeNode(nodeIndex_right);// || _isNodeNameUnsupported.find(nodeNameSolidRight) != _isNodeNameUnsupported.end();
 
 			if(!needExtendLeft && !needExtendRight) return;
 

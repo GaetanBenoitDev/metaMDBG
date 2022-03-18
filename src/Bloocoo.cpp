@@ -604,7 +604,7 @@ void Bloocoo::createMDBG_collectKminmers_minspace_read(const vector<u_int64_t>& 
 		minimizerPosOffset[i] = _minimizerSpacingMean;
 	}
 
-	if(!_isFirstPass ){ //&& _parseReads
+	if(!_isFirstPass && !_parsingContigs){
 		u_int32_t size = readMinimizers.size();
 		_readFile.write((const char*)&size, sizeof(size));
 		_readFile.write((const char*)&readMinimizers[0], size*sizeof(u_int64_t));
@@ -666,7 +666,7 @@ void Bloocoo::createMDBG_collectKminmers_minspace_read(const vector<u_int64_t>& 
 			
 			_mdbgNoFilter->addNode(vec, _kminmerLengthMean, _minimizerSpacingMean, _minimizerSpacingMean, kminmerInfo._isReversed);
 
-			if(_kminmerExist.find(vec) != _kminmerExist.end()){
+			if(_kminmerExist.find(vec) != _kminmerExist.end() || _parsingContigs){
 
 				if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
 
@@ -841,12 +841,13 @@ void Bloocoo::createMDBG (){
 
 	cout << "Extracting kminmers (read)" << endl;
 
+	_parsingContigs = false;
+	
 	if(_isFirstPass){
 		
 		usePos = true;
 		inputFilename_min = _outputDir + "/read_data_init.txt";
 
-		//_parseReads = true;
 		KminmerParser parser(inputFilename_min, _minimizerSize, _kminmerSize, usePos);
 		auto fp = std::bind(&Bloocoo::createMDBG_collectKminmers_minspace_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 		parser.parseMinspace(fp);
@@ -859,13 +860,12 @@ void Bloocoo::createMDBG (){
 		auto fp2 = std::bind(&Bloocoo::createMDBG_collectKminmers_minspace_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 		parser2.parseMinspace(fp2);
 
-		
-		//_parseReads = false;
-		//const string& filename_contigs = _outputDir + "/contig_data.txt";
+		_parsingContigs = true;
+		const string& filename_contigs = _outputDir + "/contig_data.txt";
 
-		//KminmerParser parser3(filename_contigs, _minimizerSize, _kminmerSize, false);
-		//auto fp3 = std::bind(&Bloocoo::createMDBG_collectKminmers_minspace_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-		//parser3.parseMinspace(fp3);
+		KminmerParser parser3(filename_contigs, _minimizerSize, _kminmerSize, false);
+		auto fp3 = std::bind(&Bloocoo::createMDBG_collectKminmers_minspace_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+		parser3.parseMinspace(fp3);
 		//parser3.parseMinspace(fp3); //Solidify contigs
 		
 	}
