@@ -136,7 +136,7 @@ public:
 
 		//Read selection
 		command = _filename_exe + " readSelection -i " + _inputFilename + " -o " + _inputDir + " -f " + _inputDir + "/read_data_init.txt" + " -t " + to_string(_nbCores);
-		//executeCommand(command);
+		executeCommand(command);
 		
 
 		u_int64_t pass = 0;
@@ -171,10 +171,10 @@ public:
 			//executeCommand(command);
 
 			if(pass == 0){
-				command = _filename_exe + " graph -i " + _inputFilename + " -o " + _inputDir;
+				command = _filename_exe + " graph -i " + _inputFilename + " -o " + _inputDir + " -t " + to_string(_nbCores);
 			}
 			else{
-				command = _filename_exe + " graph -i " + _inputDir + "/read_data.txt.corrected.txt " + " -o " + _inputDir;	
+				command = _filename_exe + " graph -i " + _inputDir + "/read_data.txt.corrected.txt " + " -o " + _inputDir + " -t " + to_string(_nbCores);	
 			}
 			if(pass == 0) command += " --firstpass";
 			executeCommand(command);

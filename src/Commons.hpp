@@ -675,8 +675,9 @@ static const unsigned char basemap[256] = {
 struct KminmerList{
 	u_int64_t _readIndex;
 	vector<u_int64_t> _readMinimizers;
-	vector<KmerVec> _kminmers;
-	vector<ReadKminmer> _kminmersInfo;
+	vector<ReadKminmerComplete> _kminmersInfo;
+	//vector<KmerVec> _kminmers;
+	//vector<ReadKminmer> _kminmersInfo;
 };
 
 class Utils{
@@ -3184,14 +3185,16 @@ public:
 					}
 				}
 
-				vector<KmerVec> kminmers; 
-				vector<ReadKminmer> kminmersInfo;
+				//vector<KmerVec> kminmers; 
+				//vector<ReadKminmer> kminmersInfo;
 				vector<u_int64_t> rlePositions;
-				MDBG::getKminmers(_l, _k, minimizers, minimizersPos, kminmers, kminmersInfo, rlePositions, 0, false);
+				vector<ReadKminmerComplete> kminmersInfo;
+				//MDBG::getKminmers(_l, _k, minimizers, minimizersPos, kminmers, kminmersInfo, rlePositions, 0, false);
+				MDBG::getKminmers_complete(_k, minimizers, minimizersPos, kminmersInfo, readIndex);
 				
 				//fun(minimizers, kminmers, kminmersInfo, readIndex);
 				kminmerList._readMinimizers = minimizers;
-				kminmerList._kminmers = kminmers;
+				//kminmerList._kminmers = kminmers;
 				kminmerList._kminmersInfo = kminmersInfo;
 				functorSub(kminmerList);
 			}

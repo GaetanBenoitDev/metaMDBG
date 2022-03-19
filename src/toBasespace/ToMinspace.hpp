@@ -377,6 +377,10 @@ public:
 			kminmerFile.read((char*)&lengthStart, sizeof(lengthStart));
 			kminmerFile.read((char*)&lengthEnd, sizeof(lengthEnd));
 
+			//length = _kminmerSize;
+			//lengthStart = 1;
+			//lengthEnd = 1;
+			//cout << size << " " << nodeName << endl;
 
 			auto found = _nodeName_entire.find(nodeName);
 			if(found != _nodeName_entire.end() && !found->second._loaded){

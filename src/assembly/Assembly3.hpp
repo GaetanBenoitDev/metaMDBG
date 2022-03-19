@@ -456,7 +456,8 @@ public:
 
 	}
 
-	void indexReads_contig(const vector<u_int64_t>& minimizers, const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex){//}, const vector<KmerVec>& kminmers_k3, const vector<ReadKminmer>& kminmersInfos_k3){
+	/*
+	void indexReads_contig(const vector<u_int64_t>& minimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){//}, const vector<KmerVec>& kminmers_k3, const vector<ReadKminmer>& kminmersInfos_k3){
 
 		readIndex += 2000000000;
 		//vector<ReadIndexType> unitigIndexex;
@@ -486,14 +487,15 @@ public:
 
 
 	}
-	
+	*/
+
 	bool _indexingContigs;
 
 	void removeUnsupportedEdges(const string& gfaFilename, const string& gfa_filename_noUnsupportedEdges, GraphSimplify* graph){
 
 		_indexingContigs = false;
 		
-		KminmerParser parser(_filename_readMinimizers, _minimizerSize, _kminmerSize, true);
+		KminmerParser parser(_filename_readMinimizers, _minimizerSize, _kminmerSize, false);
 		//auto fp = std::bind(&Assembly::indexReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5);
 		auto fp = std::bind(&Assembly3::indexReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
 		parser.parse(fp);
@@ -714,7 +716,7 @@ public:
 		_graph->loadState2(0, -1, _unitigDatas);
 
 		
-		KminmerParser parser(_filename_readMinimizers, _minimizerSize, _kminmerSize, true);
+		KminmerParser parser(_filename_readMinimizers, _minimizerSize, _kminmerSize, false);
 		auto fp = std::bind(&Assembly3::partitionReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
 		parser.parse(fp);
 
@@ -849,7 +851,7 @@ public:
 		//parser.parse(fp);
 	
 
-		KminmerParserParallel readParser(_filename_readMinimizers, _minimizerSize, _kminmerSize, true, _nbCores);
+		KminmerParserParallel readParser(_filename_readMinimizers, _minimizerSize, _kminmerSize, false, _nbCores);
 		readParser.parse(ReadCorrectionFunctor(*this));
 
 
@@ -887,6 +889,7 @@ public:
 		}
 	}
 
+	/*
 	void debug_checkReads(){
 
 		cout << "Checking reads" << endl;
@@ -928,6 +931,7 @@ public:
 		}
 
 	}
+	*/
 
 
 
@@ -1041,8 +1045,8 @@ public:
 			u_int64_t readIndex = kminmerList._readIndex;
 
 			const vector<u_int64_t>& minimizers = kminmerList._readMinimizers;
-			const vector<KmerVec>& kminmers = kminmerList._kminmers;
-			const vector<ReadKminmer>& kminmersInfos = kminmerList._kminmersInfo;
+			//const vector<KmerVec>& kminmers = kminmerList._kminmers;
+			const vector<ReadKminmerComplete>& kminmersInfos = kminmerList._kminmersInfo;
 
 			//u_int32_t readSize = minimizers.size();
 			//_file_uncorrectedReads.write((const char*)&readSize, sizeof(readSize));
@@ -1084,10 +1088,10 @@ public:
 			//_nodeIndex_to_kminmerSequence.clear();
 			vector<u_int32_t> nodepath;
 
-			for(size_t i=0; i<kminmers.size(); i++){
+			for(size_t i=0; i<kminmersInfos.size(); i++){
 
-				const KmerVec& vec = kminmers[i];
-				const ReadKminmer& info = kminmersInfos[i];
+				const ReadKminmerComplete& info = kminmersInfos[i];
+				const KmerVec& vec = info._vec;
 
 				if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
 					if(print_read) cout << "XXXXX ";
@@ -1127,7 +1131,7 @@ public:
 
 			vector<u_int32_t> nodePathSolid;
 			vector<u_int64_t> readpath;
-			applyReadCorrection(nodepath, readpath, print_read, minimizers, kminmers, kminmersInfos, nodePathSolid);
+			applyReadCorrection(nodepath, readpath, print_read, minimizers, kminmersInfos, nodePathSolid);
 
 
 			if(print_read){
@@ -1157,7 +1161,7 @@ public:
 			}
 			else{
 				success = true;
-				extendReadpath(minimizers, kminmers, nodePathSolid, readpath, print_read);
+				extendReadpath(minimizers, kminmersInfos, nodePathSolid, readpath, print_read);
 			}
 			
 			//readpath = minimizers;
@@ -1194,15 +1198,15 @@ public:
 			_assembly3.writeCorrectedRead(readpath, success, print_read);
 		}
 
-		void fillUncorrectedArea(u_int32_t position_source, u_int32_t nodeIndex_dest, const vector<u_int64_t>& readMinimizers, vector<u_int64_t>& readpath, const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, bool isFirstIteration, bool print_read){
+		void fillUncorrectedArea(u_int32_t position_source, u_int32_t nodeIndex_dest, const vector<u_int64_t>& readMinimizers, vector<u_int64_t>& readpath, const vector<ReadKminmerComplete>& kminmersInfos, bool isFirstIteration, bool print_read){
 			
 			bool adding = false;
 
 
-			for(size_t i=position_source; i<kminmers.size(); i++){
+			for(size_t i=position_source; i<kminmersInfos.size(); i++){
 
-				const KmerVec& vec = kminmers[i];
-				const ReadKminmer& info = kminmersInfos[i];
+				const ReadKminmerComplete& info = kminmersInfos[i];
+				const KmerVec& vec = info._vec;
 
 				
 
@@ -1241,7 +1245,7 @@ public:
 		}
 
 
-		void applyReadCorrection(const vector<u_int32_t>& nodePath, vector<u_int64_t>& readpath, bool print_read, const vector<u_int64_t>& readMinimizers, const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, vector<u_int32_t>& nodePathSolid){
+		void applyReadCorrection(const vector<u_int32_t>& nodePath, vector<u_int64_t>& readpath, bool print_read, const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, vector<u_int32_t>& nodePathSolid){
 			
 
 
@@ -1336,10 +1340,10 @@ public:
 			size_t i=0;
 			bool isFirstIteration = true;
 
-			for(size_t i=0; i<kminmers.size()-1; i++){
+			for(size_t i=0; i<kminmersInfos.size()-1; i++){
 
-				const KmerVec& vec = kminmers[i];
-				const ReadKminmer& info = kminmersInfos[i];
+				const ReadKminmerComplete& info = kminmersInfos[i];
+				const KmerVec& vec = info._vec;
 
 				if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()) continue;
 				
@@ -1352,9 +1356,9 @@ public:
 				
 				//u_int32_t nodeName_source = nodeName; //nodePath_connected[i];
 				u_int32_t nodeIndex_dest = -1;
-				for(size_t j=i+1; j<kminmers.size(); j++){
-					const KmerVec& vec = kminmers[j];
-					const ReadKminmer& info = kminmersInfos[j];
+				for(size_t j=i+1; j<kminmersInfos.size(); j++){
+					const ReadKminmerComplete& info = kminmersInfos[j];
+					const KmerVec& vec = info._vec;
 					if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()) continue;
 					u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
 					if(isNodenameSolid.find(nodeName) == isNodenameSolid.end()) continue;
@@ -1430,7 +1434,7 @@ public:
 					if(print_read) cout << "failed" << endl;
 					//lastSolidNodeIndex = -1;
 					isLastSuccess = false;
-					fillUncorrectedArea(i, nodeIndex_dest, readMinimizers, readpath, kminmers, kminmersInfos, isFirstIteration, print_read);
+					fillUncorrectedArea(i, nodeIndex_dest, readMinimizers, readpath, kminmersInfos, isFirstIteration, print_read);
 					nodeIndexFinal = nodeIndex_dest;
 					isFirstIteration = false;
 					//getchar();
@@ -1483,7 +1487,7 @@ public:
 			return false;
 		}
 
-		void extendReadpath(const vector<u_int64_t>& readMinimizers, const vector<KmerVec>& kminmers, const vector<u_int32_t>& nodePathSolid, vector<u_int64_t>& readpath, bool print_read){
+		void extendReadpath(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, const vector<u_int32_t>& nodePathSolid, vector<u_int64_t>& readpath, bool print_read){
 
 
 			if(nodePathSolid.size() == 0) return;
@@ -1509,8 +1513,8 @@ public:
 
 
 			u_int64_t solidPositionLeft = 0;
-			for(long i=0; i < kminmers.size(); i++){
-				const KmerVec& vec = kminmers[i];
+			for(long i=0; i < kminmersInfos.size(); i++){
+				const KmerVec& vec = kminmersInfos[i]._vec;
 
 				if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
 					continue;
@@ -1527,8 +1531,8 @@ public:
 
 
 			u_int64_t solidPositionRight = 0;
-			for(long i=kminmers.size()-1; i>=0; i--){
-				const KmerVec& vec = kminmers[i];
+			for(long i=kminmersInfos.size()-1; i>=0; i--){
+				const KmerVec& vec = kminmersInfos[i]._vec;
 
 				if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
 					continue;

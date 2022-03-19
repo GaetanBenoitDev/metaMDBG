@@ -216,7 +216,7 @@ public:
 				u_int32_t size = minimizers.size();
 				_file_readData.write((const char*)&size, sizeof(size));
 				_file_readData.write((const char*)&minimizers[0], size*sizeof(u_int64_t));
-				_file_readData.write((const char*)&minimizerPosOffset[0], size*sizeof(u_int16_t));
+				//_file_readData.write((const char*)&minimizerPosOffset[0], size*sizeof(u_int16_t));
 			}
 			
 		

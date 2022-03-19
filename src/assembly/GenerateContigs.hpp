@@ -266,7 +266,7 @@ public:
 	
 	void removeUnsupportedEdges(const string& gfaFilename, const string& gfa_filename_noUnsupportedEdges, GraphSimplify* graph){
 
-		KminmerParser parser(_filename_readMinimizers, _minimizerSize, _kminmerSize, true);
+		KminmerParser parser(_filename_readMinimizers, _minimizerSize, _kminmerSize, false);
 		//auto fp = std::bind(&Assembly::indexReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5);
 		auto fp = std::bind(&GenerateContigs::indexReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
 		parser.parse(fp);
