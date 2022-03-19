@@ -755,7 +755,10 @@ public:
 		const Unitig& unitig_model = _graph->_unitigs[source_unitigIndex];
 
 		u_int32_t contigIndex_model = _contigFeature.nodepathToContigIndex(unitig_model._nodes);
-		if(contigIndex_model == -1) return;
+		if(contigIndex_model == -1){
+			cout << "\tNo contig index" << endl;
+			return;
+		}
 
 		//string unitigSequence_model;
 		//_toBasespace.createSequence(unitig_model._nodes, unitigSequence_model);
@@ -763,8 +766,10 @@ public:
 		//if(unitigSequence_model.empty()) return;	
 
 
-		if(processedContigIndex.find(contigIndex_model) != processedContigIndex.end()) return;
-
+		if(processedContigIndex.find(contigIndex_model) != processedContigIndex.end()){
+			cout << "\tAlready binned" << endl;
+			return;
+		}
 
 
 
@@ -866,7 +871,7 @@ public:
 			//_graph->getConnectedComponent_readpath(unitigIndex, _unitigDatas, 1, component);
 			//_graph->getConnectedComponent_unitig_nt(unitigIndex, componentLength, component);
 			_graph->getConnectedComponent_unitig(unitigIndex, componentNbNodes, component);
-			cout << "Component size: " << componentNbNodes2.size() << " " << component.size() << endl;
+			cout << "\tComponent size: " << componentNbNodes2.size() << " " << component.size() << endl;
 
 
 			//component = componentNbNodes2;
@@ -1307,7 +1312,7 @@ public:
 
 	void extractContigKminmers_read2(const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex, u_int64_t datasetIndex, const string& header, const string& seq){
 
-		if(seq.size() < 75000) return;
+		if(seq.size() < 10000) return;
 		//cout << seq.size() << endl;
 		//if(readIndex == 20010) getchar(); 
 
@@ -1442,7 +1447,7 @@ public:
 				u_int32_t source_nodeIndex = unitigLength._startNodeIndex;
 				const Unitig& unitig = _graph->nodeIndex_to_unitig(source_nodeIndex);
 
-				cout << cutoff << " " << processedUnitigs << " " << startingUnitigs.size() << "     " << unitig._length << endl;
+				//cout << cutoff << " " << processedUnitigs << " " << startingUnitigs.size() << "     " << unitig._length << endl;
 				processedUnitigs += 1;
 
 				//if(isContigBinned(unitig._nodes, processedNodeNames)) continue;

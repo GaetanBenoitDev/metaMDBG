@@ -664,7 +664,7 @@ void Bloocoo::createMDBG_collectKminmers_minspace_read(const vector<u_int64_t>& 
 		//}
 		//else{
 			
-			_mdbgNoFilter->addNode(vec, _kminmerLengthMean, _minimizerSpacingMean, _minimizerSpacingMean, kminmerInfo._isReversed);
+			//_mdbgNoFilter->addNode(vec, _kminmerLengthMean, _minimizerSpacingMean, _minimizerSpacingMean, kminmerInfo._isReversed);
 
 			if(_kminmerExist.find(vec) != _kminmerExist.end() || _parsingContigs){
 
@@ -861,7 +861,7 @@ void Bloocoo::createMDBG (){
 		parser2.parseMinspace(fp2);
 
 		_parsingContigs = true;
-		const string& filename_contigs = _outputDir + "/contig_data.txt";
+		const string& filename_contigs = _outputDir + "/unitig_data.txt";
 
 		KminmerParser parser3(filename_contigs, _minimizerSize, _kminmerSize, false);
 		auto fp3 = std::bind(&Bloocoo::createMDBG_collectKminmers_minspace_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);

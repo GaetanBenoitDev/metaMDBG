@@ -273,10 +273,8 @@ public:
 		//_unitigDatas.resize(_mdbg->_dbg_nodes.size());
 		//_graph->clear(0);
 		//_graph->compact(false, _unitigDatas);
-		//generateContigs();
 		//removeUnsupportedEdges(_gfaFilename, gfa_filename_noUnsupportedEdges, _graph);
 		
-
 		//cout << "done" << endl;
 	
 
@@ -325,6 +323,7 @@ public:
 		//_graph->loadState2(100, -1, _unitigDatas);
 		//_graph->saveGraph(_inputDir + "/minimizer_graph_contigs.gfa");
 		_graph->loadState2(0, -1, _unitigDatas);
+		generateUnitigs();
 
 		_partitionDir = _inputDir + "/" + "partitions";
 		fs::path path(_partitionDir);
@@ -873,7 +872,7 @@ public:
 		#pragma omp critical
 		{
 
-			checkCorrectedSequence(readMinimizers, print_read);
+			//checkCorrectedSequence(readMinimizers, print_read);
 			
 			u_int32_t size = readMinimizers.size();
 			_file_uncorrectedReads.write((const char*)&size, sizeof(size));
@@ -932,18 +931,20 @@ public:
 
 
 
-	/*
-	void generateContigs(){
-		if(_kminmerSize < 10) return;
+	
+	void generateUnitigs(){
+		//if(_kminmerSize < 10) return;
+
+		const string& outputFilename = _inputDir + "/unitigs.nodepath.gz";
 
 		cout << "Generating contigs" << endl;
 		
-		const string& outputFilename = _inputDir + "/contigs.nodepath.gz";
+		//const string& outputFilename = _inputDir + "/contigs.nodepath.gz";
 		gzFile outputContigFile_min = gzopen(outputFilename.c_str(),"wb");
 
 		unordered_set<u_int32_t> writtenUnitigs;
 
-		vector<float> readpathAbudance_values;
+		//vector<float> readpathAbudance_values;
 		for(const Unitig& u : _graph->_unitigs){
 			//if(u._nbNodes < _kminmerSize*2) continue;
 
@@ -960,7 +961,7 @@ public:
 		
 		gzclose(outputContigFile_min);
 	}
-	*/
+	
 
 	void checkCorrectedSequence(const vector<u_int64_t> minimizers, bool print_read){
 		

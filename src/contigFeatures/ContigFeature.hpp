@@ -152,7 +152,7 @@ public:
 			_contigIndex_to_binIndex[contigIndex] = binIndex;
 			_binIndex_to_contigIndex[binIndex].push_back(contigIndex);
 
-			//cout << contigIndex << " -> " << binIndex << endl;
+			cout << contigIndex << " -> " << binIndex << endl;
 		}
 
 
@@ -1130,7 +1130,7 @@ public:
 
 	bool isIntra(const vector<u_int32_t>& bin1, const vector<u_int32_t>& bin2){
 
-		cout << "Is intra: " << bin1.size() << " " << bin2.size() << endl;
+		cout << "\tIs intra: " << bin1.size() << " " << bin2.size() << endl;
 
 		float distance = computeDistance(bin1, bin2);
 
@@ -1138,7 +1138,7 @@ public:
 
 		//return distance < 0.015;
 		//return distance < 0.015;
-		return distance < 0.05;
+		return distance < 2;
 
 		//(1-tnf_dist)
 		//return  cor * (1-dist) > 0.65;
@@ -1146,17 +1146,26 @@ public:
 
 	float computeDistance(const vector<u_int32_t>& bin1, const vector<u_int32_t>& bin2){
 
+		double distance_max = 0;
 		double distance_sum = 0;
 		double distance_n = 0;
 
 		for(u_int32_t contigIndex1 : bin1){
 			for(u_int32_t contigIndex2 : bin2){
-				distance_sum += computeDistance(contigIndex1, contigIndex2);
+				float distance = computeDistance(contigIndex1, contigIndex2);
+				distance_sum += distance;
 				distance_n += 1;
+
+				if(distance > distance_max){
+					distance_max = distance;
+				}
 			}
 		}
 
-		return distance_sum / distance_n;
+		cout << "\tComposition distance mean: " << (distance_sum / distance_n) << endl;
+
+		//return distance_sum / distance_n;
+		return distance_max;
 	}
 
 	float computeDistance(u_int32_t contigIndex1, u_int32_t contigIndex2){
@@ -1166,6 +1175,7 @@ public:
 
 		float compositionProb = -log10(computeCompositionProbability(composition1, composition2));
 
+		cout << "\tComposition distance: " << compositionProb << endl;
 		//const vector<float>& abundance1 = _contigCoverages[contigIndex1];
 		//const vector<float>& abundance1_var = _contigCoveragesVar[contigIndex1];
 		//const vector<float>& abundance2 = _contigCoverages[contigIndex2];

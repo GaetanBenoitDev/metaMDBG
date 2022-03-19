@@ -136,7 +136,7 @@ public:
 
 		//Read selection
 		command = _filename_exe + " readSelection -i " + _inputFilename + " -o " + _inputDir + " -f " + _inputDir + "/read_data_init.txt" + " -t " + to_string(_nbCores);
-		executeCommand(command);
+		//executeCommand(command);
 		
 
 		u_int64_t pass = 0;
@@ -185,6 +185,9 @@ public:
 			//if(pass > 0) command += " -c " +  _inputDir + "/contig_data.gz";
 			executeCommand(command);
 
+			command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/unitigs.nodepath.gz" + " -f " + _inputDir + "/unitig_data.txt";
+			executeCommand(command);
+
 			//command = ./bin/mdbgAsmMeta toMinspace -o ~/workspace/run/overlap_test_multik_AD/ -c ~/workspace/run/overlap_test_multik_AD/contigs.nodepath.gz
 
 			//command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/correctedReads_" + to_string(k) + ".min.gz" + " -f "  + _inputDir + "/read_data.txt.corrected.txt";
@@ -209,14 +212,7 @@ public:
 			//if(pass > 0){
 
 			
-			//Generate contigs
-			command = _filename_exe + " contig " + " -o " + _inputDir;
-			if(!_truthInputFilename.empty()) command += " --itruth " + _truthInputFilename;
-			//if(pass == 0) command += " --firstpass";
-			executeCommand(command);
 
-			command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/contigs.nodepath.gz" + " -f " + _inputDir + "/contig_data.txt";
-			executeCommand(command);
 
 
 			//command = _filename_exe + " toBasespaceFast " + " -o " + _inputDir + " -i " + _inputFilename + " -c " + _inputDir + "/contig_data.txt " + " -f " + _inputDir + "/contigs.fasta.gz " +  " --fasta";
@@ -229,6 +225,14 @@ public:
 			if(k == 10 || k == 19 || k==31 || k==41 || k==51 || k==61 || k==71 || k==81 || k==91){
 
 
+				//Generate contigs
+				command = _filename_exe + " contig " + " -o " + _inputDir;
+				if(!_truthInputFilename.empty()) command += " --itruth " + _truthInputFilename;
+				//if(pass == 0) command += " --firstpass";
+				executeCommand(command);
+
+				command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/contigs.nodepath.gz" + " -f " + _inputDir + "/contig_data.txt";
+				executeCommand(command);
 
 				command = _filename_exe + " toBasespace " + " -o " + _inputDir + " -i " + _inputFilename + " -c " + _inputDir + "/contig_data.txt " + " -f " + _inputDir + "/contigs_" + to_string(k) + ".fasta.gz " + " --fasta"  + " -t " + to_string(_nbCores);
 				if(pass == 0) command += " --firstpass";
