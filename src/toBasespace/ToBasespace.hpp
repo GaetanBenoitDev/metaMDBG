@@ -462,7 +462,7 @@ public:
 			
 			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
 				cout << "Not found kminmer" << endl;
-				getchar();
+				//getchar();
 				continue;
 			}
 
@@ -864,7 +864,7 @@ public:
 
 			if(sequences.size() == 0){
 				cout << "pas normal" << endl;
-				getchar();
+				//getchar();
 				correctedSequence = "";
 				return;
 			}

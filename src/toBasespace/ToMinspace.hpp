@@ -574,7 +574,7 @@ public:
 						//}
 						if(_nodeName_right.find(nodeName) == _nodeName_right.end()){
 							 cout << "omg: " << nodeName << endl;
-							 getchar();
+							 //getchar();
 						}
 						vector<u_int64_t> minimizers = _nodeName_right[nodeName]._minimizer;
 						for(u_int64_t minimizer : minimizers) contigSequence.push_back(minimizer);
@@ -589,7 +589,7 @@ public:
 						//}
 						if(_nodeName_left.find(nodeName) == _nodeName_left.end()){
 							 cout << "omg: " << nodeName << endl;
-							 getchar();
+							 //getchar();
 						}
 						vector<u_int64_t> minimizers = _nodeName_left[nodeName]._minimizer;
 						for(u_int64_t minimizer : minimizers) contigSequence.push_back(minimizer);
@@ -787,7 +787,7 @@ public:
 				cout << "Found nodes: " << nbFoundMinimizers << endl;
 				cout << nodePath.size() << " " << contigSequence.size() << endl;
 				cout << "issue minspace" << endl;
-				getchar();
+				//getchar();
 			}
 			//if(contigSequence.size() > 10000)
 			//getchar();
