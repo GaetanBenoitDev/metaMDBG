@@ -196,7 +196,7 @@ void Bloocoo::createMDBG (){
 		KminmerParserParallel parser2(filename_contigs, _minimizerSize, _kminmerSize, false, _nbCores);
 		//auto fp3 = std::bind(&Bloocoo::createMDBG_collectKminmers_minspace_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 		//parser3.parseMinspace(fp3);
-		parser2.parse(IndexKminmerFunctor(*this));
+		//parser2.parse(IndexKminmerFunctor(*this));
 		//parser3.parseMinspace(fp3); //Solidify contigs
 		
 	}

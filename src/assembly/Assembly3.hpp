@@ -323,7 +323,7 @@ public:
 		//_graph->loadState2(100, -1, _unitigDatas);
 		//_graph->saveGraph(_inputDir + "/minimizer_graph_contigs.gfa");
 		_graph->loadState2(0, -1, _unitigDatas);
-		generateUnitigs();
+		//generateUnitigs();
 
 		_partitionDir = _inputDir + "/" + "partitions";
 		fs::path path(_partitionDir);
@@ -1303,6 +1303,7 @@ public:
 		void applyReadCorrection(const vector<u_int32_t>& nodePath, vector<u_int64_t>& readpath, bool print_read, const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, vector<u_int32_t>& nodePathSolid){
 			
 
+			bool correctionFailed = false;
 
 			float minSupportingReads = 2;
 			u_int32_t maxDepth = nodePath.size()*2;
@@ -1457,6 +1458,7 @@ public:
 					}
 					else{
 						if(print_read) cout << "failed unique path" << endl;
+						correctionFailed = true;
 						//lastSolidNodeIndex = -1;
 						fillUncorrectedArea(i, nodeIndex_dest, readMinimizers, readpath, kminmersInfos, isFirstIteration, print_read);
 						nodeIndexFinal = nodeIndex_dest;
@@ -1490,7 +1492,10 @@ public:
 
 			}
 	
-
+			if(correctionFailed){
+				//cout << "lala" << endl;
+				//getchar();
+			}
 		}
 
 
@@ -1524,8 +1529,8 @@ public:
 			u_int32_t nodeNameSolidLeft = BiGraph::nodeIndex_to_nodeName(nodeIndex_left);
 			u_int32_t nodeNameSolidRight = BiGraph::nodeIndex_to_nodeName(nodeIndex_right);
 
-			bool needExtendLeft = _graph->isEdgeNode(nodeIndex_left);// || _isNodeNameUnsupported.find(nodeNameSolidLeft) != _isNodeNameUnsupported.end();
-			bool needExtendRight = _graph->isEdgeNode(nodeIndex_right);// || _isNodeNameUnsupported.find(nodeNameSolidRight) != _isNodeNameUnsupported.end();
+			bool needExtendLeft = true;//_graph->isEdgeNode(nodeIndex_left);// || _isNodeNameUnsupported.find(nodeNameSolidLeft) != _isNodeNameUnsupported.end();
+			bool needExtendRight = true;//_graph->isEdgeNode(nodeIndex_right);// || _isNodeNameUnsupported.find(nodeNameSolidRight) != _isNodeNameUnsupported.end();
 
 			if(!needExtendLeft && !needExtendRight) return;
 

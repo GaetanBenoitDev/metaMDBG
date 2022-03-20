@@ -136,7 +136,7 @@ public:
 
 		//Read selection
 		command = _filename_exe + " readSelection -i " + _inputFilename + " -o " + _inputDir + " -f " + _inputDir + "/read_data_init.txt" + " -t " + to_string(_nbCores);
-		executeCommand(command);
+		//executeCommand(command);
 		
 
 		u_int64_t pass = 0;
@@ -185,8 +185,8 @@ public:
 			//if(pass > 0) command += " -c " +  _inputDir + "/contig_data.gz";
 			executeCommand(command);
 
-			command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/unitigs.nodepath.gz" + " -f " + _inputDir + "/unitig_data.txt";
-			executeCommand(command);
+			//command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/unitigs.nodepath.gz" + " -f " + _inputDir + "/unitig_data.txt";
+			//executeCommand(command);
 
 			//command = ./bin/mdbgAsmMeta toMinspace -o ~/workspace/run/overlap_test_multik_AD/ -c ~/workspace/run/overlap_test_multik_AD/contigs.nodepath.gz
 
@@ -272,7 +272,7 @@ public:
 			//break;
 			cout << "pass done" << endl;
 			if(generatedContigs) getchar();
-			getchar();
+			//getchar();
 		}
 
     }
