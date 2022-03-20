@@ -875,11 +875,12 @@ public:
 		{
 
 			//checkCorrectedSequence(readMinimizers, print_read);
-			
+			//if(success){
 			u_int32_t size = readMinimizers.size();
 			_file_uncorrectedReads.write((const char*)&size, sizeof(size));
 			_file_uncorrectedReads.write((const char*)&readMinimizers[0], size*sizeof(u_int64_t));
-			
+			//}
+
 			_nbreadsLala += 1;
 
 			if(!success){
@@ -1084,7 +1085,7 @@ public:
 				cout << "\t";
 			}
 
-
+			bool isError = false;
 			//_nodeIndex_to_kminmerSequence.clear();
 			vector<u_int32_t> nodepath;
 
@@ -1095,6 +1096,7 @@ public:
 
 				if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
 					if(print_read) cout << "XXXXX ";
+					isError = true;
 					continue;
 				}
 				
@@ -1154,10 +1156,12 @@ public:
 
 			bool success;
 
+			//cout << nodePathSolid.size() << endl;
 			if(nodePathSolid.size() != 2){
 				if(print_read) cout << "\tcorrection failed" << endl;
 				readpath = minimizers;
 				success = false;
+				//getchar();
 			}
 			else{
 				success = true;
@@ -1178,7 +1182,7 @@ public:
 
 
 
-
+			//if(readIndex == 17) getchar();
 
 			//if(contigpath.size() == 0) return;
 			//cout << "decommenter ici dans v final, contig size 0 a discard" << endl;
@@ -1194,9 +1198,60 @@ public:
 			//if(readIndex == 6) getchar();
 			//getchar();
 			
-
 			_assembly3.writeCorrectedRead(readpath, success, print_read);
 		}
+
+		void fillCorrectedArea(u_int32_t nodeIndex_source, u_int32_t nodeIndex_dest, const vector<u_int64_t>& readMinimizers, vector<u_int64_t>& readpath, const vector<ReadKminmerComplete>& kminmersInfos, bool isFirstIteration, bool print_read){
+			
+			if(readpath.size() == 0){
+
+				bool orientation;
+				u_int32_t nodeName_start = BiGraph::nodeIndex_to_nodeName(nodeIndex_source, orientation);
+				vector<u_int64_t> minimizerSeq = _nodeName_to_kminmerSequence[nodeName_start];
+
+				if(orientation){
+					if(isFirstIteration){
+						for(u_int64_t m : minimizerSeq){
+							readpath.push_back(m);
+							if(print_read)  cout << "Add: " << m << endl;
+						}
+					}
+					else{
+						if(print_read)  cout << "Add: " << minimizerSeq[minimizerSeq.size()-1] << endl;
+						readpath.push_back(minimizerSeq[minimizerSeq.size()-1]);
+					}
+				}
+				else{
+					if(isFirstIteration){
+						std::reverse(minimizerSeq.begin(), minimizerSeq.end());
+						for(u_int64_t m : minimizerSeq){
+							readpath.push_back(m);
+							if(print_read)  cout << "Add: " << m << endl;
+						}
+					}
+					else{
+						if(print_read)  cout << "Add: " << minimizerSeq[0] << endl;
+						readpath.push_back(minimizerSeq[0]);
+					}
+
+				}
+			}
+
+
+			bool orientation;
+			u_int32_t nodeName_dest = BiGraph::nodeIndex_to_nodeName(nodeIndex_dest, orientation);
+			vector<u_int64_t> minimizerSeq = _nodeName_to_kminmerSequence[nodeName_dest];
+
+			if(orientation){
+				if(print_read)  cout << "Add: " << minimizerSeq[minimizerSeq.size()-1] << endl;
+				readpath.push_back(minimizerSeq[minimizerSeq.size()-1]);
+			}
+			else{
+				if(print_read)  cout << "Add: " << minimizerSeq[0] << endl;
+				readpath.push_back(minimizerSeq[0]);
+			}
+		}
+
 
 		void fillUncorrectedArea(u_int32_t position_source, u_int32_t nodeIndex_dest, const vector<u_int64_t>& readMinimizers, vector<u_int64_t>& readpath, const vector<ReadKminmerComplete>& kminmersInfos, bool isFirstIteration, bool print_read){
 			
@@ -1336,7 +1391,6 @@ public:
 			}
 
 			vector<u_int32_t> readpath_nodes;
-			bool isLastSuccess = false;
 			size_t i=0;
 			bool isFirstIteration = true;
 
@@ -1366,60 +1420,17 @@ public:
 					break;
 				}
 
+
 				if(print_read)  cout << BiGraph::nodeIndex_to_nodeName(nodeIndex_source) << " -> " << BiGraph::nodeIndex_to_nodeName(nodeIndex_dest) << endl;
 
+				if(nodeIndex_dest == -1) break; //no node index dest found (typically error at the end of the read)
+
 				if(tryFindPathDirect(nodeIndex_source, nodeIndex_dest, readpath_nodes)){
-					isLastSuccess = true;
 					
 
-
-					if(readpath.size() == 0){
-
-						bool orientation;
-						u_int32_t nodeName_start = BiGraph::nodeIndex_to_nodeName(nodeIndex_source, orientation);
-						vector<u_int64_t> minimizerSeq = _nodeName_to_kminmerSequence[nodeName_start];
-
-						if(orientation){
-							if(isFirstIteration){
-								for(u_int64_t m : minimizerSeq){
-									readpath.push_back(m);
-									if(print_read)  cout << "Add: " << m << endl;
-								}
-							}
-							else{
-								if(print_read)  cout << "Add: " << minimizerSeq[minimizerSeq.size()-1] << endl;
-								readpath.push_back(minimizerSeq[minimizerSeq.size()-1]);
-							}
-						}
-						else{
-							if(isFirstIteration){
-								std::reverse(minimizerSeq.begin(), minimizerSeq.end());
-								for(u_int64_t m : minimizerSeq){
-									readpath.push_back(m);
-									if(print_read)  cout << "Add: " << m << endl;
-								}
-							}
-							else{
-								if(print_read)  cout << "Add: " << minimizerSeq[0] << endl;
-								readpath.push_back(minimizerSeq[0]);
-							}
-
-						}
-					}
-
-
-					bool orientation;
-					u_int32_t nodeName_dest = BiGraph::nodeIndex_to_nodeName(nodeIndex_dest, orientation);
-					vector<u_int64_t> minimizerSeq = _nodeName_to_kminmerSequence[nodeName_dest];
-
-					if(orientation){
-						if(print_read)  cout << "Add: " << minimizerSeq[minimizerSeq.size()-1] << endl;
-						readpath.push_back(minimizerSeq[minimizerSeq.size()-1]);
-					}
-					else{
-						if(print_read)  cout << "Add: " << minimizerSeq[0] << endl;
-						readpath.push_back(minimizerSeq[0]);
-					}
+					fillCorrectedArea(nodeIndex_source, nodeIndex_dest, readMinimizers, readpath, kminmersInfos, isFirstIteration, print_read);
+			
+					//fillCorrectedArea();
 
 					//lastSolidNodeIndex = nodeIndex_source;
 
@@ -1431,19 +1442,35 @@ public:
 					//continue;
 				}
 				else{
-					if(print_read) cout << "failed" << endl;
-					//lastSolidNodeIndex = -1;
-					isLastSuccess = false;
-					fillUncorrectedArea(i, nodeIndex_dest, readMinimizers, readpath, kminmersInfos, isFirstIteration, print_read);
-					nodeIndexFinal = nodeIndex_dest;
-					isFirstIteration = false;
-					//getchar();
+
+					vector<u_int32_t> path;
+					_graph->findUniquePath(nodeIndex_source, nodeIndex_dest, path, false, true, maxDepth);
+
+					if(path.size() != 0){
+						std::reverse(path.begin(), path.end());
+						for(u_int32_t nodeIndex : path){
+							fillCorrectedArea(nodeIndex_source, nodeIndex, readMinimizers, readpath, kminmersInfos, isFirstIteration, print_read);
+							nodeIndex_source = nodeIndex; //readpath_nodes[readpath_nodes.size()-1];
+							nodeIndexFinal = nodeIndex;
+						}
+						isFirstIteration = false;
+					}
+					else{
+						if(print_read) cout << "failed unique path" << endl;
+						//lastSolidNodeIndex = -1;
+						fillUncorrectedArea(i, nodeIndex_dest, readMinimizers, readpath, kminmersInfos, isFirstIteration, print_read);
+						nodeIndexFinal = nodeIndex_dest;
+						isFirstIteration = false;
+						//getchar();
+					}
+
+
 				}
 
 
 			}
 			
-			
+			//cout << "node index final: " << nodeIndexFinal << endl;
 			nodePathSolid.clear();
 			nodePathSolid.push_back(nodePath_errorFree_fixed[0]);
 			if(nodeIndexFinal != -1){

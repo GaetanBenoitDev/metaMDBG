@@ -535,6 +535,22 @@ struct KmerVec{
 		return seed;
 	}
 	
+	/*
+    inline static u_int64_t simplehash16_64(u_int64_t key, int  shift)
+    {
+        u_int64_t input = key >> shift;
+        u_int64_t res = random_values[input & 255]   ;
+        
+        input = input  >> 8;
+        res  ^= random_values[input & 255] ;
+
+        
+        res  ^= random_values[key & 255] ;
+
+        return res;
+    }
+	*/
+
 	string toString(){
 		string s = "";
 		for(u_int64_t m : _kmers){

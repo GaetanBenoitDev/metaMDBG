@@ -13,7 +13,7 @@
 //#include "graph/Graph.hpp"
 #include "graph/GfaParser.hpp"
 #include "graph/GraphSimplify.hpp"
-
+#include "utils/BloomFilter.hpp"
 //#include "./utils/ntHashIterator.hpp"
 
 //#include <boost/graph/adjacency_list.hpp>
@@ -60,6 +60,7 @@ public:
 	string _filename_noKminmerReads;
 	ofstream _file_noKminmerReads;
 	int _nbCores;
+	BloomCacheCoherent<u_int64_t>* _bloomFilter;
     //IBank* _inputBank;
 
 	//vector<ReadData> _readData;
@@ -260,12 +261,12 @@ public:
 
 			#pragma omp critical
 			{
-				if(!_isFirstPass && !_parsingContigs){
-					u_int32_t size = readMinimizers.size();
-					_readFile.write((const char*)&size, sizeof(size));
-					_readFile.write((const char*)&readMinimizers[0], size*sizeof(u_int64_t));
+				//if(!_isFirstPass && !_parsingContigs){
+				//	u_int32_t size = readMinimizers.size();
+				//	_readFile.write((const char*)&size, sizeof(size));
+				//	_readFile.write((const char*)&readMinimizers[0], size*sizeof(u_int64_t));
 					//_readFile.write((const char*)&minimizerPosOffset[0], size*sizeof(u_int16_t));
-				}
+				//}
 
 				//cout << readIndex << " " << kminmersInfos.size() << endl;
 				for(size_t i=0; i<kminmersInfos.size(); i++){

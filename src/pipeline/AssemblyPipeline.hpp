@@ -272,7 +272,7 @@ public:
 			//break;
 			cout << "pass done" << endl;
 			if(generatedContigs) getchar();
-			//getchar();
+			getchar();
 		}
 
     }

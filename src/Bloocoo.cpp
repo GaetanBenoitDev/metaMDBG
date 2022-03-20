@@ -114,7 +114,37 @@ void Bloocoo::execute (){
 
 void Bloocoo::createMDBG (){
 
+	/*
+	//_bloomFilter = new BloomCacheCoherent<u_int64_t>(16000000000ull);
+	_bloomFilter = new BloomCacheCoherent<u_int64_t>(16000000000ull);
 
+	double nbFP = 0;
+
+	#pragma omp parallel for
+	for(size_t i=0; i<100000000ull; i++){
+		if(i%2==0) continue;
+		_bloomFilter->insert(i);
+	}
+
+	cout << "lala" << endl;
+
+	#pragma omp parallel for
+	for(size_t i=0; i<100000000ull; i++){
+		if(i%2==0){
+			if(_bloomFilter->contains(i)){
+				nbFP += 1;
+			}
+		}
+		
+	}
+	cout << "lala" << endl;
+	cout << nbFP << endl;
+	exit(1);
+	*/
+	//cout << _bloomFilter->contains(5) << endl;
+	//_bloomFilter->insert(5);
+	//cout << _bloomFilter->contains(5) << endl;
+	//while(true){};
 
 	//_kminmerExist.clear();
 	_mdbg = new MDBG(_kminmerSize);
@@ -128,6 +158,8 @@ void Bloocoo::createMDBG (){
 		_mdbgInit->load(_outputDir + "/mdbg_nodes_init.gz");
 
 		_readFile = ofstream(_outputDir + "/read_data.txt");
+
+
 	}
 
 	string inputFilename_min;
@@ -169,13 +201,15 @@ void Bloocoo::createMDBG (){
 		
 	}
 
-	"reprise continuer de paralleliser bloocoo.cpp, graph edge"
 	
 	_kminmerFile.close();
 	
 	if(!_isFirstPass){
 		delete _mdbgInit;
 		_readFile.close();
+		
+		const auto copyOptions = fs::copy_options::overwrite_existing;
+		fs::copy(_outputDir + "/read_uncorrected.txt", _outputDir + "/read_data.txt", copyOptions);
 	}
 
 
