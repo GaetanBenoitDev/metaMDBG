@@ -137,6 +137,7 @@ public:
 	unordered_map<KmerVec, vector<u_int32_t>> _contigIndex;
 	unordered_map<u_int32_t, u_int32_t> _contigAbundances;
 	unordered_map<KmerVec, u_int32_t> _solidKminmerAbundances;
+	u_int64_t _nbSolidKminmers;
 
 	void print_stats(vector<float>& elems){
 
@@ -196,6 +197,54 @@ public:
 
 
 
+	class FillBloomFilter {
+
+		public:
+
+		Bloocoo& _graph;
+		BloomCacheCoherent<u_int64_t>* _bloomFilter;
+		u_int64_t _nbSolidKminmers;
+
+		FillBloomFilter(Bloocoo& graph) : _graph(graph){
+			_bloomFilter = graph._bloomFilter;
+		}
+
+		FillBloomFilter(const FillBloomFilter& copy) : _graph(copy._graph){
+			_bloomFilter = copy._bloomFilter;
+			_nbSolidKminmers = 0;
+		}
+
+		~FillBloomFilter(){
+			cout << _nbSolidKminmers << endl;
+			//delete _minimizerParser;
+		}
+
+		void operator () (const KminmerList& kminmerList) {
+
+			u_int64_t readIndex = kminmerList._readIndex;
+			const vector<u_int64_t>& readMinimizers = kminmerList._readMinimizers;
+			//const vector<KmerVec>& kminmers = kminmerList._kminmers;
+			const vector<ReadKminmerComplete>& kminmersInfos = kminmerList._kminmersInfo;
+
+			for(size_t i=0; i<kminmersInfos.size(); i++){
+
+				const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
+				const KmerVec& vec = kminmerInfo._vec;
+
+				u_int64_t val = 0;
+
+				if(_bloomFilter->contains(val)){
+					_nbSolidKminmers += 1;
+					__sync_fetch_and_add(&_graph._nbSolidKminmers, 1);
+				}
+				else{
+					_bloomFilter->insert(val);
+				}
+			}
+
+		}
+	};
+
 
 	class IndexKminmerFunctor {
 
@@ -215,6 +264,7 @@ public:
 		size_t _minimizerSize;
 		size_t _kminmerSize;
 		size_t _kminmerSizeFirst;
+		BloomCacheCoherent<u_int64_t>* _bloomFilter;
 
 		IndexKminmerFunctor(Bloocoo& graph) : _graph(graph), _readFile(graph._readFile), _kminmerExist(graph._kminmerExist), _kminmerFile(graph._kminmerFile){
 			_isFirstPass = graph._isFirstPass;
@@ -227,6 +277,7 @@ public:
 			_minimizerSize = graph._minimizerSize;
 			_kminmerSize = graph._kminmerSize;
 			_kminmerSizeFirst = graph._kminmerSizeFirst;
+			_bloomFilter = graph._bloomFilter;
 		}
 
 		IndexKminmerFunctor(const IndexKminmerFunctor& copy) : _graph(copy._graph), _readFile(copy._readFile), _kminmerExist(copy._kminmerExist), _kminmerFile(copy._kminmerFile){
@@ -240,6 +291,7 @@ public:
 			_minimizerSize = copy._minimizerSize;
 			_kminmerSize = copy._kminmerSize;
 			_kminmerSizeFirst = copy._kminmerSizeFirst;
+			_bloomFilter = copy._bloomFilter;
 		}
 
 		~IndexKminmerFunctor(){
@@ -276,8 +328,9 @@ public:
 					const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
 					const KmerVec& vec = kminmerInfo._vec;
 
+					//cout << _bloomFilter->contains(vec.h()) << endl;
 					if(_kminmerExist.find(vec) != _kminmerExist.end() || _parsingContigs){
-
+					//if(_bloomFilter->contains(vec.h())){
 						if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
 
 							_mdbg->addNode(vec, _kminmerLengthMean, _minimizerSpacingMean, _minimizerSpacingMean, kminmerInfo._isReversed);
@@ -356,7 +409,7 @@ public:
 								_mdbg->addNode(vec, _kminmerLengthMean, _minimizerSpacingMean, _minimizerSpacingMean, kminmerInfo._isReversed);
 							}
 						}
-
+					//}
 					}
 					else{
 						_kminmerExist.insert(vec);
