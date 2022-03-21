@@ -180,8 +180,8 @@ void Bloocoo::createMDBG (){
 
 		cout << "Filling bloom filter" << endl;
 		_nbSolidKminmers = 0;
-		KminmerParserParallel parser(inputFilename_min, _minimizerSize, _kminmerSize, usePos, _nbCores);
-		parser.parse(FillBloomFilter(*this));
+		//KminmerParserParallel parser(inputFilename_min, _minimizerSize, _kminmerSize, usePos, _nbCores);
+		//parser.parse(FillBloomFilter(*this));
 		cout << "Solid kminmers: " << _nbSolidKminmers << endl;
 		//getchar();
 		
@@ -196,8 +196,8 @@ void Bloocoo::createMDBG (){
 		const string& filename_uncorrectedReads = _outputDir + "/read_uncorrected.txt";
 
 		cout << "Filling bloom filter" << endl;
-		KminmerParserParallel parser(filename_uncorrectedReads, _minimizerSize, _kminmerSize, false, _nbCores);
-		parser.parse(FillBloomFilter(*this));
+		//KminmerParserParallel parser(filename_uncorrectedReads, _minimizerSize, _kminmerSize, false, _nbCores);
+		//parser.parse(FillBloomFilter(*this));
 
 		cout << "Building mdbg" << endl;
 		KminmerParserParallel parser2(filename_uncorrectedReads, _minimizerSize, _kminmerSize, false, _nbCores);
@@ -206,11 +206,8 @@ void Bloocoo::createMDBG (){
 		_parsingContigs = true;
 		const string& filename_contigs = _outputDir + "/unitig_data.txt";
 
-		KminmerParserParallel parser3(filename_contigs, _minimizerSize, _kminmerSize, false, _nbCores);
-		//auto fp3 = std::bind(&Bloocoo::createMDBG_collectKminmers_minspace_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-		//parser3.parseMinspace(fp3);
-		parser3.parse(IndexKminmerFunctor(*this));
-		//parser3.parseMinspace(fp3); //Solidify contigs
+		//KminmerParserParallel parser3(filename_contigs, _minimizerSize, _kminmerSize, false, _nbCores);
+		//parser3.parse(IndexKminmerFunctor(*this));
 		
 	}
 

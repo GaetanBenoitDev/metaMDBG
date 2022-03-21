@@ -557,8 +557,8 @@ public:
             if(unitig._startNode == -1) continue;
 
 
-            if(unitig._length > maxLength) continue;
-            //if(unitig._nbNodes >= maxLength) continue;
+            //if(unitig._length > maxLength) continue;
+            if(unitig._nbNodes >= _kminmerSize*2) continue;
             //if(_isNodeValid2.find(unitig._startNode) == _isNodeValid2.end()) continue; //already removed
 
 
@@ -7827,6 +7827,116 @@ public:
     }
 
 
+/*
+    void findUniquePath(u_int32_t source_nodeIndex, u_int32_t dest_nodeIndex, vector<u_int32_t>& path, bool includeSource, bool includeSink, u_int32_t maxDistance, unordered_set<u_int64_t>& readMinimizersIndex, bool print_read, unordered_map<u_int32_t, vector<u_int64_t>>& _nodeName_to_kminmerSequence){
+
+        //print_read = true;
+        //cout << BiGraph::nodeIndex_to_nodeName(source_nodeIndex) << " -> " << BiGraph::nodeIndex_to_nodeName(dest_nodeIndex) << endl;
+        path.clear();
+		//unordered_set<u_int32_t> isVisited;
+		unordered_map<u_int32_t, u_int32_t> prev;
+        //queue<u_int32_t> queue;
+        priority_queue<NodeMissmatches, vector<NodeMissmatches> , NodeMissmatches_Comparator> queue;
+		unordered_map<u_int32_t, u_int32_t> distance;
+        unordered_map<u_int32_t, u_int32_t> nodesNbMissmatches;
+
+        prev[source_nodeIndex] = -1;
+        queue.push({source_nodeIndex, 0});
+        u_int64_t minFoundNbmissmatches = -1;
+        u_int64_t nbFound = 0;
+
+        bool found = false;
+        
+        while(!queue.empty() && !found){
+
+            NodeMissmatches nodeMissmatch = queue.top();
+            u_int32_t nodeIndex_current = nodeMissmatch._nodeIndex;
+            //u_int32_t nodeName_current = BiGraph::nodeIndex_to(nodeIndex_current);
+            queue.pop();
+
+            //if(found){
+            //    if(nodeMissmatch._nbMissmatches > minFoundNbmissmatches){
+            //        continue;
+            //    }
+            //}
+
+            if(nodeIndex_current == dest_nodeIndex){
+                found = true;
+                minFoundNbmissmatches = nodeMissmatch._nbMissmatches;
+                nbFound += 1;
+                //continue;
+                break;
+            }
+
+            if(distance[nodeIndex_current] > maxDistance) continue;
+
+            vector<u_int32_t> successors;
+            getSuccessors(nodeIndex_current, 0, successors);
+
+            for(u_int32_t nodeIndex_successor : successors){
+
+                u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex_successor);
+                int nbMissmatches = 0;
+                for(u_int64_t m : _nodeName_to_kminmerSequence[nodeName]){
+                    if(readMinimizersIndex.find(m) == readMinimizersIndex.end()){
+                        nbMissmatches += 1;
+                    }
+                }
+                
+                if(nodesNbMissmatches.find(nodeIndex_successor) == nodesNbMissmatches.end()){
+                    nodesNbMissmatches[nodeIndex_successor] = -1;
+                }
+
+                if(nodesNbMissmatches[nodeIndex_successor] > nodesNbMissmatches[nodeIndex_current] + nbMissmatches){
+
+                    nodesNbMissmatches[nodeIndex_successor] = nodesNbMissmatches[nodeIndex_current] + nbMissmatches;
+
+                    distance[nodeIndex_successor] = distance[nodeIndex_current] + 1;
+
+                    queue.push({nodeIndex_successor, nodesNbMissmatches[nodeIndex_successor]});
+                    prev[nodeIndex_successor] = nodeIndex_current;
+                    //isVisited.insert(nodeIndex_successor);
+
+                }
+
+
+
+
+                //if (isVisited.find(nodeIndex_successor) != isVisited.end()) continue;
+                
+
+
+            }
+
+
+        }
+
+        //if(nbFound > 1){
+        //    cout << "haha" << endl;
+        //    getchar();
+        //}
+        if(found){
+
+            u_int32_t n = dest_nodeIndex;
+            while(n != source_nodeIndex){
+
+
+                if(n == dest_nodeIndex){
+                    if(includeSink) path.push_back(n);
+                }
+                else{
+                    path.push_back(n);
+                }
+
+                n = prev[n];
+            }
+            if(includeSource) path.push_back(source_nodeIndex);
+
+        }
+
+        
+    }
+*/
 
 	void detectRoundabouts(u_int64_t maxLength, const vector<UnitigData>& unitigDatas){
 

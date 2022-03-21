@@ -329,7 +329,7 @@ public:
 					const KmerVec& vec = kminmerInfo._vec;
 
 					//cout << _bloomFilter->contains(vec.h()) << endl;
-					if(_kminmerExist.find(vec) != _kminmerExist.end() || _parsingContigs){
+					if(_kminmerExist.find(vec) != _kminmerExist.end() || _parsingContigs ){ //|| !_isFirstPass
 					//if(_bloomFilter->contains(vec.h())){
 						if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
 
@@ -385,6 +385,9 @@ public:
 									if(_mdbgInit->_dbg_nodes.find(vec) != _mdbgInit->_dbg_nodes.end()){
 
 										u_int32_t abundance = _mdbgInit->_dbg_nodes[vec]._abundance;
+
+										//if(nodeName == 17430) cout << abundance << endl;
+
 										if(abundance < minAbundance){
 											minAbundance = abundance;
 										}
@@ -394,7 +397,13 @@ public:
 										sum += abundance;
 										n += 1;
 									}
+									else{
+										minAbundance = 1;
+										break;
+									}
 								}
+
+								//if(minAbundance == -1) minAbundance = 1;
 								//cout << endl;
 
 								//cout << (sum / 2) << " " << Utils::compute_median_float(abundances) << endl;
