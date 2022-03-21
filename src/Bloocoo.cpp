@@ -95,7 +95,7 @@ void Bloocoo::parseArgs(int argc, char* argv[]){
 void Bloocoo::execute (){
 
 	_file_noKminmerReads = ofstream(_filename_noKminmerReads, std::ofstream::app);
-
+	_node_id = 0;
 	//parseArgs();
 	createMDBG();
 	createGfa();
@@ -109,6 +109,8 @@ void Bloocoo::execute (){
 	}
 
 	_file_noKminmerReads.close();
+
+
 }
 
 
@@ -211,6 +213,7 @@ void Bloocoo::createMDBG (){
 		
 	}
 
+	//cout << _mdbg->_dbg_nodes.size() << endl;
 	
 	_kminmerFile.close();
 	

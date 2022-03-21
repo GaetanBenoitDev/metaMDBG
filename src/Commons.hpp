@@ -21,6 +21,7 @@
 #include "./utils/ArgParse.hpp"
 #include <random>
 #include <chrono>
+#include "utils/parallel_hashmap/phmap.h"
 namespace fs = std::filesystem;
 //namespace fs = std::filesystem;
 
@@ -669,6 +670,15 @@ struct Overlap {
     u_int16_t _nbMinimizers;
 };
 
+
+//typedef phmap::parallel_flat_hash_set<KmerVec, phmap::priv::hash_default_hash<KmerVec>, phmap::priv::hash_default_eq<KmerVec>, std::allocator<KmerVec>, 4, std::mutex> KmerVecSet;
+typedef phmap::parallel_flat_hash_map<KmerVec, DbgNode, phmap::priv::hash_default_hash<KmerVec>, phmap::priv::hash_default_eq<KmerVec>, std::allocator<std::pair<KmerVec, DbgNode>>, 4, std::mutex> MdbgNodeMap;
+typedef phmap::parallel_flat_hash_map<KmerVec, vector<KmerVec>, phmap::priv::hash_default_hash<KmerVec>, phmap::priv::hash_default_eq<KmerVec>, std::allocator<std::pair<KmerVec, vector<KmerVec>>>, 4, std::mutex> MdbgEdgeMap;
+
+
+//unordered_map<KmerVec, DbgNode> _dbg_nodes;
+//unordered_map<KmerVec, vector<KmerVec>> _dbg_edges;
+
 static const unsigned char basemap[256] = {
 	0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,
 	16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  27,  28,  29,  30,  31,
@@ -1077,8 +1087,10 @@ public:
 
 	size_t _k;
 	u_int32_t _node_id;
-	unordered_map<KmerVec, DbgNode> _dbg_nodes;
-	unordered_map<KmerVec, vector<KmerVec>> _dbg_edges;
+	//unordered_map<KmerVec, DbgNode> _dbg_nodes;
+	MdbgNodeMap _dbg_nodes;
+	MdbgEdgeMap _dbg_edges;
+	//unordered_map<KmerVec, vector<KmerVec>> _dbg_edges;
 
 	MDBG(size_t k){
 		_k = k;
@@ -1087,6 +1099,7 @@ public:
 
 	void addNode(const KmerVec& vec, u_int16_t length, u_int16_t overlapLength_start, u_int16_t overlapLength_end, bool isReversed){
 
+		/*
 		if(_dbg_nodes.find(vec) != _dbg_nodes.end()){
 			//if(_dbg_nodes[vec]._abundance > 1000){
 			//	cout << _dbg_nodes[vec]._index << " " << _dbg_nodes[vec]._abundance << endl;
@@ -1112,6 +1125,7 @@ public:
 		//}
 
 		_node_id += 1;
+		*/
 
 	}
 	
