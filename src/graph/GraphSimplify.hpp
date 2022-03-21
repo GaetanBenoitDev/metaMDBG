@@ -7762,8 +7762,10 @@ public:
     void findUniquePath(u_int32_t source_nodeIndex, u_int32_t dest_nodeIndex, vector<u_int32_t>& path, bool includeSource, bool includeSink, u_int32_t maxDistance){
 
 
-
         path.clear();
+
+        if(nodeIndex_to_unitigIndex(source_nodeIndex) != nodeIndex_to_unitigIndex(dest_nodeIndex)) return;
+
 		unordered_set<u_int32_t> isVisited;
 		unordered_map<u_int32_t, u_int32_t> prev;
         queue<u_int32_t> queue;

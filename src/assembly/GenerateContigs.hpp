@@ -188,15 +188,15 @@ public:
 		
 
 		//Generate unitigs
-		cout << "Indexing reads" << endl;
-		_unitigDatas.resize(_mdbg->_dbg_nodes.size());
-		_graph->clear(0);
-		_graph->compact(false, _unitigDatas);
-		removeUnsupportedEdges(_gfaFilename, gfa_filename_noUnsupportedEdges, _graph);
+		//cout << "Indexing reads" << endl;
+		//_unitigDatas.resize(_mdbg->_dbg_nodes.size());
+		//_graph->clear(0);
+		//_graph->compact(false, _unitigDatas);
+		//removeUnsupportedEdges(_gfaFilename, gfa_filename_noUnsupportedEdges, _graph);
 		
 		delete _mdbg;
 
-		cout << "done" << endl;
+		//cout << "done" << endl;
 	
 
 		_graph->debug_writeGfaErrorfree(500, 500, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false, false, false);
@@ -435,25 +435,27 @@ public:
 	
 
 
-	bool isContigAssembled(const vector<u_int32_t>& nodePath, unordered_map<u_int32_t, u_int32_t>& processedNodeNames){
+	bool isContigAssembled(const vector<u_int32_t>& nodePath){
 
 		unordered_set<u_int32_t> distinctContigIndex;
 		u_int64_t nbBinnedNodes = 0;
 
 		for(u_int32_t nodeIndex : nodePath){
 			u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
-			if(processedNodeNames.find(nodeName) != processedNodeNames.end()){
-				distinctContigIndex.insert(processedNodeNames[nodeName]);
+			if(_processedNodeNames.find(nodeName) != _processedNodeNames.end()){
+				return true;
+				//distinctContigIndex.insert(processedNodeNames[nodeName]);
 			}
-			else{
-				return false;
-			}
+			//else{
+			//	return false;
+			//}
 		}
 
+		return false;
 		//float sharedRate = nbBinnedNodes / ((float) nodePath.size());
 
 		//return sharedRate > 0.98;
-		return distinctContigIndex.size() == 1;
+		//return distinctContigIndex.size() == 1;
 	}
 
 	/*
@@ -660,6 +662,18 @@ public:
 
 	float _minUnitigAbundance;
 
+	struct Contig{
+		vector<u_int32_t> _nodepath;
+		vector<u_int32_t> _nodepath_sorted;
+	};
+
+	static bool ContigComparator_ByLength(const Contig &a, const Contig &b){
+		return a._nodepath.size() > b._nodepath.size();
+	}
+
+
+	unordered_set<u_int32_t> _processedNodeNames;
+
 	void generateContigs2(const string& outputFilename, const string& outputFilename_fasta){
 
 		string clusterDir = _inputDir + "/" + "binGreedy";
@@ -683,7 +697,7 @@ public:
 		//Assembly assembly(_unitigDatas, _contigFeature);
 
 		float prevCutoff = -1;
-		u_int64_t contigIndex;
+		u_int64_t contigIndex = 0;
 
 
 		//unordered_set<u_int32_t> processedNodeNames;
@@ -706,8 +720,8 @@ public:
 
 
 		u_int64_t contigIndexLala = 0;
-		unordered_map<u_int32_t, u_int32_t> nodeName_to_contigIndex;
-
+		//unordered_map<u_int32_t, u_int32_t> nodeName_to_contigIndex;
+		vector<Contig> contigs;
 
 		for(float cutoff : allCutoffs){
 
@@ -716,9 +730,9 @@ public:
 			_graph->loadState2(cutoff, -1, _unitigDatas);
 			_minUnitigAbundance = cutoff / 0.2;
 
-			if(cutoff == 102.862){
-				_graph->saveGraph(_inputDir + "/minimizer_graph_contigs.gfa");
-			}
+			//if(cutoff == 102.862){
+			//	_graph->saveGraph(_inputDir + "/minimizer_graph_contigs.gfa");
+			//}
 
 			for(const Unitig& unitig : _graph->_unitigs){
 				//cout << unitig._length << " " << unitig._abundance << endl;
@@ -747,8 +761,7 @@ public:
 				//cout << "Cutoff: " << unitigLength_cutoff_min << "-" << unitigLength_cutoff_max << " " << cutoff << " " << processedUnitigs << " " << startingUnitigs.size() << "     " << unitig._length << endl;
 				processedUnitigs += 1;
 
-
-				if(isContigAssembled(unitig._nodes, nodeName_to_contigIndex)) continue;
+				if(isContigAssembled(unitig._nodes)) continue;
 
 
 				u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(unitig._startNode);
@@ -776,24 +789,25 @@ public:
 				//dereplicateContig2(contigs, nodePath, processedNodeNames, nodeName_to_contigIndex, contigIndexLala);
 
 
-
 				u_int64_t size = nodePath.size();
 				gzwrite(outputContigFile_min, (const char*)&size, sizeof(size));
 				gzwrite(outputContigFile_min, (const char*)&nodePath[0], size * sizeof(u_int32_t));
 
 				for(u_int32_t nodeIndex : nodePath){
 					u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
-					nodeName_to_contigIndex[nodeName] = contigIndex;
+					_processedNodeNames.insert(nodeName);
 					//if(nodeName == 289994){
 					//	isLala = true;
 					//}
 					//processedNodeNames.insert(nodeName);
 				}
 
+				//vector<u_int32_t> nodepath_sorted = nodePath;
+				//std::sort(nodepath_sorted.begin(), nodepath_sorted.end());
+				//contigs.push_back({nodePath, nodepath_sorted});
 
 				contigIndex += 1;
 			}
-
 
 
 
@@ -837,6 +851,24 @@ public:
 		fileTestLala.close();
 		*/
 
+		/*
+		std::sort(contigs.begin(), contigs.end(), ContigComparator_ByLength);
+		for(size_t i=0; i<contigs.size(); i++){
+			for(size_t j=i+1; j<contigs.size(); j++){
+				double nbShared = Utils::computeSharedElements(contigs[i]._nodepath_sorted, contigs[j]._nodepath_sorted);
+				double sharedRate_1 = nbShared / contigs[i]._nodepath_sorted.size();
+				double sharedRate_2 = nbShared / contigs[j]._nodepath_sorted.size();
+
+				//if(i == j) cout << nbShared << " " << sharedRate_1 << " " << sharedRate_2 << endl;
+				if(sharedRate_1 > 0.01 || sharedRate_2 > 0.01){
+					cout << "------" << endl;
+					cout << contigs[i]._nodepath_sorted.size() <<  " " << sharedRate_1 << endl;
+					cout << contigs[j]._nodepath_sorted.size() <<  " " << sharedRate_2 << endl;
+				}
+			}			
+		}
+		*/
+
 		gzclose(outputContigFile_min);
 		gzclose(outputContigFile_fasta);
 		fileHifiasmAll.close();
@@ -845,6 +877,7 @@ public:
 		//extractContigKminmers(outputFilename_fasta);
 		file_asmResult.close();
 		
+		cout << "Nb contigs: " << contigIndex << endl;
 	}
 
 	/*
