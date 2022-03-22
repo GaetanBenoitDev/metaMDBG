@@ -6,6 +6,9 @@
 #include "../Commons.hpp"
 
 
+typedef phmap::parallel_flat_hash_map<u_int64_t, u_int32_t, phmap::priv::hash_default_hash<u_int64_t>, phmap::priv::hash_default_eq<u_int64_t>, std::allocator<std::pair<u_int64_t, u_int32_t>>, 4, std::mutex> KmerCountMap;
+
+
 class KmerCounter : public Tool{
     
 public:
@@ -15,6 +18,7 @@ public:
 	string _outputFilename;
     size_t _kmerSize;
 	float _trimmedOutliers;
+	int _nbCores;
 
 	//string _tmpDir;
 	//string _outputFilename_kmerCouts;
@@ -22,12 +26,13 @@ public:
 	size_t _nbDatasets;
 
 	KmerModel* _kmerModel;
-	unordered_map<u_int64_t, u_int32_t> _kmerCounts;
+	KmerCountMap _kmerCounts;
 	vector<vector<float>> _contigCoverages_mean;
 	vector<vector<float>> _contigCoverages_var;
 	u_int32_t _currentDatasetIndex;
 
 	MinimizerParser* _minimizerParser;
+	u_int64_t _nbContigs;
 
 	KmerCounter(): Tool (){
 
@@ -35,7 +40,7 @@ public:
 
 	void parseArgs(int argc, char* argv[]){
 
-		string ARG_TRIMMED_OUTLIERS = "t";
+		string ARG_TRIMMED_OUTLIERS = "to";
 
 		cxxopts::Options options("ToMinspace", "");
 		options.add_options()
@@ -43,7 +48,8 @@ public:
 		(ARG_OUTPUT_DIR, "", cxxopts::value<string>())
 		(ARG_INPUT_FILENAME, "", cxxopts::value<string>()->default_value(""))
 		(ARG_INPUT_FILENAME_CONTIG, "", cxxopts::value<string>()->default_value(""))
-		(ARG_TRIMMED_OUTLIERS, "", cxxopts::value<float>()->default_value("0.05"));
+		(ARG_TRIMMED_OUTLIERS, "", cxxopts::value<float>()->default_value("0.05"))
+		(ARG_NB_CORES, "", cxxopts::value<int>()->default_value(NB_CORES_DEFAULT));
 
 
 		if(argc <= 1){
@@ -60,6 +66,7 @@ public:
 			_outputFilename = result[ARG_OUTPUT_DIR].as<string>();
 			_inputFilename_contig = result[ARG_INPUT_FILENAME_CONTIG].as<string>();
 			_trimmedOutliers = result[ARG_TRIMMED_OUTLIERS].as<float>();
+			_nbCores = result[ARG_NB_CORES].as<int>();
 			
 			cout << "Trimmed val: " << _trimmedOutliers << endl;
 		}
@@ -74,6 +81,7 @@ public:
 
     void execute (){
     
+		_nbContigs = 0;
 		_kmerModel = new KmerModel(31);
 		_minimizerParser = new MinimizerParser(31, 0.1);
 
@@ -103,9 +111,18 @@ public:
 
 	void extractContigKmers (){
 
-		ReadParser parser(_inputFilename_contig, true, false);
-		auto fp = std::bind(&KmerCounter::extractContigKmers_read, this, std::placeholders::_1);
-		parser.parse(fp);
+		ReadParserParallel readParser(_inputFilename_contig, true, false, _nbCores);
+		readParser.parse(ContigFunctor(*this));
+
+		for(size_t i=0; i<_nbContigs; i++){
+			_contigCoverages_mean.push_back(_countsInit);
+			_contigCoverages_var.push_back(_countsInit);
+		}
+
+		cout << "Nb kmers: " << _kmerCounts.size() << endl;
+		//ReadParser parser(_inputFilename_contig, true, false);
+		//auto fp = std::bind(&KmerCounter::extractContigKmers_read, this, std::placeholders::_1);
+		//parser.parse(fp);
 
 		//for(const auto& it : _kmerCounts){
 		//	_sortedKmers.push_back(it.first);
@@ -114,7 +131,7 @@ public:
 		//std::sort(_sortedKmers.begin(), _sortedKmers.end());
 	}
 
-
+	/*
 	void extractContigKmers_read(const Read& read){
 
 		u_int64_t readIndex = read._index;
@@ -138,16 +155,9 @@ public:
 			if(_kmerCounts.find(minimizer) == _kmerCounts.end()) _kmerCounts[minimizer] = 0;
 		}
 
-		/*
-		vector<u_int64_t> kmers;
-		_kmerModel->iterate(read->seq.s, strlen(read->seq.s), kmers);
 
-		for(u_int64_t kmer : kmers){
-			if(_kmerCounts.find(kmer) == _kmerCounts.end()) _kmerCounts[kmer] = _countsInit;
-		}
-		cout << _kmerCounts.size() << endl;
-		*/
 	}
+	*/
 
 	void countShortreadsKmers (){
 
@@ -172,9 +182,11 @@ public:
 
 
 
-			ReadParser parserDataset(filename, true, false);
-			auto fp = std::bind(&KmerCounter::countShortreadsKmers_read, this, std::placeholders::_1);
-			parserDataset.parse(fp);
+			ReadParserParallel readParser(filename, true, false, _nbCores);
+			readParser.parse(KmerCounterFunctor(*this));
+			//ReadParser parserDataset(filename, true, false);
+			//auto fp = std::bind(&KmerCounter::countShortreadsKmers_read, this, std::placeholders::_1);
+			//parserDataset.parse(fp);
 
 			if(datasetIndex % 2 == 1){
 				computeContigCoverage();
@@ -198,7 +210,7 @@ public:
 
 	}
 
-
+	/*
 	void countShortreadsKmers_read(const Read& read){
 
 		u_int64_t readIndex = read._index;
@@ -219,18 +231,23 @@ public:
 
 		
 	}
+	*/
 
 
 	void computeContigCoverage (){
 
 		cout << "\tComputing contig coverage" << endl;
-		ReadParser parser(_inputFilename_contig, true, false);
-		auto fp = std::bind(&KmerCounter::computeContigCoverage_read, this, std::placeholders::_1);
-		parser.parse(fp);
+		
+		ReadParserParallel readParser(_inputFilename_contig, true, false, _nbCores);
+		readParser.parse(ContigCoverageFunctor(*this));
+
+		//ReadParser parser(_inputFilename_contig, true, false);
+		//auto fp = std::bind(&KmerCounter::computeContigCoverage_read, this, std::placeholders::_1);
+		//parser.parse(fp);
 
 	}
 
-
+	/*
 	void computeContigCoverage_read(const Read& read){
 
 		u_int64_t readIndex = read._index;
@@ -277,16 +294,10 @@ public:
 
 		_contigCoverages_mean[readIndex][_currentDatasetIndex] = mean;
 		_contigCoverages_var[readIndex][_currentDatasetIndex] = var;
-		/*
-		vector<u_int64_t> kmers;
-		_kmerModel->iterate(read->seq.s, strlen(read->seq.s), kmers);
 
-		for(u_int64_t kmer : kmers){
-			if(_kmerCounts.find(kmer) == _kmerCounts.end()) _kmerCounts[kmer] = _countsInit;
-		}
-		cout << _kmerCounts.size() << endl;
-		*/
+
 	}
+	*/
 
 	void dumpContigCoverages(){
 
@@ -308,6 +319,229 @@ public:
 
 		outputFile.close();
 	}
+
+
+	class ContigFunctor {
+
+		public:
+
+		KmerCounter& _kmerCounter;
+		MinimizerParser* _minimizerParser;
+		KmerModel* _kmerModel;
+		u_int64_t _currentDatasetIndex;
+
+		ContigFunctor(KmerCounter& kmerCounter) : _kmerCounter(kmerCounter){
+			
+		}
+
+		ContigFunctor(const ContigFunctor& copy) : _kmerCounter(copy._kmerCounter){
+			_kmerModel = new KmerModel(31);
+			_minimizerParser = new MinimizerParser(31, 0.1);
+			_currentDatasetIndex = _kmerCounter._currentDatasetIndex;
+		}
+
+		~ContigFunctor(){
+		}
+
+		void operator () (const Read& read) {
+
+			#pragma omp atomic
+			_kmerCounter._nbContigs += 1;
+
+			u_int64_t readIndex = read._index;
+			if(readIndex % 1000 == 0) cout << readIndex << endl;
+			
+			//string rleSequence;
+			//vector<u_int64_t> rlePositions;
+			//Encoder::encode_rle(read->seq.s, strlen(read->seq.s), rleSequence, rlePositions);
+
+			vector<u_int64_t> minimizers;
+			vector<u_int64_t> minimizers_pos;
+			_minimizerParser->parse(read._seq, minimizers, minimizers_pos);
+
+			//cout << "----" << endl;
+			//cout << readIndex << endl;
+			//cout << _countsInit.size() << endl;
+			//cout << _kmerCounts.size() << endl;
+
+			//#pragma omp critical
+			//{
+			for(u_int64_t minimizer : minimizers){
+
+				/*
+				_kmerCounter._kmerCounts.try_emplace_l(minimizer, 
+				[](KmerCountMap::value_type& v) { // key exist
+					//v.second += 1;
+				}, 0);
+				*/
+				/*
+				_kmerCounter._kmerCounts.lazy_emplace_l(minimizer, 
+				[](KmerCountMap::value_type& v) { // key exist
+					//v.second += 1;
+				},           
+				[&minimizer](const KmerCountMap::constructor& ctor) { // key inserted
+					ctor(minimizer, 0);
+				});
+				*/
+
+				if(_kmerCounter._kmerCounts.find(minimizer) == _kmerCounter._kmerCounts.end()) _kmerCounter._kmerCounts[minimizer] = 0;
+			}
+			//}
+
+
+		
+		}
+
+	};
+
+	"Reprise: parallelisation au niveau des datasets?"
+	class KmerCounterFunctor {
+
+		public:
+
+		KmerCounter& _kmerCounter;
+		MinimizerParser* _minimizerParser;
+		KmerModel* _kmerModel;
+		u_int64_t _currentDatasetIndex;
+
+		KmerCounterFunctor(KmerCounter& kmerCounter) : _kmerCounter(kmerCounter){
+			
+		}
+
+		KmerCounterFunctor(const KmerCounterFunctor& copy) : _kmerCounter(copy._kmerCounter){
+			_kmerModel = new KmerModel(31);
+			_minimizerParser = new MinimizerParser(31, 0.1);
+			_currentDatasetIndex = _kmerCounter._currentDatasetIndex;
+		}
+
+		~KmerCounterFunctor(){
+		}
+
+		void operator () (const Read& read) {
+
+
+			u_int64_t readIndex = read._index;
+			if(readIndex % 100000 == 0) cout << _currentDatasetIndex << " " << readIndex << endl;
+			
+			//string rleSequence;
+			//vector<u_int64_t> rlePositions;
+			//Encoder::encode_rle(read->seq.s, strlen(read->seq.s), rleSequence, rlePositions);
+
+			vector<u_int64_t> minimizers;
+			vector<u_int64_t> minimizers_pos;
+			_minimizerParser->parse(read._seq, minimizers, minimizers_pos);
+
+
+			//#pragma omp critical
+			//{
+			for(u_int64_t minimizer : minimizers){
+
+				auto set_value = [](KmerCountMap::value_type& v) { v.second += 1; };
+    			_kmerCounter._kmerCounts.modify_if(minimizer, set_value);
+
+				/*
+				_kmerCounter._kmerCounts->_dbg_nodes.lazy_emplace_l(minimizer, 
+				[](MdbgNodeMap::value_type& v) { // key exist
+					v.second += 1;
+				},           
+				[&minimizer](const MdbgNodeMap::constructor& ctor) { // key inserted
+					//ctor(minimizer, 1);
+				});
+				*/
+
+				//if(_kmerCounter._kmerCounts.find(minimizer) != _kmerCounter._kmerCounts.end()) _kmerCounter._kmerCounts[minimizer] += 1;
+			}
+			//}
+
+
+
+		
+		}
+
+	};
+
+
+	class ContigCoverageFunctor {
+
+		public:
+
+		KmerCounter& _kmerCounter;
+		MinimizerParser* _minimizerParser;
+		KmerModel* _kmerModel;
+		u_int64_t _currentDatasetIndex;
+
+		ContigCoverageFunctor(KmerCounter& kmerCounter) : _kmerCounter(kmerCounter){
+			
+		}
+
+		ContigCoverageFunctor(const ContigCoverageFunctor& copy) : _kmerCounter(copy._kmerCounter){
+			_kmerModel = new KmerModel(31);
+			_minimizerParser = new MinimizerParser(31, 0.1);
+			_currentDatasetIndex = _kmerCounter._currentDatasetIndex;
+		}
+
+		~ContigCoverageFunctor(){
+		}
+
+		void operator () (const Read& read) {
+
+			u_int64_t readIndex = read._index;
+			if(readIndex % 1000 == 0) cout << readIndex << endl;
+			
+			//string rleSequence;
+			//vector<u_int64_t> rlePositions;
+			//Encoder::encode_rle(read->seq.s, strlen(read->seq.s), rleSequence, rlePositions);
+
+			vector<u_int64_t> minimizers;
+			vector<u_int64_t> minimizers_pos;
+			_minimizerParser->parse(read._seq, minimizers, minimizers_pos);
+
+			vector<u_int32_t> count_values;
+			for(u_int64_t minimizer : minimizers){
+				count_values.push_back(_kmerCounter._kmerCounts[minimizer]);
+			}
+
+			std::sort(count_values.begin(), count_values.end());
+
+			double sum = 0;
+			double n = 0;
+
+			u_int64_t nbTrimmedValues = count_values.size() * _kmerCounter._trimmedOutliers;
+
+			for(size_t i=nbTrimmedValues; i<count_values.size()-nbTrimmedValues; i++){
+				sum += count_values[i];
+				n += 1;
+			}
+
+			if(n <= 1) return;
+
+			float mean = sum / n;
+
+			double var = 0;
+			for(size_t i=nbTrimmedValues; i<count_values.size()-nbTrimmedValues; i++){
+				double count = count_values[i];
+				var += ((count - mean) * (count - mean));
+			}
+
+			var /= (n-1);
+
+			//
+
+			_kmerCounter._contigCoverages_mean[readIndex][_currentDatasetIndex] = mean;
+			_kmerCounter._contigCoverages_var[readIndex][_currentDatasetIndex] = var;
+
+			//#pragma omp critical
+			//{
+			//	cout << readIndex << " " << mean << " " << var << endl; 
+			//}
+
+
+		
+		}
+
+		
+
+	};
 
 };	
 

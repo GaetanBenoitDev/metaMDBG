@@ -57,7 +57,8 @@ public:
 	unordered_map<u_int32_t, string> _contigSequences;
 	unordered_map<u_int32_t, u_int32_t> _contigIndex_to_binIndex;
 	unordered_map<u_int32_t, vector<u_int32_t>> _binIndex_to_contigIndex;
-
+	float _binningThreshold;
+	
 	ContigFeature(){
 
 		_nbDatasets = 0;
@@ -131,6 +132,9 @@ public:
 
 	void loadContigBins(const string& filename){
 		
+		_contigIndex_to_binIndex.clear();
+		_binIndex_to_contigIndex.clear();
+
 	    if(!fs::exists (filename)){
 			cout << "No contig bin file" << endl;
 			return;
@@ -1130,7 +1134,7 @@ public:
 
 	bool isIntra(const vector<u_int32_t>& bin1, const vector<u_int32_t>& bin2){
 
-		cout << "\tIs intra: " << bin1.size() << " " << bin2.size() << endl;
+		cout << "\tIs intra: " << bin1.size() << " " << bin2.size() << " " << _binningThreshold << endl;
 
 		float distance = computeDistance(bin1, bin2);
 
@@ -1138,7 +1142,7 @@ public:
 
 		//return distance < 0.015;
 		//return distance < 0.015;
-		return distance < 0.05;
+		return distance < _binningThreshold;
 
 		//(1-tnf_dist)
 		//return  cor * (1-dist) > 0.65;
@@ -1162,7 +1166,7 @@ public:
 			}
 		}
 
-		cout << "\tComposition distance mean: " << (distance_sum / distance_n) << endl;
+		//cout << "\tComposition distance mean: " << (distance_sum / distance_n) << endl;
 
 		//return distance_sum / distance_n;
 		return distance_max;

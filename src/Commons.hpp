@@ -353,9 +353,12 @@ const string ARG_INPUT_FILENAME_CONTIG_FASTA = "cf";
 const string ARG_INPUT_FILENAME_UNITIG_NT = "unitigNt";
 const string ARG_INPUT_FILENAME_UNITIG_CLUSTER = "cluster";
 const string ARG_INPUT_FILENAME_ABUNDANCE = "a";
+const string ARG_INPUT_FILENAME_BINNING = "bi";
+const string ARG_OUTPUT_FILENAME_BINNING = "bo";
 const string ARG_FIRST_PASS = "firstpass";
 const string ARG_FASTA = "fasta";
 const string ARG_NB_CORES = "t";
+const string ARG_EVAL = "eval";
 
 const string NB_CORES_DEFAULT = "8";
 const string FILENAME_NO_KMINMER_READS = "reads_noKminmers.bin";

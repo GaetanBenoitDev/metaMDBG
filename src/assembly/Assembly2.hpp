@@ -110,6 +110,9 @@ public:
 	string _inputFilename_unitigCluster;
 	string _filename_abundance;
 	bool _isFirstPass;
+	string _filename_inputBinning;
+	string _filename_outputBinning;
+	bool _computeBinStats;
 
 	float _minimizerDensity;
     size_t _minimizerSize;
@@ -237,12 +240,15 @@ public:
 		options.add_options()
 		(ARG_OUTPUT_DIR, "", cxxopts::value<string>())
 		(ARG_INPUT_FILENAME_CONTIG, "", cxxopts::value<string>()->default_value(""))
+		(ARG_INPUT_FILENAME_BINNING, "", cxxopts::value<string>()->default_value(""))
+		(ARG_OUTPUT_FILENAME_BINNING, "", cxxopts::value<string>()->default_value(""))
 		(ARG_INPUT_FILENAME_TRUTH, "", cxxopts::value<string>()->default_value(""))
 		(ARG_DEBUG, "", cxxopts::value<bool>()->default_value("false"))
 		(ARG_INPUT_FILENAME_UNITIG_NT, "", cxxopts::value<string>()->default_value(""))
 		(ARG_INPUT_FILENAME_UNITIG_CLUSTER, "", cxxopts::value<string>()->default_value(""))
 		(ARG_FIRST_PASS, "", cxxopts::value<bool>()->default_value("false"))
 		(ARG_INPUT_FILENAME_ABUNDANCE, "", cxxopts::value<string>()->default_value(""))
+		(ARG_EVAL, "", cxxopts::value<bool>()->default_value("false"))
 		(ARG_NB_CORES, "", cxxopts::value<int>()->default_value(NB_CORES_DEFAULT));
 
 
@@ -259,10 +265,13 @@ public:
 
 			_inputDir = result[ARG_OUTPUT_DIR].as<string>();
 			_filename_inputContigs = result[ARG_INPUT_FILENAME_CONTIG].as<string>();
+			_filename_inputBinning = result[ARG_INPUT_FILENAME_BINNING].as<string>();
+			_filename_outputBinning = result[ARG_OUTPUT_FILENAME_BINNING].as<string>();
 			_truthInputFilename = result[ARG_INPUT_FILENAME_TRUTH].as<string>();
 			_inputFilename_unitigNt = result[ARG_INPUT_FILENAME_UNITIG_NT].as<string>();
 			_inputFilename_unitigCluster = result[ARG_INPUT_FILENAME_UNITIG_CLUSTER].as<string>();
 			_debug = result[ARG_DEBUG].as<bool>();
+			_computeBinStats = result[ARG_EVAL].as<bool>();
 			_filename_abundance = result[ARG_INPUT_FILENAME_ABUNDANCE].as<string>();
 			_isFirstPass = result[ARG_FIRST_PASS].as<bool>();
 			_nbCores = result[ARG_NB_CORES].as<int>();
@@ -295,7 +304,6 @@ public:
 		_filename_hifiasmGroundtruth = _inputDir + "/hifiasmGroundtruth.gz";
 		_filename_outputContigs = _inputDir + "/contigs.min.gz";
 		_filename_solidKminmers = _inputDir + "/solid.min.gz";
-
 	}
 
 	void loadGraph(){
@@ -316,7 +324,7 @@ public:
 
 		extractContigKminmers2();
 		if(!_isFirstPass){
-			_contigFeature.loadContigBins(_inputDir + "/contigToBin.bin");
+			_contigFeature.loadContigBins(_filename_inputBinning);
 		}
 
 		if(_truthInputFilename != ""){
@@ -768,7 +776,7 @@ public:
 
 		u_int32_t contigIndex_model = _contigFeature.nodepathToContigIndex(unitig_model._nodes);
 		if(contigIndex_model == -1){
-			cout << "\tNo contig index" << endl;
+			//cout << "\tNo contig index" << endl;
 			return;
 		}
 
@@ -779,7 +787,7 @@ public:
 
 
 		if(processedContigIndex.find(contigIndex_model) != processedContigIndex.end()){
-			cout << "\tAlready binned" << endl;
+			//cout << "\tAlready binned" << endl;
 			return;
 		}
 
@@ -817,7 +825,7 @@ public:
 		}
 
 		//bin.push_back(unitigSequence_model);
-		cout << "\tContig index model: " << contigIndex_model << endl;
+		//cout << "\tContig index model: " << contigIndex_model << endl;
 
 		//vector<float> compositionModel;
 		//_contigFeature.nodepathToComposition(unitig_model._nodes, compositionModel);
@@ -860,7 +868,7 @@ public:
 			}
 		}
 
-
+		unordered_set<u_int32_t> componentDebug;
 
 		while(!queue.empty()){
 
@@ -875,6 +883,7 @@ public:
 
 
 
+
 			size_t componentNbNodes = 9999999;
 			size_t componentLength = 100000;
 
@@ -883,8 +892,8 @@ public:
 			//_graph->getConnectedComponent_readpath(unitigIndex, _unitigDatas, 1, component);
 			//_graph->getConnectedComponent_unitig_nt(unitigIndex, componentLength, component);
 			_graph->getConnectedComponent_unitig(unitigIndex, componentNbNodes, component);
-			cout << "\tComponent size: " << componentNbNodes2.size() << " " << component.size() << endl;
-
+			//cout << "\tComponent size: " << componentNbNodes2.size() << " " << component.size() << endl;
+			componentDebug = component;
 
 			//component = componentNbNodes2;
 
@@ -1242,66 +1251,84 @@ public:
 			lengthTotal += contig.size();
 		}
 
-		if(lengthTotal > 300000){
-			
-			cout << _nbHighQualityBins << " " << _nbMedQualityBins << " " << _nbLowQualityBins << "    " << _nbContaminatedBins << endl;
-
-			int ret = computeBinStats(clusterDir, bin, filename_binStats);
-
-			if(ret == 0){
-
-				string lastLine = "";
-				string line = "";
-				ifstream file_binStats(filename_binStats);
-				while (std::getline(file_binStats, line)){
-					if(line.empty()) continue;
-					lastLine = line;
-				}
-				file_binStats.close();
+		if(_computeBinStats ){
+			if(lengthTotal > 4000000){
 				
-				vector<string>* fields = new vector<string>();
-				GfaParser::tokenize(lastLine, fields, ',');
-				float completeness = stof((*fields)[0]);
-				float contamination = stof((*fields)[1]);
-				delete fields;
-				cout << "Result: " << completeness << " " << contamination << endl;
-
-				if(completeness > 0.65 && contamination < 0.05){
-
-					for(u_int32_t nodeName : allComponentNodenames){
-						fileComponentNodeAll << nodeName << "," << clusterIndex << endl;
-					}
-					fileComponentNodeAll.flush();
-
-					for(const string& unitigName : hifiasmUnitigNames){
-						fileHifiasmAll << unitigName << "," << clusterIndex << endl;
-					}
-					fileHifiasmAll.flush();
-
-					//if(clusterIndex >= 4) getchar();
-					clusterIndex += 1;
-				}
-
-				if(contamination > 0.2){
-					//getchar();
-				}
-
-				float qualityScore = completeness - 5*contamination;
-			
-				if(contamination > 0.05){
-					_nbContaminatedBins += 1;
-				}
-				else if (completeness >= 0.9 and contamination <= 0.05)
-					_nbHighQualityBins += 1;
-				else if (completeness >= 0.7 and contamination <= 0.1)
-					_nbMedQualityBins += 1;
-				else if (qualityScore >= 0.5)
-					_nbLowQualityBins += 1;
-
-
-
 				cout << _nbHighQualityBins << " " << _nbMedQualityBins << " " << _nbLowQualityBins << "    " << _nbContaminatedBins << endl;
 
+				int ret = computeBinStats(clusterDir, bin, filename_binStats);
+
+				if(ret == 0){
+
+					string lastLine = "";
+					string line = "";
+					ifstream file_binStats(filename_binStats);
+					while (std::getline(file_binStats, line)){
+						if(line.empty()) continue;
+						lastLine = line;
+					}
+					file_binStats.close();
+					
+					vector<string>* fields = new vector<string>();
+					GfaParser::tokenize(lastLine, fields, ',');
+					float completeness = stof((*fields)[0]);
+					float contamination = stof((*fields)[1]);
+					delete fields;
+					cout << "Result: " << completeness << " " << contamination << endl;
+
+					if(completeness > 0.65 && contamination < 0.05){
+
+						for(u_int32_t nodeName : allComponentNodenames){
+							fileComponentNodeAll << nodeName << "," << clusterIndex << endl;
+						}
+						fileComponentNodeAll.flush();
+
+						for(const string& unitigName : hifiasmUnitigNames){
+							fileHifiasmAll << unitigName << "," << clusterIndex << endl;
+						}
+						fileHifiasmAll.flush();
+
+						//if(clusterIndex >= 4) getchar();
+						clusterIndex += 1;
+					}
+
+					if(contamination > 0.05){
+
+						unordered_set<u_int32_t> validNodes;
+						for (u_int32_t unitigIndex : componentDebug){
+							for(u_int32_t nodeIndex : _graph->_unitigs[unitigIndex]._nodes){
+								u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
+								//if(_debug_groundTruthNodeNames.find(nodeName) == _debug_groundTruthNodeNames.end()) continue;
+								validNodes.insert(nodeName);
+							}
+						}
+						string outputFilename = _inputDir + "/minimizer_graph_binning.gfa";
+						GfaParser::rewriteGfa_withoutNodes(_gfaFilename, outputFilename, validNodes, _graph->_isEdgeRemoved, _graph->_graphSuccessors);
+			
+
+						getchar();
+					}
+
+					float qualityScore = completeness - 5*contamination;
+				
+					if(contamination > 0.05){
+						_nbContaminatedBins += 1;
+					}
+					else if (completeness >= 0.9 and contamination <= 0.05)
+						_nbHighQualityBins += 1;
+					else if (completeness >= 0.7 and contamination <= 0.1)
+						_nbMedQualityBins += 1;
+					else if (qualityScore >= 0.5)
+						_nbLowQualityBins += 1;
+
+
+
+					cout << _nbHighQualityBins << " " << _nbMedQualityBins << " " << _nbLowQualityBins << "    " << _nbContaminatedBins << endl;
+
+				}
+				else{
+					exit(1);
+				}
 			}
 		}
 		
@@ -1314,6 +1341,7 @@ public:
 	void assignContigToBin(u_int32_t contigIndex, u_int32_t binIndex){
 		_fileOutput_contigBin.write((const char*)&contigIndex, sizeof(contigIndex));
 		_fileOutput_contigBin.write((const char*)&binIndex, sizeof(binIndex));
+		//_fileOutput_contigBin.flush();
 	}
 
 	ofstream _fileTestLala;
@@ -1343,7 +1371,7 @@ public:
 
 	void extractContigKminmers_read2(const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex, u_int64_t datasetIndex, const string& header, const string& seq){
 
-		if(seq.size() < 10000) return;
+		if(seq.size() < 100000) return;
 		//cout << seq.size() << endl;
 		//if(readIndex == 20010) getchar(); 
 
@@ -1362,7 +1390,7 @@ public:
 			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()) continue;
 			
 			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
-			//_file_contigToNode << nodeName << "," << readIndex << endl;
+			_file_contigToNode << nodeName << "," << readIndex << endl;
 			//if(nodeName == 933376) cout << "HAHAHAHA" << endl;
 
 			//if(_contigFeature._nodeName_to_contigIndex.find(nodeName) == _contigFeature._nodeName_to_contigIndex.end()) continue;
@@ -1409,7 +1437,6 @@ public:
 		ofstream fileComponentNodeAll(clusterDir + "/component_node_all.csv");
 		fileComponentNodeAll << "Name,Colour" << endl;
 
-		_fileOutput_contigBin = ofstream(_inputDir + "/contigToBin.bin");
 
 		u_int32_t binIndex = 0;
 		u_int64_t clusterIndex = 0;
@@ -1444,6 +1471,7 @@ public:
 
 		allCutoffs = {0};
 
+
 		for(float cutoff : allCutoffs){
 
 			_graph->loadState2(cutoff, -1, _unitigDatas);
@@ -1467,43 +1495,59 @@ public:
 
 				if(processedContigIndex.find(contigIndex) != processedContigIndex.end()) continue;
 
-				startingUnitigs.push_back({unitig._length, unitig._abundance, unitig._startNode});
+				startingUnitigs.push_back({unitigSequence.size(), unitig._abundance, unitig._startNode});
 			}
 
 			std::sort(startingUnitigs.begin(), startingUnitigs.end(), UnitigComparator_ByLength2);
 
 
-			for(const UnitigLength& unitigLength : startingUnitigs){
+			for(float binningThreshold : {0.01, 0.05, 0.5, 1.0, 2.0}){
 
-				u_int32_t source_nodeIndex = unitigLength._startNodeIndex;
-				const Unitig& unitig = _graph->nodeIndex_to_unitig(source_nodeIndex);
-
-				//cout << cutoff << " " << processedUnitigs << " " << startingUnitigs.size() << "     " << unitig._length << endl;
-				processedUnitigs += 1;
-
-				//if(isContigBinned(unitig._nodes, processedNodeNames)) continue;
-				//if(isContigBinned(unitig._nodes, processedNodeNames)) continue;
-
-
-				u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(unitig._startNode);
-
-
-				cout << endl << "Starting unitig: " << BiGraph::nodeIndex_to_nodeName(unitig._startNode) << " " << unitig._length << endl;
-
-
-
-				//u_int32_t unitigIndex_model = _graph->nodeIndex_to_unitigIndex(unitig._startNode);
-				//const Unitig& unitig_model = _graph->_unitigs[unitigIndex_model];
-
-
-				for(u_int32_t nodeIndex : unitig._nodes){
-					processedNodeNames.insert(BiGraph::nodeIndex_to_nodeName(nodeIndex));
+				if(binningThreshold != 0.01){
+					_fileOutput_contigBin.close();
+					_contigFeature.loadContigBins(_filename_outputBinning);
+					_fileOutput_contigBin = ofstream(_filename_outputBinning);
+					cout << binningThreshold << endl;
+					//getchar();
 				}
 
-				binByReadpath(unitig._startNode, processedNodeNames, processedContigIndex, clusterDir, filename_binStats, fileHifiasmAll, fileComponentNodeAll, clusterIndex, binIndex);
+				_contigFeature._binningThreshold = binningThreshold;
+				processedNodeNames.clear();
+				processedContigIndex.clear();
+				
+				for(const UnitigLength& unitigLength : startingUnitigs){
+
+					u_int32_t source_nodeIndex = unitigLength._startNodeIndex;
+					const Unitig& unitig = _graph->nodeIndex_to_unitig(source_nodeIndex);
+
+					//cout << cutoff << " " << processedUnitigs << " " << startingUnitigs.size() << "     " << unitig._length << endl;
+					processedUnitigs += 1;
+
+					//if(isContigBinned(unitig._nodes, processedNodeNames)) continue;
+					//if(isContigBinned(unitig._nodes, processedNodeNames)) continue;
 
 
+					u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(unitig._startNode);
+
+					cout << processedUnitigs << "/" << startingUnitigs.size() << "    " << BiGraph::nodeIndex_to_nodeName(unitig._startNode) << " " << unitigLength._length << endl;
+
+
+
+
+					//u_int32_t unitigIndex_model = _graph->nodeIndex_to_unitigIndex(unitig._startNode);
+					//const Unitig& unitig_model = _graph->_unitigs[unitigIndex_model];
+
+
+					for(u_int32_t nodeIndex : unitig._nodes){
+						processedNodeNames.insert(BiGraph::nodeIndex_to_nodeName(nodeIndex));
+					}
+
+					binByReadpath(unitig._startNode, processedNodeNames, processedContigIndex, clusterDir, filename_binStats, fileHifiasmAll, fileComponentNodeAll, clusterIndex, binIndex);
+
+
+				}
 			}
+
 		}
 
 

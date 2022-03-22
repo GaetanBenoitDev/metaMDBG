@@ -6,6 +6,7 @@
 #include "toBasespace/ToBasespaceNoCorrection.hpp"
 #include "toBasespace/ToMinspace.hpp"
 #include "pipeline/AssemblyPipeline.hpp"
+#include "pipeline/BinningPipeline.hpp"
 #include "readSelection/ReadSelection.hpp"
 #include "contigFeatures/KminmerCounter.hpp"
 #include "contigFeatures/KmerCounter.hpp"
@@ -69,8 +70,11 @@ int main (int argc, char* argv[])
 
     		string programName = string(argv[1]);
 
-			if(programName == "pipeline"){
+			if(programName == "asm"){
                 AssemblyPipeline().run (argc, args);
+    		}
+			else if(programName == "bin"){
+                BinningPipeline().run (argc, args);
     		}
 			else if(programName == "readSelection"){
                 ReadSelection().run (argc, args);
@@ -78,7 +82,7 @@ int main (int argc, char* argv[])
     		else if(programName == "graph"){
                 Bloocoo().run (argc, args);
     		}
-    		else if(programName == "bin"){
+    		else if(programName == "binPass"){
                 Assembly2().run (argc, args);
     		}
     		else if(programName == "contig"){
