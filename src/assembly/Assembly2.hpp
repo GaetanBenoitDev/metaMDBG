@@ -134,6 +134,11 @@ public:
 	ofstream _fileOutput_contigBin;
 	int _nbCores;
 
+	u_int64_t _nbHighQualityBins;
+	u_int64_t _nbMedQualityBins;
+	u_int64_t _nbLowQualityBins;
+	u_int64_t _nbContaminatedBins;
+
 	Assembly2(): Tool (){
 
 	}
@@ -144,6 +149,10 @@ public:
 
 	void execute (){
 
+		_nbHighQualityBins = 0;
+		_nbMedQualityBins = 0;
+		_nbLowQualityBins = 0;
+		_nbContaminatedBins = 0;
 
 		//vector<float> lala1 = {0.0704131, 0, 0}; 
 		//vector<float> lala2 = {4.79126, 6.7738, 2.99172};
@@ -215,6 +224,9 @@ public:
 		
 		gzclose(_outputContigFile);
 		gzclose(_outputContigFile_complete);
+
+		cout << _nbHighQualityBins << " " << _nbMedQualityBins << " " << _nbLowQualityBins << "    " << _nbContaminatedBins << endl;
+
 	}
 
 	void parseArgs(int argc, char* argv[]){
@@ -1231,6 +1243,9 @@ public:
 		}
 
 		if(lengthTotal > 300000){
+			
+			cout << _nbHighQualityBins << " " << _nbMedQualityBins << " " << _nbLowQualityBins << "    " << _nbContaminatedBins << endl;
+
 			int ret = computeBinStats(clusterDir, bin, filename_binStats);
 
 			if(ret == 0){
@@ -1270,6 +1285,22 @@ public:
 				if(contamination > 0.2){
 					//getchar();
 				}
+
+				float qualityScore = completeness - 5*contamination;
+			
+				if(contamination > 0.05){
+					_nbContaminatedBins += 1;
+				}
+				else if (completeness >= 0.9 and contamination <= 0.05)
+					_nbHighQualityBins += 1;
+				else if (completeness >= 0.7 and contamination <= 0.1)
+					_nbMedQualityBins += 1;
+				else if (qualityScore >= 0.5)
+					_nbLowQualityBins += 1;
+
+
+
+				cout << _nbHighQualityBins << " " << _nbMedQualityBins << " " << _nbLowQualityBins << "    " << _nbContaminatedBins << endl;
 
 			}
 		}
