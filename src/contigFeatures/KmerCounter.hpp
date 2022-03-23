@@ -394,7 +394,6 @@ public:
 
 	};
 
-	"Reprise: parallelisation au niveau des datasets?"
 	class KmerCounterFunctor {
 
 		public:

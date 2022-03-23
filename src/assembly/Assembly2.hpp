@@ -768,7 +768,7 @@ public:
 		
 	}
 
-	void binByReadpath(u_int32_t source_nodeIndex, unordered_set<u_int32_t>& processedNodeNames, unordered_set<u_int32_t>& processedContigIndex, const string& clusterDir, const string& filename_binStats, ofstream& fileHifiasmAll, ofstream& fileComponentNodeAll, u_int64_t& clusterIndex, u_int32_t& binIndex){
+	void binByReadpath(u_int32_t source_nodeIndex, unordered_set<u_int32_t>& processedNodeNames, unordered_set<u_int32_t>& processedContigIndex, const string& clusterDir, const string& filename_binStats, ofstream& fileHifiasmAll, ofstream& fileComponentNodeAll, u_int64_t& clusterIndex, u_int32_t& binIndex, u_int64_t lengthThreshold){
 
 
 		u_int32_t source_unitigIndex = _graph->nodeIndex_to_unitigIndex(source_nodeIndex);
@@ -805,14 +805,23 @@ public:
 
         queue.push(source_unitigIndex);
 
-
+		//unordered_set<u_int32_t> binContigIndexes_set;
 		vector<u_int32_t> binContigIndexes;
 		u_int32_t currentBinIndex = _contigFeature.contigIndexToBinIndex(contigIndex_model);
+
+		//16300
+
+		//cout << "Contig index: " << contigIndex_model << " " << currentBinIndex << endl;
+		//cout << _contigFeature._contigIndex_to_binIndex.size() << endl;
+		//cout << _contigFeature._contigIndex_to_binIndex[contigIndex_model] << endl;
+
 		if(currentBinIndex == -1){
+			//cout << "No bin" << endl;
 			if(!_isFirstPass) return;
 			binContigIndexes.push_back(contigIndex_model);
 		}
 		else{
+			//cout << "Has bin: " << _contigFeature._binIndex_to_contigIndex[currentBinIndex].size() << endl;
 			for(u_int32_t contigIndex : _contigFeature._binIndex_to_contigIndex[currentBinIndex]){
 				binContigIndexes.push_back(contigIndex);
 			}
@@ -822,8 +831,11 @@ public:
 			assignContigToBin(contigIndex, binIndex);
 			processedContigIndex.insert(contigIndex);
 			componentContigIndex.insert(contigIndex);
+			//binContigIndexes_set.insert(contigIndex);
 		}
 
+		//cout << "lala" << " " << binContigIndexes.size() << endl;
+		//getchar();
 		//bin.push_back(unitigSequence_model);
 		//cout << "\tContig index model: " << contigIndex_model << endl;
 
@@ -845,28 +857,15 @@ public:
 		writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(unitig_model._startNode));
 		writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(unitig_model._endNode));
 
-		unordered_set<string> hifiasmUnitigNames;
-		unordered_set<u_int32_t> allComponentNodenames;
+		//unordered_set<u_int32_t> allComponentNodenames;
 
 
 
 
-		for(u_int32_t nodeIndex : unitig_model._nodes){
-			u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
-			allComponentNodenames.insert(nodeName);
-		}
-
-		if(_truthInputFilename != ""){
-			for(u_int32_t nodeIndex : unitig_model._nodes){
-				u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
-
-				if(_evaluation_hifiasmGroundTruth_nodeName_to_unitigName.find(nodeName) != _evaluation_hifiasmGroundTruth_nodeName_to_unitigName.end()){
-					for(string& unitigName : _evaluation_hifiasmGroundTruth_nodeName_to_unitigName[nodeName]){
-						hifiasmUnitigNames.insert(unitigName);
-					}
-				}
-			}
-		}
+		//for(u_int32_t nodeIndex : unitig_model._nodes){
+		//	u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
+		//	allComponentNodenames.insert(nodeName);
+		//}
 
 		unordered_set<u_int32_t> componentDebug;
 
@@ -1039,11 +1038,12 @@ public:
 			//"evaluer metaflye sur Human data"
 			//if(unitigIndex != source_unitigIndex && unitigIndex != _graph->unitigIndex_toReverseDirection(source_unitigIndex)){
 			vector<u_int32_t> validUnitigs;
+			unordered_set<u_int32_t> existingContigIndexes;
 			
 			for(u_int32_t unitigIndex : component){
 				const Unitig& u = _graph->_unitigs[unitigIndex];
-				
-				if(nonIntraUnitigs.find(unitigIndex) != nonIntraUnitigs.end()) continue;
+
+				//if(nonIntraUnitigs.find(unitigIndex) != nonIntraUnitigs.end()) continue;
 
 				/*
 				bool isProcessed = false;
@@ -1092,6 +1092,11 @@ public:
 					continue;
 				}
 
+				existingContigIndexes.insert(contigIndex);
+			}
+				
+
+
 
 				//cout << endl << "\tUnitig: " << BiGraph::nodeIndex_to_nodeName(u._startNode) << " " << u._length << " " << u._nodes.size() << " " << unitigSequence.size() << endl;
 				
@@ -1107,19 +1112,27 @@ public:
 				ContigFeatures contigFeature = {contigIndex, composition, abundances, abundancesVar};
 				*/
 
-			
+			for(u_int32_t contigIndex : existingContigIndexes){
 
 				vector<u_int32_t> contigIndexes;
 				u_int32_t newBinIndex = _contigFeature.contigIndexToBinIndex(contigIndex);
 				if(newBinIndex == -1){
-					contigIndexes.push_back(contigIndex);
+					if(_contigFeature._contigSequences[contigIndex].size() >= lengthThreshold){
+						if(componentContigIndex.find(contigIndex) == componentContigIndex.end()){
+							contigIndexes.push_back(contigIndex);
+						}
+					}
 				}
 				else{
 					for(u_int32_t contigIndex : _contigFeature._binIndex_to_contigIndex[newBinIndex]){
+						if(_contigFeature._contigSequences[contigIndex].size() < lengthThreshold) continue;
+						//if(binContigIndexes_set.find(contigIndex) != binContigIndexes_set.end()) continue; //already in current bin
+						if(componentContigIndex.find(contigIndex) != componentContigIndex.end()) continue;
 						contigIndexes.push_back(contigIndex);
 					}
 				}
 
+				if(contigIndexes.size() == 0) continue;
 
 				//if(_contigFeature.isIntra(contigFeatureModel, contigFeature, hasComposition, hasAbundances)){
 				if(_contigFeature.isIntra(binContigIndexes, contigIndexes)){
@@ -1184,26 +1197,13 @@ public:
 					}
 					
 
-					for(u_int32_t nodeIndex : u._nodes){
-						u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
-						processedNodeNames.insert(nodeName);
-						allComponentNodenames.insert(nodeName);
-					}
+					//for(u_int32_t nodeIndex : u._nodes){
+					//	u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
+					//	processedNodeNames.insert(nodeName);
+					//	allComponentNodenames.insert(nodeName);
+					//}
 
-					if(_truthInputFilename != ""){
-					
-						for(u_int32_t nodeIndex : u._nodes){
 
-							u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
-
-							
-							if(_evaluation_hifiasmGroundTruth_nodeName_to_unitigName.find(nodeName) != _evaluation_hifiasmGroundTruth_nodeName_to_unitigName.end()){
-								for(string& unitigName : _evaluation_hifiasmGroundTruth_nodeName_to_unitigName[nodeName]){
-									hifiasmUnitigNames.insert(unitigName);
-								}
-							}
-						}
-					}
 					
 					//string unitigSequence_init;
 					//_toBasespace.createSequence(u._nodes, unitigSequence_init);
@@ -1211,24 +1211,13 @@ public:
 
 					//queue.push(unitigIndex);
 
-					for(u_int32_t nodeName : _contigFeature._contigIndex_to_nodeName[contigIndex]){
-						allComponentNodenames.insert(nodeName);
-
-						if(!_truthInputFilename.empty()){
-							if(_evaluation_hifiasmGroundTruth_nodeName_to_unitigName.find(nodeName) != _evaluation_hifiasmGroundTruth_nodeName_to_unitigName.end()){
-								for(string& unitigName : _evaluation_hifiasmGroundTruth_nodeName_to_unitigName[nodeName]){
-									hifiasmUnitigNames.insert(unitigName);
-								}
-							}
-						}
-					}
 
 
 
 				}
 				else{
-					nonIntraUnitigs.insert(u._index);
-					nonIntraUnitigs.insert(_graph->unitigIndex_toReverseDirection(u._index));
+					//nonIntraUnitigs.insert(u._index);
+					//nonIntraUnitigs.insert(_graph->unitigIndex_toReverseDirection(u._index));
 				}
 				
 			}
@@ -1251,8 +1240,11 @@ public:
 			lengthTotal += contig.size();
 		}
 
+		//cout << _contigFeature._binningThreshold << " " << (_contigFeature._binningThreshold == 0.65f) << endl;
+
 		if(_computeBinStats ){
-			if(lengthTotal > 4000000){
+			if(lengthTotal > 300000 && _contigFeature._binningThreshold == 0.65f && lengthThreshold == 10000){
+
 				
 				cout << _nbHighQualityBins << " " << _nbMedQualityBins << " " << _nbLowQualityBins << "    " << _nbContaminatedBins << endl;
 
@@ -1278,14 +1270,31 @@ public:
 
 					if(completeness > 0.65 && contamination < 0.05){
 
-						for(u_int32_t nodeName : allComponentNodenames){
-							fileComponentNodeAll << nodeName << "," << clusterIndex << endl;
-						}
-						fileComponentNodeAll.flush();
 
-						for(const string& unitigName : hifiasmUnitigNames){
-							fileHifiasmAll << unitigName << "," << clusterIndex << endl;
+						if(!_truthInputFilename.empty()){
+						
+							unordered_set<string> hifiasmUnitigNames;
+							
+							for(u_int32_t contigIndex : binContigIndexes){
+								for(u_int32_t nodeName : _contigFeature._contigIndex_to_nodeName[contigIndex]){
+									if(_evaluation_hifiasmGroundTruth_nodeName_to_unitigName.find(nodeName) != _evaluation_hifiasmGroundTruth_nodeName_to_unitigName.end()){
+										for(string& unitigName : _evaluation_hifiasmGroundTruth_nodeName_to_unitigName[nodeName]){
+											if(hifiasmUnitigNames.find(unitigName) != hifiasmUnitigNames.end()) continue;
+											hifiasmUnitigNames.insert(unitigName);
+											fileHifiasmAll << unitigName << "," << clusterIndex << endl;
+										}
+									}
+								}
+							}
+
+								
 						}
+
+						//for(u_int32_t nodeName : allComponentNodenames){
+						//	fileComponentNodeAll << nodeName << "," << clusterIndex << endl;
+						//}
+						//fileComponentNodeAll.flush();
+
 						fileHifiasmAll.flush();
 
 						//if(clusterIndex >= 4) getchar();
@@ -1294,6 +1303,7 @@ public:
 
 					if(contamination > 0.05){
 
+						/*
 						unordered_set<u_int32_t> validNodes;
 						for (u_int32_t unitigIndex : componentDebug){
 							for(u_int32_t nodeIndex : _graph->_unitigs[unitigIndex]._nodes){
@@ -1307,6 +1317,7 @@ public:
 			
 
 						getchar();
+						*/
 					}
 
 					float qualityScore = completeness - 5*contamination;
@@ -1339,9 +1350,12 @@ public:
 	}
 
 	void assignContigToBin(u_int32_t contigIndex, u_int32_t binIndex){
+		cout << "Assign: " << contigIndex << " -> " << binIndex << endl;
 		_fileOutput_contigBin.write((const char*)&contigIndex, sizeof(contigIndex));
 		_fileOutput_contigBin.write((const char*)&binIndex, sizeof(binIndex));
 		//_fileOutput_contigBin.flush();
+
+		//if(contigIndex == 209) getchar();
 	}
 
 	ofstream _fileTestLala;
@@ -1371,7 +1385,7 @@ public:
 
 	void extractContigKminmers_read2(const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex, u_int64_t datasetIndex, const string& header, const string& seq){
 
-		if(seq.size() < 100000) return;
+		if(seq.size() < 2500) return;
 		//cout << seq.size() << endl;
 		//if(readIndex == 20010) getchar(); 
 
@@ -1390,7 +1404,7 @@ public:
 			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()) continue;
 			
 			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
-			_file_contigToNode << nodeName << "," << readIndex << endl;
+			//_file_contigToNode << nodeName << "," << readIndex << endl;
 			//if(nodeName == 933376) cout << "HAHAHAHA" << endl;
 
 			//if(_contigFeature._nodeName_to_contigIndex.find(nodeName) == _contigFeature._nodeName_to_contigIndex.end()) continue;
@@ -1416,7 +1430,7 @@ public:
 	}
 
 	float _minUnitigAbundance;
-
+	
 	void execute_binning2(){
 
 
@@ -1457,7 +1471,8 @@ public:
 		file_bin_all << "Name,Color" << endl;
 
 
-
+		_fileOutput_contigBin = ofstream(_filename_outputBinning);
+		_fileOutput_contigBin.close();
 
 
 		vector<float> allCutoffs;
@@ -1481,6 +1496,20 @@ public:
 			_minUnitigAbundance = cutoff / 0.2;
 
 
+			//0.01, 0.05, 0.5, 1.0, 2.0
+			for(float binningThreshold : {0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65}){
+				for(u_int64_t lengthThreshold : {100000, 50000, 10000}){ //, 10000, 2500
+					
+					_contigFeature._binningThreshold = binningThreshold;
+					processedNodeNames.clear();
+					processedContigIndex.clear();
+
+					//cout << "STARTING PASS" << endl;
+					//getchar();
+
+					processedUnitigs = 0;
+					startingUnitigs.clear();
+
 			for(const Unitig& unitig : _graph->_unitigs){
 				//if(unitig._nbNodes <= _kminmerSize*2) continue;
 				//if(unitig._length < 100000) continue;
@@ -1491,29 +1520,30 @@ public:
 				string unitigSequence;
 				//_toBasespace.createSequence(unitig_model._nodes, unitigSequence_model);
 				_contigFeature.nodepathToContigSequence(unitig._nodes, unitigSequence, contigIndex);
-				if(unitigSequence.size() < 50000) continue;
+				if(unitigSequence.size() < lengthThreshold) continue;
 
 				if(processedContigIndex.find(contigIndex) != processedContigIndex.end()) continue;
 
 				startingUnitigs.push_back({unitigSequence.size(), unitig._abundance, unitig._startNode});
+
+				//if(contigIndex == 209){
+				//	cout << "loulou" << endl;
+				//	getchar();
+				//}
 			}
 
 			std::sort(startingUnitigs.begin(), startingUnitigs.end(), UnitigComparator_ByLength2);
 
 
-			for(float binningThreshold : {0.01, 0.05, 0.5, 1.0, 2.0}){
-
-				if(binningThreshold != 0.01){
-					_fileOutput_contigBin.close();
-					_contigFeature.loadContigBins(_filename_outputBinning);
-					_fileOutput_contigBin = ofstream(_filename_outputBinning);
-					cout << binningThreshold << endl;
+				//if(binningThreshold != 0.01){
+				_fileOutput_contigBin.close();
+				_contigFeature.loadContigBins(_filename_outputBinning);
+				_fileOutput_contigBin = ofstream(_filename_outputBinning);
+				cout << binningThreshold << endl;
 					//getchar();
-				}
+				//}
 
-				_contigFeature._binningThreshold = binningThreshold;
-				processedNodeNames.clear();
-				processedContigIndex.clear();
+
 				
 				for(const UnitigLength& unitigLength : startingUnitigs){
 
@@ -1538,14 +1568,21 @@ public:
 					//const Unitig& unitig_model = _graph->_unitigs[unitigIndex_model];
 
 
-					for(u_int32_t nodeIndex : unitig._nodes){
-						processedNodeNames.insert(BiGraph::nodeIndex_to_nodeName(nodeIndex));
-					}
+					//for(u_int32_t nodeIndex : unitig._nodes){
+					//	processedNodeNames.insert(BiGraph::nodeIndex_to_nodeName(nodeIndex));
+					//}
 
-					binByReadpath(unitig._startNode, processedNodeNames, processedContigIndex, clusterDir, filename_binStats, fileHifiasmAll, fileComponentNodeAll, clusterIndex, binIndex);
+					binByReadpath(unitig._startNode, processedNodeNames, processedContigIndex, clusterDir, filename_binStats, fileHifiasmAll, fileComponentNodeAll, clusterIndex, binIndex, lengthThreshold);
 
 
 				}
+
+				//cout << "END PASS" << endl;
+				//getchar();
+				//cout << "length done" << endl;
+				//getchar();
+				//_isFirstPass = false;
+			}
 			}
 
 		}

@@ -153,11 +153,25 @@ public:
 			
 			file_contigBin.read((char*)&binIndex, sizeof(binIndex));
 
+
+			cout << contigIndex << " -> " << binIndex << endl;
+
+			//if(std::find(_binIndex_to_contigIndex[binIndex].begin(), _binIndex_to_contigIndex[binIndex].end(), contigIndex) != _binIndex_to_contigIndex[binIndex].end()){
+				//cout << "duplicate" << endl;
+				//getchar();
+			//}
+
+
 			_contigIndex_to_binIndex[contigIndex] = binIndex;
 			_binIndex_to_contigIndex[binIndex].push_back(contigIndex);
 
-			cout << contigIndex << " -> " << binIndex << endl;
+			//if(contigIndex == 209) getchar();
+
+
 		}
+
+		//cout << contigIndexToBinIndex(209) << endl;
+		//getchar();
 
 
 		file_contigBin.close();
@@ -303,6 +317,7 @@ public:
 				}
 			}
 
+
 			_contigCoverages[contigIndex] = abundanceMean;
 			_contigCoveragesVar[contigIndex] = abundanceVar;
 
@@ -358,17 +373,21 @@ public:
 			composition[_kmerToCompositionIndex[kmer]] += 1;
 		}
 
-		/*
+		
 		float rsum = 0;
 		for(size_t i = 0; i < composition.size(); ++i) {
 			rsum += composition[i] * composition[i];
 		}
+		
+		if(rsum == 0) return;
+
 		rsum = sqrt(rsum);
 		for(size_t i = 0; i < composition.size(); ++i) {
 			composition[i] /= rsum;
 		}
-		*/
 		
+		
+		/*
 		float sum = 0;
 		for(size_t i = 0; i < composition.size(); ++i) {
 			sum += composition[i];
@@ -379,6 +398,7 @@ public:
 		for(size_t i = 0; i < composition.size(); ++i) {
 			composition[i] /= sum;
 		}
+		*/
 		
 	}
 
@@ -553,11 +573,30 @@ public:
 		abundances = _contigCoverages[contigIndex];
 		abundancesVar = _contigCoveragesVar[contigIndex];
 		
-		float sum = 0.0;
+		double sum = 0.0;
 		for(float val : abundances){
 			sum += val;
 		}
 		if(sum == 0) return false;
+
+
+		for(size_t i=0; i<abundances.size(); i++){
+			abundances[i] /= sum;
+		}
+
+
+
+
+		sum = 0.0;
+		for(float val : abundancesVar){
+			sum += val;
+		}
+		if(sum == 0) return false;
+
+
+		for(size_t i=0; i<abundancesVar.size(); i++){
+			abundancesVar[i] /= sum;
+		}
 
 
 		return true;
@@ -1142,7 +1181,7 @@ public:
 
 		//return distance < 0.015;
 		//return distance < 0.015;
-		return distance < _binningThreshold;
+		return distance >= _binningThreshold;
 
 		//(1-tnf_dist)
 		//return  cor * (1-dist) > 0.65;
@@ -1150,25 +1189,45 @@ public:
 
 	float computeDistance(const vector<u_int32_t>& bin1, const vector<u_int32_t>& bin2){
 
-		double distance_max = 0;
+		if(bin1.size() > 1000){
+			vector<u_int32_t> binLala = bin1;
+			cout << "----" << endl;
+			std::sort(binLala.begin(), binLala.end());
+			for(u_int32_t contigIndex : binLala){
+				cout << contigIndex << endl;
+			}
+		}
+
+		double distance_max = 5;
 		double distance_sum = 0;
 		double distance_n = 0;
 
 		for(u_int32_t contigIndex1 : bin1){
+			
+			if(_contigSequences[contigIndex1].size() < 50000) continue;
+
 			for(u_int32_t contigIndex2 : bin2){
+
+
 				float distance = computeDistance(contigIndex1, contigIndex2);
 				distance_sum += distance;
 				distance_n += 1;
 
-				if(distance > distance_max){
+				if(distance < distance_max){
 					distance_max = distance;
 				}
+
+				if(distance_max < _binningThreshold) break;
 			}
+			
+			if(distance_max < _binningThreshold) break;
 		}
 
 		//cout << "\tComposition distance mean: " << (distance_sum / distance_n) << endl;
 
 		//return distance_sum / distance_n;
+		if(distance_max == 5) distance_max = 0;
+
 		return distance_max;
 	}
 
@@ -1177,21 +1236,64 @@ public:
 		const vector<float>& composition1 = _contigCompositions[contigIndex1];
 		const vector<float>& composition2 = _contigCompositions[contigIndex2];
 
-		float compositionProb = -log10(computeCompositionProbability(composition1, composition2));
+		//float compositionProb = -log10(computeCompositionProbability(composition1, composition2));
 
-		cout << "\tComposition distance: " << compositionProb << endl;
-		//const vector<float>& abundance1 = _contigCoverages[contigIndex1];
-		//const vector<float>& abundance1_var = _contigCoveragesVar[contigIndex1];
-		//const vector<float>& abundance2 = _contigCoverages[contigIndex2];
-		//const vector<float>& abundance2_var = _contigCoveragesVar[contigIndex2];
+		//cout << "\tComposition distance: " << compositionProb << endl;
+		const vector<float>& abundance1 = _contigCoverages[contigIndex1];
+		const vector<float>& abundance1_var = _contigCoveragesVar[contigIndex1];
+		const vector<float>& abundance2 = _contigCoverages[contigIndex2];
+		const vector<float>& abundance2_var = _contigCoveragesVar[contigIndex2];
 
+		int nnz = 0;
+
+		//cout << cal_abd_dist_new(f1, f2 ,nnz) << endl;
+		//cout << isinf(cal_abd_dist_new(f1, f2 ,nnz)) << endl;
+		
+		float dist = cal_abd_dist_new(abundance1, abundance1_var, abundance2, abundance2_var ,nnz);
+		//cout << isinf(dist) << endl;
+		//cout << fpclassify(dist) << endl;
+		//cout << (fpclassify(dist) == FP_INFINITE) << endl;
+
+
+		if(isinf(dist)) return false;
+		if(isnan(dist)) return false;
+
+		float cor = computeAbundanceCorrelation(abundance1, abundance2);
+		if(isinf(cor)) return false;
+		if(isnan(cor)) return false;
+		
+		float tnf_dist = cal_tnf_dist(composition1, composition2, contigIndex1, contigIndex2);
+
+		//(1-tnf_dist)
+		//return  (1-tnf_dist) * cor * (1-dist) > 0.65;
+
+		float distance = (1-tnf_dist) * cor * (1-dist);
+
+		/*
+		if(distance > _binningThreshold){
+			cout << "\t>>>>>" << endl;
+			cout << "\t";
+			for(u_int64_t ab : abundance1){
+				cout << ab << " ";
+			}
+			cout << endl;
+			cout << "\t";
+			for(u_int64_t ab : abundance2){
+				cout << ab << " ";
+			}
+			cout << endl;
+			cout << "\t" << tnf_dist << " " << dist << " " << cor << "        " << ((1-tnf_dist) * cor * (1-dist)) << endl;
+		}
+		*/
+
+		return distance;
 		//int nnz = 0;
 		//float dist_abundance = cal_abd_dist_new(abundance1, abundance1_var,  abundance2, abundance2_var, nnz);
 		//if(compositionProb < 0.05){
 			//cout << dist_abundance << endl;
 		//}
 		
-		return compositionProb;
+		//return compositionProb;
 	}
 
 	// for normal distributions
@@ -1274,6 +1376,7 @@ public:
 		//	if(means_f2[i] < minCV) means_f2[i] = 0;
 		//}
 
+		/*
 		nnz = 0;
 
 		//cout << endl;
@@ -1302,6 +1405,7 @@ public:
 			means_f2[i] *= mean_ratio;
 		}
 
+		*/
 
 		float distSum = 0.0f;
 		nnz = 0;
