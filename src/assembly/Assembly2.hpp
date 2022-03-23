@@ -1,4 +1,8 @@
 
+//contig=81 graph=4: 33 28 30    1
+//contig=81 graph=4: 26 14 18    3 (with abundance correction, ab < 1 => ab = 0)
+//contig=41 graph=41: 29 19 16    4
+
 //	"reprise: retester IsImproved pendant pathExploration, si on revient au noeud source sans amelioration on empeche ce path
 //	hifiasm ground truth: utiliser contig plutot que unitig pour avoir un meilleur ordering
 //	"
@@ -130,6 +134,7 @@ public:
 	gzFile _outputContigFile;
 	gzFile _outputContigFile_complete;
 	MDBG* _mdbg;
+	MDBG* _mdbgInit;
 	GraphSimplify* _graph;
 	ToBasespaceOnTheFly _toBasespace;
 	ContigFeature _contigFeature;
@@ -141,6 +146,9 @@ public:
 	u_int64_t _nbMedQualityBins;
 	u_int64_t _nbLowQualityBins;
 	u_int64_t _nbContaminatedBins;
+
+	unordered_map<u_int32_t, u_int32_t> _contigIndex_to_componentIndex;
+	unordered_map<u_int32_t, vector<u_int32_t>> _componentIndex_to_contigIndexes;
 
 	Assembly2(): Tool (){
 
@@ -314,7 +322,13 @@ public:
 		string mdbg_filename = _inputDir + "/mdbg_nodes.gz";
 
 
-
+		if(_truthInputFilename != ""){
+			_mdbgInit = new MDBG(4);
+			fs::path p(_inputDir);
+			cout << p.parent_path().string() + "/mdbg_nodes_init.gz" << endl;
+			_mdbgInit->load(p.parent_path().string() + "/mdbg_nodes_init.gz");
+			extract_truth_kminmers();
+		}
 
 		
 		cout << _gfaFilename << endl;
@@ -327,9 +341,7 @@ public:
 			_contigFeature.loadContigBins(_filename_inputBinning);
 		}
 
-		if(_truthInputFilename != ""){
-			extract_truth_kminmers();
-		}
+
 
 		//cout << "lala " << _evaluation_hifiasmGroundTruth_position.size() << endl;
 
@@ -649,6 +661,23 @@ public:
 	ofstream _file_groundTruth_hifiasm_position;
 	EncoderRLE _encoderRLE;
 
+	void extract_truth_kminmers(){
+
+		_file_groundTruth_hifiasm_position.open(_inputDir + "/groundtruth_hifiasm_position.csv");
+		_file_groundTruth_hifiasm_position << "Name,Position" << endl;
+
+		_extract_truth_kminmers_read_position = 0;
+		_minimizerParser = new MinimizerParser(_minimizerSize, _minimizerDensity);
+		
+		auto fp = std::bind(&Assembly2::extract_truth_kminmers_read, this, std::placeholders::_1);
+		ReadParser readParser(_truthInputFilename, true, false);
+		readParser.parse(fp);
+
+		_file_groundTruth_hifiasm_position.close();
+
+		//delete _minimizerParser;
+	}
+
 	void extract_truth_kminmers_read(const Read& read){
 
 		u_int64_t readIndex = read._index;
@@ -665,7 +694,7 @@ public:
 
 		vector<KmerVec> kminmers; 
 		vector<ReadKminmer> kminmersInfo;
-		MDBG::getKminmers(_minimizerSize, _kminmerSize, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex, false);
+		MDBG::getKminmers(_minimizerSize, 4, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex, false);
 
 		for(size_t i=0; i<kminmers.size(); i++){
 
@@ -673,20 +702,20 @@ public:
 			//if(_mdbg->_dbg_nodes.find(kminmers[i]) == _mdbg->_dbg_nodes.end()) continue;
 
 			//u_int32_t nodeName = _mdbg->_dbg_nodes[kminmers[i]]._index;
-			if(_mdbg->_dbg_nodes.find(vec) != _mdbg->_dbg_nodes.end()){
+			if(_mdbgInit->_dbg_nodes.find(vec) != _mdbgInit->_dbg_nodes.end()){
 
-				u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
+				u_int32_t nodeName = _mdbgInit->_dbg_nodes[vec]._index;
 				//2262408
 				//if("utg009434l" == string(read->name.s)){
 				//	cout << nodeName << endl;
 				//	_hifiasm_startingNodenames.insert(nodeName);
 				//}
 
-				_evaluation_hifiasmGroundTruth_nodeName_to_unitigName[_mdbg->_dbg_nodes[vec]._index].push_back(read._header);
-				_evaluation_hifiasmGroundTruth_path.push_back(_mdbg->_dbg_nodes[vec]._index);
+				_evaluation_hifiasmGroundTruth_nodeName_to_unitigName[_mdbgInit->_dbg_nodes[vec]._index].push_back(read._header);
+				_evaluation_hifiasmGroundTruth_path.push_back(_mdbgInit->_dbg_nodes[vec]._index);
 
-				if(_evaluation_hifiasmGroundTruth_nodeNamePosition.find(_mdbg->_dbg_nodes[vec]._index) == _evaluation_hifiasmGroundTruth_nodeNamePosition.end()){
-					_evaluation_hifiasmGroundTruth_nodeNamePosition[_mdbg->_dbg_nodes[vec]._index] = _extract_truth_kminmers_read_position;
+				if(_evaluation_hifiasmGroundTruth_nodeNamePosition.find(_mdbgInit->_dbg_nodes[vec]._index) == _evaluation_hifiasmGroundTruth_nodeNamePosition.end()){
+					_evaluation_hifiasmGroundTruth_nodeNamePosition[_mdbgInit->_dbg_nodes[vec]._index] = _extract_truth_kminmers_read_position;
 				}
 				//cout << mdbg->_dbg_nodes[vec]._index << " " << sequence.getComment() << endl;
 				
@@ -716,22 +745,7 @@ public:
 	}
 
 
-	void extract_truth_kminmers(){
 
-		_file_groundTruth_hifiasm_position.open(_inputDir + "/groundtruth_hifiasm_position.csv");
-		_file_groundTruth_hifiasm_position << "Name,Position" << endl;
-
-		_extract_truth_kminmers_read_position = 0;
-		_minimizerParser = new MinimizerParser(_minimizerSize, _minimizerDensity);
-		
-		auto fp = std::bind(&Assembly2::extract_truth_kminmers_read, this, std::placeholders::_1);
-		ReadParser readParser(_truthInputFilename, true, false);
-		readParser.parse(fp);
-
-		_file_groundTruth_hifiasm_position.close();
-
-		delete _minimizerParser;
-	}
 
 
 
@@ -866,7 +880,7 @@ public:
 		//	u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
 		//	allComponentNodenames.insert(nodeName);
 		//}
-
+		/*
 		unordered_set<u_int32_t> componentDebug;
 
 		while(!queue.empty()){
@@ -900,7 +914,8 @@ public:
 
 
 
-			/*
+			
+			//------------------------------------------------------------------- short reads
 			ofstream file_coverages(_inputDir + "/coverages.csv");
         	file_coverages << "Name,Abundance" << endl;
 
@@ -1017,7 +1032,8 @@ public:
 			
 			component.clear();
         	_graph->getConnectedComponent_unitig_nt(unitigIndex, componentLength, component);
-			*/
+			//---------------------------- Short reads End
+			
 		
 			//cout << "Component size filtered: " << component.size() << endl;
 
@@ -1045,18 +1061,7 @@ public:
 
 				//if(nonIntraUnitigs.find(unitigIndex) != nonIntraUnitigs.end()) continue;
 
-				/*
-				bool isProcessed = false;
-				for(u_int32_t nodeIndex : u._nodes){
-					u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
-					if(processedNodeNames.find(nodeName) != processedNodeNames.end()){
-						isProcessed = true;
-						break;
-					}
-				}
 
-				if(isProcessed) continue;
-				*/
 
 				if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
 				if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
@@ -1094,23 +1099,28 @@ public:
 
 				existingContigIndexes.insert(contigIndex);
 			}
-				
+			*/
 
 
 
-				//cout << endl << "\tUnitig: " << BiGraph::nodeIndex_to_nodeName(u._startNode) << " " << u._length << " " << u._nodes.size() << " " << unitigSequence.size() << endl;
-				
-				/*
-				vector<float> composition;
-				bool hasComposition = _contigFeature.nodepathToComposition(u._nodes, composition);
-				//_contigFeature.sequenceToComposition(unitigSequence, composition);
-				
-				vector<float> abundances;
-				vector<float> abundancesVar;
-				bool hasAbundances = _contigFeature.sequenceToAbundance(u._nodes, abundances, abundancesVar);
 
-				ContigFeatures contigFeature = {contigIndex, composition, abundances, abundancesVar};
-				*/
+
+			//cout << endl << "\tUnitig: " << BiGraph::nodeIndex_to_nodeName(u._startNode) << " " << u._length << " " << u._nodes.size() << " " << unitigSequence.size() << endl;
+			
+			/*
+			vector<float> composition;
+			bool hasComposition = _contigFeature.nodepathToComposition(u._nodes, composition);
+			//_contigFeature.sequenceToComposition(unitigSequence, composition);
+			
+			vector<float> abundances;
+			vector<float> abundancesVar;
+			bool hasAbundances = _contigFeature.sequenceToAbundance(u._nodes, abundances, abundancesVar);
+
+			ContigFeatures contigFeature = {contigIndex, composition, abundances, abundancesVar};
+			*/
+
+			u_int32_t componentIndex = _contigIndex_to_componentIndex[contigIndex_model];
+			const vector<u_int32_t> existingContigIndexes = _componentIndex_to_contigIndexes[componentIndex];
 
 			for(u_int32_t contigIndex : existingContigIndexes){
 
@@ -1180,7 +1190,7 @@ public:
 							u_int32_t nodeIndex = BiGraph::nodeName_to_nodeIndex(nodeName, true);
 							if(_graph->_isNodeValid2.find(nodeIndex) == _graph->_isNodeValid2.end()) continue;
 
-							validUnitigs.push_back(_graph->nodeIndex_to_unitigIndex(nodeIndex));
+							//validUnitigs.push_back(_graph->nodeIndex_to_unitigIndex(nodeIndex));
 							break;
 						}
 
@@ -1190,7 +1200,7 @@ public:
 							u_int32_t nodeIndex = BiGraph::nodeName_to_nodeIndex(nodeName, true);
 							if(_graph->_isNodeValid2.find(nodeIndex) == _graph->_isNodeValid2.end()) continue;
 
-							validUnitigs.push_back(_graph->nodeIndex_to_unitigIndex(nodeIndex));
+							//validUnitigs.push_back(_graph->nodeIndex_to_unitigIndex(nodeIndex));
 							break;
 						}
 
@@ -1222,12 +1232,12 @@ public:
 				
 			}
 
-			for(u_int32_t unitigIndex : validUnitigs){
+			//for(u_int32_t unitigIndex : validUnitigs){
 				//queue.push(unitigIndex);
-			}
+			//}
 
 
-		}
+		//}
 
 		vector<string> bin;
 		for(u_int32_t contigIndex : binContigIndexes){
@@ -1268,7 +1278,7 @@ public:
 					delete fields;
 					cout << "Result: " << completeness << " " << contamination << endl;
 
-					if(completeness > 0.65 && contamination < 0.05){
+					if(completeness > 0.8 && contamination < 0.05){
 
 
 						if(!_truthInputFilename.empty()){
@@ -1276,12 +1286,39 @@ public:
 							unordered_set<string> hifiasmUnitigNames;
 							
 							for(u_int32_t contigIndex : binContigIndexes){
-								for(u_int32_t nodeName : _contigFeature._contigIndex_to_nodeName[contigIndex]){
-									if(_evaluation_hifiasmGroundTruth_nodeName_to_unitigName.find(nodeName) != _evaluation_hifiasmGroundTruth_nodeName_to_unitigName.end()){
-										for(string& unitigName : _evaluation_hifiasmGroundTruth_nodeName_to_unitigName[nodeName]){
-											if(hifiasmUnitigNames.find(unitigName) != hifiasmUnitigNames.end()) continue;
-											hifiasmUnitigNames.insert(unitigName);
-											fileHifiasmAll << unitigName << "," << clusterIndex << endl;
+
+
+								const string& sequence = _contigFeature._contigSequences[contigIndex];
+
+								string rleSequence;
+								vector<u_int64_t> rlePositions;
+								_encoderRLE.execute(sequence.c_str(), sequence.size(), rleSequence, rlePositions);
+
+								vector<u_int64_t> minimizers;
+								vector<u_int64_t> minimizers_pos;
+								_minimizerParser->parse(rleSequence, minimizers, minimizers_pos);
+
+								vector<KmerVec> kminmers; 
+								vector<ReadKminmer> kminmersInfo;
+								MDBG::getKminmers(_minimizerSize, 4, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, 0, false);
+
+								for(size_t i=0; i<kminmers.size(); i++){
+
+									KmerVec& vec = kminmers[i];
+
+									//cout << (_mdbgInit->_dbg_nodes.find(vec) != _mdbgInit->_dbg_nodes.end()) << endl;
+									//if(_mdbg->_dbg_nodes.find(kminmers[i]) == _mdbg->_dbg_nodes.end()) continue;
+
+									//u_int32_t nodeName = _mdbg->_dbg_nodes[kminmers[i]]._index;
+									if(_mdbgInit->_dbg_nodes.find(vec) != _mdbgInit->_dbg_nodes.end()){
+
+										u_int32_t nodeName = _mdbgInit->_dbg_nodes[vec]._index;
+										if(_evaluation_hifiasmGroundTruth_nodeName_to_unitigName.find(nodeName) != _evaluation_hifiasmGroundTruth_nodeName_to_unitigName.end()){
+											for(string& unitigName : _evaluation_hifiasmGroundTruth_nodeName_to_unitigName[nodeName]){
+												if(hifiasmUnitigNames.find(unitigName) != hifiasmUnitigNames.end()) continue;
+												hifiasmUnitigNames.insert(unitigName);
+												fileHifiasmAll << unitigName << "," << clusterIndex << endl;
+											}
 										}
 									}
 								}
@@ -1380,6 +1417,72 @@ public:
 		//_contigFeature.sequenceToAbundance(nodePath, lala1, lala2);
 
 		//exit(1);
+
+		if(!_truthInputFilename.empty()){
+		
+			ofstream file_contigToHifiasmUnitig(_inputDir + "/hifiasm_contig.csv");
+			file_contigToHifiasmUnitig << "Name,Color" << endl;
+
+			unordered_set<string> hifiasmUnitigNames;
+			
+			for(auto& it : _contigFeature._contigSequences){
+
+				u_int32_t contigIndex = it.first;
+				const string& sequence = it.second;
+
+				string rleSequence;
+				vector<u_int64_t> rlePositions;
+				_encoderRLE.execute(sequence.c_str(), sequence.size(), rleSequence, rlePositions);
+
+				vector<u_int64_t> minimizers;
+				vector<u_int64_t> minimizers_pos;
+				_minimizerParser->parse(rleSequence, minimizers, minimizers_pos);
+
+				vector<KmerVec> kminmers; 
+				vector<ReadKminmer> kminmersInfo;
+				MDBG::getKminmers(_minimizerSize, 4, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, 0, false);
+
+				for(size_t i=0; i<kminmers.size(); i++){
+
+					KmerVec& vec = kminmers[i];
+
+					//cout << (_mdbgInit->_dbg_nodes.find(vec) != _mdbgInit->_dbg_nodes.end()) << endl;
+					//if(_mdbg->_dbg_nodes.find(kminmers[i]) == _mdbg->_dbg_nodes.end()) continue;
+
+					//u_int32_t nodeName = _mdbg->_dbg_nodes[kminmers[i]]._index;
+					if(_mdbgInit->_dbg_nodes.find(vec) != _mdbgInit->_dbg_nodes.end()){
+
+						u_int32_t nodeName = _mdbgInit->_dbg_nodes[vec]._index;
+						if(_evaluation_hifiasmGroundTruth_nodeName_to_unitigName.find(nodeName) != _evaluation_hifiasmGroundTruth_nodeName_to_unitigName.end()){
+							for(string& unitigName : _evaluation_hifiasmGroundTruth_nodeName_to_unitigName[nodeName]){
+								if(hifiasmUnitigNames.find(unitigName) != hifiasmUnitigNames.end()) continue;
+								hifiasmUnitigNames.insert(unitigName);
+								file_contigToHifiasmUnitig << unitigName << "," << contigIndex << endl;
+							}
+						}
+					}
+				}
+			}
+
+			file_contigToHifiasmUnitig.close();
+				
+		}
+
+		/*
+		cout << _contigFeature._contigSequences[31].size() << endl;
+		cout << _contigFeature._contigSequences[48].size() << endl;
+		cout << _contigFeature._contigSequences[46].size() << endl;
+		cout << _contigFeature._contigSequences[39].size() << endl;
+		cout << _contigFeature._contigSequences[30].size() << endl;
+		cout << _contigFeature._contigSequences[33].size() << endl;
+
+		cout << _contigFeature.computeDistance(31, 48) << endl;
+		cout << _contigFeature.computeDistance(31, 46) << endl;
+		cout << _contigFeature.computeDistance(31, 39) << endl;
+		cout << _contigFeature.computeDistance(31, 30) << endl;
+		cout << _contigFeature.computeDistance(31, 33) << endl;
+		getchar();
+		*/
 	}
 
 
@@ -1425,6 +1528,8 @@ public:
 
 
 
+
+
 	static bool UnitigComparator_ByLength2(const UnitigLength &a, const UnitigLength &b){
 		return a._length > b._length;
 	}
@@ -1432,6 +1537,8 @@ public:
 	float _minUnitigAbundance;
 	
 	void execute_binning2(){
+
+
 
 
 		vector<vector<string>> bins;
@@ -1490,6 +1597,47 @@ public:
 		for(float cutoff : allCutoffs){
 
 			_graph->loadState2(cutoff, -1, _unitigDatas);
+
+
+			_contigIndex_to_componentIndex.clear();
+			_componentIndex_to_contigIndexes.clear();
+			unordered_set<u_int32_t> writtenUnitigs;
+			unordered_set<u_int32_t> writtenContigs;
+			u_int32_t componentIndex = 0;
+
+			for(const Unitig& u : _graph->_unitigs){
+				
+				if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
+				if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
+
+
+
+				unordered_set<u_int32_t> component;
+				_graph->getConnectedComponent_unitig(u._index, component);
+
+				for(u_int32_t unitigIndex : component){
+					
+					const Unitig& u = _graph->_unitigs[unitigIndex];
+					
+					writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._startNode));
+					writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
+					
+					u_int32_t contigIndex = _contigFeature.nodepathToContigIndex(u._nodes);
+					if(contigIndex == -1) continue;
+
+					if(writtenContigs.find(contigIndex) != writtenContigs.end()) continue;
+
+					_contigIndex_to_componentIndex[contigIndex] = componentIndex;
+					_componentIndex_to_contigIndexes[componentIndex].push_back(contigIndex);
+
+					writtenContigs.insert(contigIndex);
+				}
+
+				componentIndex += 1;
+			}
+
+			cout << "Nb components: " << componentIndex << endl;
+			//getchar();
 
 			vector<UnitigLength> startingUnitigs;
 

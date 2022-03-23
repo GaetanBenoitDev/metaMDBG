@@ -317,7 +317,6 @@ public:
 				}
 			}
 
-
 			_contigCoverages[contigIndex] = abundanceMean;
 			_contigCoveragesVar[contigIndex] = abundanceVar;
 
@@ -573,30 +572,11 @@ public:
 		abundances = _contigCoverages[contigIndex];
 		abundancesVar = _contigCoveragesVar[contigIndex];
 		
-		double sum = 0.0;
+		float sum = 0.0;
 		for(float val : abundances){
 			sum += val;
 		}
 		if(sum == 0) return false;
-
-
-		for(size_t i=0; i<abundances.size(); i++){
-			abundances[i] /= sum;
-		}
-
-
-
-
-		sum = 0.0;
-		for(float val : abundancesVar){
-			sum += val;
-		}
-		if(sum == 0) return false;
-
-
-		for(size_t i=0; i<abundancesVar.size(); i++){
-			abundancesVar[i] /= sum;
-		}
 
 
 		return true;
@@ -1376,7 +1356,6 @@ public:
 		//	if(means_f2[i] < minCV) means_f2[i] = 0;
 		//}
 
-		/*
 		nnz = 0;
 
 		//cout << endl;
@@ -1405,7 +1384,6 @@ public:
 			means_f2[i] *= mean_ratio;
 		}
 
-		*/
 
 		float distSum = 0.0f;
 		nnz = 0;
