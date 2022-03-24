@@ -136,7 +136,7 @@ public:
 
 		//Read selection
 		command = _filename_exe + " readSelection -i " + _inputFilename + " -o " + _inputDir + " -f " + _inputDir + "/read_data_init.txt" + " -t " + to_string(_nbCores);
-		//executeCommand(command);
+		executeCommand(command);
 		
 
 		u_int64_t pass = 0;
@@ -222,7 +222,7 @@ public:
 
 			bool generatedContigs = false;
 			//if(k == 5 || k == 10 || k == 16 || k == 21 || k == 26 || k == 31){
-			if(k == 10 || k == 19 || k==31 || k==41 || k==51 || k==61 || k==71 || k==81 || k==91){
+			if(k==31 || k==41 || k==51 || k==61 || k==71 || k==81 || k==91){
 
 
 				//Generate contigs

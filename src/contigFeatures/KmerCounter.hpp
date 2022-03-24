@@ -1,12 +1,14 @@
 
+//time ./bin/mdbgAsmMeta countKmer -t 8 -o ~/workspace/run/overlap_test_multik_AD/contigCoverages_k81_k61_all.tsv -i ~/workspace/data/AD/shortreads/input.txt -c ~/workspace/run/overlap_test_multik_AD/contigs_81.fasta.gz  -k 61
+
 
 #ifndef MDBG_METAG_KMERCOUNTER
 #define MDBG_METAG_KMERCOUNTER
 
 #include "../Commons.hpp"
 
-
-typedef phmap::parallel_flat_hash_map<u_int64_t, u_int32_t, phmap::priv::hash_default_hash<u_int64_t>, phmap::priv::hash_default_eq<u_int64_t>, std::allocator<std::pair<u_int64_t, u_int32_t>>, 4, std::mutex> KmerCountMap;
+typedef u_int128_t KmerType;
+typedef phmap::parallel_flat_hash_map<KmerType, u_int32_t, phmap::priv::hash_default_hash<KmerType>, phmap::priv::hash_default_eq<KmerType>, std::allocator<std::pair<KmerType, u_int32_t>>, 4, std::mutex> KmerCountMap;
 
 
 class KmerCounter : public Tool{
@@ -16,22 +18,23 @@ public:
 	string _inputFilename_contig;
 	string _inputFilename_shortreads;
 	string _outputFilename;
-    size_t _kmerSize;
 	float _trimmedOutliers;
 	int _nbCores;
+	size_t _kmerSize;
+	float _kmerDensity;
 
 	//string _tmpDir;
 	//string _outputFilename_kmerCouts;
 	vector<float> _countsInit;
 	size_t _nbDatasets;
 
-	KmerModel* _kmerModel;
+	//KmerModel* _kmerModel;
 	KmerCountMap _kmerCounts;
 	vector<vector<float>> _contigCoverages_mean;
 	vector<vector<float>> _contigCoverages_var;
 	u_int32_t _currentDatasetIndex;
 
-	MinimizerParser* _minimizerParser;
+	//MinimizerParser* _minimizerParser;
 	u_int64_t _nbContigs;
 
 	KmerCounter(): Tool (){
@@ -48,6 +51,8 @@ public:
 		(ARG_OUTPUT_DIR, "", cxxopts::value<string>())
 		(ARG_INPUT_FILENAME, "", cxxopts::value<string>()->default_value(""))
 		(ARG_INPUT_FILENAME_CONTIG, "", cxxopts::value<string>()->default_value(""))
+		(ARG_KMINMER_LENGTH, "", cxxopts::value<int>()->default_value("31"))
+		(ARG_MINIMIZER_DENSITY, "", cxxopts::value<float>()->default_value("0.1"))
 		(ARG_TRIMMED_OUTLIERS, "", cxxopts::value<float>()->default_value("0.05"))
 		(ARG_NB_CORES, "", cxxopts::value<int>()->default_value(NB_CORES_DEFAULT));
 
@@ -67,7 +72,11 @@ public:
 			_inputFilename_contig = result[ARG_INPUT_FILENAME_CONTIG].as<string>();
 			_trimmedOutliers = result[ARG_TRIMMED_OUTLIERS].as<float>();
 			_nbCores = result[ARG_NB_CORES].as<int>();
+			_kmerDensity = result[ARG_MINIMIZER_DENSITY].as<float>(); //getInput()->getDouble(STR_DENSITY);
+			_kmerSize = result[ARG_KMINMER_LENGTH].as<int>(); //getInput()->getInt(STR_MINIM_SIZE);
 			
+			cout << "Kmer size: " << _kmerSize << endl;
+			cout << "Kmer density: " << _kmerDensity << endl;
 			cout << "Trimmed val: " << _trimmedOutliers << endl;
 		}
 		catch (const std::exception& e){
@@ -82,8 +91,8 @@ public:
     void execute (){
     
 		_nbContigs = 0;
-		_kmerModel = new KmerModel(31);
-		_minimizerParser = new MinimizerParser(31, 0.1);
+		//_kmerModel = new KmerModel(31);
+		//_minimizerParser = new MinimizerParser(31, 0.1);
 
 		ReadParser parserDatasets(_inputFilename_shortreads, false, false);
 		_nbDatasets = parserDatasets._nbDatasets;
@@ -326,8 +335,8 @@ public:
 		public:
 
 		KmerCounter& _kmerCounter;
-		MinimizerParser* _minimizerParser;
-		KmerModel* _kmerModel;
+		MinimizerParser128* _minimizerParser;
+		//KmerModel128* _kmerModel;
 		u_int64_t _currentDatasetIndex;
 
 		ContigFunctor(KmerCounter& kmerCounter) : _kmerCounter(kmerCounter){
@@ -335,8 +344,8 @@ public:
 		}
 
 		ContigFunctor(const ContigFunctor& copy) : _kmerCounter(copy._kmerCounter){
-			_kmerModel = new KmerModel(31);
-			_minimizerParser = new MinimizerParser(31, 0.1);
+			//_kmerModel = new KmerModel128(_kmerCounter._kmerSize);
+			_minimizerParser = new MinimizerParser128(_kmerCounter._kmerSize, _kmerCounter._kmerDensity);
 			_currentDatasetIndex = _kmerCounter._currentDatasetIndex;
 		}
 
@@ -355,7 +364,7 @@ public:
 			//vector<u_int64_t> rlePositions;
 			//Encoder::encode_rle(read->seq.s, strlen(read->seq.s), rleSequence, rlePositions);
 
-			vector<u_int64_t> minimizers;
+			vector<KmerType> minimizers;
 			vector<u_int64_t> minimizers_pos;
 			_minimizerParser->parse(read._seq, minimizers, minimizers_pos);
 
@@ -366,8 +375,9 @@ public:
 
 			//#pragma omp critical
 			//{
-			for(u_int64_t minimizer : minimizers){
+			for(KmerType minimizer : minimizers){
 
+					
 				/*
 				_kmerCounter._kmerCounts.try_emplace_l(minimizer, 
 				[](KmerCountMap::value_type& v) { // key exist
@@ -399,8 +409,8 @@ public:
 		public:
 
 		KmerCounter& _kmerCounter;
-		MinimizerParser* _minimizerParser;
-		KmerModel* _kmerModel;
+		MinimizerParser128* _minimizerParser;
+		//KmerModel128* _kmerModel;
 		u_int64_t _currentDatasetIndex;
 
 		KmerCounterFunctor(KmerCounter& kmerCounter) : _kmerCounter(kmerCounter){
@@ -408,8 +418,8 @@ public:
 		}
 
 		KmerCounterFunctor(const KmerCounterFunctor& copy) : _kmerCounter(copy._kmerCounter){
-			_kmerModel = new KmerModel(31);
-			_minimizerParser = new MinimizerParser(31, 0.1);
+			//_kmerModel = new KmerModel128(_kmerCounter._kmerSize);
+			_minimizerParser = new MinimizerParser128(_kmerCounter._kmerSize, _kmerCounter._kmerDensity);
 			_currentDatasetIndex = _kmerCounter._currentDatasetIndex;
 		}
 
@@ -426,14 +436,14 @@ public:
 			//vector<u_int64_t> rlePositions;
 			//Encoder::encode_rle(read->seq.s, strlen(read->seq.s), rleSequence, rlePositions);
 
-			vector<u_int64_t> minimizers;
+			vector<KmerType> minimizers;
 			vector<u_int64_t> minimizers_pos;
 			_minimizerParser->parse(read._seq, minimizers, minimizers_pos);
 
 
 			//#pragma omp critical
 			//{
-			for(u_int64_t minimizer : minimizers){
+			for(KmerType minimizer : minimizers){
 
 				auto set_value = [](KmerCountMap::value_type& v) { v.second += 1; };
     			_kmerCounter._kmerCounts.modify_if(minimizer, set_value);
@@ -465,8 +475,8 @@ public:
 		public:
 
 		KmerCounter& _kmerCounter;
-		MinimizerParser* _minimizerParser;
-		KmerModel* _kmerModel;
+		MinimizerParser128* _minimizerParser;
+		//KmerModel128* _kmerModel;
 		u_int64_t _currentDatasetIndex;
 
 		ContigCoverageFunctor(KmerCounter& kmerCounter) : _kmerCounter(kmerCounter){
@@ -474,8 +484,8 @@ public:
 		}
 
 		ContigCoverageFunctor(const ContigCoverageFunctor& copy) : _kmerCounter(copy._kmerCounter){
-			_kmerModel = new KmerModel(31);
-			_minimizerParser = new MinimizerParser(31, 0.1);
+			//_kmerModel = new KmerModel128(_kmerCounter._kmerSize);
+			_minimizerParser = new MinimizerParser128(_kmerCounter._kmerSize, _kmerCounter._kmerDensity);
 			_currentDatasetIndex = _kmerCounter._currentDatasetIndex;
 		}
 
@@ -491,12 +501,12 @@ public:
 			//vector<u_int64_t> rlePositions;
 			//Encoder::encode_rle(read->seq.s, strlen(read->seq.s), rleSequence, rlePositions);
 
-			vector<u_int64_t> minimizers;
+			vector<KmerType> minimizers;
 			vector<u_int64_t> minimizers_pos;
 			_minimizerParser->parse(read._seq, minimizers, minimizers_pos);
 
 			vector<u_int32_t> count_values;
-			for(u_int64_t minimizer : minimizers){
+			for(KmerType minimizer : minimizers){
 				count_values.push_back(_kmerCounter._kmerCounts[minimizer]);
 			}
 

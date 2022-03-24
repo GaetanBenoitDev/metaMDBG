@@ -1153,7 +1153,7 @@ public:
 
 	bool isIntra(const vector<u_int32_t>& bin1, const vector<u_int32_t>& bin2){
 
-		cout << "\tIs intra: " << bin1.size() << " " << bin2.size() << " " << _binningThreshold << endl;
+		//cout << "\tIs intra: " << bin1.size() << " " << bin2.size() << " " << _binningThreshold << endl;
 
 		float distance = computeDistance(bin1, bin2);
 
@@ -1247,7 +1247,8 @@ public:
 		//(1-tnf_dist)
 		//return  (1-tnf_dist) * cor * (1-dist) > 0.65;
 
-		float distance = (1-tnf_dist) * cor * (1-dist);
+		//(1-tnf_dist) *
+		float distance =  cor * (1-dist);
 
 		/*
 		if(distance > _binningThreshold){
