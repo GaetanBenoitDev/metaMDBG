@@ -58,9 +58,11 @@ public:
 	unordered_map<u_int32_t, u_int32_t> _contigIndex_to_binIndex;
 	unordered_map<u_int32_t, vector<u_int32_t>> _binIndex_to_contigIndex;
 	float _binningThreshold;
+	bool _useAbundance;
 	
 	ContigFeature(){
 
+		_useAbundance = false;
 		_nbDatasets = 0;
 
 		_kmerSize = 4;
@@ -274,6 +276,8 @@ public:
 			cout << "No abundance file provided" << endl;
 			return;
 		}
+
+		_useAbundance = true;
 
 		ifstream infile(filename);
 
@@ -1219,39 +1223,43 @@ public:
 		//float compositionProb = -log10(computeCompositionProbability(composition1, composition2));
 
 		//cout << "\tComposition distance: " << compositionProb << endl;
-		const vector<float>& abundance1 = _contigCoverages[contigIndex1];
-		const vector<float>& abundance1_var = _contigCoveragesVar[contigIndex1];
-		const vector<float>& abundance2 = _contigCoverages[contigIndex2];
-		const vector<float>& abundance2_var = _contigCoveragesVar[contigIndex2];
-
-		int nnz = 0;
-
-		//cout << cal_abd_dist_new(f1, f2 ,nnz) << endl;
-		//cout << isinf(cal_abd_dist_new(f1, f2 ,nnz)) << endl;
 		
-		float dist = cal_abd_dist_new(abundance1, abundance1_var, abundance2, abundance2_var ,nnz);
-		//cout << isinf(dist) << endl;
-		//cout << fpclassify(dist) << endl;
-		//cout << (fpclassify(dist) == FP_INFINITE) << endl;
+		float distance = 0;
+
+		if(_useAbundance){
+
+			const vector<float>& abundance1 = _contigCoverages[contigIndex1];
+			const vector<float>& abundance1_var = _contigCoveragesVar[contigIndex1];
+			const vector<float>& abundance2 = _contigCoverages[contigIndex2];
+			const vector<float>& abundance2_var = _contigCoveragesVar[contigIndex2];
+
+			int nnz = 0;
+
+			//cout << cal_abd_dist_new(f1, f2 ,nnz) << endl;
+			//cout << isinf(cal_abd_dist_new(f1, f2 ,nnz)) << endl;
+			
+			float dist = cal_abd_dist_new(abundance1, abundance1_var, abundance2, abundance2_var ,nnz);
+			//cout << isinf(dist) << endl;
+			//cout << fpclassify(dist) << endl;
+			//cout << (fpclassify(dist) == FP_INFINITE) << endl;
 
 
-		if(isinf(dist)) return false;
-		if(isnan(dist)) return false;
+			if(isinf(dist)) return false;
+			if(isnan(dist)) return false;
 
-		float cor = computeAbundanceCorrelation(abundance1, abundance2);
-		if(isinf(cor)) return false;
-		if(isnan(cor)) return false;
-		
-		float tnf_dist = cal_tnf_dist(composition1, composition2, contigIndex1, contigIndex2);
+			float cor = computeAbundanceCorrelation(abundance1, abundance2);
+			if(isinf(cor)) return false;
+			if(isnan(cor)) return false;
+			
+			float tnf_dist = cal_tnf_dist(composition1, composition2, contigIndex1, contigIndex2);
 
-		//(1-tnf_dist)
-		//return  (1-tnf_dist) * cor * (1-dist) > 0.65;
+			//(1-tnf_dist)
+			//return  (1-tnf_dist) * cor * (1-dist) > 0.65;
 
-		//(1-tnf_dist) *
-		float distance =  cor * (1-dist);
+			//(1-tnf_dist) *
+			distance =  cor * (1-dist);
 
-		/*
-		if(distance > _binningThreshold){
+			/*
 			cout << "\t>>>>>" << endl;
 			cout << "\t";
 			for(u_int64_t ab : abundance1){
@@ -1262,10 +1270,25 @@ public:
 			for(u_int64_t ab : abundance2){
 				cout << ab << " ";
 			}
-			cout << endl;
-			cout << "\t" << tnf_dist << " " << dist << " " << cor << "        " << ((1-tnf_dist) * cor * (1-dist)) << endl;
+			*/
+
 		}
-		*/
+		else{
+			
+			float tnf_dist = cal_tnf_dist(composition1, composition2, contigIndex1, contigIndex2);
+			distance = 1-tnf_dist;
+
+			cout << "Composition distance: " << tnf_dist << " " << _contigSequences[contigIndex1].size() << " " << _contigSequences[contigIndex2].size()  << endl;
+		}
+
+
+		
+		//if(distance > _binningThreshold){
+
+			//cout << endl;
+			//cout << "\t" << tnf_dist << " " << dist << " " << cor << "        " << ((1-tnf_dist) * cor * (1-dist)) << endl;
+		//}
+		
 
 		return distance;
 		//int nnz = 0;

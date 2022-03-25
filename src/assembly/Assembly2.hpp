@@ -156,6 +156,7 @@ public:
 
 	unordered_map<u_int32_t, u_int32_t> _contigIndex_to_componentIndex;
 	unordered_map<u_int32_t, vector<u_int32_t>> _componentIndex_to_contigIndexes;
+	bool _isFinalPass;
 
 	Assembly2(): Tool (){
 
@@ -1260,7 +1261,7 @@ public:
 		//cout << _contigFeature._binningThreshold << " " << (_contigFeature._binningThreshold == 0.65f) << endl;
 
 		if(_computeBinStats ){
-			if(lengthTotal > 300000 && _contigFeature._binningThreshold == 0.65f && lengthThreshold == 10000){
+			if(lengthTotal > 300000 && _isFinalPass){//_contigFeature._binningThreshold == 0.65f && lengthThreshold == 10000){
 
 				
 				cout << _nbHighQualityBins << " " << _nbMedQualityBins << " " << _nbLowQualityBins << "    " << _nbContaminatedBins << endl;
@@ -1546,7 +1547,7 @@ public:
 	void execute_binning2(){
 
 
-
+		_isFinalPass = false;
 
 		vector<vector<string>> bins;
 		
@@ -1650,11 +1651,23 @@ public:
 
 			_minUnitigAbundance = cutoff / 0.2;
 
+			vector<float> binningThresholds;
+			if(_contigFeature._useAbundance){
+				binningThresholds = {0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65};
+			}
+			else{
+				binningThresholds = {0.99, 0.95, 0.75};
+			}
+
+			vector<u_int64_t> lengthThresholds = {100000, 50000, 10000};
 
 			//0.01, 0.05, 0.5, 1.0, 2.0
-			for(float binningThreshold : {0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65}){
-				for(u_int64_t lengthThreshold : {100000, 50000, 10000}){ //, 10000, 2500
+			for(float binningThreshold : binningThresholds){
+				for(u_int64_t lengthThreshold : lengthThresholds){ //, 10000, 2500
 					
+					if(binningThreshold == binningThresholds[binningThresholds.size()-1] && lengthThreshold == lengthThresholds[lengthThresholds.size()-1]){
+						_isFinalPass = true;
+					}
 					_contigFeature._binningThreshold = binningThreshold;
 					processedNodeNames.clear();
 					processedContigIndex.clear();

@@ -189,7 +189,7 @@ void Bloocoo::createMDBG (){
 		
 		cout << "Building mdbg" << endl;
 		KminmerParserParallel parser2(inputFilename_min, _minimizerSize, _kminmerSize, usePos, _nbCores);
-		parser2.parse(IndexKminmerFunctor(*this));
+		parser2.parse(IndexKminmerFunctor(*this, false));
 		//auto fp = std::bind(&Bloocoo::createMDBG_collectKminmers_minspace_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 		//parser.parseMinspace(fp);
 	}
@@ -203,13 +203,13 @@ void Bloocoo::createMDBG (){
 
 		cout << "Building mdbg" << endl;
 		KminmerParserParallel parser2(filename_uncorrectedReads, _minimizerSize, _kminmerSize, false, _nbCores);
-		parser2.parse(IndexKminmerFunctor(*this));
+		parser2.parse(IndexKminmerFunctor(*this, false));
 
 		_parsingContigs = true;
 		const string& filename_contigs = _outputDir + "/unitig_data.txt";
 
-		//KminmerParserParallel parser3(filename_contigs, _minimizerSize, _kminmerSize, false, _nbCores);
-		//parser3.parse(IndexKminmerFunctor(*this));
+		KminmerParserParallel parser3(filename_contigs, _minimizerSize, _kminmerSize, false, _nbCores);
+		parser3.parse(IndexKminmerFunctor(*this, true));
 		
 	}
 

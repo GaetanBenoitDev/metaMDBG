@@ -314,11 +314,11 @@ struct ReadKminmerComplete{
 	u_int32_t _length;
 };
 
-struct ContigNode{
+struct ReadNodeName{
 	u_int32_t _nodeIndex;
 	u_int64_t _supportingReadIndex;
 
-	bool operator==(const ContigNode &other) const{
+	bool operator==(const ReadNodeName &other) const{
 		return _nodeIndex == other._nodeIndex && _supportingReadIndex == other._supportingReadIndex;
 	}
 
@@ -358,8 +358,8 @@ namespace std {
 
 
 	template <>
-	struct hash<ContigNode>{
-		std::size_t operator()(const ContigNode& k) const{
+	struct hash<ReadNodeName>{
+		std::size_t operator()(const ReadNodeName& k) const{
 			//using std::size_t;
 			//using std::hash;
 			//using std::string;
@@ -564,7 +564,9 @@ public:
 		return nbShared;
 	}
 
-	static u_int64_t collectSharedElements(const vector<u_int32_t>& reads1, const vector<u_int32_t>& reads2, unordered_set<u_int32_t>& sharedReads){
+	
+	template<typename T>
+	static u_int64_t collectSharedElements(const vector<T>& reads1, const vector<T>& reads2, unordered_set<T>& sharedReads){
 
 		sharedReads.clear();
 
@@ -575,6 +577,34 @@ public:
 		while(i < reads1.size() && j < reads2.size()){
 			if(reads1[i] == reads2[j]){
 				sharedReads.insert(reads1[i]);
+				nbShared += 1;
+				i += 1;
+				j += 1;
+			}
+			else if(reads1[i] < reads2[j]){
+				i += 1;
+			}
+			else{
+				j += 1;
+			}
+
+		}
+
+		return nbShared;
+	}
+
+	template<typename T>
+	static u_int64_t collectSharedElements(const vector<T>& reads1, const vector<T>& reads2, vector<T>& sharedReads){
+
+		sharedReads.clear();
+
+		size_t i=0;
+		size_t j=0;
+		u_int64_t nbShared = 0;
+
+		while(i < reads1.size() && j < reads2.size()){
+			if(reads1[i] == reads2[j]){
+				sharedReads.push_back(reads1[i]);
 				nbShared += 1;
 				i += 1;
 				j += 1;
@@ -766,6 +796,39 @@ public:
 				return true;
 			}
 			else if(utg1._readIndexes[i] < utg2._readIndexes[j]){
+				i += 1;
+			}
+			else{
+				j += 1;
+			}
+
+		}
+
+		return false;
+	}
+
+	static bool shareAny(const vector<u_int64_t>& utg1, const vector<u_int64_t>& utg2){
+
+		if(utg1.size() == 0 || utg2.size() == 0) return true;
+		//cout << "------------------- " << utg1._index << endl;
+		//for(size_t i=0; i<utg1._readIndexes.size(); i++){
+		//	cout << "| " << utg1._readIndexes[i] << endl;
+		//}
+		//cout << "- " << utg2._index << endl;
+		//for(size_t i=0; i<utg2._readIndexes.size(); i++){
+		//	cout << "| " << utg2._readIndexes[i] << endl;
+		//}
+
+		size_t i=0;
+		size_t j=0;
+
+		while(i < utg1.size() && j < utg2.size()){
+
+			//cout << i << " " << j << endl;
+			if(utg1[i] == utg2[j]){
+				return true;
+			}
+			else if(utg1[i] < utg2[j]){
 				i += 1;
 			}
 			else{
@@ -1731,6 +1794,12 @@ public:
 	int _nbCores;
 
 	ReadParserParallel(const string& inputFilename, bool isFile, bool isBitset, int nbCores){
+
+		if(!fs::exists(inputFilename)){
+			cout << "File not found: " << inputFilename << endl;
+			exit(1);
+		}
+
 		_inputFilename = inputFilename;
 		_isFile = isFile;
 		_isBitset = isBitset;
@@ -2476,6 +2545,12 @@ public:
 	}
 
 	KminmerParserParallel(const string& inputFilename, size_t l, size_t k, bool usePos, int nbCores){
+
+		if(!fs::exists(inputFilename)){
+			cout << "File not found: " << inputFilename << endl;
+			exit(1);
+		}
+
 		_inputFilename = inputFilename;
 		_l = l;
 		_k = k;

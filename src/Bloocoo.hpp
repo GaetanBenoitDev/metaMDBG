@@ -265,8 +265,9 @@ public:
 		size_t _kminmerSize;
 		size_t _kminmerSizeFirst;
 		BloomCacheCoherent<u_int64_t>* _bloomFilter;
+		bool _extractingContigs;
 
-		IndexKminmerFunctor(Bloocoo& graph) : _graph(graph), _readFile(graph._readFile), _kminmerExist(graph._kminmerExist), _kminmerFile(graph._kminmerFile){
+		IndexKminmerFunctor(Bloocoo& graph, bool extractingContigs) : _graph(graph), _readFile(graph._readFile), _kminmerExist(graph._kminmerExist), _kminmerFile(graph._kminmerFile){
 			_isFirstPass = graph._isFirstPass;
 			_parsingContigs = graph._parsingContigs;
 			_mdbg = graph._mdbg;
@@ -278,6 +279,7 @@ public:
 			_kminmerSize = graph._kminmerSize;
 			_kminmerSizeFirst = graph._kminmerSizeFirst;
 			_bloomFilter = graph._bloomFilter;
+			_extractingContigs = extractingContigs;
 		}
 
 		IndexKminmerFunctor(const IndexKminmerFunctor& copy) : _graph(copy._graph), _readFile(copy._readFile), _kminmerExist(copy._kminmerExist), _kminmerFile(copy._kminmerFile){
@@ -292,6 +294,7 @@ public:
 			_kminmerSize = copy._kminmerSize;
 			_kminmerSizeFirst = copy._kminmerSizeFirst;
 			_bloomFilter = copy._bloomFilter;
+			_extractingContigs = copy._extractingContigs;
 		}
 
 		~IndexKminmerFunctor(){
@@ -330,12 +333,18 @@ public:
 					bool exist = false;
 					//#pragma omp critical
 					//{
-					if(_bloomFilter->contains(vec.h())){
+
+					if(_extractingContigs){
 						exist = true;
 					}
 					else{
-						exist = false;
-						_bloomFilter->insert(vec.h());
+						if(_bloomFilter->contains(vec.h())){
+							exist = true;
+						}
+						else{
+							exist = false;
+							_bloomFilter->insert(vec.h());
+						}
 					}
 					//}
 

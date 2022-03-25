@@ -26,6 +26,21 @@ public:
 	
 
 	u_int64_t _debug_nbMinimizers;
+
+    struct ReadWriter{
+        u_int64_t _readIndex;
+        vector<u_int64_t> _minimizers;
+        //u_int32_t _prevNodeIndex;
+    };
+
+    struct ReadWriter_Comparator {
+        bool operator()(ReadWriter const& p1, ReadWriter const& p2){
+            return p1._readIndex > p2._readIndex;
+        }
+    };
+
+	priority_queue<ReadWriter, vector<ReadWriter> , ReadWriter_Comparator> _readWriterQueue;
+	u_int64_t _nextReadIndexWriter;
 	//unordered_map<u_int64_t, u_int64_t> _minimizerCounts;
 	//unordered_map<KmerVec, KminmerData> _kminmersData;
 	//gzFile _file_minimizerPos;
@@ -93,20 +108,71 @@ public:
 		_filename_readMinimizers = _outputFilename; //_inputDir + "/read_data.gz";
 	}
 
+	ofstream _file_readData;
 
     void readSelection(){
+
+		_nextReadIndexWriter = 0;
 		_debug_nbMinimizers = 0;
-		ofstream file_readData = ofstream(_filename_readMinimizers);
+		_file_readData = ofstream(_filename_readMinimizers);
 		//_file_minimizerPos = gzopen(_filename_readMinimizers.c_str(),"wb");
 		
 		//auto fp = std::bind(&ReadSelection::readSelection_read, this, std::placeholders::_1);
 		ReadParserParallel readParser(_inputFilename, false, false, _nbCores);
-		readParser.parse(ReadSelectionFunctor(_minimizerSize, _minimizerDensity, file_readData));
+		readParser.parse(ReadSelectionFunctor(*this, _minimizerSize, _minimizerDensity));
 
+		while(!_readWriterQueue.empty()){
 
-		file_readData.close();
+			if(readWriter._readIndex == _nextReadIndexWriter){
+
+				cout << "Writing read: " << _nextReadIndexWriter << endl;
+				u_int32_t size = readWriter._minimizers.size();
+				_file_readData.write((const char*)&size, sizeof(size));
+				_file_readData.write((const char*)&readWriter._minimizers[0], size*sizeof(u_int64_t));
+
+				_readWriterQueue.pop();
+				_nextReadIndexWriter += 1;
+			}
+			
+		}
+
+		_file_readData.close();
 		//delete _minimizerParser;
     }
+
+    
+
+	void writeRead(const Read& read, const vector<u_int64_t>& minimizers){
+
+		//#pragma omp critical(dataupdate)
+		#pragma omp critical
+		{
+			_readWriterQueue.push({read._index, minimizers});
+
+			const ReadWriter& readWriter = _readWriterQueue.top();
+
+			while(!_readWriterQueue.empty()){
+
+				if(readWriter._readIndex == _nextReadIndexWriter){
+
+					cout << "Writing read: " << _nextReadIndexWriter << endl;
+					u_int32_t size = readWriter._minimizers.size();
+					_file_readData.write((const char*)&size, sizeof(size));
+					_file_readData.write((const char*)&readWriter._minimizers[0], size*sizeof(u_int64_t));
+
+					_readWriterQueue.pop();
+					_nextReadIndexWriter += 1;
+				}
+				else{
+					break;
+				}
+			}
+			
+			//cout << readIndex << endl;
+			//_file_readData.write((const char*)&minimizerPosOffset[0], size*sizeof(u_int16_t));
+		}
+
+	}
 
 	unordered_map<u_int32_t, u_int32_t> _lala;
 
@@ -121,19 +187,19 @@ public:
 
 		public:
 
+		ReadSelection& _readSelection;
 		size_t _minimizerSize;
 		float _minimizerDensity;
 		MinimizerParser* _minimizerParser;
 		EncoderRLE _encoderRLE;
-		ofstream& _file_readData;
 
-		ReadSelectionFunctor(size_t minimizerSize, float minimizerDensity, ofstream& file_readData) : _file_readData(file_readData){
+		ReadSelectionFunctor(ReadSelection& readSelection, size_t minimizerSize, float minimizerDensity) : _readSelection(readSelection){
 			_minimizerSize = minimizerSize;
 			_minimizerDensity = minimizerDensity;
 			_minimizerParser = new MinimizerParser(minimizerSize, minimizerDensity);
 		}
 
-		ReadSelectionFunctor(const ReadSelectionFunctor& copy) : _file_readData(copy._file_readData){
+		ReadSelectionFunctor(const ReadSelectionFunctor& copy) : _readSelection(copy._readSelection){
 			_minimizerSize = copy._minimizerSize;
 			_minimizerDensity = copy._minimizerDensity;
 			_minimizerParser = new MinimizerParser(_minimizerSize, _minimizerDensity);
@@ -209,16 +275,7 @@ public:
 				}
 			}
 	
-			//#pragma omp critical(dataupdate)
-			#pragma omp critical
-			{
-				//cout << readIndex << endl;
-				u_int32_t size = minimizers.size();
-				_file_readData.write((const char*)&size, sizeof(size));
-				_file_readData.write((const char*)&minimizers[0], size*sizeof(u_int64_t));
-				//_file_readData.write((const char*)&minimizerPosOffset[0], size*sizeof(u_int16_t));
-			}
-			
+			_readSelection.writeRead(read, minimizers);
 		
 		}
 

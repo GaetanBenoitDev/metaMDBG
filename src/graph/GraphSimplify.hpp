@@ -6636,6 +6636,25 @@ public:
         return nodeIndex == unitig._startNode || nodeIndex == unitig._endNode;
     }
 
+    bool isNeighborOfEdgeNode(u_int32_t nodeIndex){
+
+        vector<u_int32_t> successors;
+        getSuccessors(nodeIndex, 0, successors);
+
+        for(u_int32_t nodeIndexSuccessor : successors){
+            if(isEdgeNode(nodeIndexSuccessor)) return true;
+        }
+
+        vector<u_int32_t> predecessors;
+        getPredecessors(nodeIndex, 0, predecessors);
+
+        for(u_int32_t nodeIndexPredecessor : predecessors){
+            if(isEdgeNode(nodeIndexPredecessor)) return true;
+        }
+
+		return false;
+    }
+
     struct ShortedPathData{
         u_int32_t _unitigIndex;
         u_int32_t _distance;

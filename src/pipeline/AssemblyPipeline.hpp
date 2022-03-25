@@ -135,7 +135,7 @@ public:
 		//createInputFile(false);
 
 		//Read selection
-		command = _filename_exe + " readSelection -i " + _inputFilename + " -o " + _inputDir + " -f " + _inputDir + "/read_data_init.txt" + " -t " + to_string(_nbCores);
+		command = _filename_exe + " readSelection -i " + _inputFilename + " -o " + _inputDir + " -f " + _inputDir + "/read_data_init.txt" + " -t 8 "; // + to_string(_nbCores);
 		executeCommand(command);
 		
 
@@ -185,8 +185,8 @@ public:
 			//if(pass > 0) command += " -c " +  _inputDir + "/contig_data.gz";
 			executeCommand(command);
 
-			//command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/unitigs.nodepath.gz" + " -f " + _inputDir + "/unitig_data.txt";
-			//executeCommand(command);
+			command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/unitigs.nodepath.gz" + " -f " + _inputDir + "/unitig_data.txt";
+			executeCommand(command);
 
 			//command = ./bin/mdbgAsmMeta toMinspace -o ~/workspace/run/overlap_test_multik_AD/ -c ~/workspace/run/overlap_test_multik_AD/contigs.nodepath.gz
 
@@ -222,7 +222,7 @@ public:
 
 			bool generatedContigs = false;
 			//if(k == 5 || k == 10 || k == 16 || k == 21 || k == 26 || k == 31){
-			if(k==31 || k==41 || k==51 || k==61 || k==71 || k==81 || k==91){
+			if(k==10 || k==19 || k==31 || k==41 || k==51 || k==61 || k==71 || k==81 || k==91){
 
 
 				//Generate contigs
@@ -288,7 +288,7 @@ public:
 		fs::create_directory(dir);
 
 		//const auto copyOptions = fs::copy_options::overwrite_existing;
-		fs::copy(_inputDir + "/read_data.txt", dir + "/read_data.txt");
+		//fs::copy(_inputDir + "/read_data.txt", dir + "/read_data.txt");
 		fs::copy(_inputDir + "/minimizer_graph.gfa", dir + "/minimizer_graph.gfa");
 		fs::copy(_inputDir + "/parameters.gz", dir + "/parameters.gz");
 		fs::copy(_inputDir + "/mdbg_nodes.gz", dir + "/mdbg_nodes.gz");
