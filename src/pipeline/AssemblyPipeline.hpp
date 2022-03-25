@@ -135,7 +135,7 @@ public:
 		//createInputFile(false);
 
 		//Read selection
-		command = _filename_exe + " readSelection -i " + _inputFilename + " -o " + _inputDir + " -f " + _inputDir + "/read_data_init.txt" + " -t 8 "; // + to_string(_nbCores);
+		command = _filename_exe + " readSelection -i " + _inputFilename + " -o " + _inputDir + " -f " + _inputDir + "/read_data_init.txt" + " -t " + to_string(_nbCores);
 		executeCommand(command);
 		
 

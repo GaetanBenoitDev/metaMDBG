@@ -1,12 +1,14 @@
 
 //contig=81 graph=4 abundance=31: 33 28 30    1 ()
 //contig=81 graph=4 abundance=31: 41 35 21    3 (no composition)
-//contig=81 graph=7 abundance=61: 40 39 23    2 (kmer size was bugged!!)
+//contig=81 graph=4 abundance=51: 47 32 22    3 (no composition)
+//contig=81 graph=4 abundance=61: 49 29 23    2 (no composition) 
 //contig=81 graph=4 abundance=31: 26 14 18    3 (with abundance correction, ab < 1 => ab = 0)
 //contig=41 graph=41 abundance=31: 29 19 16    4
 //contig=41 graph=41 abundance=31: 29 37 25    5 (interrupted)
 //contig=10, graph=4 abundance=31: 31 52 25    9
 //
+
 
 //./bin/mdbgAsmMeta binPass  -o ~/workspace/run/overlap_test_multik_AD/pass_k81 -c ~/workspace/run/overlap_test_multik_AD/contigs_81.fasta.gz --bi lala.bin --bo lala2.bin --firstpass --eval -a ~/workspace/run/overlap_test_multik_AD/contigCoverages_k81.tsv --itruth ~/workspace/run/hifiasm_meta/AD2W20.asm.r_utg.fasta
 
