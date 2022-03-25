@@ -960,6 +960,9 @@ public:
 			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
 
 			u_int64_t size = u._nodes.size();
+
+			if(size < _kminmerSize*2) continue;
+
 			gzwrite(outputContigFile_min, (const char*)&size, sizeof(size));
 			gzwrite(outputContigFile_min, (const char*)&u._nodes[0], size * sizeof(u_int32_t));
 		}

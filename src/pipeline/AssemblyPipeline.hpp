@@ -222,7 +222,7 @@ public:
 
 			bool generatedContigs = false;
 			//if(k == 5 || k == 10 || k == 16 || k == 21 || k == 26 || k == 31){
-			if(k==10 || k==19 || k==31 || k==41 || k==51 || k==61 || k==71 || k==81 || k==91){
+			if(k==19 || k==31 || k==41 || k==51 || k==61 || k==71 || k==81 || k==91){
 
 
 				//Generate contigs

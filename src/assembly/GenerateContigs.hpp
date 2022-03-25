@@ -761,10 +761,11 @@ public:
 				//cout << "Cutoff: " << unitigLength_cutoff_min << "-" << unitigLength_cutoff_max << " " << cutoff << " " << processedUnitigs << " " << startingUnitigs.size() << "     " << unitig._length << endl;
 				processedUnitigs += 1;
 
+				//if(unitig._nodes.size() < _kminmerSize*2) continue;
 				if(isContigAssembled(unitig._nodes)) continue;
 
 
-				u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(unitig._startNode);
+				//u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(unitig._startNode);
 
 
 				//cout << endl << "Starting unitig: " << BiGraph::nodeIndex_to_nodeName(unitig._startNode) << " " << unitig._length << endl;
@@ -776,6 +777,40 @@ public:
 
 
 				vector<u_int32_t> nodePath = unitig._nodes;
+
+				if(unitig._startNode == unitig._endNode){ //Circular
+					
+					
+					for(size_t i=0; i<_kminmerSize-1; i++){
+						if(nodePath.size() == 0) break;
+						nodePath.pop_back();
+					}
+					/*
+					nodePath.pop_back();
+					nodePath.pop_back();
+					nodePath.pop_back();
+					nodePath.pop_back();
+
+					nodePath.pop_back();
+					nodePath.pop_back();
+					nodePath.pop_back();
+					nodePath.pop_back();
+
+					nodePath.pop_back();
+					nodePath.pop_back();
+					nodePath.pop_back();
+					nodePath.pop_back();
+
+					nodePath.pop_back();
+					nodePath.pop_back();
+					nodePath.pop_back();
+					nodePath.pop_back();
+					
+					nodePath.pop_back();
+					nodePath.pop_back();
+					nodePath.pop_back();
+					*/
+				}
 				//vector<u_int64_t> nodePath_supportingReads;
 				//assembly.solveBin2(unitig._startNode, unitig._abundance, _graph, 0, 0, false, nodePath, nodePath_supportingReads, 0);
 

@@ -760,6 +760,7 @@ public:
 			
 			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
 
+			//_kminmerCounts.clear();
 			if(_kminmerCounts[nodeName] > 1){
 				isKminmerRepeated.insert(nodeName);
 				u_int64_t readIndex = getBestSupportingRead(nodeName, i, kminmersInfos);
@@ -1136,29 +1137,33 @@ public:
 				bool isLeft;
 				bool isRight;
 
-				//#pragma omp critical
+				//
 				//{
 
 				//}
-				isEntire = _toBasespace._kminmerSequenceCopies_all_entire.find(nodeName) != _toBasespace._kminmerSequenceCopies_all_entire.end() && _toBasespace._isDoneNodeName_entire.find(nodeName) == _toBasespace._isDoneNodeName_entire.end();
-				isLeft = _toBasespace._kminmerSequenceCopies_all_left.find(nodeName) != _toBasespace._kminmerSequenceCopies_all_left.end() && _toBasespace._isDoneNodeName_left.find(nodeName) == _toBasespace._isDoneNodeName_left.end();
-				isRight = _toBasespace._kminmerSequenceCopies_all_right.find(nodeName) != _toBasespace._kminmerSequenceCopies_all_right.end() && _toBasespace._isDoneNodeName_right.find(nodeName) == _toBasespace._isDoneNodeName_right.end();
 
-				if(!isEntire){
-					ReadNodeName readNodeName = {nodeName, readIndex};
-					isEntire = _toBasespace._repeatedKminmerSequence_entire.find(readNodeName) != _toBasespace._repeatedKminmerSequence_entire.end();
-				}
+				#pragma omp critical
+				{
+					isEntire = _toBasespace._kminmerSequenceCopies_all_entire.find(nodeName) != _toBasespace._kminmerSequenceCopies_all_entire.end() && _toBasespace._isDoneNodeName_entire.find(nodeName) == _toBasespace._isDoneNodeName_entire.end();
+					isLeft = _toBasespace._kminmerSequenceCopies_all_left.find(nodeName) != _toBasespace._kminmerSequenceCopies_all_left.end() && _toBasespace._isDoneNodeName_left.find(nodeName) == _toBasespace._isDoneNodeName_left.end();
+					isRight = _toBasespace._kminmerSequenceCopies_all_right.find(nodeName) != _toBasespace._kminmerSequenceCopies_all_right.end() && _toBasespace._isDoneNodeName_right.find(nodeName) == _toBasespace._isDoneNodeName_right.end();
 
-				if(!isLeft){
-					ReadNodeName readNodeName = {nodeName, readIndex};
-					isLeft = _toBasespace._repeatedKminmerSequence_left.find(readNodeName) != _toBasespace._repeatedKminmerSequence_left.end();
-				}
+					if(!isEntire){
+						ReadNodeName readNodeName = {nodeName, readIndex};
+						isEntire = _toBasespace._repeatedKminmerSequence_entire.find(readNodeName) != _toBasespace._repeatedKminmerSequence_entire.end();
+					}
 
-				if(!isRight){
-					ReadNodeName readNodeName = {nodeName, readIndex};
-					isRight = _toBasespace._repeatedKminmerSequence_right.find(readNodeName) != _toBasespace._repeatedKminmerSequence_right.end();
+					if(!isLeft){
+						ReadNodeName readNodeName = {nodeName, readIndex};
+						isLeft = _toBasespace._repeatedKminmerSequence_left.find(readNodeName) != _toBasespace._repeatedKminmerSequence_left.end();
+					}
+
+					if(!isRight){
+						ReadNodeName readNodeName = {nodeName, readIndex};
+						isRight = _toBasespace._repeatedKminmerSequence_right.find(readNodeName) != _toBasespace._repeatedKminmerSequence_right.end();
+					}
 				}
- 
+				
 				//if(nodeName==293 && readIndex==8320){
 				//	ReadNodeName readNodeName = {nodeName, readIndex};
 				//	cout << (_toBasespace._repeatedKminmerSequence_entire.find(readNodeName) != _toBasespace._repeatedKminmerSequence_entire.end()) << endl;
