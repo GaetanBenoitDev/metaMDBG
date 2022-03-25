@@ -210,9 +210,9 @@ public:
 			extract_truth_kminmers();
 		}
 
-		//cout << "Indexing reads" << endl;
-		//_unitigDatas.resize(_mdbg->_dbg_nodes.size());
-		//indexReads();
+		cout << "Indexing reads" << endl;
+		_unitigDatas.resize(_mdbg->_dbg_nodes.size());
+		indexReads();
 
 		//cout << "Loading original mdbg" << endl;
 		//string mdbg_filename = _inputDir + "/mdbg_nodes_init.gz";
@@ -221,9 +221,9 @@ public:
 		//cout << "MDBG nodes: " << _mdbgInit->_dbg_nodes.size() << endl;
 
 		loadContigs_min(_inputFilenameContig);
-		//collectBestSupportingReads(_inputFilenameContig);
+		collectBestSupportingReads(_inputFilenameContig);
 		//extractKminmerSequences_all();
-		//_unitigDatas.clear();
+		_unitigDatas.clear();
 
 		//isKminmerRepeated.clear();
 		//cout << isKminmerRepeated.size() << endl;
@@ -835,6 +835,16 @@ public:
 
 		//unordered_map<u_int64_t, u_int32_t> readSupports;
 
+		u_int64_t readIndex;
+
+		if(kminmersInfos.size() - nodeNamePosition > nodeNamePosition){
+			readIndex = getBestSupportingRead_direction(nodeName, nodeNamePosition+1, kminmersInfos, 1);
+		}
+		else{
+			readIndex = getBestSupportingRead_direction(nodeName, nodeNamePosition-1, kminmersInfos, -1);
+		}
+
+		/*
 		u_int64_t minSharedReads = -1;
 
 		u_int64_t readIndexMin = -1;
@@ -845,6 +855,7 @@ public:
 		u_int64_t nodeNamePosition_left = getBestSupportingRead_direction(nodeName, nodeNamePosition-1, kminmersInfos, -1, isValidLeft, minSharedReads);
 
 		if(nodeNamePosition_left != -1) readIndexMin = nodeNamePosition_left;
+		*/
 		//long dist_right = nodeNamePosition_right - nodeNamePosition;
 		//long dist_left = nodeNamePosition - nodeNamePosition_left;
 		//cout << nodeNamePosition << " " << nodeNamePosition_left << " " << nodeNamePosition_right << "     " << dist_left << " " << dist_right << endl;
@@ -896,7 +907,7 @@ public:
 		}
 		*/
 
-		return readIndexMin;
+		return readIndex;
 		//cout << kminmersInfos.size() << " " << nodeNamePosition_left << " " << nodeNamePosition_right << endl;
 
 
@@ -928,23 +939,15 @@ public:
 
 	}
 
-	u_int64_t getBestSupportingRead_direction(u_int32_t nodeName, size_t nodeNamePosition, const vector<ReadKminmerComplete>& kminmersInfos, int inc, bool& isValid, u_int64_t& minSharedReads){
+	u_int64_t getBestSupportingRead_direction(u_int32_t nodeName, size_t nodeNamePosition, const vector<ReadKminmerComplete>& kminmersInfos, int inc){
 		
-		u_int64_t readIndexResult = -1;
-
-		if(inc == 1){
-			//cout << "RIGHT" << endl;
-		}
-		else{
-			//cout << "LEFT" << endl;
-		}
+		u_int64_t readIndex = -1;
+		vector<u_int64_t> sharedElements;
 
 		long i = nodeNamePosition;
 
 		while(true){
 			if(i < 0 || i >= kminmersInfos.size()){
-				//cout << "invalid" << endl;
-				isValid = false;
 				break;
 			}
 
@@ -956,15 +959,21 @@ public:
 
 				u_int32_t nodeName2 = _mdbg->_dbg_nodes[vec]._index;
 				
-				vector<u_int64_t> sharedElements;
-				Utils::collectSharedElements(_unitigDatas[nodeName], _unitigDatas[nodeName2], sharedElements);
+				if(sharedElements.size() == 0){
+					Utils::collectSharedElements(_unitigDatas[nodeName], _unitigDatas[nodeName2], sharedElements);
+				}
+				else{
+					vector<u_int64_t> sharedElementTmp;
+					Utils::collectSharedElements(sharedElements, _unitigDatas[nodeName2], sharedElementTmp);
+					sharedElements = sharedElementTmp;
+				}
 
 				if(sharedElements.size() == 0) break;
 
-				if(sharedElements.size() < minSharedReads){
-					minSharedReads = sharedElements.size();
-					readIndexResult = sharedElements[0];
-				}
+
+				readIndex = sharedElements[0];
+
+
 
 				/*
 				if(!Utils::shareAny(_unitigDatas[nodeName], _unitigDatas[nodeName2])){
@@ -988,10 +997,11 @@ public:
 			}
 
 			i += inc;
+
 		}
 
 		//if(isValid) return i;
-		return readIndexResult;
+		return readIndex;
 		/*
 		if(inc == 1){
 			return i-1;
