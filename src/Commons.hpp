@@ -1865,7 +1865,7 @@ public:
 	void parse(const Functor& functor){
 
 		//#pragma omp for
-		cout << _nbCores << endl;
+		//cout << _nbCores << endl;
 
 		u_int64_t readIndex = -1;
 

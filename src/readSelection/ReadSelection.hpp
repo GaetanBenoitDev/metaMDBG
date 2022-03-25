@@ -121,11 +121,16 @@ public:
 		ReadParserParallel readParser(_inputFilename, false, false, _nbCores);
 		readParser.parse(ReadSelectionFunctor(*this, _minimizerSize, _minimizerDensity));
 
+		/*
+		cout << _readWriterQueue.size() << endl;
 		while(!_readWriterQueue.empty()){
+
+			const ReadWriter& readWriter = _readWriterQueue.top();
 
 			if(readWriter._readIndex == _nextReadIndexWriter){
 
-				cout << "Writing read: " << _nextReadIndexWriter << endl;
+
+				cout << "Writing read (end): " << _nextReadIndexWriter << endl;
 				u_int32_t size = readWriter._minimizers.size();
 				_file_readData.write((const char*)&size, sizeof(size));
 				_file_readData.write((const char*)&readWriter._minimizers[0], size*sizeof(u_int64_t));
@@ -133,8 +138,9 @@ public:
 				_readWriterQueue.pop();
 				_nextReadIndexWriter += 1;
 			}
-			
+
 		}
+		*/
 
 		_file_readData.close();
 		//delete _minimizerParser;
@@ -149,13 +155,14 @@ public:
 		{
 			_readWriterQueue.push({read._index, minimizers});
 
-			const ReadWriter& readWriter = _readWriterQueue.top();
 
 			while(!_readWriterQueue.empty()){
 
+				const ReadWriter& readWriter = _readWriterQueue.top();
+
 				if(readWriter._readIndex == _nextReadIndexWriter){
 
-					cout << "Writing read: " << _nextReadIndexWriter << endl;
+					//cout << "Writing read: " << _nextReadIndexWriter << endl;
 					u_int32_t size = readWriter._minimizers.size();
 					_file_readData.write((const char*)&size, sizeof(size));
 					_file_readData.write((const char*)&readWriter._minimizers[0], size*sizeof(u_int64_t));
