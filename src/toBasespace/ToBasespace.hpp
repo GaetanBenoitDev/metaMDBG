@@ -210,9 +210,9 @@ public:
 			extract_truth_kminmers();
 		}
 
-		cout << "Indexing reads" << endl;
-		_unitigDatas.resize(_mdbg->_dbg_nodes.size());
-		indexReads();
+		//cout << "Indexing reads" << endl;
+		//_unitigDatas.resize(_mdbg->_dbg_nodes.size());
+		//indexReads();
 
 		//cout << "Loading original mdbg" << endl;
 		//string mdbg_filename = _inputDir + "/mdbg_nodes_init.gz";
@@ -221,10 +221,11 @@ public:
 		//cout << "MDBG nodes: " << _mdbgInit->_dbg_nodes.size() << endl;
 
 		loadContigs_min(_inputFilenameContig);
-		collectBestSupportingReads(_inputFilenameContig);
+		//collectBestSupportingReads(_inputFilenameContig);
 		//extractKminmerSequences_all();
-		_unitigDatas.clear();
+		//_unitigDatas.clear();
 
+		//isKminmerRepeated.clear();
 		//cout << isKminmerRepeated.size() << endl;
 		//getchar();
 
@@ -244,7 +245,6 @@ public:
 		endCorrection(_kminmerSequenceCopies_all_left, _isDoneNodeName_left, _kminmerSequence_left, _repeatedKminmerSequence_left);
 		endCorrection(_kminmerSequenceCopies_all_right, _isDoneNodeName_right, _kminmerSequence_right, _repeatedKminmerSequence_right);
 
-		isKminmerRepeated.clear();
 		/*
 		for(auto& it : _kminmerSequenceCopies_all_left){
 			u_int32_t nodeName = it.first;
