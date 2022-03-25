@@ -223,7 +223,7 @@ public:
 		loadContigs_min(_inputFilenameContig);
 		collectBestSupportingReads(_inputFilenameContig);
 		//extractKminmerSequences_all();
-		
+		_unitigDatas.clear();
 
 		//cout << isKminmerRepeated.size() << endl;
 		//getchar();
@@ -739,6 +739,7 @@ public:
 	
 	void collectBestSupportingReads_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
 
+		//cout << "----------------------" << endl;
 		vector<u_int64_t> supportingReads;
 
 		//cout << readIndex << " " << kminmersInfos.size() << endl;
@@ -832,11 +833,77 @@ public:
 		//cout << "-----" << endl;
 		//cout << "Size: " << kminmersInfos.size() << endl;
 
-		unordered_map<u_int64_t, u_int32_t> readSupports;
+		//unordered_map<u_int64_t, u_int32_t> readSupports;
 
-		getBestSupportingRead_direction(nodeName, nodeNamePosition+1, kminmersInfos, readSupports, 1);
-		getBestSupportingRead_direction(nodeName, nodeNamePosition-1, kminmersInfos, readSupports, -1);
+		u_int64_t minSharedReads = -1;
 
+		u_int64_t readIndexMin = -1;
+		
+		bool isValidRight;
+		bool isValidLeft;
+		readIndexMin = getBestSupportingRead_direction(nodeName, nodeNamePosition+1, kminmersInfos, 1, isValidRight, minSharedReads);
+		u_int64_t nodeNamePosition_left = getBestSupportingRead_direction(nodeName, nodeNamePosition-1, kminmersInfos, -1, isValidLeft, minSharedReads);
+
+		if(nodeNamePosition_left != -1) readIndexMin = nodeNamePosition_left;
+		//long dist_right = nodeNamePosition_right - nodeNamePosition;
+		//long dist_left = nodeNamePosition - nodeNamePosition_left;
+		//cout << nodeNamePosition << " " << nodeNamePosition_left << " " << nodeNamePosition_right << "     " << dist_left << " " << dist_right << endl;
+
+
+		//u_int64_t longuestSupportingReadIndex = -1;
+
+		/*
+		if((!isValidLeft && !isValidRight) || (isValidLeft && isValidRight)){
+
+			if(dist_right > dist_left){
+
+				u_int32_t nodeName_right = _mdbg->_dbg_nodes[kminmersInfos[nodeNamePosition_right]._vec]._index;
+
+				vector<u_int64_t> sharedElements;
+				Utils::collectSharedElements(_unitigDatas[nodeName], _unitigDatas[nodeName_right], sharedElements);
+				longuestSupportingReadIndex = sharedElements[0];
+				cout << sharedElements.size() << endl;
+				if(sharedElements.size() > 5) getchar();
+			}
+			else{
+				
+				u_int32_t nodeName_left = _mdbg->_dbg_nodes[kminmersInfos[nodeNamePosition_left]._vec]._index;
+
+				vector<u_int64_t> sharedElements;
+				Utils::collectSharedElements(_unitigDatas[nodeName], _unitigDatas[nodeName_left], sharedElements);
+				longuestSupportingReadIndex = sharedElements[0];
+				cout << sharedElements.size() << endl;
+				if(sharedElements.size() > 5) getchar();
+			}
+		}
+		else if(isValidRight){
+			u_int32_t nodeName_right = _mdbg->_dbg_nodes[kminmersInfos[nodeNamePosition_right]._vec]._index;
+
+			vector<u_int64_t> sharedElements;
+			Utils::collectSharedElements(_unitigDatas[nodeName], _unitigDatas[nodeName_right], sharedElements);
+			longuestSupportingReadIndex = sharedElements[0];
+			cout << sharedElements.size() << endl;
+			if(sharedElements.size() > 5) getchar();
+		}
+		else{
+			u_int32_t nodeName_left = _mdbg->_dbg_nodes[kminmersInfos[nodeNamePosition_left]._vec]._index;
+
+			vector<u_int64_t> sharedElements;
+			Utils::collectSharedElements(_unitigDatas[nodeName], _unitigDatas[nodeName_left], sharedElements);
+			longuestSupportingReadIndex = sharedElements[0];
+			cout << sharedElements.size() << endl;
+			if(sharedElements.size() > 5) getchar();
+		}
+		*/
+
+		return readIndexMin;
+		//cout << kminmersInfos.size() << " " << nodeNamePosition_left << " " << nodeNamePosition_right << endl;
+
+
+		//cout << nodeName_left << " " << nodeName_right << endl;
+		//cout << sharedElements.size() << endl;
+		//return sharedElements[0];
+		/*
 		u_int64_t maxSupportRead = -1;
 
 		if(readSupports.size() == 0){
@@ -857,16 +924,29 @@ public:
 
 
 		return maxSupportRead;
+		*/
 
 	}
 
-	void getBestSupportingRead_direction(u_int32_t nodeName, size_t nodeNamePosition, const vector<ReadKminmerComplete>& kminmersInfos, unordered_map<u_int64_t, u_int32_t>& readSupports, int inc){
+	u_int64_t getBestSupportingRead_direction(u_int32_t nodeName, size_t nodeNamePosition, const vector<ReadKminmerComplete>& kminmersInfos, int inc, bool& isValid, u_int64_t& minSharedReads){
 		
+		u_int64_t readIndexResult = -1;
+
+		if(inc == 1){
+			//cout << "RIGHT" << endl;
+		}
+		else{
+			//cout << "LEFT" << endl;
+		}
+
 		long i = nodeNamePosition;
 
 		while(true){
-			if(i < 0 || i >= kminmersInfos.size()) break;
-
+			if(i < 0 || i >= kminmersInfos.size()){
+				//cout << "invalid" << endl;
+				isValid = false;
+				break;
+			}
 
 			const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
 
@@ -881,9 +961,27 @@ public:
 
 				if(sharedElements.size() == 0) break;
 
-				for(u_int64_t readIndex : sharedElements){
-					readSupports[readIndex] += 1;
+				if(sharedElements.size() < minSharedReads){
+					minSharedReads = sharedElements.size();
+					readIndexResult = sharedElements[0];
 				}
+
+				/*
+				if(!Utils::shareAny(_unitigDatas[nodeName], _unitigDatas[nodeName2])){
+					cout << "valid" << endl;
+					isValid = true;
+					//isValid = false;
+					break;
+				}
+				*/
+
+				//if(nodeName2 == nodeName) break;
+				//if(sharedElements.size() == 0) break;
+
+				//for(u_int64_t readIndex : sharedElements){
+				//	readSupports[readIndex] += 1;
+				//}
+
 
 				//cout << i << " " << sharedElements.size() << endl;
 
@@ -891,6 +989,17 @@ public:
 
 			i += inc;
 		}
+
+		//if(isValid) return i;
+		return readIndexResult;
+		/*
+		if(inc == 1){
+			return i-1;
+		}
+		else{
+			return i+1;
+		}
+		*/
 
 	}
 
@@ -1163,7 +1272,7 @@ public:
 						isRight = _toBasespace._repeatedKminmerSequence_right.find(readNodeName) != _toBasespace._repeatedKminmerSequence_right.end();
 					}
 				}
-				
+
 				//if(nodeName==293 && readIndex==8320){
 				//	ReadNodeName readNodeName = {nodeName, readIndex};
 				//	cout << (_toBasespace._repeatedKminmerSequence_entire.find(readNodeName) != _toBasespace._repeatedKminmerSequence_entire.end()) << endl;
@@ -1199,13 +1308,7 @@ public:
 			//	cout << "lal" << endl;
 			//	getchar();
 			//}
-/*
-			left: 1809 99
-right: 1811 99
-left: 1640 99
-right: 1757 99
-right: 1636 99
-*/
+
 		}
 
 
