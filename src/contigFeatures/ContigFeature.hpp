@@ -316,6 +316,7 @@ public:
 				}
 				else{
 					//abundanceVar.push_back(ab);
+					//if(ab <= minCV) ab = 0;
 					abundanceMean.push_back(ab);
 					//cout << "Mean: " << ab << endl;
 				}

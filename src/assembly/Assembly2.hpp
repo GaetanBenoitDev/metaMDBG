@@ -9,6 +9,9 @@
 //contig=10, graph=4 abundance=31: 31 52 25    9
 //
 
+///mnt/gpfs/seb/downloads/orkun_hifi_25_03_22 
+
+
 
 //./bin/mdbgAsmMeta binPass  -o ~/workspace/run/overlap_test_multik_AD/pass_k81 -c ~/workspace/run/overlap_test_multik_AD/contigs_81.fasta.gz --bi lala.bin --bo lala2.bin --firstpass --eval -a ~/workspace/run/overlap_test_multik_AD/contigCoverages_k81.tsv --itruth ~/workspace/run/hifiasm_meta/AD2W20.asm.r_utg.fasta
 
@@ -1365,6 +1368,62 @@ public:
 
 						getchar();
 						*/
+
+						//for(u_int32_t contigIndex : binContigIndexes){
+						//	const vector<float>& coverages = _contigFeature._contigCoverages[contigIndex];
+						//	for(float ab : coverages){
+						//		cout << ab << " ";
+						//	}
+						//	cout << endl;
+						//}
+
+						for(size_t i=0; i<binContigIndexes.size(); i++){
+							for(size_t j=i+1; j<binContigIndexes.size(); j++){
+								for(float ab : _contigFeature._contigCoverages[binContigIndexes[i]]){
+									cout << ab << " ";
+								}
+								cout << endl;
+								for(float ab : _contigFeature._contigCoverages[binContigIndexes[j]]){
+									cout << ab << " ";
+								}
+								cout << endl;
+
+								int nnz = 0;
+
+								vector<float> means_f1 = _contigFeature._contigCoverages[binContigIndexes[i]];
+								vector<float> means_f2 = _contigFeature._contigCoverages[binContigIndexes[j]];
+								//cout << endl;
+								float mean_ratio = 0;
+								for(size_t i=0; i<means_f1.size(); i++){
+									if (means_f1[i] > 0 || means_f2[i] > 0) {
+										if(means_f2[i] > 0){
+											float ratio = means_f1[i] / means_f2[i];
+											mean_ratio += ratio;
+											//cout << ratio << " ";
+										}
+										nnz += 1;
+									}
+									else{
+										//cout << "0" << " ";
+									}
+								}
+								//cout << endl;
+								
+								mean_ratio /= nnz;
+								//cout << mean_ratio << endl;
+								
+								for(size_t i=0; i<means_f1.size(); i++){
+									means_f2[i] *= mean_ratio;
+									cout << means_f2[i] << " ";
+								}
+								cout << endl;
+
+
+								cout << _contigFeature.computeDistance(binContigIndexes[i], binContigIndexes[j]) << endl;
+							}
+						}
+
+						getchar();
 					}
 
 					float qualityScore = completeness - 5*contamination;

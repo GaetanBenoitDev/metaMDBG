@@ -1936,11 +1936,11 @@ public:
             cout << BiGraph::nodeIndex_to_nodeName(pred[0]) << endl; 
             getchar();
         }*/
-        bool isRepeat = false;
+        //bool isRepeat = false;
 
-        if(_repeatedNodenames.size() > 0 && _repeatedNodenames.find(BiGraph::nodeIndex_to_nodeName(nodeIndex)) != _repeatedNodenames.end()){
-            isRepeat = true;
-        }
+        //if(_repeatedNodenames.size() > 0 && _repeatedNodenames.find(BiGraph::nodeIndex_to_nodeName(nodeIndex)) != _repeatedNodenames.end()){
+        //    isRepeat = true;
+        //}
 
         //forward
         while(true){
@@ -1948,6 +1948,7 @@ public:
 
             getSuccessors(endNode, 0, neighbors);
 
+            /*
             if(_repeatedNodenames.size() > 0){
                 bool isInvalid = false;
                 for(u_int32_t nodeIndex : neighbors){
@@ -1966,6 +1967,7 @@ public:
                 }
                 if(isInvalid) break;
             }
+            */
 
             //cout << "lala1: " << neighbors.size() << endl;
             if(neighbors.size() != 1) break;
@@ -1983,6 +1985,7 @@ public:
             //cout << "lala2: " << neighbors.size() << endl;
             if(neighbors.size() != 1) break;
 
+            /*
             if(_repeatedNodenames.size() > 0){
                 bool isInvalid = false;
                 for(u_int32_t nodeIndex : neighbors){
@@ -2001,6 +2004,7 @@ public:
                 }
                 if(isInvalid) break;
             }
+            */
 
             //cout << successor << " " << neighbors[0] << endl;
 
@@ -2019,6 +2023,7 @@ public:
                 //cout << "loulou1: " << neighbors.size() << endl;
                 if(neighbors.size() != 1) break;
 
+                /*
                 if(_repeatedNodenames.size() > 0){
                     bool isInvalid = false;
                     for(u_int32_t nodeIndex : neighbors){
@@ -2037,6 +2042,7 @@ public:
                     }
                     if(isInvalid) break;
                 }
+                */
 
                 //if(neighbors[0] == nodeIndex){
                 //    startNode = neighbors[0];
@@ -2050,6 +2056,7 @@ public:
                 //cout << "loulou2: " << neighbors.size() << endl;
                 if(neighbors.size() != 1) break;
 
+                /*
                 if(_repeatedNodenames.size() > 0){
                     bool isInvalid = false;
                     for(u_int32_t nodeIndex : neighbors){
@@ -2068,6 +2075,7 @@ public:
                     }
                     if(isInvalid) break;
                 }
+                */
 
                 //cout << predecessor << " " << neighbors[0] << endl;
 

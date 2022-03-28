@@ -19,9 +19,11 @@ Tester la vitesse de racon pour verifier que je suis sur la bonne voix
 //#include <seqan/graph_msa.h>
 //#include <cstring>
 
+
+
 struct KminmerSequenceVariant{
 	u_int16_t _editDistance;
-	string _sequence;
+	DnaBitset* _sequence;
 };
 
 struct KminmerSequenceVariant_Comparator {
@@ -32,6 +34,12 @@ struct KminmerSequenceVariant_Comparator {
 };
 
 typedef priority_queue<KminmerSequenceVariant, vector<KminmerSequenceVariant>, KminmerSequenceVariant_Comparator> VariantQueue;
+
+struct ReadSequence{
+	u_int64_t _readIndex;
+	DnaBitset* _sequence;
+	VariantQueue _variants;
+};
 
 class ToBasespace : public Tool{
     
@@ -82,9 +90,16 @@ public:
 	unordered_map<ReadNodeName, DnaBitset*> _repeatedKminmerSequence_left;
 	unordered_map<ReadNodeName, DnaBitset*> _repeatedKminmerSequence_right;
 
+	//unordered_map<ReadNodeName, VariantQueue> _repeatedKminmerSequence_copies_entire;
+	//unordered_map<ReadNodeName, VariantQueue> _repeatedKminmerSequence_copies_left;
+	//unordered_map<ReadNodeName, VariantQueue> _repeatedKminmerSequence_copies_right;
+
 	unordered_map<u_int32_t, DnaBitset*> _kminmerSequence_entire;
 	unordered_map<u_int32_t, DnaBitset*> _kminmerSequence_left;
 	unordered_map<u_int32_t, DnaBitset*> _kminmerSequence_right;
+	unordered_map<u_int32_t, vector<ReadSequence>> _kminmerSequence_entire_multi;
+	unordered_map<u_int32_t, vector<ReadSequence>> _kminmerSequence_left_multi;
+	unordered_map<u_int32_t, vector<ReadSequence>> _kminmerSequence_right_multi;
 	//unordered_map<u_int32_t, vector<DnaBitset*>> _kminmerSequenceCopies_left;
 	//unordered_map<u_int32_t, vector<DnaBitset*>> _kminmerSequenceCopies_right;
 
@@ -229,6 +244,7 @@ public:
 		//cout << isKminmerRepeated.size() << endl;
 		//getchar();
 
+		extractKminmerSequences_model();
 		extractKminmerSequences_allVariants();
 
 		//cout << _nodeName_all_left.size() << " " << _nodeName_all_right.size() << endl;
@@ -241,9 +257,9 @@ public:
 		//spoa::Graph graph{};
 		
 
-		endCorrection(_kminmerSequenceCopies_all_entire, _isDoneNodeName_entire, _kminmerSequence_entire, _repeatedKminmerSequence_entire);
-		endCorrection(_kminmerSequenceCopies_all_left, _isDoneNodeName_left, _kminmerSequence_left, _repeatedKminmerSequence_left);
-		endCorrection(_kminmerSequenceCopies_all_right, _isDoneNodeName_right, _kminmerSequence_right, _repeatedKminmerSequence_right);
+		endCorrection(_kminmerSequenceCopies_all_entire, _isDoneNodeName_entire, _kminmerSequence_entire, _repeatedKminmerSequence_entire, _kminmerSequence_entire_multi);
+		endCorrection(_kminmerSequenceCopies_all_left, _isDoneNodeName_left, _kminmerSequence_left, _repeatedKminmerSequence_left, _kminmerSequence_left_multi);
+		endCorrection(_kminmerSequenceCopies_all_right, _isDoneNodeName_right, _kminmerSequence_right, _repeatedKminmerSequence_right, _kminmerSequence_right_multi);
 
 		/*
 		for(auto& it : _kminmerSequenceCopies_all_left){
@@ -319,7 +335,7 @@ public:
 		*/
 	}
 
-	void endCorrection(auto& copies, auto& isDoneNodeName, auto& correctedSequences, auto& repeatedKminmers){
+	void endCorrection(auto& copies, auto& isDoneNodeName, auto& correctedSequences, auto& repeatedKminmers_model, auto& repeatedKminmers_variants){
 
 		/*
 		cout << "-----" << endl;
@@ -347,7 +363,7 @@ public:
 		#pragma omp parallel num_threads(_nbCores)
 		{
 
-			ExtractKminmerSequenceFunctor functor(_minimizerSize, _minimizerDensity, *this);
+			ExtractKminmerSequenceFunctor functor(_minimizerSize, _minimizerDensity, *this, false);
 
 			#pragma omp for
 			for(size_t i=0; i<nodeNames.size(); i++){
@@ -389,140 +405,66 @@ public:
 
 
 
-
-		vector<ReadNodeName> readNodeNames;
-		for(const auto& it : repeatedKminmers){
+		
+		vector<u_int32_t> readNodeNames;
+		for(const auto& it : repeatedKminmers_variants){
 			readNodeNames.push_back(it.first);
 		}
 		
+		//"reprise: verifier que cette partie est bien paralleliser, ça a tourner a 100% de cpu la derniere run"
 		cout << "Correcting repeated kminmers: " << readNodeNames.size() << endl;
-		#pragma omp parallel num_threads(1)
+		#pragma omp parallel num_threads(_nbCores)
 		{
 
-			ExtractKminmerSequenceFunctor functor(_minimizerSize, _minimizerDensity, *this);
+			ExtractKminmerSequenceFunctor functor(_minimizerSize, _minimizerDensity, *this, false);
 
 			#pragma omp for
 			for(size_t i=0; i<readNodeNames.size(); i++){
 				
-				ReadNodeName readNodeName = readNodeNames[i];
+				u_int32_t nodeName = readNodeNames[i];
 				
+				for(ReadSequence& readSequence : repeatedKminmers_variants[nodeName]){
+
+					VariantQueue& queue = readSequence._variants;
+
+					//#pragma omp critical
+					//queue = &repeatedKminmers_variants[readNodeName];
+
+					//const vector<DnaBitset*>& kminmerCopies = copies[readNodeName._nodeIndex];
+
+
+					vector<DnaBitset*> sequences;
+
+					while(!queue.empty()){
+						sequences.push_back(queue.top()._sequence);
+						queue.pop();
+					}
+
+					sequences.push_back(readSequence._sequence);
+
+					string correctedSequence;
+					functor.performErrorCorrection_all(nodeName, sequences, correctedSequence);
+					
+					#pragma omp critical
+					{
+						//delete repeatedKminmers_model[nodeName];
+						repeatedKminmers_model[{nodeName, readSequence._readIndex}] = new DnaBitset(correctedSequence);
+					}
+
+					for(DnaBitset* dnaSeq : sequences){
+						delete dnaSeq;
+					}
+					sequences.clear();
+
+				}
 				//cout << readNodeName._nodeIndex << endl;
 
-				DnaBitset* sequenceModel = nullptr;
-
-				#pragma omp critical
-				sequenceModel = repeatedKminmers[readNodeName];
 
 
-				//cout << (sequenceModel != nullptr) << endl;
-				char* sequenceModelStr = sequenceModel->to_string();
 
-				VariantQueue queue;
-				const vector<DnaBitset*>& kminmerCopies = copies[readNodeName._nodeIndex];
-
-				for(DnaBitset* dnaSeq : kminmerCopies){
-
-					static EdlibAlignConfig config = edlibNewAlignConfig(-1, EDLIB_MODE_NW, EDLIB_TASK_DISTANCE, NULL, 0);
-
-					//cout << (dnaSeq != nullptr) << " " << dnaSeq->m_len << endl;
-					char* dnaSeqStr = dnaSeq->to_string();
-					string sequence = string(dnaSeqStr, dnaSeq->m_len);
-					//cout << string(sequenceModelStr).size() << " " << sequence.size() << endl;
-
-					EdlibAlignResult result = edlibAlign(sequenceModelStr, sequenceModel->m_len, sequence.c_str(), sequence.size(), config);
-					free(dnaSeqStr);
-
-					if (result.status != EDLIB_STATUS_OK){
-						edlibFreeAlignResult(result);
-						cout << "Invalid edlib status" << endl;
-						continue;
-					}
-					
-					//queue.push({result.editDistance, new DnaBitset(sequence)});
-
-
-					//edlibFreeAlignResult(result);
-					/*
-					if(nodeName == 17326){
-						cout << "------------" << endl;
-						cout << result.editDistance << endl;
-
-						//cout << sequenceModelStr << endl;
-						//cout << sequence << endl;
-					}
-					*/
-
-					//queue.push({result.editDistance, new DnaBitset(sequence)});
-
-					
-					
-					if(queue.size() < 20){
-						queue.push({result.editDistance, sequence});
-					}
-					else{
-						if(result.editDistance < queue.top()._editDistance){
-
-							const KminmerSequenceVariant& variant = queue.top();
-							//delete variant._sequence;
-
-							queue.pop();
-							queue.push({result.editDistance, sequence});
-						}
-					}
-					
-					edlibFreeAlignResult(result);
-
-				}
-
-				free(sequenceModelStr);
-
-				vector<DnaBitset*> sequences;
-
-				while(!queue.empty()){
-					KminmerSequenceVariant variant = queue.top();
-					sequences.push_back(new DnaBitset(variant._sequence));
-					queue.pop();
-				}
-
-				string correctedSequence;
-				functor.performErrorCorrection_all(readNodeName._nodeIndex, sequences, correctedSequence);
-				
-				#pragma omp critical
-				{
-					delete repeatedKminmers[readNodeName];
-					repeatedKminmers[readNodeName] = new DnaBitset(correctedSequence);
-				}
-
-				for(DnaBitset* dnaSeq : sequences){
-					delete dnaSeq;
-				}
-				sequences.clear();
-
-				/*
-				vector<DnaBitset*>* dnaSeq;
-
-				#pragma omp critical
-				dnaSeq = &copies[nodeName];
-
-
-				string correctedSequence;
-				functor.performErrorCorrection_all(nodeName, *dnaSeq, correctedSequence);
-				//writeKminmerSequence_all(nodeName, correctedSequence, _outputFile_left);
-
-				//}
-				#pragma omp critical
-				{
-					
-					correctedSequences[nodeName] = new DnaBitset(correctedSequence);
-
-					for(DnaBitset* dna : *dnaSeq){
-						delete dna;
-					}
-					//dnaSeq.clear();
-				}
-				*/
 			}
 		}
+		
 
 	}
 
@@ -745,6 +687,7 @@ public:
 		//cout << readIndex << " " << kminmersInfos.size() << endl;
 		for(size_t i=0; i<kminmersInfos.size(); i++){
 			
+			//cout << readIndex << " " << i << endl;
 			const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
 
 			KmerVec vec = kminmerInfo._vec;
@@ -763,6 +706,7 @@ public:
 
 			//_kminmerCounts.clear();
 			if(_kminmerCounts[nodeName] > 1){
+				//cout << nodeName << endl;
 				isKminmerRepeated.insert(nodeName);
 				u_int64_t readIndex = getBestSupportingRead(nodeName, i, kminmersInfos);
 				supportingReads.push_back(readIndex);
@@ -770,18 +714,22 @@ public:
 				ReadNodeName readNodeName = {nodeName, readIndex};
 
 				if(i == 0){
-					_repeatedKminmerSequence_entire[readNodeName] = nullptr;
+					ReadSequence rs = {readIndex, nullptr, {}};
+					_kminmerSequence_entire_multi[nodeName].push_back(rs);
 				}
 				else {
 					if(orientation){ //+
 						//cout << "right: " << nodeName << " " << readIndex << endl;
-						_repeatedKminmerSequence_right[readNodeName] = nullptr;
+						ReadSequence rs = {readIndex, nullptr, {}};
+						_kminmerSequence_right_multi[nodeName].push_back(rs);
 					}
 					else{ //-
 						//cout << "left: " << nodeName << " " << readIndex << endl;
-						_repeatedKminmerSequence_left[readNodeName] = nullptr;
+						ReadSequence rs = {readIndex, nullptr, {}};
+						_kminmerSequence_left_multi[nodeName].push_back(rs);
 					}
 				}
+
 
 				//if(nodeName==293 && readIndex==8320){
 				//	cout << "omg" << endl;
@@ -793,6 +741,20 @@ public:
 			}
 			else{
 				supportingReads.push_back(-1);
+
+				if(i == 0){
+					_kminmerSequenceCopies_all_entire[nodeName] = {};
+				}
+				else {
+					if(orientation){ //+
+						_kminmerSequenceCopies_all_right[nodeName] = {};
+					}
+					else{ //-
+						_kminmerSequenceCopies_all_left[nodeName] = {};
+					}
+				}
+
+
 			}
 			//vector<u_int64_t> minimizerSeq;
 			
@@ -806,17 +768,7 @@ public:
 			//}
 
 
-			if(i == 0){
-				_kminmerSequenceCopies_all_entire[nodeName] = {};
-			}
-			else {
-				if(orientation){ //+
-					_kminmerSequenceCopies_all_right[nodeName] = {};
-				}
-				else{ //-
-					_kminmerSequenceCopies_all_left[nodeName] = {};
-				}
-			}
+
 
 		}
 
@@ -1168,6 +1120,12 @@ public:
 		*/
 	}
 
+	void extractKminmerSequences_model (){
+
+		cout << "Extracting kminmer models" << endl;
+		ReadParserParallel readParser(_inputFilename, false, false, _nbCores);
+		readParser.parse(ExtractKminmerSequenceFunctor(_minimizerSize, _minimizerDensity, *this, true));
+	}
 
 	void extractKminmerSequences_allVariants (){
 
@@ -1175,7 +1133,7 @@ public:
 
 		//auto fp = std::bind(&ToBasespace::extractKminmerSequences_allVariants_read, this, std::placeholders::_1);
 		ReadParserParallel readParser(_inputFilename, false, false, _nbCores);
-		readParser.parse(ExtractKminmerSequenceFunctor(_minimizerSize, _minimizerDensity, *this));
+		readParser.parse(ExtractKminmerSequenceFunctor(_minimizerSize, _minimizerDensity, *this, false));
 
 	}
 
@@ -1183,6 +1141,7 @@ public:
 
 		public:
 
+		bool _collectModel;
 		ToBasespace& _toBasespace;
 		EncoderRLE _encoderRLE;
 		MinimizerParser* _minimizerParser;
@@ -1192,12 +1151,13 @@ public:
 		spoa::Graph _graph;
 		std::unique_ptr<spoa::AlignmentEngine> _alignementEngine;
 
-		ExtractKminmerSequenceFunctor(size_t minimizerSize, float minimizerDensity, ToBasespace& toBasespace) : _toBasespace(toBasespace){
+		ExtractKminmerSequenceFunctor(size_t minimizerSize, float minimizerDensity, ToBasespace& toBasespace, bool collectModel) : _toBasespace(toBasespace){
 			_minimizerSize = minimizerSize;
 			_minimizerDensity = minimizerDensity;
 			_minimizerParser = new MinimizerParser(minimizerSize, minimizerDensity);
 			
 			_alignementEngine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kNW, 3, -5, -3);  // linear gaps
+			_collectModel = collectModel;
 		}
 
 		ExtractKminmerSequenceFunctor(const ExtractKminmerSequenceFunctor& copy) : _toBasespace(copy._toBasespace){
@@ -1206,7 +1166,7 @@ public:
 			_minimizerParser = new MinimizerParser(_minimizerSize, _minimizerDensity);
 
 			_alignementEngine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kNW, 3, -5, -3);  // linear gaps
-
+			_collectModel = copy._collectModel;
 
 		}
 
@@ -1243,7 +1203,11 @@ public:
 				u_int32_t nodeName = _toBasespace._mdbg->_dbg_nodes[kminmers[i]]._index;
 				ReadKminmer& kminmerInfo = kminmersInfo[i];
 
-
+				//if(nodeName == 3114) cout << ">>>>>>>>>>> " << nodeName << endl;
+				if(_collectModel){
+					if(_toBasespace.isKminmerRepeated.find(nodeName) == _toBasespace.isKminmerRepeated.end()) continue;
+				}
+				
 				//3908 7040
 				//298 8320
 				//if(readIndex == 8320){
@@ -1252,36 +1216,62 @@ public:
 
 				//cout << _kminmerSequenceCopies_all_entire.size() << " " << _kminmerSequenceCopies_all_left.size() << " " << _kminmerSequenceCopies_all_right.size() << " " << _kminmerSequence_entire.size() << " " << _kminmerSequence_left.size() << " " << _kminmerSequence_right.size() << endl;
 
-				bool isEntire;
-				bool isLeft;
-				bool isRight;
+				bool isEntire = false;
+				bool isLeft = false;
+				bool isRight = false;
 
-				//
+
+				//#pragma omp critical
 				//{
+					
+					if(_toBasespace.isKminmerRepeated.find(nodeName) == _toBasespace.isKminmerRepeated.end()){
+						isEntire = _toBasespace._kminmerSequenceCopies_all_entire.find(nodeName) != _toBasespace._kminmerSequenceCopies_all_entire.end(); // && _toBasespace._isDoneNodeName_entire.find(nodeName) == _toBasespace._isDoneNodeName_entire.end();
+						isLeft = _toBasespace._kminmerSequenceCopies_all_left.find(nodeName) != _toBasespace._kminmerSequenceCopies_all_left.end(); // && _toBasespace._isDoneNodeName_left.find(nodeName) == _toBasespace._isDoneNodeName_left.end();
+						isRight = _toBasespace._kminmerSequenceCopies_all_right.find(nodeName) != _toBasespace._kminmerSequenceCopies_all_right.end(); // && _toBasespace._isDoneNodeName_right.find(nodeName) == _toBasespace._isDoneNodeName_right.end();
+					}
+					else{
+
+						if(_collectModel){
+							if(_toBasespace._kminmerSequence_entire_multi.find(nodeName) != _toBasespace._kminmerSequence_entire_multi.end()){
+								for(const ReadSequence& rs : _toBasespace._kminmerSequence_entire_multi[nodeName]){
+									if(rs._readIndex == readIndex){
+										isEntire = true;
+									}
+								}
+							}
+
+							if(_toBasespace._kminmerSequence_left_multi.find(nodeName) != _toBasespace._kminmerSequence_left_multi.end()){
+								for(const ReadSequence& rs : _toBasespace._kminmerSequence_left_multi[nodeName]){
+									if(rs._readIndex == readIndex){
+										isLeft = true;
+									}
+								}
+							}
+
+							if(_toBasespace._kminmerSequence_right_multi.find(nodeName) != _toBasespace._kminmerSequence_right_multi.end()){
+								for(const ReadSequence& rs : _toBasespace._kminmerSequence_right_multi[nodeName]){
+									if(rs._readIndex == readIndex){
+										isRight = true;
+									}
+								}
+							}
+						}
+						else{
+							isEntire = _toBasespace._kminmerSequence_entire_multi.find(nodeName) != _toBasespace._kminmerSequence_entire_multi.end();
+							isLeft = _toBasespace._kminmerSequence_left_multi.find(nodeName) != _toBasespace._kminmerSequence_left_multi.end();
+							isRight = _toBasespace._kminmerSequence_right_multi.find(nodeName) != _toBasespace._kminmerSequence_right_multi.end();
+						}
+
+
+						//if(nodeName == 3114) cout << isEntire << " " << isLeft << " " << isRight << endl;
+						//ReadNodeName readNodeName = {nodeName, readIndex};
+						//isEntire = _toBasespace._repeatedKminmerSequence_entire.find(readNodeName) != _toBasespace._repeatedKminmerSequence_entire.end();
+						//isLeft = _toBasespace._repeatedKminmerSequence_left.find(readNodeName) != _toBasespace._repeatedKminmerSequence_left.end();
+						//isRight = _toBasespace._repeatedKminmerSequence_right.find(readNodeName) != _toBasespace._repeatedKminmerSequence_right.end();
+					}
+
 
 				//}
-
-				#pragma omp critical
-				{
-					isEntire = _toBasespace._kminmerSequenceCopies_all_entire.find(nodeName) != _toBasespace._kminmerSequenceCopies_all_entire.end() && _toBasespace._isDoneNodeName_entire.find(nodeName) == _toBasespace._isDoneNodeName_entire.end();
-					isLeft = _toBasespace._kminmerSequenceCopies_all_left.find(nodeName) != _toBasespace._kminmerSequenceCopies_all_left.end() && _toBasespace._isDoneNodeName_left.find(nodeName) == _toBasespace._isDoneNodeName_left.end();
-					isRight = _toBasespace._kminmerSequenceCopies_all_right.find(nodeName) != _toBasespace._kminmerSequenceCopies_all_right.end() && _toBasespace._isDoneNodeName_right.find(nodeName) == _toBasespace._isDoneNodeName_right.end();
-
-					if(!isEntire){
-						ReadNodeName readNodeName = {nodeName, readIndex};
-						isEntire = _toBasespace._repeatedKminmerSequence_entire.find(readNodeName) != _toBasespace._repeatedKminmerSequence_entire.end();
-					}
-
-					if(!isLeft){
-						ReadNodeName readNodeName = {nodeName, readIndex};
-						isLeft = _toBasespace._repeatedKminmerSequence_left.find(readNodeName) != _toBasespace._repeatedKminmerSequence_left.end();
-					}
-
-					if(!isRight){
-						ReadNodeName readNodeName = {nodeName, readIndex};
-						isRight = _toBasespace._repeatedKminmerSequence_right.find(readNodeName) != _toBasespace._repeatedKminmerSequence_right.end();
-					}
-				}
 
 				//if(nodeName==293 && readIndex==8320){
 				//	ReadNodeName readNodeName = {nodeName, readIndex};
@@ -1293,16 +1283,16 @@ public:
 
 				if(isEntire){
 					_toBasespace.extractKminmerSequence(sequenceOriginal, kminmerInfo, LoadType::Entire, kminmerSequence);
-					addKminmerSequenceVariant_add_all(nodeName, readIndex, _toBasespace._kminmerSequenceCopies_all_entire, kminmerSequence, _toBasespace._isDoneNodeName_entire, _toBasespace._kminmerSequence_entire, _toBasespace._repeatedKminmerSequence_entire);
+					addKminmerSequenceVariant_add_all(nodeName, readIndex, _toBasespace._kminmerSequenceCopies_all_entire, kminmerSequence, _toBasespace._isDoneNodeName_entire, _toBasespace._kminmerSequence_entire, _toBasespace._kminmerSequence_entire_multi);
 				}
 				
 				if(isLeft){
 					_toBasespace.extractKminmerSequence(sequenceOriginal, kminmerInfo, LoadType::Left, kminmerSequence);
-					addKminmerSequenceVariant_add_all(nodeName, readIndex, _toBasespace._kminmerSequenceCopies_all_left, kminmerSequence, _toBasespace._isDoneNodeName_left, _toBasespace._kminmerSequence_left, _toBasespace._repeatedKminmerSequence_left);
+					addKminmerSequenceVariant_add_all(nodeName, readIndex, _toBasespace._kminmerSequenceCopies_all_left, kminmerSequence, _toBasespace._isDoneNodeName_left, _toBasespace._kminmerSequence_left, _toBasespace._kminmerSequence_left_multi);
 				}
 				if(isRight){
 					_toBasespace.extractKminmerSequence(sequenceOriginal, kminmerInfo, LoadType::Right, kminmerSequence);
-					addKminmerSequenceVariant_add_all(nodeName, readIndex, _toBasespace._kminmerSequenceCopies_all_right, kminmerSequence, _toBasespace._isDoneNodeName_right, _toBasespace._kminmerSequence_right, _toBasespace._repeatedKminmerSequence_right);
+					addKminmerSequenceVariant_add_all(nodeName, readIndex, _toBasespace._kminmerSequenceCopies_all_right, kminmerSequence, _toBasespace._isDoneNodeName_right, _toBasespace._kminmerSequence_right, _toBasespace._kminmerSequence_right_multi);
 				}
 
 				//if(nodeName==293 && readIndex==8320){
@@ -1324,6 +1314,8 @@ public:
 
 		void addKminmerSequenceVariant_add_all(u_int32_t nodeName, u_int64_t readIndex, auto& variants, const string& sequence, auto& isDoneNodeName, auto& correctedSequences, auto& repeatedKminmers){
 			
+			static EdlibAlignConfig config = edlibNewAlignConfig(-1, EDLIB_MODE_NW, EDLIB_TASK_DISTANCE, NULL, 0);
+
 			//cout << (isDoneNodeName.find(nodeName) != isDoneNodeName.end()) << endl;
 			//if(sequenceModel == nullptr){
 			//	cout << "pas normal" << endl;
@@ -1334,61 +1326,133 @@ public:
 						
 
 			vector<DnaBitset*>* queue;
+			VariantQueue* variantQueue;
+			DnaBitset* dnaSeq_model;
 
+			vector<ReadSequence>* readSequences;
+
+			bool isRepeated = false;
 			bool cancel = false;
-			//if(_isDoneCorrection.find(nodeName) != _isDoneCorrection.end()) return;
+			
 			#pragma omp critical
 			{
 				
-				if(_toBasespace.isKminmerRepeated.find(nodeName) == _toBasespace.isKminmerRepeated.end() && isDoneNodeName.find(nodeName) != isDoneNodeName.end()) cancel = true;
+				if(_collectModel){
 
-				if(!cancel){
-					queue = &variants[nodeName];
-					queue->push_back(new DnaBitset(sequence));
-
-					if(_toBasespace.isKminmerRepeated.find(nodeName) != _toBasespace.isKminmerRepeated.end()) cancel = true;
-
-					//Collect all sequences for repeated kminmer
-					//if(_toBasespace.isKminmerRepeated.find(nodeName) != _toBasespace.isKminmerRepeated.end()){ 
-					ReadNodeName readNodeName = {nodeName, readIndex};
-					if(repeatedKminmers.find(readNodeName) != repeatedKminmers.end()){
-						//cout << "lala: " << nodeName << " " << readIndex << endl;
-						repeatedKminmers[readNodeName] = new DnaBitset(sequence);
-						//if(nodeName==293 && readIndex==8320){
-							//cout << "omg!!" << endl;
-							//getchar();
-						//}
-						cancel = true;
+					for(ReadSequence& rs : repeatedKminmers[nodeName]){
+						if(rs._readIndex == readIndex){
+							rs._sequence = new DnaBitset(sequence);
+						}
 					}
+
+					//ReadNodeName readNodeName = {nodeName, readIndex};
+					//repeatedKminmers_model[readNodeName] = new DnaBitset(sequence);
+					cancel = true;
+
+					//cout << repeatedKminmers_model.size() << " " << _toBasespace.isKminmerRepeated.size() << endl;
+					//cout << nodeName << " " << readIndex << endl;
+					//if(nodeName == 24 && readIndex == 6){
+					//	getchar();
 					//}
-					if(queue->size() < 20) cancel = true;
-					
-					//cout << nodeName << " " << queue->size() << endl;
-					if(!cancel) isDoneNodeName.insert(nodeName);
 				}
+				else{
+					if(_toBasespace.isKminmerRepeated.find(nodeName) == _toBasespace.isKminmerRepeated.end()){
+						if(isDoneNodeName.find(nodeName) != isDoneNodeName.end()) cancel = true;
+
+						if(!cancel){
+							queue = &variants[nodeName];
+							queue->push_back(new DnaBitset(sequence));
+
+							//if(_toBasespace.isKminmerRepeated.find(nodeName) != _toBasespace.isKminmerRepeated.end()) cancel = true;
+
+							if(queue->size() < 20) cancel = true;
+							
+							if(!cancel) isDoneNodeName.insert(nodeName);
+						}
+
+						isRepeated = false;
+					}
+					else{
+
+						cancel = true;
+						isRepeated = true;
+
+						readSequences = &repeatedKminmers[nodeName];
+						/*
+						ReadNodeName readNodeName = {nodeName, readIndex};
+						dnaSeq_model = repeatedKminmers_model[readNodeName];
+						//cout << nodeName << " " << readIndex << " " << (dnaSeq_model != nullptr) << " " << (_toBasespace.isKminmerRepeated.find(nodeName) != _toBasespace.isKminmerRepeated.end()) << endl;
+						variantQueue = &repeatedKminmers_variants[readNodeName];
+
+						for(const ReadSequence& rs : _toBasespace._kminmerSequence_right_multi){
+							if(rs._readIndex == readIndex){
+								isRight = true;
+							}
+						}
+						*/
+
+					}
+				}
+
+
+
+
 			}
 
-			//return;
+			if(!_collectModel && isRepeated){
+
+				//if(nodeName == 3114) cout << "OOOOOOOOOO " << nodeName << endl;
+				for(ReadSequence& readSequence : *readSequences){
+					char* dnaSeq_model_str = readSequence._sequence->to_string();
+
+					EdlibAlignResult result = edlibAlign(dnaSeq_model_str, strlen(dnaSeq_model_str), sequence.c_str(), sequence.size(), config);
+					free(dnaSeq_model_str);
+
+					if (result.status != EDLIB_STATUS_OK){
+						cout << "Invalid edlib status" << endl;
+						//continue;
+					}
+					else{
+						
+						#pragma omp critical
+						{
+
+							if(readSequence._variants.size() < 19){
+								readSequence._variants.push({result.editDistance, new DnaBitset(sequence)});
+							}
+							else{
+								if(result.editDistance < readSequence._variants.top()._editDistance){
+
+									KminmerSequenceVariant variant = readSequence._variants.top();
+									delete variant._sequence;
+
+									readSequence._variants.pop();
+									readSequence._variants.push({result.editDistance, new DnaBitset(sequence)});
+								}
+							}
+
+							//if(nodeName == 3114) cout << readSequence._variants.size() << endl;
+						}
+
+					}
+				
+
+					edlibFreeAlignResult(result);
+
+				}
+
+
+				return;
+			}
+
 			if(cancel) return;
-
-
-			//cout << "correcting" << endl;
-			//DnaBitset* sequenceModel = models[nodeName];
 
 			string correctedSequence;
 			performErrorCorrection_all(nodeName, *queue, correctedSequence);
 
-			//writeKminmerSequence_all(nodeName, correctedSequence, file);
 			#pragma omp critical
 			{
-				
-
 				correctedSequences[nodeName] = new DnaBitset(correctedSequence);
-				//variants.erase(nodeName);
-
-				//for(DnaBitset* dna : *queue){
-					//delete dna;
-				//}
 			}
 
 
@@ -1402,7 +1466,7 @@ public:
 			/*
 			return;
 			
-			static EdlibAlignConfig config = edlibNewAlignConfig(-1, EDLIB_MODE_NW, EDLIB_TASK_DISTANCE, NULL, 0);
+			
 
 
 			char* sequenceModelStr = sequenceModel->to_string();
@@ -1433,6 +1497,45 @@ public:
 			edlibFreeAlignResult(result);
 			*/
 		}
+
+
+		/*
+				for(DnaBitset* dnaSeq : kminmerCopies){
+
+					static EdlibAlignConfig config = edlibNewAlignConfig(-1, EDLIB_MODE_NW, EDLIB_TASK_DISTANCE, NULL, 0);
+
+					//cout << (dnaSeq != nullptr) << " " << dnaSeq->m_len << endl;
+					char* dnaSeqStr = dnaSeq->to_string();
+					string sequence = string(dnaSeqStr, dnaSeq->m_len);
+					//cout << string(sequenceModelStr).size() << " " << sequence.size() << endl;
+
+					EdlibAlignResult result = edlibAlign(sequenceModelStr, sequenceModel->m_len, sequence.c_str(), sequence.size(), config);
+					free(dnaSeqStr);
+
+					if (result.status != EDLIB_STATUS_OK){
+						edlibFreeAlignResult(result);
+						cout << "Invalid edlib status" << endl;
+						continue;
+					}
+				
+					if(queue.size() < 20){
+						queue.push({result.editDistance, sequence});
+					}
+					else{
+						if(result.editDistance < queue.top()._editDistance){
+
+							const KminmerSequenceVariant& variant = queue.top();
+							//delete variant._sequence;
+
+							queue.pop();
+							queue.push({result.editDistance, sequence});
+						}
+					}
+					
+					edlibFreeAlignResult(result);
+
+				}
+		*/
 
 		void performErrorCorrection_all(u_int32_t nodeName, const vector<DnaBitset*>& sequences, string& correctedSequence){
 			
