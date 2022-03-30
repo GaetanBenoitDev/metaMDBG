@@ -2121,12 +2121,7 @@ public:
         //if(lala == 4452 && !dummy){
         //    cout << "loul " << _graphSuccessors->nodeIndex_to_nodeName(startNode, dummy) << " " << dummy << " " << _graphSuccessors->nodeIndex_to_nodeName(endNode, dummy) << " " << dummy << endl;
         //}
-        _nodeToUnitig[startNode] = _nextUnitigIndex;
-        _nodeToUnitig[endNode] = _nextUnitigIndex;
-        
-        u_int32_t unitigIndexRC = _nextUnitigIndex + 1;
-        _nodeToUnitig[nodeIndex_toReverseDirection(startNode)] = unitigIndexRC;
-        _nodeToUnitig[nodeIndex_toReverseDirection(endNode)] = unitigIndexRC;
+
 
         u_int32_t abundance_sum = 0;
         u_int32_t abundance_max = 0;
@@ -2186,10 +2181,8 @@ public:
             //cout << "lili: " << node << " " << neighbors.size() << endl;
 
             //isVisited[node] = true;
-            _nodeToUnitig[node] = _nextUnitigIndex;
             nodes.push_back(node);
             nodesRC.push_back(nodeIndex_toReverseDirection(node));
-            _nodeToUnitig[nodeIndex_toReverseDirection(node)] = unitigIndexRC;
             nbNodes += 1;
 
             //if(isCircular){
@@ -2216,6 +2209,12 @@ public:
 
         }
 
+
+        std::reverse(nodesRC.begin(), nodesRC.end());
+        float median = compute_median_float(abundances);
+        //((float)abundance_sum) / ((float)nbNodes)
+
+
         /*
         if(startNode == 162558){
             cout << "-------------" << endl;
@@ -2240,12 +2239,30 @@ public:
         //cout << "Unitig: " << BiGraph::nodeIndex_to_nodeName(startNode) << " " << length << endl;
         //cout << BiGraph::nodeIndex_to_nodeName(startNode) << " " << BiGraph::nodeIndex_to_nodeName(endNode) << endl;
 
+        //#pragma omp critical
+        //{
+            bool isValid = _nodeToUnitig.find(nodes[0]) == _nodeToUnitig.end();
+            
+            if(isValid){
+                _nodeToUnitig[startNode] = _nextUnitigIndex;
+                _nodeToUnitig[endNode] = _nextUnitigIndex;
+                u_int32_t unitigIndexRC = _nextUnitigIndex + 1;
 
-        std::reverse(nodesRC.begin(), nodesRC.end());
-        //((float)abundance_sum) / ((float)nbNodes)
-        float median = compute_median_float(abundances);
-        _unitigs.push_back({_nextUnitigIndex, startNode, endNode, median, length, nbNodes, nodes});
-        _unitigs.push_back({unitigIndexRC, nodeIndex_toReverseDirection(endNode), nodeIndex_toReverseDirection(startNode), median, length, nbNodes, nodesRC});
+                for(u_int32_t nodeIndex : nodes){
+                    _nodeToUnitig[nodeIndex] = _nextUnitigIndex;
+                    _nodeToUnitig[nodeIndex_toReverseDirection(nodeIndex)] = unitigIndexRC;
+                }
+                
+                _nodeToUnitig[nodeIndex_toReverseDirection(startNode)] = unitigIndexRC;
+                _nodeToUnitig[nodeIndex_toReverseDirection(endNode)] = unitigIndexRC;
+
+                
+                _unitigs.push_back({_nextUnitigIndex, startNode, endNode, median, length, nbNodes, nodes});
+                _unitigs.push_back({unitigIndexRC, nodeIndex_toReverseDirection(endNode), nodeIndex_toReverseDirection(startNode), median, length, nbNodes, nodesRC});
+            }
+
+
+        //}
 
 
         /*

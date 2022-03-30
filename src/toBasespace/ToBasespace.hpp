@@ -425,6 +425,11 @@ public:
 				
 				for(ReadSequence& readSequence : repeatedKminmers_variants[nodeName]){
 
+					if(readSequence._sequence == nullptr){
+						cout << "No model sequence" << endl;
+						continue;
+					}
+
 					VariantQueue& queue = readSequence._variants;
 
 					//#pragma omp critical
@@ -1329,7 +1334,7 @@ public:
 			VariantQueue* variantQueue;
 			DnaBitset* dnaSeq_model;
 
-			vector<ReadSequence>* readSequences;
+			vector<ReadSequence>* readSequences = nullptr;
 
 			bool isRepeated = false;
 			bool cancel = false;
@@ -1374,10 +1379,13 @@ public:
 					}
 					else{
 
+						//cout << "1" << endl;
 						cancel = true;
 						isRepeated = true;
 
+						//if(repeatedKminmers.find(nodeName) != repeatedKminmers.end()){
 						readSequences = &repeatedKminmers[nodeName];
+						//}
 						/*
 						ReadNodeName readNodeName = {nodeName, readIndex};
 						dnaSeq_model = repeatedKminmers_model[readNodeName];
@@ -1399,10 +1407,14 @@ public:
 
 			}
 
-			if(!_collectModel && isRepeated){
+			if(!_collectModel && isRepeated && readSequences != nullptr){
 
 				//if(nodeName == 3114) cout << "OOOOOOOOOO " << nodeName << endl;
 				for(ReadSequence& readSequence : *readSequences){
+					if(readSequence._sequence == nullptr){
+						cout << "No model sequence" << endl;
+						continue;
+					}
 					char* dnaSeq_model_str = readSequence._sequence->to_string();
 
 					EdlibAlignResult result = edlibAlign(dnaSeq_model_str, strlen(dnaSeq_model_str), sequence.c_str(), sequence.size(), config);
@@ -1815,11 +1827,9 @@ public:
 					}
 					else{
 						ReadNodeName readNodeName = {nodeName, readIndex};
-						if(_repeatedKminmerSequence_entire.find(readNodeName) != _repeatedKminmerSequence_entire.end()){
-							if(_repeatedKminmerSequence_entire[readNodeName] == nullptr){
-								cout << "No sequence for kminmer" << endl;
-								continue;
-							}
+						if(_repeatedKminmerSequence_entire.find(readNodeName) == _repeatedKminmerSequence_entire.end() || _repeatedKminmerSequence_entire[readNodeName] == nullptr){
+							cout << "No sequence for kminmer" << endl;
+							continue;
 						}
 						seq = _repeatedKminmerSequence_entire[readNodeName]->to_string();
 					}
@@ -1847,11 +1857,9 @@ public:
 					}
 					else{
 						ReadNodeName readNodeName = {nodeName, readIndex};
-						if(_repeatedKminmerSequence_entire.find(readNodeName) != _repeatedKminmerSequence_entire.end()){
-							if(_repeatedKminmerSequence_entire[readNodeName] == nullptr){
-								cout << "No sequence for kminmer" << endl;
-								continue;
-							}
+						if(_repeatedKminmerSequence_entire.find(readNodeName) == _repeatedKminmerSequence_entire.end() || _repeatedKminmerSequence_entire[readNodeName] == nullptr){
+							cout << "No sequence for kminmer" << endl;
+							continue;
 						}
 						seq = _repeatedKminmerSequence_entire[readNodeName]->to_string();
 					}
@@ -1878,11 +1886,9 @@ public:
 					}
 					else{
 						ReadNodeName readNodeName = {nodeName, readIndex};
-						if(_repeatedKminmerSequence_right.find(readNodeName) != _repeatedKminmerSequence_right.end()){
-							if(_repeatedKminmerSequence_right[readNodeName] == nullptr){
-								cout << "No sequence for kminmer" << endl;
-								continue;
-							}
+						if(_repeatedKminmerSequence_right.find(readNodeName) == _repeatedKminmerSequence_right.end() || _repeatedKminmerSequence_right[readNodeName] == nullptr){
+							cout << "No sequence for kminmer" << endl;
+							continue;
 						}
 						seq = _repeatedKminmerSequence_right[readNodeName]->to_string();
 					}
@@ -1908,11 +1914,9 @@ public:
 					}
 					else{
 						ReadNodeName readNodeName = {nodeName, readIndex};
-						if(_repeatedKminmerSequence_left.find(readNodeName) != _repeatedKminmerSequence_left.end()){
-							if(_repeatedKminmerSequence_left[readNodeName] == nullptr){
-								cout << "No sequence for kminmer" << endl;
-								continue;
-							}
+						if(_repeatedKminmerSequence_left.find(readNodeName) == _repeatedKminmerSequence_left.end() || _repeatedKminmerSequence_left[readNodeName] == nullptr){
+							cout << "No sequence for kminmer" << endl;
+							continue;
 						}
 						seq = _repeatedKminmerSequence_left[readNodeName]->to_string();
 					}

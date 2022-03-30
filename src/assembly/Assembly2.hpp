@@ -337,7 +337,11 @@ public:
 
 		if(_truthInputFilename != ""){
 			_mdbgInit = new MDBG(4);
-			fs::path p(_inputDir);
+
+			string path = _inputDir;
+			while(path[path.size()-1] == '/') path.pop_back();
+			fs::path p(path);
+			cout << path << endl;
 			cout << p.parent_path().string() + "/mdbg_nodes_init.gz" << endl;
 			_mdbgInit->load(p.parent_path().string() + "/mdbg_nodes_init.gz");
 			extract_truth_kminmers();
@@ -1423,7 +1427,7 @@ public:
 							}
 						}
 
-						getchar();
+						//getchar();
 					}
 
 					float qualityScore = completeness - 5*contamination;
