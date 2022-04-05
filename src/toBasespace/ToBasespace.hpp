@@ -1729,6 +1729,7 @@ public:
 
 
 	gzFile _basespaceContigFile;
+	u_int64_t _contigIndex;
 
 	/*
 	void createBaseContigs (const string& contigFilename, const string& outputFilename){
@@ -1752,6 +1753,7 @@ public:
 
 	void createBaseContigs(const string& contigFilename, const string& outputFilename){
 
+		_contigIndex = 0;
 		_contigFileSupported_input = ifstream(contigFilename + ".tmp");
 
 		_hifiasmContigIndex = 0;
@@ -1932,12 +1934,18 @@ public:
 			}
 		}
 
-		
-		string header = ">ctg" + to_string(readIndex) + '\n';
+		if(contigSequence.size() == 0){
+			cout << "Empty contig " << kminmersInfos.size() << endl;
+			return;
+		}
+
+		string header = ">ctg" + to_string(_contigIndex) + '\n';
 		gzwrite(_basespaceContigFile, (const char*)&header[0], header.size());
 		contigSequence +=  '\n';
 		gzwrite(_basespaceContigFile, (const char*)&contigSequence[0], contigSequence.size());
 
+		_contigIndex += 1;
+		
 		if(contigSequence.size() > 100000){
 
 			if(_truthInputFilename != ""){
