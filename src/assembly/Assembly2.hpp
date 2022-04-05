@@ -358,6 +358,9 @@ public:
 		if(!_isFirstPass){
 			_contigFeature.loadContigBins(_filename_inputBinning);
 		}
+		else{
+			fs::remove(_filename_inputBinning);
+		}
 
 
 
@@ -1274,7 +1277,7 @@ public:
 			if(lengthTotal > 20000 && _isFinalPass){//_contigFeature._binningThreshold == 0.65f && lengthThreshold == 10000){
 
 				cout << binIndex << " " << binContigIndexes.size() << " " << lengthTotal << endl;
-				dumpBin(binIndex, binContigIndexes);
+				//dumpBin(binIndex, binContigIndexes);
 				
 				binIndex += 1;
 
