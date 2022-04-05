@@ -1289,7 +1289,7 @@ public:
 			bool success = dumpBin(binIndex, binContigIndexes);
 			if(success){
 				binIndex += 1;
-				cout << "bin done" << endl;
+				cout << "bin done: " << binContigIndexes.size() << endl;
 			}
 		}
 
@@ -1769,13 +1769,15 @@ public:
 
 			vector<float> binningThresholds;
 			if(_contigFeature._useAbundance){
-				binningThresholds = {0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65};
+				//binningThresholds = {0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65};
+				binningThresholds = {0.95};
 			}
 			else{
 				binningThresholds = {0.99, 0.95, 0.75};
 			}
 
-			vector<u_int64_t> lengthThresholds = {100000, 50000, 10000};
+			//vector<u_int64_t> lengthThresholds = {100000, 50000, 10000};
+			vector<u_int64_t> lengthThresholds = {100000};
 
 			//0.01, 0.05, 0.5, 1.0, 2.0
 			for(float binningThreshold : binningThresholds){
@@ -1873,9 +1875,9 @@ public:
 
 
 
-		cout << "Result bins: " << _binOutputDir;
+		cout << "Result bins: " << _binOutputDir << endl;
 		cout << "Nb bins: " << binIndex << endl;
-		
+
 		file_groundTruth.close();
 		//file_groundTruth_hifiasmContigs.close();
 		file_kminmersContigs.close();
