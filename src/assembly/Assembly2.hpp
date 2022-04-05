@@ -800,34 +800,6 @@ public:
 		
 	}
 
-	bool dumpBin(const u_int64_t binIndex, const vector<u_int32_t>& binContigIndexes){
-
-
-		u_int64_t lengthTotal = 0;
-		for(u_int32_t contigIndex : binContigIndexes){
-			const string& sequence = _contigFeature._contigSequences[contigIndex];
-			lengthTotal += sequence.size();
-		}
-
-		if(lengthTotal < 20000) return false;
-
-		const string& filename = _binOutputDir + "/bin_" + to_string(binIndex) + ".fasta";
-		ofstream file = ofstream(filename);
-
-		for(u_int32_t contigIndex : binContigIndexes){
-			const string& sequence = _contigFeature._contigSequences[contigIndex];
-
-			string header = ">ctg" + to_string(contigIndex);
-			file << header << endl;
-			file << sequence << endl;
-			
-		}
-
-		file.close();
-
-		return true;
-	}
-
 	void binByReadpath(u_int32_t source_nodeIndex, unordered_set<u_int32_t>& processedNodeNames, unordered_set<u_int32_t>& processedContigIndex, const string& clusterDir, const string& filename_binStats, ofstream& fileHifiasmAll, ofstream& fileComponentNodeAll, u_int64_t& clusterIndex, u_int32_t& binIndex, u_int64_t lengthThreshold){
 
 
@@ -1285,15 +1257,6 @@ public:
 
 		//}
 
-		if(_isFinalPass){
-			bool success = dumpBin(binIndex, binContigIndexes);
-			if(success){
-				binIndex += 1;
-				cout << "bin done: " << binContigIndexes.size() << endl;
-			}
-		}
-
-		/*
 		vector<string> bin;
 		for(u_int32_t contigIndex : binContigIndexes){
 			const string& sequence = _contigFeature._contigSequences[contigIndex];
@@ -1304,24 +1267,14 @@ public:
 		for(const string& contig : bin){
 			lengthTotal += contig.size();
 		}
-		*/
-		/*
-		if(lengthTotal > 10000){
-			string binFilenam
-			_binOutputDir
-			
-			binIndex += 1;
 
-			cout << "bin done" << endl;
-		}
-		*/
-		/*
 		//cout << _contigFeature._binningThreshold << " " << (_contigFeature._binningThreshold == 0.65f) << endl;
 
 		if(_computeBinStats ){
 			if(lengthTotal > 300000 && _isFinalPass){//_contigFeature._binningThreshold == 0.65f && lengthThreshold == 10000){
 
-				
+				cout << binIndex << " " << binContigIndexes.size() << " " << lengthTotal << endl;
+				/*
 				cout << _nbHighQualityBins << " " << _nbMedQualityBins << " " << _nbLowQualityBins << "    " << _nbContaminatedBins << endl;
 
 				int ret = computeBinStats(clusterDir, bin, filename_binStats);
@@ -1498,11 +1451,42 @@ public:
 				else{
 					exit(1);
 				}
+				*/
 			}
 		}
-		*/
+		
+		binIndex += 1;
 
+		cout << "bin done" << endl;
 		//getchar();
+	}
+
+	bool dumpBin(const u_int64_t binIndex, const vector<u_int32_t>& binContigIndexes){
+
+
+		u_int64_t lengthTotal = 0;
+		for(u_int32_t contigIndex : binContigIndexes){
+			const string& sequence = _contigFeature._contigSequences[contigIndex];
+			lengthTotal += sequence.size();
+		}
+
+		if(lengthTotal < 20000) return false;
+
+		const string& filename = _binOutputDir + "/bin_" + to_string(binIndex) + ".fasta";
+		ofstream file = ofstream(filename);
+
+		for(u_int32_t contigIndex : binContigIndexes){
+			const string& sequence = _contigFeature._contigSequences[contigIndex];
+
+			string header = ">ctg" + to_string(contigIndex);
+			file << header << endl;
+			file << sequence << endl;
+			
+		}
+
+		file.close();
+
+		return true;
 	}
 
 	void assignContigToBin(u_int32_t contigIndex, u_int32_t binIndex){
@@ -1683,7 +1667,6 @@ public:
 		fileComponentNodeAll << "Name,Colour" << endl;
 
 
-		u_int32_t binIndex = 0;
 		u_int64_t clusterIndex = 0;
 		u_int32_t contaminatedIndex = 0;
 		unordered_set<string> written_unitigName;
@@ -1769,20 +1752,20 @@ public:
 
 			vector<float> binningThresholds;
 			if(_contigFeature._useAbundance){
-				//binningThresholds = {0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65};
-				binningThresholds = {0.95};
+				binningThresholds = {0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65};
 			}
 			else{
 				binningThresholds = {0.99, 0.95, 0.75};
 			}
 
-			//vector<u_int64_t> lengthThresholds = {100000, 50000, 10000};
-			vector<u_int64_t> lengthThresholds = {100000};
+			vector<u_int64_t> lengthThresholds = {100000, 50000, 10000};
 
 			//0.01, 0.05, 0.5, 1.0, 2.0
 			for(float binningThreshold : binningThresholds){
 				for(u_int64_t lengthThreshold : lengthThresholds){ //, 10000, 2500
 					
+					u_int32_t binIndex = 0;
+
 					if(binningThreshold == binningThresholds[binningThresholds.size()-1] && lengthThreshold == lengthThresholds[lengthThresholds.size()-1]){
 						_isFinalPass = true;
 					}
@@ -1875,8 +1858,6 @@ public:
 
 
 
-		cout << "Result bins: " << _binOutputDir << endl;
-		cout << "Nb bins: " << binIndex << endl;
 
 		file_groundTruth.close();
 		//file_groundTruth_hifiasmContigs.close();
