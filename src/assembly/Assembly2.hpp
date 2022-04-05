@@ -803,7 +803,7 @@ public:
 		
 	}
 
-	void binByReadpath(u_int32_t source_nodeIndex, unordered_set<u_int32_t>& processedNodeNames, unordered_set<u_int32_t>& processedContigIndex, const string& clusterDir, const string& filename_binStats, ofstream& fileHifiasmAll, ofstream& fileComponentNodeAll, u_int64_t& clusterIndex, u_int32_t& binIndex, u_int64_t lengthThreshold){
+	void binByReadpath(u_int32_t source_nodeIndex, unordered_set<u_int32_t>& processedNodeNames, unordered_set<u_int32_t>& processedContigIndex, const string& clusterDir, const string& filename_binStats, ofstream& fileHifiasmAll, ofstream& fileComponentNodeAll, u_int64_t& clusterIndex, u_int32_t& binIndex, u_int64_t lengthThreshold, u_int32_t& binIndexValid){
 
 
 		u_int32_t source_unitigIndex = _graph->nodeIndex_to_unitigIndex(source_nodeIndex);
@@ -1276,12 +1276,11 @@ public:
 		if(_computeBinStats ){
 			if(lengthTotal > 20000 && _isFinalPass){//_contigFeature._binningThreshold == 0.65f && lengthThreshold == 10000){
 
-				cout << binIndex << " " << binContigIndexes.size() << " " << lengthTotal << endl;
-				//dumpBin(binIndex, binContigIndexes);
+				//cout << binIndexValid << " " << binContigIndexes.size() << " " << lengthTotal << endl;
+				dumpBin(binIndexValid, binContigIndexes);
 				
-				binIndex += 1;
-
-				cout << "bin done" << endl;
+				binIndexValid += 1;
+				//cout << "bin done" << endl;
 
 				/*
 				cout << _nbHighQualityBins << " " << _nbMedQualityBins << " " << _nbLowQualityBins << "    " << _nbContaminatedBins << endl;
@@ -1464,6 +1463,7 @@ public:
 			}
 		}
 		
+		binIndex += 1;
 		//getchar();
 	}
 
@@ -1686,6 +1686,7 @@ public:
 		unordered_set<u_int32_t> processedContigIndex;
 		u_int64_t processedUnitigs = 0;
 
+		u_int32_t binIndex = 0;
 
 		ofstream file_bin_all(_inputDir + "/bin_all.csv");
 		file_bin_all << "Name,Color" << endl;
@@ -1770,7 +1771,7 @@ public:
 			for(float binningThreshold : binningThresholds){
 				for(u_int64_t lengthThreshold : lengthThresholds){ //, 10000, 2500
 					
-					u_int32_t binIndex = 0;
+					u_int32_t binIndexValid = 0;
 
 					if(binningThreshold == binningThresholds[binningThresholds.size()-1] && lengthThreshold == lengthThresholds[lengthThresholds.size()-1]){
 						_isFinalPass = true;
@@ -1847,7 +1848,7 @@ public:
 					//	processedNodeNames.insert(BiGraph::nodeIndex_to_nodeName(nodeIndex));
 					//}
 
-					binByReadpath(unitig._startNode, processedNodeNames, processedContigIndex, clusterDir, filename_binStats, fileHifiasmAll, fileComponentNodeAll, clusterIndex, binIndex, lengthThreshold);
+					binByReadpath(unitig._startNode, processedNodeNames, processedContigIndex, clusterDir, filename_binStats, fileHifiasmAll, fileComponentNodeAll, clusterIndex, binIndex, lengthThreshold, binIndexValid);
 
 
 				}
