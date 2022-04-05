@@ -162,6 +162,7 @@ public:
 	unordered_map<u_int32_t, u_int32_t> _contigIndex_to_componentIndex;
 	unordered_map<u_int32_t, vector<u_int32_t>> _componentIndex_to_contigIndexes;
 	bool _isFinalPass;
+	string _binOutputDir;
 
 	Assembly2(): Tool (){
 
@@ -799,6 +800,34 @@ public:
 		
 	}
 
+	bool dumpBin(const u_int64_t binIndex, const vector<u_int32_t>& binContigIndexes){
+
+
+		u_int64_t lengthTotal = 0;
+		for(u_int32_t contigIndex : binContigIndexes){
+			const string& sequence = _contigFeature._contigSequences[contigIndex];
+			lengthTotal += sequence.size();
+		}
+
+		if(lengthTotal < 20000) return false;
+
+		const string& filename = _binOutputDir + "/bin_" + to_string(binIndex) + ".fasta";
+		ofstream file = ofstream(filename);
+
+		for(u_int32_t contigIndex : binContigIndexes){
+			const string& sequence = _contigFeature._contigSequences[contigIndex];
+
+			string header = ">ctg" + to_string(contigIndex);
+			file << header << endl;
+			file << sequence << endl;
+			
+		}
+
+		file.close();
+
+		return true;
+	}
+
 	void binByReadpath(u_int32_t source_nodeIndex, unordered_set<u_int32_t>& processedNodeNames, unordered_set<u_int32_t>& processedContigIndex, const string& clusterDir, const string& filename_binStats, ofstream& fileHifiasmAll, ofstream& fileComponentNodeAll, u_int64_t& clusterIndex, u_int32_t& binIndex, u_int64_t lengthThreshold){
 
 
@@ -1256,6 +1285,15 @@ public:
 
 		//}
 
+		if(_isFinalPass){
+			bool success = dumpBin(binIndex, binContigIndexes);
+			if(success){
+				binIndex += 1;
+				cout << "bin done" << endl;
+			}
+		}
+
+		/*
 		vector<string> bin;
 		for(u_int32_t contigIndex : binContigIndexes){
 			const string& sequence = _contigFeature._contigSequences[contigIndex];
@@ -1266,7 +1304,18 @@ public:
 		for(const string& contig : bin){
 			lengthTotal += contig.size();
 		}
+		*/
+		/*
+		if(lengthTotal > 10000){
+			string binFilenam
+			_binOutputDir
+			
+			binIndex += 1;
 
+			cout << "bin done" << endl;
+		}
+		*/
+		/*
 		//cout << _contigFeature._binningThreshold << " " << (_contigFeature._binningThreshold == 0.65f) << endl;
 
 		if(_computeBinStats ){
@@ -1357,21 +1406,20 @@ public:
 
 					if(contamination > 0.05){
 
-						/*
-						unordered_set<u_int32_t> validNodes;
-						for (u_int32_t unitigIndex : componentDebug){
-							for(u_int32_t nodeIndex : _graph->_unitigs[unitigIndex]._nodes){
-								u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
-								//if(_debug_groundTruthNodeNames.find(nodeName) == _debug_groundTruthNodeNames.end()) continue;
-								validNodes.insert(nodeName);
-							}
-						}
-						string outputFilename = _inputDir + "/minimizer_graph_binning.gfa";
-						GfaParser::rewriteGfa_withoutNodes(_gfaFilename, outputFilename, validNodes, _graph->_isEdgeRemoved, _graph->_graphSuccessors);
+						
+						//unordered_set<u_int32_t> validNodes;
+						//for (u_int32_t unitigIndex : componentDebug){
+						//	for(u_int32_t nodeIndex : _graph->_unitigs[unitigIndex]._nodes){
+						//		u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
+						//		//if(_debug_groundTruthNodeNames.find(nodeName) == _debug_groundTruthNodeNames.end()) continue;
+						//		validNodes.insert(nodeName);
+						//	}
+						//}
+						//string outputFilename = _inputDir + "/minimizer_graph_binning.gfa";
+						//GfaParser::rewriteGfa_withoutNodes(_gfaFilename, outputFilename, validNodes, _graph->_isEdgeRemoved, _graph->_graphSuccessors);
 			
 
-						getchar();
-						*/
+						
 
 						//for(u_int32_t contigIndex : binContigIndexes){
 						//	const vector<float>& coverages = _contigFeature._contigCoverages[contigIndex];
@@ -1452,10 +1500,8 @@ public:
 				}
 			}
 		}
-		
-		binIndex += 1;
+		*/
 
-		cout << "bin done" << endl;
 		//getchar();
 	}
 
@@ -1616,6 +1662,11 @@ public:
 
 		vector<vector<string>> bins;
 		
+		_binOutputDir = _inputDir + "/binning";
+	    if(!fs::exists (_binOutputDir)){
+			fs::remove_all(_binOutputDir);
+        } 
+		fs::create_directory(_binOutputDir);
 
 		string clusterDir = _inputDir + "/" + "binGreedy";
 		fs::path path(clusterDir);
@@ -1822,7 +1873,9 @@ public:
 
 
 
-
+		cout << "Result bins: " << _binOutputDir;
+		cout << "Nb bins: " << binIndex << endl;
+		
 		file_groundTruth.close();
 		//file_groundTruth_hifiasmContigs.close();
 		file_kminmersContigs.close();
