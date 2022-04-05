@@ -1271,9 +1271,15 @@ public:
 		//cout << _contigFeature._binningThreshold << " " << (_contigFeature._binningThreshold == 0.65f) << endl;
 
 		if(_computeBinStats ){
-			if(lengthTotal > 300000 && _isFinalPass){//_contigFeature._binningThreshold == 0.65f && lengthThreshold == 10000){
+			if(lengthTotal > 20000 && _isFinalPass){//_contigFeature._binningThreshold == 0.65f && lengthThreshold == 10000){
 
 				cout << binIndex << " " << binContigIndexes.size() << " " << lengthTotal << endl;
+				dumpBin(binIndex, binContigIndexes);
+				
+				binIndex += 1;
+
+				cout << "bin done" << endl;
+
 				/*
 				cout << _nbHighQualityBins << " " << _nbMedQualityBins << " " << _nbLowQualityBins << "    " << _nbContaminatedBins << endl;
 
@@ -1455,9 +1461,6 @@ public:
 			}
 		}
 		
-		binIndex += 1;
-
-		cout << "bin done" << endl;
 		//getchar();
 	}
 
@@ -1490,7 +1493,7 @@ public:
 	}
 
 	void assignContigToBin(u_int32_t contigIndex, u_int32_t binIndex){
-		cout << "Assign: " << contigIndex << " -> " << binIndex << endl;
+		//cout << "Assign: " << contigIndex << " -> " << binIndex << endl;
 		_fileOutput_contigBin.write((const char*)&contigIndex, sizeof(contigIndex));
 		_fileOutput_contigBin.write((const char*)&binIndex, sizeof(binIndex));
 		//_fileOutput_contigBin.flush();
@@ -1828,7 +1831,7 @@ public:
 
 					u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(unitig._startNode);
 
-					cout << processedUnitigs << "/" << startingUnitigs.size() << "    " << BiGraph::nodeIndex_to_nodeName(unitig._startNode) << " " << unitigLength._length << endl;
+					//cout << processedUnitigs << "/" << startingUnitigs.size() << "    " << BiGraph::nodeIndex_to_nodeName(unitig._startNode) << " " << unitigLength._length << endl;
 
 
 
