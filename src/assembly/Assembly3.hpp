@@ -1532,8 +1532,8 @@ public:
 			u_int32_t nodeNameSolidLeft = BiGraph::nodeIndex_to_nodeName(nodeIndex_left);
 			u_int32_t nodeNameSolidRight = BiGraph::nodeIndex_to_nodeName(nodeIndex_right);
 
-			bool needExtendLeft = _graph->isEdgeNode(nodeIndex_left) || _graph->isNeighborOfEdgeNode(nodeIndex_left);// || _isNodeNameUnsupported.find(nodeNameSolidLeft) != _isNodeNameUnsupported.end();
-			bool needExtendRight = _graph->isEdgeNode(nodeIndex_right) || _graph->isNeighborOfEdgeNode(nodeIndex_right);// || _isNodeNameUnsupported.find(nodeNameSolidRight) != _isNodeNameUnsupported.end();
+			bool needExtendLeft = true; //_graph->isEdgeNode(nodeIndex_left) || _graph->isNeighborOfEdgeNode(nodeIndex_left);// || _isNodeNameUnsupported.find(nodeNameSolidLeft) != _isNodeNameUnsupported.end();
+			bool needExtendRight = true; //_graph->isEdgeNode(nodeIndex_right) || _graph->isNeighborOfEdgeNode(nodeIndex_right);// || _isNodeNameUnsupported.find(nodeNameSolidRight) != _isNodeNameUnsupported.end();
 
 			if(!needExtendLeft && !needExtendRight) return;
 
