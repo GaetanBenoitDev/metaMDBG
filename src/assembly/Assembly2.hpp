@@ -250,7 +250,7 @@ public:
 		gzclose(_outputContigFile);
 		gzclose(_outputContigFile_complete);
 
-		cout << _nbHighQualityBins << " " << _nbMedQualityBins << " " << _nbLowQualityBins << "    " << _nbContaminatedBins << endl;
+		//cout << _nbHighQualityBins << " " << _nbMedQualityBins << " " << _nbLowQualityBins << "    " << _nbContaminatedBins << endl;
 
 	}
 

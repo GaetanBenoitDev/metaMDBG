@@ -1174,6 +1174,7 @@ public:
 
 	float computeDistance(const vector<u_int32_t>& bin1, const vector<u_int32_t>& bin2){
 
+		/*
 		if(bin1.size() > 1000){
 			vector<u_int32_t> binLala = bin1;
 			cout << "----" << endl;
@@ -1182,6 +1183,7 @@ public:
 				cout << contigIndex << endl;
 			}
 		}
+		*/
 
 		double distance_max = 5;
 		double distance_sum = 0;
