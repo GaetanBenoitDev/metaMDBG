@@ -1653,7 +1653,7 @@ public:
 		vector<vector<string>> bins;
 		
 		_binOutputDir = _inputDir + "/binning";
-	    if(!fs::exists (_binOutputDir)){
+	    if(fs::exists (_binOutputDir)){
 			fs::remove_all(_binOutputDir);
         } 
 		fs::create_directory(_binOutputDir);
