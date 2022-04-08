@@ -69,7 +69,7 @@ public:
 			//_inputFilename = result[ARG_INPUT_FILENAME].as<string>(); //getInput()->getStr(STR_INPUT);
 			_filename_inputContigs = result["contig"].as<string>();
 			_inputDir = result["asmDir"].as<string>();
-			_outputDir_binning = result["outputDir"].as<string>();
+			_outputDir_binning = result["outputDir"].as<string>() + "/bins_/";
 			//_minimizerSize = result[ARG_MINIMIZER_LENGTH].as<int>(); //getInput()->getInt(STR_MINIM_SIZE);
 			//_inputDir = result[ARG_OUTPUT_DIR].as<string>(); //getInput()->getStr(STR_OUTPUT);
 			_truthInputFilename = result[ARG_INPUT_FILENAME_TRUTH].as<string>();
@@ -85,9 +85,14 @@ public:
 			std::exit(EXIT_FAILURE);
 		}
 
-        fs::path path(_inputDir);
-	    if(!fs::exists (path)) fs::create_directory(path); 
+        //fs::path path(_inputDir);
+	    //if(!fs::exists (path)) fs::create_directory(path); 
 
+
+	    if(fs::exists (_outputDir_binning)){
+			fs::remove_all(_outputDir_binning);
+		}
+		fs::create_directory(_outputDir_binning); 
 		//T exception{text};
 
 
