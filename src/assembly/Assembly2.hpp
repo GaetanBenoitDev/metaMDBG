@@ -1768,10 +1768,10 @@ public:
 				binningThresholds = {0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65};
 			}
 			else{
-				binningThresholds = {0.99, 0.95, 0.75};
+				binningThresholds = {0.99}; //, 0.95, 0.75
 			}
 
-			vector<u_int64_t> lengthThresholds = {100000, 50000, 10000};
+			vector<u_int64_t> lengthThresholds = {100000}; //50000, 10000
 
 			//0.01, 0.05, 0.5, 1.0, 2.0
 			for(float binningThreshold : binningThresholds){

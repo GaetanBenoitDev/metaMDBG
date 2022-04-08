@@ -195,12 +195,12 @@ public:
 
 	void dumpBins(const string& contigFilename, const string binFilename){
 
+		_contigFeature.loadContigBins(binFilename);
 		loadContigs(contigFilename);
 
 		u_int64_t binIndex = 0;
 		
 		
-		_contigFeature.loadContigBins(binFilename);
 
 		for(const auto& it : _contigFeature._binIndex_to_contigIndex){
 			bool isValid = dumpBin(binIndex, it.second);
@@ -211,6 +211,19 @@ public:
 		cout << "Result dir: " << _outputDir_binning << endl;
 	}
 	
+	
+	void loadContigs(const string& filename){
+		auto fp = std::bind(&BinningPipeline::loadContigs_read, this, std::placeholders::_1);
+		ReadParser readParser(filename, true, false);
+		readParser.parse(fp);
+	}
+
+	void loadContigs_read(const Read& read){
+		if(_contigFeature._contigIndex_to_binIndex.find(read._index) == _contigFeature._contigIndex_to_binIndex.end()) return;
+		_contigFeature._contigSequences[read._index] = new DnaBitset(read._seq);
+	}
+
+
 	struct ContigSequence{
 		u_int64_t _contigIndex;
 		string _sequence;
@@ -247,17 +260,6 @@ public:
 		file.close();
 
 		return true;
-	}
-	
-	void loadContigs(const string& filename){
-		auto fp = std::bind(&BinningPipeline::loadContigs_read, this, std::placeholders::_1);
-		ReadParser readParser(filename, true, false);
-		readParser.parse(fp);
-	}
-
-	void loadContigs_read(const Read& read){
-		if(_contigFeature._contigIndex_to_binIndex.find(read._index) == _contigFeature._contigIndex_to_binIndex.end()) return;
-		_contigFeature._contigSequences[read._index] = new DnaBitset(read._seq);
 	}
 
 	void executeCommand(const string& command){
