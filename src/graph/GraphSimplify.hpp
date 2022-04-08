@@ -675,6 +675,72 @@ public:
         return nbRemoved;
     }
 
+    u_int64_t removeSelfLoops(SaveState2& saveState){
+
+        unordered_set<u_int32_t> removedNodes;
+
+        u_int64_t nbRemoved = 0;
+
+        vector<u_int32_t> neighbors;
+
+        //vector<bool> isVisited(_graphSuccessors->_nbNodes, false);
+        bool dummy = false;
+
+        for(Unitig& unitig : _unitigs){
+            if(unitig._startNode == -1) continue;
+
+
+            //if(unitig._length > maxLength) continue;
+            if(unitig._nbNodes != 1) continue;
+            //if(_isNodeValid2.find(unitig._startNode) == _isNodeValid2.end()) continue; //already removed
+
+
+            //if(isVisited[unitig._startNode]) continue;
+            //if(isVisited[unitig._endNode]) continue;
+
+            getPredecessors(unitig._startNode, 0, neighbors);
+            if(neighbors.size() != 1) continue;
+            u_int32_t nodeName_pred = BiGraph::nodeIndex_to_nodeName(neighbors[0]);
+
+            getSuccessors(unitig._startNode, 0, neighbors);
+            if(neighbors.size() != 1) continue;
+            u_int32_t nodeName_succ = BiGraph::nodeIndex_to_nodeName(neighbors[0]);
+
+            if(nodeName_pred != nodeName_succ) continue;
+
+
+            u_int32_t nodeIndex_pred = neighbors[0];
+
+            vector<u_int32_t> unitigNodes; 
+            getUnitigNodes(unitig, unitigNodes);
+            for(u_int32_t node : unitigNodes){
+                removedNodes.insert(node);
+                removedNodes.insert(nodeIndex_toReverseDirection(node));
+                saveState._nodeNameRemoved_tmp.insert(BiGraph::nodeIndex_to_nodeName(node));
+            }
+
+            
+
+            #ifdef PRINT_DEBUG_SIMPLIFICATION
+                cout << "\tSelf loop: " << BiGraph::nodeIndex_to_nodeName(unitig._endNode, dummy) << endl;
+            #endif 
+
+            nbRemoved += 1;
+        }
+
+
+        unordered_set<u_int32_t> removedUnitigs;
+        for(u_int32_t nodeIndex : removedNodes){
+            removedUnitigs.insert(nodeIndex_to_unitigIndex(nodeIndex));
+        }
+        removeUnitigs(removedUnitigs);
+        for(u_int32_t nodeIndex : removedNodes){
+            _isNodeValid2.erase(nodeIndex);
+        }
+
+        return nbRemoved;
+    }
+
     /*
     u_int64_t removeLongTips(){
 
@@ -3317,6 +3383,20 @@ public:
                     isModSub = true;
                 }
 
+                while(true){
+                    compact(true, unitigDatas);
+
+                    u_int64_t nbSelfLoopRemoved = removeSelfLoops(currentSaveState);
+
+                    #ifdef PRINT_DEBUG_SIMPLIFICATION
+                        cout << "Nb self loop removed: " << nbSelfLoopRemoved << endl;
+                    #endif
+                    if(nbSelfLoopRemoved == 0) break;
+                    isModification = true;
+                    isModSub = true;
+
+                    
+                }
                 
                 //3526895 2681795
                 if(crushBubble){
