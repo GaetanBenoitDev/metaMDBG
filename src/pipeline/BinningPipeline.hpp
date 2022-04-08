@@ -133,16 +133,16 @@ public:
 
     void execute_pipeline(){
 		
-		size_t firstK = 4;
+		long firstK = 4;
 		string command = "";
 
 		u_int64_t pass = 0;
 		string binningFilename;
-		size_t prevK = -1;
+		long prevK = -1;
 
 		string lastBinFilename = "";
 
-		for(size_t k=firstK; k>=4; k-=10){
+		for(long k=firstK; k>=4; k-=10){
 
 			string ouputDir = _inputDir + "/pass_k" + to_string(k);
 			const string& binningFilename_input = _inputDir + "pass_k" + to_string(prevK) + "/contigToBin.bin";
