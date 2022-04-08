@@ -92,7 +92,7 @@ public:
 	    if(fs::exists (_outputDir_binning)){
 			fs::remove_all(_outputDir_binning);
 		}
-		fs::create_directory(_outputDir_binning); 
+		fs::create_directories(_outputDir_binning); 
 		//T exception{text};
 
 
