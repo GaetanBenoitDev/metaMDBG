@@ -1148,7 +1148,7 @@ public:
 				vector<u_int32_t> contigIndexes;
 				u_int32_t newBinIndex = _contigFeature.contigIndexToBinIndex(contigIndex);
 				if(newBinIndex == -1){
-					if(_contigFeature._contigSequences[contigIndex].size() >= lengthThreshold){
+					if(_contigFeature._contigLengths[contigIndex] >= lengthThreshold){
 						if(componentContigIndex.find(contigIndex) == componentContigIndex.end()){
 							contigIndexes.push_back(contigIndex);
 						}
@@ -1156,7 +1156,7 @@ public:
 				}
 				else{
 					for(u_int32_t contigIndex : _contigFeature._binIndex_to_contigIndex[newBinIndex]){
-						if(_contigFeature._contigSequences[contigIndex].size() < lengthThreshold) continue;
+						if(_contigFeature._contigLengths[contigIndex] < lengthThreshold) continue;
 						//if(binContigIndexes_set.find(contigIndex) != binContigIndexes_set.end()) continue; //already in current bin
 						if(componentContigIndex.find(contigIndex) != componentContigIndex.end()) continue;
 						contigIndexes.push_back(contigIndex);
@@ -1260,6 +1260,7 @@ public:
 
 		//}
 
+		/*
 		vector<string> bin;
 		for(u_int32_t contigIndex : binContigIndexes){
 			const string& sequence = _contigFeature._contigSequences[contigIndex];
@@ -1282,7 +1283,7 @@ public:
 				binIndexValid += 1;
 				//cout << "bin done" << endl;
 
-				/*
+				
 				cout << _nbHighQualityBins << " " << _nbMedQualityBins << " " << _nbLowQualityBins << "    " << _nbContaminatedBins << endl;
 
 				int ret = computeBinStats(clusterDir, bin, filename_binStats);
@@ -1459,14 +1460,16 @@ public:
 				else{
 					exit(1);
 				}
-				*/
+				
 			}
 		}
+		*/
 		
 		binIndex += 1;
 		//getchar();
 	}
 
+	/*
 	bool dumpBin(const u_int64_t binIndex, const vector<u_int32_t>& binContigIndexes){
 
 
@@ -1494,6 +1497,7 @@ public:
 
 		return true;
 	}
+	*/
 
 	void assignContigToBin(u_int32_t contigIndex, u_int32_t binIndex){
 		//cout << "Assign: " << contigIndex << " -> " << binIndex << endl;
@@ -1527,6 +1531,7 @@ public:
 
 		//exit(1);
 
+		/*
 		if(!_truthInputFilename.empty()){
 		
 			ofstream file_contigToHifiasmUnitig(_inputDir + "/hifiasm_contig.csv");
@@ -1576,6 +1581,7 @@ public:
 			file_contigToHifiasmUnitig.close();
 				
 		}
+		*/
 
 		/*
 		cout << _contigFeature._contigSequences[31].size() << endl;
@@ -1605,7 +1611,7 @@ public:
 		_contigFeature.sequenceToComposition(seq, composition);
 		_contigFeature._contigCompositions[readIndex] = composition;
 
-		_contigFeature._contigSequences[readIndex] = seq;
+		_contigFeature._contigLengths[readIndex] = seq.size();
 		//unordered_set<u_int32_t> nodeNames;
 
 		for(size_t i=0; i<kminmersInfos.size(); i++){
@@ -1621,7 +1627,7 @@ public:
 
 			//if(_contigFeature._nodeName_to_contigIndex.find(nodeName) == _contigFeature._nodeName_to_contigIndex.end()) continue;
 
-			_contigFeature._nodeNameDuplicate[nodeName] += 1;
+			//_contigFeature._nodeNameDuplicate[nodeName] += 1;
 			_contigFeature._nodeName_to_contigIndex[nodeName].push_back(readIndex);
 			_contigFeature._contigIndex_to_nodeName[readIndex].push_back(nodeName);
 			//_fileTestLala << nodeName << "," << "0" << endl;
@@ -1793,14 +1799,17 @@ public:
 				if(unitig._abundance < _minUnitigAbundance) continue;
 
 				u_int32_t contigIndex;
-				string unitigSequence;
+				u_int32_t contigLength;
+
+				//string unitigSequence;
 				//_toBasespace.createSequence(unitig_model._nodes, unitigSequence_model);
-				_contigFeature.nodepathToContigSequence(unitig._nodes, unitigSequence, contigIndex);
-				if(unitigSequence.size() < lengthThreshold) continue;
+				bool isValid = _contigFeature.nodepathToContigLength(unitig._nodes, contigIndex, contigLength);
+				if(!isValid) continue;
+				if(contigLength < lengthThreshold) continue;
 
 				if(processedContigIndex.find(contigIndex) != processedContigIndex.end()) continue;
 
-				startingUnitigs.push_back({unitigSequence.size(), unitig._abundance, unitig._startNode});
+				startingUnitigs.push_back({contigLength, unitig._abundance, unitig._startNode});
 
 				//if(contigIndex == 209){
 				//	cout << "loulou" << endl;

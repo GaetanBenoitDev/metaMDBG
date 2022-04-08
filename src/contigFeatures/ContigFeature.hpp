@@ -53,8 +53,9 @@ public:
 	
 	unordered_map<u_int32_t, vector<float>> _nodenameAbundanceMean;
 	unordered_map<u_int32_t, vector<float>> _nodenameAbundanceVar;
-	unordered_map<u_int32_t, u_int32_t> _nodeNameDuplicate;
-	unordered_map<u_int32_t, string> _contigSequences;
+	//unordered_map<u_int32_t, u_int32_t> _nodeNameDuplicate;
+	unordered_map<u_int32_t, u_int32_t> _contigLengths;
+	unordered_map<u_int32_t, DnaBitset*> _contigSequences;
 	unordered_map<u_int32_t, u_int32_t> _contigIndex_to_binIndex;
 	unordered_map<u_int32_t, vector<u_int32_t>> _binIndex_to_contigIndex;
 	float _binningThreshold;
@@ -96,7 +97,7 @@ public:
 		}
 
 		_compositionVectorSize = setlala.size();
-		cout << "Kmer composition size: " << _compositionVectorSize << endl;
+		//cout << "Kmer composition size: " << _compositionVectorSize << endl;
 
 		//exit(1);
 		setup();
@@ -129,7 +130,7 @@ public:
 
 		//_w_intra = 12;
 		//_w_intra = 1;
-		cout << "W_intra: " << bin_threshold << " " << break_threshold << endl;
+		//cout << "W_intra: " << bin_threshold << " " << break_threshold << endl;
 	}
 
 	void loadContigBins(const string& filename){
@@ -452,16 +453,40 @@ public:
 		*/
 	}
 
+	bool nodepathToContigLength(const vector<u_int32_t>& nodepath, u_int32_t& contigIndexResult, u_int32_t& contigLength){
+		
+		u_int32_t contigIndex = nodepathToContigIndex(nodepath);
+		if(contigIndex == -1) return false;
+
+		contigIndexResult = contigIndex;
+		contigLength = _contigLengths[contigIndex];
+
+		//char* seq = _contigSequences[contigIndex]->to_string();
+
+		//sequence = string(seq);
+		
+		//free(seq);
+
+		return true;
+	}
+
+	/*
 	bool nodepathToContigSequence(const vector<u_int32_t>& nodepath, string& sequence, u_int32_t& contigIndexResult){
 		
 		u_int32_t contigIndex = nodepathToContigIndex(nodepath);
 		if(contigIndex == -1) return false;
 
 		contigIndexResult = contigIndex;
-		sequence = _contigSequences[contigIndex];
-		
-		return true;
 
+		char* seq = _contigSequences[contigIndex]->to_string();
+
+		sequence = string(seq);
+		
+		free(seq);
+
+		return true;
+	}
+	*/
 		/*
 		unordered_map<u_int32_t, u_int32_t> contigCounts;
 
@@ -520,7 +545,7 @@ public:
 
 		return false;
 		*/
-	}
+	//}
 
 	u_int32_t nodepathToContigIndex(const vector<u_int32_t>& nodepath){
 
@@ -1191,7 +1216,7 @@ public:
 
 		for(u_int32_t contigIndex1 : bin1){
 			
-			if(_contigSequences[contigIndex1].size() < 50000) continue;
+			if(_contigLengths[contigIndex1] < 50000) continue;
 
 			for(u_int32_t contigIndex2 : bin2){
 
@@ -1281,7 +1306,7 @@ public:
 			float tnf_dist = cal_tnf_dist(composition1, composition2, contigIndex1, contigIndex2);
 			distance = 1-tnf_dist;
 
-			cout << "Composition distance: " << tnf_dist << " " << _contigSequences[contigIndex1].size() << " " << _contigSequences[contigIndex2].size()  << endl;
+			cout << "Composition distance: " << tnf_dist << " " << _contigLengths[contigIndex1] << " " << _contigLengths[contigIndex2]  << endl;
 		}
 
 
@@ -1444,8 +1469,8 @@ public:
 
 	Distance cal_tnf_dist(const vector<float>& c1, const vector<float>& c2, u_int32_t contigIndex1, u_int32_t contigIndex2) {
 
-		size_t length1 = _contigSequences[contigIndex1].size();
-		size_t length2 = _contigSequences[contigIndex2].size();
+		size_t length1 = _contigLengths[contigIndex1];
+		size_t length2 = _contigLengths[contigIndex2];
 		//if(d1._length < 2500) return 1;
 		//if(d2._length < 2500) return 1;
 		/*

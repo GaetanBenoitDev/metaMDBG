@@ -21,6 +21,7 @@ public:
 	int _nbCores;
 	string _filename_inputContigs;
 	bool _computeBinStats;
+	string _outputDir_binning;
 
 	string _inputFilenameComplete;
 
@@ -37,8 +38,9 @@ public:
 		options.add_options()
 		//("d,debug", "Enable debugging") // a bool parameter
 		//(ARG_INPUT_FILENAME, "", cxxopts::value<string>())
-		(ARG_INPUT_FILENAME_CONTIG, "", cxxopts::value<string>()->default_value(""))
-		(ARG_OUTPUT_DIR, "", cxxopts::value<string>())
+		("contig", "", cxxopts::value<string>())
+		("asmDir", "", cxxopts::value<string>())
+		("outputDir", "", cxxopts::value<string>())
 		(ARG_INPUT_FILENAME_TRUTH, "", cxxopts::value<string>()->default_value(""))
 		(ARG_EVAL, "", cxxopts::value<bool>()->default_value("false"))
 		(ARG_NB_CORES, "", cxxopts::value<int>()->default_value("8"));
@@ -48,7 +50,8 @@ public:
 		//("k,kminmerSize", "File name", cxxopts::value<std::string>())
 		//("v,verbose", "Verbose output", cxxopts::value<bool>()->default_value("false"))
 		//;
-
+		options.parse_positional({"contig", "asmDir", "outputDir"});
+		options.positional_help("contigs asmDir outputDir");
 		if(argc <= 1){
 			std::cout << options.help() << std::endl;
 			exit(0);
@@ -62,9 +65,11 @@ public:
 
 			//_kminmerSize = result[ARG_KMINMER_LENGTH].as<int>(); //getInput()->getInt(STR_KMINMER_SIZE);
 			//_inputFilename = result[ARG_INPUT_FILENAME].as<string>(); //getInput()->getStr(STR_INPUT);
-			_filename_inputContigs = result[ARG_INPUT_FILENAME_CONTIG].as<string>();
+			_filename_inputContigs = result["contig"].as<string>();
+			_inputDir = result["asmDir"].as<string>();
+			_outputDir_binning = result["outputDir"].as<string>();
 			//_minimizerSize = result[ARG_MINIMIZER_LENGTH].as<int>(); //getInput()->getInt(STR_MINIM_SIZE);
-			_inputDir = result[ARG_OUTPUT_DIR].as<string>(); //getInput()->getStr(STR_OUTPUT);
+			//_inputDir = result[ARG_OUTPUT_DIR].as<string>(); //getInput()->getStr(STR_OUTPUT);
 			_truthInputFilename = result[ARG_INPUT_FILENAME_TRUTH].as<string>();
 			_nbCores = result[ARG_NB_CORES].as<int>();
 			_computeBinStats = result[ARG_EVAL].as<bool>();
@@ -94,7 +99,7 @@ public:
 
 
 		//if(!System::file().doesExist (_outputDir)) System::file().mkdir(_outputDir, -1);
-		
+		cout << _filename_inputContigs << " " << _inputDir << " " << _outputDir_binning << endl;
 
 		cout << endl;
 		cout << "Input: " << _filename_inputContigs << endl;
@@ -128,18 +133,21 @@ public:
 
     void execute_pipeline(){
 		
-		size_t firstK = 81;
+		size_t firstK = 4;
 		string command = "";
 
 		u_int64_t pass = 0;
 		string binningFilename;
 		size_t prevK = -1;
 
+		string lastBinFilename = "";
+
 		for(size_t k=firstK; k>=4; k-=10){
 
 			string ouputDir = _inputDir + "/pass_k" + to_string(k);
 			const string& binningFilename_input = _inputDir + "pass_k" + to_string(prevK) + "/contigToBin.bin";
 			const string& binningFilename_output = _inputDir + "pass_k" + to_string(k) + "/contigToBin.bin";
+			lastBinFilename = binningFilename_output;
 
 			command = _filename_exe + " binPass -o " + ouputDir + " -c " + _filename_inputContigs + " --bo " + binningFilename_output;
 			if(pass > 0) command += " --bi " + binningFilename_input;
@@ -151,6 +159,7 @@ public:
 			pass += 1;
 		}
 
+		dumpBins(_filename_inputContigs, lastBinFilename);
     }
 
 	/*
@@ -172,6 +181,75 @@ public:
 		//fs::copy(_inputDir + "/mdbg_nodes_init.gz", dir + "/mdbg_nodes_init.gz", copyOptions);
 	}
 	*/
+
+	ContigFeature _contigFeature; 
+
+	void dumpBins(const string& contigFilename, const string binFilename){
+
+		loadContigs(contigFilename);
+
+		u_int64_t binIndex = 0;
+		
+		
+		_contigFeature.loadContigBins(binFilename);
+
+		for(const auto& it : _contigFeature._binIndex_to_contigIndex){
+			bool isValid = dumpBin(binIndex, it.second);
+			if(isValid) binIndex += 1;
+		}
+
+		cout << "Nb bins: " << binIndex << endl;
+		cout << "Result dir: " << _outputDir_binning << endl;
+	}
+	
+	struct ContigSequence{
+		u_int64_t _contigIndex;
+		string _sequence;
+	};
+
+	bool dumpBin(const u_int64_t binIndex, const vector<u_int32_t>& binContigIndexes){
+
+		vector<ContigSequence> binSequences;
+		for(u_int32_t contigIndex : binContigIndexes){
+
+			char* seq = _contigFeature._contigSequences[contigIndex]->to_string();
+			binSequences.push_back({contigIndex, string(seq)});
+			free(seq);
+		}
+
+
+		u_int64_t lengthTotal = 0;
+		for(const ContigSequence& contig : binSequences){
+			lengthTotal += contig._sequence.size();
+		}
+
+		if(lengthTotal < 20000) return false;
+
+		const string& filename = _outputDir_binning + "/bin_" + to_string(binIndex) + ".fasta";
+		ofstream file = ofstream(filename);
+
+		for(const ContigSequence& contig : binSequences){
+			string header = ">ctg" + to_string(contig._contigIndex);
+			file << header << endl;
+			file << contig._sequence << endl;
+			
+		}
+
+		file.close();
+
+		return true;
+	}
+	
+	void loadContigs(const string& filename){
+		auto fp = std::bind(&BinningPipeline::loadContigs_read, this, std::placeholders::_1);
+		ReadParser readParser(filename, true, false);
+		readParser.parse(fp);
+	}
+
+	void loadContigs_read(const Read& read){
+		if(_contigFeature._contigIndex_to_binIndex.find(read._index) == _contigFeature._contigIndex_to_binIndex.end()) return;
+		_contigFeature._contigSequences[read._index] = new DnaBitset(read._seq);
+	}
 
 	void executeCommand(const string& command){
 		cout << command << endl;

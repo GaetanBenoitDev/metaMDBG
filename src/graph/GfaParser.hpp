@@ -151,6 +151,8 @@ public:
     static BiGraph* createBiGraph_lol(const string& filename, bool indexSuccessors, u_int32_t nbNodes){
 
 
+        unordered_set<DbgEdge, hash_pair> seenEdges;
+
         ifstream infile(filename);
 
         std::string line;
@@ -188,6 +190,23 @@ public:
                 u_int32_t from_id = std::stoull(from);
                 u_int32_t to_id = std::stoull(to);
                 
+                //DbgEdge edge = {from_id, to_id};
+				//edge = edge.normalize();
+
+                //e_in, e_out = line.split()[1], line.split()[3]
+                //e_tuple = tuple(sorted([e_in, e_out]))
+                //to_remove = e_tuple in seen_edges
+                //if e_in == e_out: # self loop
+                //    to_remove = True
+                //seen_edges.add(e_tuple)
+                //if not to_remove:
+                //    print(line.strip())
+
+                //bool toRemove = seenEdges.find(edge) != seenEdges.end() || from_id == to_id;
+                //seenEdges.insert(edge);
+                //if(toRemove) continue;
+                if(from_id == to_id) continue; //self loop
+
                 if(indexSuccessors){
                     graph->addEdge(from_id, fromOrient, to_id, toOrient, overlap);
                 }
@@ -211,6 +230,9 @@ public:
 
         return graph;
     }
+
+
+    
 
     /*
     UnitigGraph* createGraph(const string& filename, vector<int32_t>& node_to_unitig, vector<u_int32_t>& unitigLengths){
