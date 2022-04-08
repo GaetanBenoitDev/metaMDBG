@@ -24,6 +24,7 @@ public:
 	string _outputDir_binning;
 
 	string _inputFilenameComplete;
+	string _filename_abundance;
 
 	BinningPipeline(): Tool (){
 	}
@@ -43,6 +44,7 @@ public:
 		("outputDir", "", cxxopts::value<string>())
 		(ARG_INPUT_FILENAME_TRUTH, "", cxxopts::value<string>()->default_value(""))
 		(ARG_EVAL, "", cxxopts::value<bool>()->default_value("false"))
+		(ARG_INPUT_FILENAME_ABUNDANCE, "", cxxopts::value<string>()->default_value(""))
 		(ARG_NB_CORES, "", cxxopts::value<int>()->default_value("8"));
 		//(ARG_KMINMER_LENGTH, "", cxxopts::value<int>()->default_value("3"))
 		//(ARG_MINIMIZER_LENGTH, "", cxxopts::value<int>()->default_value("21"))
@@ -71,6 +73,7 @@ public:
 			//_minimizerSize = result[ARG_MINIMIZER_LENGTH].as<int>(); //getInput()->getInt(STR_MINIM_SIZE);
 			//_inputDir = result[ARG_OUTPUT_DIR].as<string>(); //getInput()->getStr(STR_OUTPUT);
 			_truthInputFilename = result[ARG_INPUT_FILENAME_TRUTH].as<string>();
+			_filename_abundance = result[ARG_INPUT_FILENAME_ABUNDANCE].as<string>();
 			_nbCores = result[ARG_NB_CORES].as<int>();
 			_computeBinStats = result[ARG_EVAL].as<bool>();
 			//_minimizerDensity = result[ARG_MINIMIZER_DENSITY].as<float>(); //getInput()->getDouble(STR_DENSITY);
@@ -152,6 +155,7 @@ public:
 			command = _filename_exe + " binPass -o " + ouputDir + " -c " + _filename_inputContigs + " --bo " + binningFilename_output;
 			if(pass > 0) command += " --bi " + binningFilename_input;
 			if(pass == 0) command += " --firstpass ";
+			if(!_filename_abundance.empty()) command += " -a " + _filename_abundance;
 			if(_computeBinStats || k == 4) command += " --eval ";
 			executeCommand(command);
 			
