@@ -72,7 +72,7 @@ public:
 		}
 
         fs::path path(_inputDir);
-	    if(!fs::exists (path)) fs::create_directory(path); 
+	    if(!fs::exists (path)) fs::create_directories(path); 
 
 		//T exception{text};
 
@@ -285,7 +285,7 @@ public:
 			fs::remove_all(dir);
 		}
 
-		fs::create_directory(dir);
+		fs::create_directories(dir);
 
 		//const auto copyOptions = fs::copy_options::overwrite_existing;
 		//fs::copy(_inputDir + "/read_data.txt", dir + "/read_data.txt");
