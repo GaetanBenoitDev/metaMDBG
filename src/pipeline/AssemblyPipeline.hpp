@@ -142,7 +142,7 @@ public:
 		u_int64_t pass = 0;
 		u_int32_t prevK = -1;
 
-		for(size_t k=firstK; k<100; k+=1){
+		for(size_t k=firstK; k<82; k+=1){
 
 			//cout << "Start asm: " << k << endl;
 
@@ -222,7 +222,7 @@ public:
 
 			bool generatedContigs = false;
 			//if(k == 5 || k == 10 || k == 16 || k == 21 || k == 26 || k == 31){
-			if(k==31 || k==41 || k==51 || k==61 || k==71 || k==81 || k==91){
+			if(k==41 || k==81){
 
 
 				//Generate contigs
