@@ -959,12 +959,28 @@ public:
 			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._startNode));
 			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
 
-			u_int64_t size = u._nodes.size();
+			vector<u_int32_t> nodepath = u._nodes;
+			if(u._startNode == u._endNode){
+
+				u_int32_t nodeIndex = u._endNode;
+				for(size_t i=0; i<_kminmerSize; i++){
+					
+					vector<u_int32_t> successors;
+					_graph->getSuccessors(nodeIndex, 0, successors);
+
+					nodeIndex = successors[0];
+					nodepath.push_back(nodeIndex);
+
+				}
+
+			}
+
+			u_int64_t size = nodepath.size();
 
 			if(size < _kminmerSize*2) continue;
 
 			gzwrite(outputContigFile_min, (const char*)&size, sizeof(size));
-			gzwrite(outputContigFile_min, (const char*)&u._nodes[0], size * sizeof(u_int32_t));
+			gzwrite(outputContigFile_min, (const char*)&nodepath[0], size * sizeof(u_int32_t));
 		}
 		
 		gzclose(outputContigFile_min);
