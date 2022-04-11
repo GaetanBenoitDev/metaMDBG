@@ -675,6 +675,7 @@ public:
         return nbRemoved;
     }
 
+    
     u_int64_t removeSelfLoops(SaveState2& saveState){
 
         unordered_set<u_int32_t> removedNodes;
@@ -3383,6 +3384,7 @@ public:
                     isModSub = true;
                 }
 
+                /*
                 while(true){
                     compact(true, unitigDatas);
 
@@ -3394,9 +3396,8 @@ public:
                     if(nbSelfLoopRemoved == 0) break;
                     isModification = true;
                     isModSub = true;
-
-                    
                 }
+                */
                 
                 //3526895 2681795
                 if(crushBubble){
