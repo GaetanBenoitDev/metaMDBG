@@ -977,7 +977,7 @@ public:
 
 			u_int64_t size = nodepath.size();
 
-			if(size < _kminmerSize*2) continue;
+			//if(size < _kminmerSize*2) continue;
 
 			gzwrite(outputContigFile_min, (const char*)&size, sizeof(size));
 			gzwrite(outputContigFile_min, (const char*)&nodepath[0], size * sizeof(u_int32_t));
