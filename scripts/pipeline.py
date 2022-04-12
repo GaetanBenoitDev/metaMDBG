@@ -35,10 +35,22 @@ def main(argv):
     kmerCoverageFilename = asmDir + "/kmerCoverages_k81.tsv"
 
     command = mdbgFilename + " asm -i " + inputFilenameLong + " -o " + asmDir + " -t " + str(nbCores)
-    command = mdbgFilename + " countKmer -o " + kmerCoverageFilename + " -i " + inputFilenameShort + " -c " + contigsFilename + " -k 61 -t " + str(nbCores)
-    command = mdbgFilename + " bin " + contigsFilename + " " + asmDir + " " + binDir  + " -a " + kmerCoverageFilename
-    command = "python3 " + drepScriptFilename + " " + binRegex + " " + drepDir
+    execute_command(command)
 
+    command = mdbgFilename + " countKmer -o " + kmerCoverageFilename + " -i " + inputFilenameShort + " -c " + contigsFilename + " -k 61 -t " + str(nbCores)
+    execute_command(command)
+
+    command = mdbgFilename + " bin " + contigsFilename + " " + asmDir + " " + binDir  + " -a " + kmerCoverageFilename
+    execute_command(command)
+    
+    command = "python3 " + drepScriptFilename + " " + binRegex + " " + drepDir
+    execute_command(command)
+    
+def execute_command(command):
+    ret = os.system(command)
+    if ret != 0:
+        print("Error: ", command)
+        exit(1)
 
 if __name__ == "__main__":
     main(sys.argv[1:])  
