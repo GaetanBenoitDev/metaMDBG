@@ -271,7 +271,7 @@ public:
 			//exit(1);
 			//break;
 			cout << "pass done" << endl;
-			if(generatedContigs) getchar();
+			//if(generatedContigs) getchar();
 			//getchar();
 		}
 

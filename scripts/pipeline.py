@@ -30,7 +30,7 @@ def main(argv):
     binDir = args.binDir
 
     contigsFilename = asmDir + "/contigs_81.fasta.gz"
-    binRegex = "\"" + binDir + "/bin_*.fasta" + "\""
+    binRegex = "\"" + binDir + "bins_/bin_*.fasta" + "\""
     drepDir = binDir + "/drep"
     kmerCoverageFilename = asmDir + "/kmerCoverages_k81.tsv"
 
@@ -50,7 +50,7 @@ def execute_command(command):
 
     print(command)
     ret = os.system(command)
-    
+
     if ret != 0:
         print("Error: ", command)
         exit(1)
