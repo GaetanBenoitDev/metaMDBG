@@ -27,7 +27,7 @@ def main(argv):
     inputFilenameShort = args.ishort
     nbCores = args.t
     asmDir = args.asmDir
-    binDir = args.outDir
+    binDir = args.binDir
 
     contigsFilename = asmDir + "/contigs_81.fasta.gz"
     binRegex = "\"" + binDir + "/bin_*.fasta" + "\""
