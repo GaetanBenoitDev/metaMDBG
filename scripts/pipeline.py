@@ -45,9 +45,12 @@ def main(argv):
     
     command = "python3 " + drepScriptFilename + " " + binRegex + " " + drepDir
     execute_command(command)
-    
+
 def execute_command(command):
+
+    print(command)
     ret = os.system(command)
+    
     if ret != 0:
         print("Error: ", command)
         exit(1)
