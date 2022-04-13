@@ -8238,96 +8238,101 @@ public:
         cout << outputFilename << endl;
         //outputFile << "lala" << endl;
         
-        vector<u_int32_t> mark(_graphSuccessors->_nbNodes, -1);
 
-        uint32_t i=0;
+        for(const Unitig& unitig : _unitigs){
 
-        queue<u_int32_t> queue;
-        queue.push(unitigIndex_source);
+            if(selectedUnitigIndex.find(unitig._index) == selectedUnitigIndex.end()) continue;
+            if(isVisited.find(unitig._index) != isVisited.end()) continue;
 
-        while(queue.size() > 0){
-            u_int32_t unitigIndex = queue.front();
-            queue.pop();
+            queue<u_int32_t> queue;
+            queue.push(unitig._index);
 
-            if(isVisited.find(unitigIndex) != isVisited.end()) continue;
-            isVisited.insert(unitigIndex);
+            while(queue.size() > 0){
+                u_int32_t unitigIndex = queue.front();
+                queue.pop();
 
-            string ori = "+";
-            if(selectedUnitigIndex.find(unitigIndex) == selectedUnitigIndex.end()){
-                unitigIndex = unitigIndex_toReverseDirection(unitigIndex);
-                ori = "-";
-            }
+                if(isVisited.find(unitigIndex) != isVisited.end()) continue;
+                isVisited.insert(unitigIndex);
 
-            //isVisited.insert(unitigIndex_toReverseDirection(unitigIndex));
-            //linkedUnitigIndex.insert(unitigIndex);
-
-            outputFile << "S" << "\t" << unitigIndex << "\t" << "*" << "\t" << "LN:i:" << _unitigs[unitigIndex]._length << "\t" << "dp:i:" << _unitigs[unitigIndex]._abundance << endl;
-
-
-            vector<u_int32_t> successors;
-            getSuccessors_unitig(unitigIndex, 0, successors);
-
-            for(u_int32_t unitigIndexN : successors){
-
-                string ori2 = "+";
-                if(selectedUnitigIndex.find(unitigIndexN) == selectedUnitigIndex.end()){
-                    unitigIndexN = unitigIndex_toReverseDirection(unitigIndexN);
-                    ori2 = "-";
+                string ori = "+";
+                if(selectedUnitigIndex.find(unitigIndex) == selectedUnitigIndex.end()){
+                    unitigIndex = unitigIndex_toReverseDirection(unitigIndex);
+                    ori = "-";
                 }
 
-                //if(linkedUnitigIndex.find(unitigIndex_toReverseDirection(unitigIndexN)) != linkedUnitigIndex.end()){
-                //    unitigIndexNN = unitigIndex_toReverseDirection(unitigIndexN);
-                //    ori = "-";
-                //}
-                
+                //isVisited.insert(unitigIndex_toReverseDirection(unitigIndex));
+                //linkedUnitigIndex.insert(unitigIndex);
 
-                //DbgEdge edge = {unitigIndex, unitigIndexN};
-                //edge = edge.normalize();
-                //if(isEdge.find(edge) != isEdge.end()) continue;
-                //isEdge.insert(edge);
+                outputFile << "S" << "\t" << unitigIndex << "\t" << "*" << "\t" << "LN:i:" << _unitigs[unitigIndex]._length << "\t" << "dp:i:" << _unitigs[unitigIndex]._abundance << endl;
 
-                //linkedUnitigIndex.insert(unitigIndexNN);
-                
-                u_int32_t overlap = 600;
-                outputFile << "L" << "\t" << unitigIndex << "\t" << ori << "\t" << unitigIndexN << "\t" << ori2 << "\t" << overlap << "M" << endl;
-                queue.push(unitigIndexN);
-            }
 
-            
-            vector<u_int32_t> predecessors;
-            getPredecessors_unitig(unitigIndex, 0, predecessors);
-            for(u_int32_t unitigIndexN : predecessors){
+                vector<u_int32_t> successors;
+                getSuccessors_unitig(unitigIndex, 0, successors);
 
-                string ori2 = "+";
-                if(selectedUnitigIndex.find(unitigIndexN) == selectedUnitigIndex.end()){
-                    unitigIndexN = unitigIndex_toReverseDirection(unitigIndexN);
-                    ori2 = "-";
+                for(u_int32_t unitigIndexN : successors){
+
+                    string ori2 = "+";
+                    if(selectedUnitigIndex.find(unitigIndexN) == selectedUnitigIndex.end()){
+                        unitigIndexN = unitigIndex_toReverseDirection(unitigIndexN);
+                        ori2 = "-";
+                    }
+
+                    //if(linkedUnitigIndex.find(unitigIndex_toReverseDirection(unitigIndexN)) != linkedUnitigIndex.end()){
+                    //    unitigIndexNN = unitigIndex_toReverseDirection(unitigIndexN);
+                    //    ori = "-";
+                    //}
+                    
+
+                    //DbgEdge edge = {unitigIndex, unitigIndexN};
+                    //edge = edge.normalize();
+                    //if(isEdge.find(edge) != isEdge.end()) continue;
+                    //isEdge.insert(edge);
+
+                    //linkedUnitigIndex.insert(unitigIndexNN);
+                    
+                    u_int32_t overlap = 600;
+                    outputFile << "L" << "\t" << unitigIndex << "\t" << ori << "\t" << unitigIndexN << "\t" << ori2 << "\t" << overlap << "M" << endl;
+                    queue.push(unitigIndexN);
                 }
 
-                //if(linkedUnitigIndex.find(unitigIndex_toReverseDirection(unitigIndexN)) != linkedUnitigIndex.end()){
-                //    unitigIndexNN = unitigIndex_toReverseDirection(unitigIndexN);
-                //    ori = "-";
+                
+                vector<u_int32_t> predecessors;
+                getPredecessors_unitig(unitigIndex, 0, predecessors);
+                for(u_int32_t unitigIndexN : predecessors){
+
+                    string ori2 = "+";
+                    if(selectedUnitigIndex.find(unitigIndexN) == selectedUnitigIndex.end()){
+                        unitigIndexN = unitigIndex_toReverseDirection(unitigIndexN);
+                        ori2 = "-";
+                    }
+
+                    //if(linkedUnitigIndex.find(unitigIndex_toReverseDirection(unitigIndexN)) != linkedUnitigIndex.end()){
+                    //    unitigIndexNN = unitigIndex_toReverseDirection(unitigIndexN);
+                    //    ori = "-";
+                    //}
+                    
+
+                    //DbgEdge edge = {unitigIndex, unitigIndexN};
+                    //edge = edge.normalize();
+                    //if(isEdge.find(edge) != isEdge.end()) continue;
+                    //isEdge.insert(edge);
+
+                    //linkedUnitigIndex.insert(unitigIndexNN);
+                    
+                    u_int32_t overlap = 600;
+                    outputFile << "L" << "\t" << unitigIndexN << "\t" << ori2 << "\t" << unitigIndex << "\t" << ori << "\t" << overlap << "M" << endl;
+                    queue.push(unitigIndexN);
+                }
+                
+
+                //if(unitigIndex == 452){
+                //    cout << successors.size() << " " << predecessors.size() << endl;
                 //}
-                
 
-                //DbgEdge edge = {unitigIndex, unitigIndexN};
-                //edge = edge.normalize();
-                //if(isEdge.find(edge) != isEdge.end()) continue;
-                //isEdge.insert(edge);
-
-                //linkedUnitigIndex.insert(unitigIndexNN);
-                
-                u_int32_t overlap = 600;
-                outputFile << "L" << "\t" << unitigIndexN << "\t" << ori2 << "\t" << unitigIndex << "\t" << ori << "\t" << overlap << "M" << endl;
-                queue.push(unitigIndexN);
             }
-            
-
-            //if(unitigIndex == 452){
-            //    cout << successors.size() << " " << predecessors.size() << endl;
-            //}
-
         }
+
+
 
         outputFile.close();
         /*
