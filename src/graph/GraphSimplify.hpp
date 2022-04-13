@@ -3194,6 +3194,7 @@ public:
         clear(0);
         compact(false, unitigDatas);
 
+		saveUnitigGraph(_outputDir + "/minimizer_graph_u.gfa");
 
         //vector<Bubble> bubbles;
         //vector<float> lala = {40, 800};

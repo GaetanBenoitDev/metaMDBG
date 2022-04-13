@@ -268,10 +268,9 @@ public:
 		_graph = graphSimplify;
 		
 		
-		_graph->clear(0);
-		_graph->compact(false, _unitigDatas);
-		_graph->saveUnitigGraph("/home/gats/workspace/run/test_unitig_graph_lala.gfa");
-		exit(1);
+		//_graph->clear(0);
+		//_graph->compact(false, _unitigDatas);
+		//exit(1);
 		//Generate unitigs
 		//cout << "Indexing reads" << endl;
 		//_unitigDatas.resize(_mdbg->_dbg_nodes.size());
@@ -955,7 +954,7 @@ public:
 
 		//vector<float> readpathAbudance_values;
 		for(const Unitig& u : _graph->_unitigs){
-			//if(u._nbNodes < _kminmerSize*2) continue;
+			if(u._nbNodes < _kminmerSize*2) continue;
 
 			if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
 			if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;

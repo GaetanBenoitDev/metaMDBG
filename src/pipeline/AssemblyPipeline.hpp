@@ -222,7 +222,7 @@ public:
 
 			bool generatedContigs = false;
 			//if(k == 5 || k == 10 || k == 16 || k == 21 || k == 26 || k == 31){
-			if(k==81){
+			if(k == 41 || k==81){
 
 
 				//Generate contigs
@@ -290,6 +290,7 @@ public:
 		//const auto copyOptions = fs::copy_options::overwrite_existing;
 		//fs::copy(_inputDir + "/read_data.txt", dir + "/read_data.txt");
 		fs::copy(_inputDir + "/minimizer_graph.gfa", dir + "/minimizer_graph.gfa");
+		fs::copy(_inputDir + "/minimizer_graph_u.gfa", dir + "/minimizer_graph_u.gfa");
 		fs::copy(_inputDir + "/parameters.gz", dir + "/parameters.gz");
 		fs::copy(_inputDir + "/mdbg_nodes.gz", dir + "/mdbg_nodes.gz");
 		//fs::copy(_inputDir + "/mdbg_nodes_init.gz", dir + "/mdbg_nodes_init.gz", copyOptions);
