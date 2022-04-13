@@ -267,7 +267,11 @@ public:
 		GraphSimplify* graphSimplify = new GraphSimplify(_gfaFilename, _inputDir, 0, _kminmerSize);
 		_graph = graphSimplify;
 		
-
+		
+		_graph->clear(0);
+		_graph->compact(false, _unitigDatas);
+		_graph->saveUnitigGraph("/home/gats/workspace/run/test_unitig_graph_lala.gfa");
+		exit(1);
 		//Generate unitigs
 		//cout << "Indexing reads" << endl;
 		//_unitigDatas.resize(_mdbg->_dbg_nodes.size());

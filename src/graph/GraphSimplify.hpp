@@ -8198,8 +8198,252 @@ public:
 
     }
 
+    struct UnitigOri{
+        u_int32_t _unitigIndex;
+        bool _ori;
+    };
+
+    void saveUnitigGraph(const string& outputFilename){
+
+        ofstream outputFile(outputFilename);
+		unordered_set<u_int32_t> writtenUnitigs;
+
+        unordered_set<u_int32_t> selectedUnitigIndex;
+        u_int32_t unitigIndex_source = -1;
+
+		for(const Unitig& u : _unitigs){
+
+			if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
+			if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
+
+			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._startNode));
+			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
+
+            //cout << "line" << endl;
+            outputFile << "S" << "\t" << u._index << "\t" << "*" << "\t" << "LN:i:600" << "\t" << 'dp:i:39' << endl;
+
+            selectedUnitigIndex.insert(u._index);
+
+            if(unitigIndex_source == -1) unitigIndex_source = u._index;
+            //mark[u._startNode] = i<<1 | 0;
+            //mark[u._endNode] = i<<1 | 1;
+
+            //i += 1;
+        }
 
 
+        unordered_set<u_int32_t> linkedUnitigIndex;
+        unordered_set<DbgEdge, hash_pair> isEdge;
+        unordered_set<u_int32_t> isVisited;
+        cout << outputFilename << endl;
+        //outputFile << "lala" << endl;
+        
+        vector<u_int32_t> mark(_graphSuccessors->_nbNodes, -1);
+
+        uint32_t i=0;
+
+        queue<u_int32_t> queue;
+        queue.push(unitigIndex_source);
+
+        while(queue.size() > 0){
+            u_int32_t unitigIndex = queue.front();
+            queue.pop();
+
+            if(isVisited.find(unitigIndex) != isVisited.end()) continue;
+            isVisited.insert(unitigIndex);
+
+            string ori = "+";
+            if(selectedUnitigIndex.find(unitigIndex) == selectedUnitigIndex.end()){
+                unitigIndex = unitigIndex_toReverseDirection(unitigIndex);
+                ori = "-";
+            }
+
+            //isVisited.insert(unitigIndex_toReverseDirection(unitigIndex));
+            //linkedUnitigIndex.insert(unitigIndex);
+
+            outputFile << "S" << "\t" << unitigIndex << "\t" << "*" << "\t" << "LN:i:" << _unitigs[unitigIndex]._length << "\t" << "dp:i:" << _unitigs[unitigIndex]._abundance << endl;
+
+
+            vector<u_int32_t> successors;
+            getSuccessors_unitig(unitigIndex, 0, successors);
+
+            for(u_int32_t unitigIndexN : successors){
+
+                string ori2 = "+";
+                if(selectedUnitigIndex.find(unitigIndexN) == selectedUnitigIndex.end()){
+                    unitigIndexN = unitigIndex_toReverseDirection(unitigIndexN);
+                    ori2 = "-";
+                }
+
+                //if(linkedUnitigIndex.find(unitigIndex_toReverseDirection(unitigIndexN)) != linkedUnitigIndex.end()){
+                //    unitigIndexNN = unitigIndex_toReverseDirection(unitigIndexN);
+                //    ori = "-";
+                //}
+                
+
+                //DbgEdge edge = {unitigIndex, unitigIndexN};
+                //edge = edge.normalize();
+                //if(isEdge.find(edge) != isEdge.end()) continue;
+                //isEdge.insert(edge);
+
+                //linkedUnitigIndex.insert(unitigIndexNN);
+                
+                u_int32_t overlap = 600;
+                outputFile << "L" << "\t" << unitigIndex << "\t" << ori << "\t" << unitigIndexN << "\t" << ori2 << "\t" << overlap << "M" << endl;
+                queue.push(unitigIndexN);
+            }
+
+            
+            vector<u_int32_t> predecessors;
+            getPredecessors_unitig(unitigIndex, 0, predecessors);
+            for(u_int32_t unitigIndexN : predecessors){
+
+                string ori2 = "+";
+                if(selectedUnitigIndex.find(unitigIndexN) == selectedUnitigIndex.end()){
+                    unitigIndexN = unitigIndex_toReverseDirection(unitigIndexN);
+                    ori2 = "-";
+                }
+
+                //if(linkedUnitigIndex.find(unitigIndex_toReverseDirection(unitigIndexN)) != linkedUnitigIndex.end()){
+                //    unitigIndexNN = unitigIndex_toReverseDirection(unitigIndexN);
+                //    ori = "-";
+                //}
+                
+
+                //DbgEdge edge = {unitigIndex, unitigIndexN};
+                //edge = edge.normalize();
+                //if(isEdge.find(edge) != isEdge.end()) continue;
+                //isEdge.insert(edge);
+
+                //linkedUnitigIndex.insert(unitigIndexNN);
+                
+                u_int32_t overlap = 600;
+                outputFile << "L" << "\t" << unitigIndexN << "\t" << ori2 << "\t" << unitigIndex << "\t" << ori << "\t" << overlap << "M" << endl;
+                queue.push(unitigIndexN);
+            }
+            
+
+            //if(unitigIndex == 452){
+            //    cout << successors.size() << " " << predecessors.size() << endl;
+            //}
+
+        }
+
+        outputFile.close();
+        /*
+        cout << _unitigs.size() << endl;
+
+		for(const Unitig& u : _unitigs){
+
+			if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
+			if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
+
+			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._startNode));
+			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
+
+            cout << "line" << endl;
+            outputFile << "S" << "\t" << u._index << "\t" << "*" << "\t" << "LN:i:600" << "\t" << 'dp:i:39' << endl;
+
+            mark[u._startNode] = i<<1 | 0;
+            mark[u._endNode] = i<<1 | 1;
+
+            i += 1;
+        }
+        */
+
+        /*
+        ifstream infile(_inputGfaFilename);
+
+        std::string line;
+        vector<string>* fields = new vector<string>();
+        vector<string>* fields_optional = new vector<string>();
+
+
+        infile.clear();
+        infile.seekg(0, std::ios::beg);
+
+
+        while (std::getline(infile, line)){
+            
+            GfaParser::tokenize(line, fields, '\t');
+            
+            //cout << (*fields)[0] << endl;
+
+           if((*fields)[0] == "L"){
+                string& from = (*fields)[1];
+                bool fromOrient = (*fields)[2] == "+";
+                string& to = (*fields)[3];
+                bool toOrient = (*fields)[4] == "+";
+                u_int16_t overlap = std::stoull((*fields)[5]);
+
+                u_int32_t from_id = std::stoull(from);
+                u_int32_t to_id = std::stoull(to);
+
+                //cout << from_id << " -> " << to_id << endl;
+
+                u_int32_t nodeIndex_from = BiGraph::nodeName_to_nodeIndex(from_id, fromOrient);
+                u_int32_t nodeIndex_to = BiGraph::nodeName_to_nodeIndex(to_id, toOrient);
+
+                //cout << nodeIndex_from << " " << nodeIndex_to << " " << mark.size() << endl;
+                cout << mark[nodeIndex_from] << " " << mark[nodeIndex_to] << endl;
+                if (mark[nodeIndex_from] != -1 && mark[nodeIndex_to] != -1) {
+
+                    if(_isNodeValid2.find(nodeIndex_from) == _isNodeValid2.end() || _isNodeValid2.find(nodeIndex_to) == _isNodeValid2.end()) continue;
+                    
+                    cout << "a" << endl;
+                    u_int32_t fromId = nodeIndex_to_unitigIndex(nodeIndex_from);
+                    cout << "b" << endl;
+                    u_int32_t toId = nodeIndex_to_unitigIndex(nodeIndex_to);
+                    cout << "c" << endl;
+                    outputFile << "L" << "\t" << fromId << "\t" << (*fields)[2] << "\t" << toId << "\t" << (*fields)[4] << "\t" << overlap << "M" << endl;
+                    cout << "d" << endl;
+                }
+           }
+        }
+
+        infile.close();
+        outputFile.close();
+        */
+
+        /*
+        for (i = 0; i < g->n_arc; ++i) {
+            gfa_arc_t *p = &g->arc[i];
+            if (p->del) continue;
+            if (mark[p->v_lv>>32^1] >= 0 && mark[p->w] >= 0) {
+                gfa_seg_t *s1 = &ug->seg[mark[p->v_lv>>32^1]>>1];
+                gfa_seg_t *s2 = &ug->seg[mark[p->w]>>1];
+                int ov = p->ov, ow = p->ow;
+                if (ov >= s1->len) ov = s1->len - 1;
+                if (ow >= s2->len) ow = s2->len - 1;
+                gfa_add_arc1(ug, mark[p->v_lv>>32^1]^1, mark[p->w], ov, ow, -1, 0);
+            }
+        }
+        */
+        
+
+
+
+/*
+        	for (i = 0; i < ug->n_seg; ++i) {
+		cout << endl << i << endl;
+		if (ug->seg[i].circ) continue;
+		cout << (ug->seg[i].utg->start) << " " << ug->seg[i].utg->end << endl;
+		cout << (i<<1 | 0) << " " << (i<<1 | 1) << endl;
+		mark[ug->seg[i].utg->start] = i<<1 | 0;
+		mark[ug->seg[i].utg->end] = i<<1 | 1;
+	}
+*/
+/*
+        unordered_set<u_int32_t> validNodes;
+        for (auto& nodeIndex : _isNodeValid2){
+            u_int32_t nodeName = _graphSuccessors->nodeIndex_to_nodeName(nodeIndex);
+            //if(_debug_groundTruthNodeNames.find(nodeName) == _debug_groundTruthNodeNames.end()) continue;
+            validNodes.insert(nodeName);
+        }
+        
+        GfaParser::rewriteGfa_withoutNodes(_inputGfaFilename, outputFilename, validNodes, _isEdgeRemoved, _graphSuccessors);
+    */
+    }
 };
 
 
