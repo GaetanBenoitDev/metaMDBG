@@ -288,7 +288,7 @@ public:
 
 
 			cout << "Cleanning graph 1" << endl;
-			_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, true, false, true);
+			_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, true, false, true, true, _mdbg, _minimizerSize, _nbCores);
 			_isBubble = _graph->_isBubble;
 			
 			//cout << "Cleanning graph 2" << endl;
@@ -821,7 +821,7 @@ public:
 		//_outputFile_correctedReads = gzopen(outputFilename_correctedReads.c_str(),"wb");
 
 		_file_uncorrectedReads = ofstream(_inputDir + "/read_uncorrected.txt");
-		
+
 		/*
 		u_int32_t cutoffLevel = 0;
 		for(const SaveState2& saveState : _graph->_cachedGraphStates){
@@ -866,6 +866,9 @@ public:
 		cout << "Nb uncorrected reads: " << _nbUncorrectedReads << endl;
 		//getchar();
 		
+		
+
+
 	}
 
 	u_int64_t _nbreadsLala;
@@ -892,6 +895,7 @@ public:
 		
 		}
 	}
+
 
 	/*
 	void debug_checkReads(){
@@ -1033,6 +1037,7 @@ public:
 
 
 
+
 	class ReadCorrectionFunctor {
 
 		public:
@@ -1123,6 +1128,7 @@ public:
 				}
 				
 				u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
+
 				u_int32_t nodeIndex = BiGraph::nodeName_to_nodeIndex(nodeName, !info._isReversed);
 
 				vector<u_int64_t> kminmerSeq = _nodeName_to_kminmerSequence[nodeName];
@@ -1149,8 +1155,6 @@ public:
 				//cout << endl;
 			}
 			if(print_read) cout << endl;
-
-
 
 
 			vector<u_int32_t> nodePathSolid;
