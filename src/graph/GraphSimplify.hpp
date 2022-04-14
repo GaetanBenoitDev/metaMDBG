@@ -3146,7 +3146,7 @@ public:
         }
     }
 
-    void debug_writeGfaErrorfree(u_int32_t currentAbundance, float abundanceCutoff_min, u_int32_t nodeIndex_source, u_int64_t k, bool saveGfa, bool doesSaveState, bool doesLoadState, const vector<UnitigData>& unitigDatas, bool crushBubble, bool smallBubbleOnly, bool detectRoundabout, bool insertBubble, bool saveAllState){
+    void debug_writeGfaErrorfree(u_int32_t currentAbundance, float abundanceCutoff_min, u_int32_t nodeIndex_source, u_int64_t k, bool saveGfa, bool doesSaveState, bool doesLoadState, const vector<UnitigData>& unitigDatas, bool crushBubble, bool smallBubbleOnly, bool detectRoundabout, bool insertBubble, bool saveAllState, bool doesSaveUnitigGraph, MDBG* mdbg, size_t minimizerSize, size_t nbCores){
 
         cout << "Cleaning graph" << endl;
         
@@ -3194,7 +3194,7 @@ public:
         clear(0);
         compact(false, unitigDatas);
 
-		saveUnitigGraph(_outputDir + "/minimizer_graph_u.gfa");
+		if(doesSaveUnitigGraph) saveUnitigGraph(_outputDir + "/minimizer_graph_u.gfa", mdbg, minimizerSize, nbCores);
 
         //vector<Bubble> bubbles;
         //vector<float> lala = {40, 800};
@@ -8204,7 +8204,7 @@ public:
         bool _ori;
     };
 
-    void saveUnitigGraph(const string& outputFilename){
+    void saveUnitigGraph(const string& outputFilename, MDBG* mdbg, size_t minimizerSize, size_t nbCores){
 
         ofstream outputFile(outputFilename);
 		unordered_set<u_int32_t> writtenUnitigs;
@@ -8232,6 +8232,8 @@ public:
             //i += 1;
         }
 
+
+	    writeReadPath(mdbg, minimizerSize, nbCores, selectedUnitigIndex);
 
         unordered_set<u_int32_t> linkedUnitigIndex;
         unordered_set<DbgEdge, hash_pair> isEdge;
@@ -8336,120 +8338,106 @@ public:
 
 
         outputFile.close();
-        /*
-        cout << _unitigs.size() << endl;
 
-		for(const Unitig& u : _unitigs){
-
-			if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
-			if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
-
-			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._startNode));
-			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
-
-            cout << "line" << endl;
-            outputFile << "S" << "\t" << u._index << "\t" << "*" << "\t" << "LN:i:600" << "\t" << 'dp:i:39' << endl;
-
-            mark[u._startNode] = i<<1 | 0;
-            mark[u._endNode] = i<<1 | 1;
-
-            i += 1;
-        }
-        */
-
-        /*
-        ifstream infile(_inputGfaFilename);
-
-        std::string line;
-        vector<string>* fields = new vector<string>();
-        vector<string>* fields_optional = new vector<string>();
-
-
-        infile.clear();
-        infile.seekg(0, std::ios::beg);
-
-
-        while (std::getline(infile, line)){
-            
-            GfaParser::tokenize(line, fields, '\t');
-            
-            //cout << (*fields)[0] << endl;
-
-           if((*fields)[0] == "L"){
-                string& from = (*fields)[1];
-                bool fromOrient = (*fields)[2] == "+";
-                string& to = (*fields)[3];
-                bool toOrient = (*fields)[4] == "+";
-                u_int16_t overlap = std::stoull((*fields)[5]);
-
-                u_int32_t from_id = std::stoull(from);
-                u_int32_t to_id = std::stoull(to);
-
-                //cout << from_id << " -> " << to_id << endl;
-
-                u_int32_t nodeIndex_from = BiGraph::nodeName_to_nodeIndex(from_id, fromOrient);
-                u_int32_t nodeIndex_to = BiGraph::nodeName_to_nodeIndex(to_id, toOrient);
-
-                //cout << nodeIndex_from << " " << nodeIndex_to << " " << mark.size() << endl;
-                cout << mark[nodeIndex_from] << " " << mark[nodeIndex_to] << endl;
-                if (mark[nodeIndex_from] != -1 && mark[nodeIndex_to] != -1) {
-
-                    if(_isNodeValid2.find(nodeIndex_from) == _isNodeValid2.end() || _isNodeValid2.find(nodeIndex_to) == _isNodeValid2.end()) continue;
-                    
-                    cout << "a" << endl;
-                    u_int32_t fromId = nodeIndex_to_unitigIndex(nodeIndex_from);
-                    cout << "b" << endl;
-                    u_int32_t toId = nodeIndex_to_unitigIndex(nodeIndex_to);
-                    cout << "c" << endl;
-                    outputFile << "L" << "\t" << fromId << "\t" << (*fields)[2] << "\t" << toId << "\t" << (*fields)[4] << "\t" << overlap << "M" << endl;
-                    cout << "d" << endl;
-                }
-           }
-        }
-
-        infile.close();
-        outputFile.close();
-        */
-
-        /*
-        for (i = 0; i < g->n_arc; ++i) {
-            gfa_arc_t *p = &g->arc[i];
-            if (p->del) continue;
-            if (mark[p->v_lv>>32^1] >= 0 && mark[p->w] >= 0) {
-                gfa_seg_t *s1 = &ug->seg[mark[p->v_lv>>32^1]>>1];
-                gfa_seg_t *s2 = &ug->seg[mark[p->w]>>1];
-                int ov = p->ov, ow = p->ow;
-                if (ov >= s1->len) ov = s1->len - 1;
-                if (ow >= s2->len) ow = s2->len - 1;
-                gfa_add_arc1(ug, mark[p->v_lv>>32^1]^1, mark[p->w], ov, ow, -1, 0);
-            }
-        }
-        */
-        
-
-
-
-/*
-        	for (i = 0; i < ug->n_seg; ++i) {
-		cout << endl << i << endl;
-		if (ug->seg[i].circ) continue;
-		cout << (ug->seg[i].utg->start) << " " << ug->seg[i].utg->end << endl;
-		cout << (i<<1 | 0) << " " << (i<<1 | 1) << endl;
-		mark[ug->seg[i].utg->start] = i<<1 | 0;
-		mark[ug->seg[i].utg->end] = i<<1 | 1;
-	}
-*/
-/*
-        unordered_set<u_int32_t> validNodes;
-        for (auto& nodeIndex : _isNodeValid2){
-            u_int32_t nodeName = _graphSuccessors->nodeIndex_to_nodeName(nodeIndex);
-            //if(_debug_groundTruthNodeNames.find(nodeName) == _debug_groundTruthNodeNames.end()) continue;
-            validNodes.insert(nodeName);
-        }
-        
-        GfaParser::rewriteGfa_withoutNodes(_inputGfaFilename, outputFilename, validNodes, _isEdgeRemoved, _graphSuccessors);
-    */
     }
+
+	ofstream _file_readPath;
+
+
+
+	void writeReadPath(MDBG* mdbg, size_t minimizerSize, size_t nbCores, unordered_set<u_int32_t>& selectedUnitigIndex){
+
+		_file_readPath = ofstream(_outputDir + "/read_path.txt");
+
+		KminmerParserParallel readParser(_outputDir + "/read_data.txt", minimizerSize, _kminmerSize, false, nbCores);
+		readParser.parse(ReadPathFunctor(this, mdbg, selectedUnitigIndex));
+
+		_file_readPath.close();
+
+	}
+
+	void writeReadPath(const vector<u_int32_t>& nodeNames){
+		
+		if(nodeNames.size() == 0) return;
+
+		#pragma omp critical
+		{
+
+			_file_readPath << nodeNames[0];
+			for(size_t i=1; i<nodeNames.size(); i++){
+				_file_readPath << ";" << nodeNames[i];
+			}
+			_file_readPath << endl;
+		
+		}
+	}
+
+	class ReadPathFunctor {
+
+		public:
+
+		MDBG* _mdbg;
+		GraphSimplify* _graph;
+        unordered_set<u_int32_t>& _selectedUnitigIndex;
+
+		ReadPathFunctor(GraphSimplify* graph, MDBG* mdbg, unordered_set<u_int32_t>& selectedUnitigIndex) : _selectedUnitigIndex(selectedUnitigIndex){
+			_mdbg = mdbg;
+			_graph = graph;
+		}
+
+		ReadPathFunctor(const ReadPathFunctor& copy): _selectedUnitigIndex(copy._selectedUnitigIndex){
+			_mdbg = copy._mdbg;
+			_graph = copy._graph;
+		}
+
+
+		void operator () (const KminmerList& kminmerList) {
+		
+			u_int64_t readIndex = kminmerList._readIndex;
+
+			const vector<u_int64_t>& minimizers = kminmerList._readMinimizers;
+			const vector<ReadKminmerComplete>& kminmersInfos = kminmerList._kminmersInfo;
+
+			vector<u_int32_t> nodeNames;
+            u_int32_t prevUnitigIndex = -1;
+
+			for(size_t i=0; i<kminmersInfos.size(); i++){
+
+				const ReadKminmerComplete& info = kminmersInfos[i];
+				const KmerVec& vec = info._vec;
+
+				if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
+					continue;
+				}
+				
+				u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
+
+
+                u_int32_t nodeIndex1 = BiGraph::nodeName_to_nodeIndex(nodeName, false);
+                u_int32_t nodeIndex2 = BiGraph::nodeName_to_nodeIndex(nodeName, true);
+
+                u_int32_t unitigIndex1 = _graph->nodeIndex_to_unitigIndex(nodeIndex1);
+                u_int32_t unitigIndex2 = _graph->nodeIndex_to_unitigIndex(nodeIndex2);
+                u_int32_t unitigIndex = -1;
+
+                if(_selectedUnitigIndex.find(unitigIndex1) != _selectedUnitigIndex.end()){
+                    unitigIndex = unitigIndex1;
+                }
+                else if(_selectedUnitigIndex.find(unitigIndex2) != _selectedUnitigIndex.end()){
+                    unitigIndex = unitigIndex2;
+                }
+
+                if(unitigIndex != prevUnitigIndex){
+				    nodeNames.push_back(unitigIndex);
+                    prevUnitigIndex = unitigIndex;
+                }
+
+			}
+
+			_graph->writeReadPath(nodeNames);
+		}
+	};
+
 };
 
 

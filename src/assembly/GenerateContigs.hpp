@@ -64,6 +64,7 @@ public:
 	//ToBasespaceOnTheFly _toBasespace;
 	//ContigFeature _contigFeature;
 	string _gfaFilename;
+	size_t _nbCores;
 
 	GenerateContigs(): Tool (){
 
@@ -77,7 +78,7 @@ public:
 	void parseArgs(int argc, char* argv[]){
 
 
-
+		_nbCores = 1;
 		cxxopts::Options options("Assembly", "");
 		options.add_options()
 		(ARG_OUTPUT_DIR, "", cxxopts::value<string>())
@@ -199,7 +200,7 @@ public:
 		//cout << "done" << endl;
 	
 
-		_graph->debug_writeGfaErrorfree(500, 500, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false, false, false);
+		_graph->debug_writeGfaErrorfree(500, 500, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false, false, false, false, _mdbg, _minimizerSize, _nbCores);
 			
 	}
 

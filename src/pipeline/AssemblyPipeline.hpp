@@ -289,6 +289,7 @@ public:
 
 		//const auto copyOptions = fs::copy_options::overwrite_existing;
 		//fs::copy(_inputDir + "/read_data.txt", dir + "/read_data.txt");
+		if(fs::exists(_inputDir + "/read_path.txt")) fs::copy(_inputDir + "/read_path.txt", dir + "/read_path.txt");
 		fs::copy(_inputDir + "/minimizer_graph.gfa", dir + "/minimizer_graph.gfa");
 		fs::copy(_inputDir + "/minimizer_graph_u.gfa", dir + "/minimizer_graph_u.gfa");
 		fs::copy(_inputDir + "/parameters.gz", dir + "/parameters.gz");
