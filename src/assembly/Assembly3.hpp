@@ -288,7 +288,7 @@ public:
 
 
 			cout << "Cleanning graph 1" << endl;
-			_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, true, false, true, true, _mdbg, _minimizerSize, _nbCores);
+			_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, true, false, true, false, _mdbg, _minimizerSize, _nbCores);
 			_isBubble = _graph->_isBubble;
 			
 			//cout << "Cleanning graph 2" << endl;
