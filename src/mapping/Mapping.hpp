@@ -71,9 +71,9 @@ public:
 		try{
 			result = options.parse(argc, argv);
 
-			_contigFilename = result[ARG_INPUT_FILENAME].as<string>();
-			_binDir = result[ARG_INPUT_FILENAME].as<string>();
-			_outputFilename = result[ARG_INPUT_FILENAME].as<string>();
+			_contigFilename = result["contig"].as<string>();
+			_binDir = result["binDir"].as<string>();
+			_outputFilename = result["outputFilename"].as<string>();
 			
 		}
 		catch (const std::exception& e){
