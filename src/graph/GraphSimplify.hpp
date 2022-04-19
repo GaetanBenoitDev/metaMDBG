@@ -3489,16 +3489,13 @@ public:
 
 
             }
-            
-            if(currentCutoff == 0){
-                if(doesSaveUnitigGraph) saveUnitigGraph(_outputDir + "/minimizer_graph_u_cleaned.gfa", mdbg, minimizerSize, nbCores);
-            }
+        
 
             //if(doesSaveState){
-            checkSaveState(currentCutoff, unitigDatas, detectRoundabout, maxBubbleLength, currentSaveState, insertBubble);
+            checkSaveState(currentCutoff, unitigDatas, detectRoundabout, maxBubbleLength, currentSaveState, insertBubble, doesSaveUnitigGraph, mdbg, minimizerSize, nbCores);
             //}
 
-            u_int64_t nbErrorRemoved = removeErrors_2(k, abundanceCutoff_min, currentCutoff, currentSaveState, unitigDatas, detectRoundabout, maxBubbleLength, insertBubble, saveAllState);
+            u_int64_t nbErrorRemoved = removeErrors_2(k, abundanceCutoff_min, currentCutoff, currentSaveState, unitigDatas, detectRoundabout, maxBubbleLength, insertBubble, saveAllState, doesSaveUnitigGraph, mdbg, minimizerSize, nbCores);
             
             if(nbErrorRemoved > 0){
                 isModification = true;
@@ -3821,7 +3818,7 @@ public:
 
     }
 
-    void checkSaveState(float currentCutoff, const vector<UnitigData>& unitigDatas, bool detectRoundabout, u_int64_t maxBubbleLength, SaveState2 currentSaveState, bool insertBubble){
+    void checkSaveState(float currentCutoff, const vector<UnitigData>& unitigDatas, bool detectRoundabout, u_int64_t maxBubbleLength, SaveState2 currentSaveState, bool insertBubble, bool doesSaveUnitigGraph, MDBG* mdbg, size_t minimizerSize, size_t nbCores){
         
         bool saveStateExist = false;
         for(const SaveState2& saveState : _cachedGraphStates){
@@ -3846,6 +3843,7 @@ public:
                     //detectRoundabouts(maxBubbleLength, unitigDatas);
                 }
                 
+                if(doesSaveUnitigGraph) saveUnitigGraph(_outputDir + "/minimizer_graph_u_cleaned.gfa", mdbg, minimizerSize, nbCores);
 		        collectStartingUnitigs(_kminmerSize);
             }
 
@@ -4302,7 +4300,7 @@ public:
 
     }
 
-    u_int64_t removeErrors_2(size_t k, float abundanceCutoff_min, float& currentCutoff, SaveState2& saveState, const vector<UnitigData>& unitigDatas, bool detectRoundabout, u_int64_t maxBubbleLength, bool insertBubble, bool saveAllState){
+    u_int64_t removeErrors_2(size_t k, float abundanceCutoff_min, float& currentCutoff, SaveState2& saveState, const vector<UnitigData>& unitigDatas, bool detectRoundabout, u_int64_t maxBubbleLength, bool insertBubble, bool saveAllState, bool doesSaveUnitigGraph, MDBG* mdbg, size_t minimizerSize, size_t nbCores){
 
         //return 0;
         
@@ -4316,7 +4314,7 @@ public:
         u_int32_t prevCutoff = -1;
         while(t < abundanceCutoff_min){ 
             
-            if(saveAllState) checkSaveState(currentCutoff, unitigDatas, detectRoundabout, maxBubbleLength, saveState, insertBubble);
+            if(saveAllState) checkSaveState(currentCutoff, unitigDatas, detectRoundabout, maxBubbleLength, saveState, insertBubble, doesSaveUnitigGraph, mdbg, minimizerSize, nbCores);
 
             currentCutoff = t;
             unordered_set<u_int32_t> removedNodes;
@@ -8210,6 +8208,8 @@ public:
 
     void saveUnitigGraph(const string& outputFilename, MDBG* mdbg, size_t minimizerSize, size_t nbCores){
 
+        cout << "Saving unitig graph: " << outputFilename << endl;
+        
         ofstream outputFile(outputFilename);
 		unordered_set<u_int32_t> writtenUnitigs;
 

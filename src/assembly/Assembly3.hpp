@@ -288,7 +288,7 @@ public:
 
 
 			cout << "Cleanning graph 1" << endl;
-			_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, true, false, true, false, _mdbg, _minimizerSize, _nbCores);
+			_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, true, false, true, true, _mdbg, _minimizerSize, _nbCores);
 			_isBubble = _graph->_isBubble;
 			
 			//cout << "Cleanning graph 2" << endl;
@@ -686,7 +686,7 @@ public:
 
 	void extract_truth_kminmers(){
 
-		_file_groundTruth_hifiasm_position.open(_inputDir + "/groundtruth_hifiasm_position.csv");
+		_file_groundTruth_hifiasm_position.open(_inputDir + "/groundtruth_position.csv");
 		_file_groundTruth_hifiasm_position << "Name,Position" << endl;
 
 		_extract_truth_kminmers_read_position = 0;

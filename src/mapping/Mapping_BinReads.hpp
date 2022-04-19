@@ -114,7 +114,7 @@ public:
 
     void execute (){
 		extract_truth_kminmers();
-		binReads();
+		//binReads();
 	}
 
 
@@ -193,11 +193,19 @@ public:
 
 		}
 
+		string referenceFilename = _outputDir + "/reads_" + to_string(_binIndex) + "_reference.fasta"; 
+		gzFile referenceFile = gzopen(referenceFilename.c_str(),"wb");
 
+		string header = ">ctg" + to_string(_binIndex) + '\n';
+		gzwrite(referenceFile, (const char*)&header[0], header.size());
+		string seq = read._seq + '\n';
+		gzwrite(referenceFile, (const char*)&seq[0], seq.size());
+		gzclose(referenceFile);
+		
 		string binFilename = _outputDir + "/reads_" + to_string(_binIndex) + ".fasta"; 
 		_binFiles[_binIndex] = ofstream(binFilename);
 
-		string inputFilename = _outputDir + "/input_reads_" + to_string(_binIndex) + ".fasta"; 
+		string inputFilename = _outputDir + "/input_reads_" + to_string(_binIndex) + ".txt"; 
 		ofstream inputFile(inputFilename);
 		inputFile << binFilename << endl;
 		inputFile.close();
@@ -246,7 +254,7 @@ public:
 				
 				if(isWrittenBinIndex.find(binIndex) != isWrittenBinIndex.end()) continue;
 				isWrittenBinIndex.insert(binIndex);
-				
+
 				//cout << "lala: " << binIndex << endl;
 				ofstream& file = _binFiles[binIndex];
 				//cout << file.is_open() << " " << read._header << endl;
