@@ -3490,6 +3490,10 @@ public:
 
             }
             
+            if(currentCutoff == 0){
+                if(doesSaveUnitigGraph) saveUnitigGraph(_outputDir + "/minimizer_graph_u_cleaned.gfa", mdbg, minimizerSize, nbCores);
+            }
+
             //if(doesSaveState){
             checkSaveState(currentCutoff, unitigDatas, detectRoundabout, maxBubbleLength, currentSaveState, insertBubble);
             //}
@@ -3842,7 +3846,7 @@ public:
                     //detectRoundabouts(maxBubbleLength, unitigDatas);
                 }
                 
-                collectStartingUnitigs(_kminmerSize);
+		        collectStartingUnitigs(_kminmerSize);
             }
 
 

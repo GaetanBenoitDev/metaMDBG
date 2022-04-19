@@ -336,7 +336,7 @@ public:
 		fs::create_directory(path);
 
 		//_graph->loadState2(0, -1, _unitigDatas);
-		_graph->saveGraph(_inputDir + "/minimizer_graph_sub.gfa");
+		//_graph->saveGraph(_inputDir + "/minimizer_graph_sub.gfa");
 		//_graph->loadState2(7, -1, _unitigDatas);
 		//_graph->saveGraph(_inputDir + "/minimizer_graph_sub_2.gfa");
 		/*
