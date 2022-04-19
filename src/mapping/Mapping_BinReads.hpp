@@ -235,17 +235,24 @@ public:
 		vector<ReadKminmer> kminmersInfo;
 		MDBG::getKminmers(_minimizerSize, _kminmerSize, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex, false);
 
+		unordered_set<u_int32_t> isWrittenBinIndex;
+
 		for(size_t i=0; i<kminmers.size(); i++){
 
 			KmerVec& vec = kminmers[i];
 			if(_kmervec_to_contigIndex.find(vec) == _kmervec_to_contigIndex.end()) continue;
 
 			for(u_int32_t binIndex : _kmervec_to_contigIndex[vec]){
+				
+				if(isWrittenBinIndex.find(binIndex) != isWrittenBinIndex.end()) continue;
+				isWrittenBinIndex.insert(binIndex);
+				
 				//cout << "lala: " << binIndex << endl;
 				ofstream& file = _binFiles[binIndex];
 				//cout << file.is_open() << " " << read._header << endl;
 				file << ">" << read._header << endl;
 				file << read._seq << endl;
+
 				//file.flush();
 			}
 
