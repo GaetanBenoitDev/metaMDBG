@@ -143,9 +143,7 @@ public:
 		ReadParser readParser(_contigFilename, true, false);
 		readParser.parse(fp);
 
-		for(auto& it : _binFiles){
-			it.second.close();
-		}
+
 		//_file_groundTruth_hifiasm_position.close();
 
 		//delete _minimizerParser;
@@ -212,6 +210,10 @@ public:
 		auto fp = std::bind(&Mapping_BinReads::binReads_read, this, std::placeholders::_1);
 		ReadParser readParser(_readFilename, true, false);
 		readParser.parse(fp);
+
+		for(auto& it : _binFiles){
+			it.second.close();
+		}
 	}
 
 	void binReads_read(const Read& read){
@@ -241,10 +243,10 @@ public:
 			for(u_int32_t binIndex : _kmervec_to_contigIndex[vec]){
 				//cout << "lala: " << binIndex << endl;
 				ofstream& file = _binFiles[binIndex];
-				cout << file.is_open() << " " << read._header << endl;
+				//cout << file.is_open() << " " << read._header << endl;
 				file << ">" << read._header << endl;
 				file << read._seq << endl;
-				file.flush();
+				//file.flush();
 			}
 
 			/*
