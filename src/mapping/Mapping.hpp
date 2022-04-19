@@ -113,7 +113,7 @@ public:
 
 
     void execute (){
-		//extract_truth_kminmers();
+		extract_truth_kminmers();
 		map();
 	}
 
@@ -190,18 +190,35 @@ public:
 
 	}
 
+	ofstream _outputFile;
+	u_int32_t _currentBinIndex;
+	
 	void map(){
+
+		_outputFile = ofstream(_outputFilename);
+		_outputFile << "Name,Color" << endl;
+
 		for (const auto & p : fs::directory_iterator(_binDir)){
 			string ext = p.path().extension();
 			cout << p.path() << endl;
 			cout << ext << endl;
-			if(ext == "fa" || ext == "fasta" || ext == "fna"){
+			if(ext == ".fa" || ext == ".fasta" || ext == ".fna"){
 				string filename = p.path();
 				cout << filename << endl;
+
+				string binName = filename;
+				binName.erase(binName.find("bin."), 4);
+				binName.erase(binName.find(ext), ext.size());
+				cout << binName << endl;
+				_currentBinIndex = stoull(binName);
+
+
 				mapBin(filename);
 			}
 
 		}
+
+		_outputFile.close();
 	}
 
 
@@ -233,7 +250,11 @@ public:
 		for(size_t i=0; i<kminmers.size(); i++){
 
 			KmerVec& vec = kminmers[i];
-			_kmervec_to_unitigName[vec] = read._header;
+
+			if(_kmervec_to_unitigName.find(vec) == _kmervec_to_unitigName.end()) continue;
+
+			_outputFile << _kmervec_to_unitigName[vec] << "," << _currentBinIndex << endl;
+			//_kmervec_to_unitigName[vec] = read._header;
 			/*
 			if(_mdbg->_dbg_nodes.find(vec) != _mdbg->_dbg_nodes.end()){
 
