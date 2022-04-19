@@ -192,6 +192,7 @@ public:
 
 	ofstream _outputFile;
 	u_int32_t _currentBinIndex;
+	unordered_set<string> _writtenUnitigNames;
 	
 	void map(){
 
@@ -254,7 +255,12 @@ public:
 
 			if(_kmervec_to_unitigName.find(vec) == _kmervec_to_unitigName.end()) continue;
 
-			_outputFile << _kmervec_to_unitigName[vec] << "," << _currentBinIndex << endl;
+			string unitigName = _kmervec_to_unitigName[vec];
+
+			if(_writtenUnitigNames.find(unitigName) != _writtenUnitigNames.end()) continue;
+
+			_outputFile << unitigName << "," << _currentBinIndex << endl;
+			_writtenUnitigNames.insert(unitigName);
 			//_kmervec_to_unitigName[vec] = read._header;
 			/*
 			if(_mdbg->_dbg_nodes.find(vec) != _mdbg->_dbg_nodes.end()){
