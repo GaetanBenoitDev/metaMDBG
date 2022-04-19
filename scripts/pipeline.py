@@ -30,7 +30,7 @@ def main(argv):
     binDir = args.binDir
 
     contigsFilename = asmDir + "/contigs_81.fasta.gz"
-    binRegex = "\"" + binDir + "bins_/bin_*.fasta" + "\""
+    binRegex = "\"" + binDir + "/bins_/bin_*.fasta" + "\""
     drepDir = binDir + "/drep"
     kmerCoverageFilename = asmDir + "/kmerCoverages_k81.tsv"
 
