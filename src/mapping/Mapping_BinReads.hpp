@@ -53,7 +53,7 @@ public:
 		//("k,kminmerSize", "File name", cxxopts::value<std::string>())
 		//("v,verbose", "Verbose output", cxxopts::value<bool>()->default_value("false"))
 		//;
-		options.parse_positional({"contig", "read", "outputFilename"});
+		options.parse_positional({"contig", "read", "outputDir"});
 		options.positional_help("contigs readFilename outputDir");
 
 
