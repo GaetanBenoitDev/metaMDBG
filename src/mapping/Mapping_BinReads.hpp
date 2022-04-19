@@ -219,6 +219,7 @@ public:
 
 
 		u_int64_t readIndex = read._index;
+		cout << readIndex << " " << _kmervec_to_contigIndex.size() << endl;
 
 		string rleSequence;
 		vector<u_int64_t> rlePositions;
@@ -238,6 +239,7 @@ public:
 			if(_kmervec_to_contigIndex.find(vec) == _kmervec_to_contigIndex.end()) continue;
 
 			for(u_int32_t binIndex : _kmervec_to_contigIndex[vec]){
+				cout << "lala: " << binIndex << endl;
 				ofstream& file = _binFiles[binIndex];
 				file << ">" << read._header << endl;
 				file << read._seq << endl;
