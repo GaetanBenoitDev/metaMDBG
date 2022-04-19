@@ -113,7 +113,7 @@ public:
 
 
     void execute (){
-		extract_truth_kminmers();
+		//extract_truth_kminmers();
 		map();
 	}
 
@@ -193,12 +193,67 @@ public:
 	void map(){
 		for (const auto & p : fs::directory_iterator(_binDir)){
 			string ext = p.path().extension();
+			cout << p.path() << endl;
+			cout << ext << endl;
 			if(ext == "fa" || ext == "fasta" || ext == "fna"){
 				string filename = p.path();
 				cout << filename << endl;
+				mapBin(filename);
 			}
 
 		}
+	}
+
+
+	void mapBin(const string& binFilename){
+
+		auto fp = std::bind(&Mapping::mapBin_read, this, std::placeholders::_1);
+		ReadParser readParser(binFilename, true, false);
+		readParser.parse(fp);
+	}
+
+	void mapBin_read(const Read& read){
+		//ottalSize += strlen(read->seq.s);
+
+
+		u_int64_t readIndex = read._index;
+
+		string rleSequence;
+		vector<u_int64_t> rlePositions;
+		_encoderRLE.execute(read._seq.c_str(), read._seq.size(), rleSequence, rlePositions);
+
+		vector<u_int64_t> minimizers;
+		vector<u_int64_t> minimizers_pos;
+		_minimizerParser->parse(rleSequence, minimizers, minimizers_pos);
+
+		vector<KmerVec> kminmers; 
+		vector<ReadKminmer> kminmersInfo;
+		MDBG::getKminmers(_minimizerSize, _kminmerSize, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex, false);
+
+		for(size_t i=0; i<kminmers.size(); i++){
+
+			KmerVec& vec = kminmers[i];
+			_kmervec_to_unitigName[vec] = read._header;
+			/*
+			if(_mdbg->_dbg_nodes.find(vec) != _mdbg->_dbg_nodes.end()){
+
+				u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
+				
+
+				_evaluation_hifiasmGroundTruth_nodeName_to_unitigName[_mdbg->_dbg_nodes[vec]._index].push_back(read._header);
+				_evaluation_hifiasmGroundTruth_path.push_back(_mdbg->_dbg_nodes[vec]._index);
+
+
+			}
+			else{
+				_evaluation_hifiasmGroundTruth_path.push_back(-1);
+			}
+			*/
+
+
+		}
+
+
 	}
 
 };	
