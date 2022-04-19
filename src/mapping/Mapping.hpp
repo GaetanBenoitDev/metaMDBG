@@ -201,12 +201,13 @@ public:
 		for (const auto & p : fs::directory_iterator(_binDir)){
 			string ext = p.path().extension();
 			cout << p.path() << endl;
+
 			cout << ext << endl;
 			if(ext == ".fa" || ext == ".fasta" || ext == ".fna"){
 				string filename = p.path();
 				cout << filename << endl;
 
-				string binName = filename;
+				string binName = p.path().filename();
 				binName.erase(binName.find("bin."), 4);
 				binName.erase(binName.find(ext), ext.size());
 				cout << binName << endl;
