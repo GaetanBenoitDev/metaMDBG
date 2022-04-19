@@ -10,6 +10,7 @@
 #include "readSelection/ReadSelection.hpp"
 #include "contigFeatures/KminmerCounter.hpp"
 #include "contigFeatures/KmerCounter.hpp"
+#include "mapping/Mapping.hpp"
 
 void displayHelp(){
 	cout << "Usage: ./simkaMin [option]" << endl;
@@ -105,6 +106,9 @@ int main (int argc, char* argv[])
     		}
     		else if(programName == "countKmer"){
                 KmerCounter().run (argc, args);
+    		}
+    		else if(programName == "map"){
+                Mapping().run (argc, args);
     		}
     		else{
     			displayHelp();
