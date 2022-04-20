@@ -19,6 +19,7 @@ def main(argv):
     parser.add_argument("ishort", help="input short reads")
     parser.add_argument("asmDir", help="dir for assembly files")
     parser.add_argument("binDir", help="output dir for bins")
+    parser.add_argument("kminmerLength", help="kminmer length")
     parser.add_argument("t", help="nb threads")
     #parser.add_argument("drep", help="path to drep script")
     
@@ -29,13 +30,13 @@ def main(argv):
     asmDir = args.asmDir
     binDir = args.binDir
 
-    contigsFilename = asmDir + "/contigs_81.fasta.gz"
+    contigsFilename = asmDir + "/contigs_" + args.kminmerLength + ".fasta.gz"
     binRegex = "\"" + binDir + "/bins_/bin_*.fasta" + "\""
     drepDir = binDir + "/drep"
-    kmerCoverageFilename = asmDir + "/kmerCoverages_k81.tsv"
+    kmerCoverageFilename = asmDir + "/kmerCoverages_k" + args.kminmerLength + ".tsv"
 
     command = mdbgFilename + " asm -i " + inputFilenameLong + " -o " + asmDir + " -t " + str(nbCores)
-    execute_command(command)
+    #execute_command(command)
 
     command = mdbgFilename + " countKmer -o " + kmerCoverageFilename + " -i " + inputFilenameShort + " -c " + contigsFilename + " -k 61 -t " + str(nbCores)
     execute_command(command)
