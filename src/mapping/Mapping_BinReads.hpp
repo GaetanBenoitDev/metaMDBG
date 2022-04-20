@@ -193,7 +193,7 @@ public:
 
 		}
 
-		string referenceFilename = _outputDir + "/reads_" + to_string(_binIndex) + "_reference.fasta"; 
+		string referenceFilename = _outputDir + "/reads_" + to_string(_binIndex) + "_reference.fasta.gz"; 
 		gzFile referenceFile = gzopen(referenceFilename.c_str(),"wb");
 
 		string header = ">ctg" + to_string(_binIndex) + '\n';

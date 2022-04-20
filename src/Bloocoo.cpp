@@ -120,6 +120,7 @@ void Bloocoo::createMDBG (){
 	//_bloomFilter = new BloomCacheCoherent<u_int64_t>(16000000000ull);
 	_bloomFilter = new BloomCacheCoherent<u_int64_t>(16000000000ull);
 
+	_fileSmallContigs = ofstream(_outputDir + "/small_contigs.bin", std::ios_base::app);
 	/*
 	double nbFP = 0;
 
@@ -245,6 +246,7 @@ void Bloocoo::createMDBG (){
 	_kminmersData.clear();
 	_contigIndex.clear();
 	_contigAbundances.clear();
+	_fileSmallContigs.close();
 
 }
 

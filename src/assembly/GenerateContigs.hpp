@@ -200,7 +200,7 @@ public:
 		//cout << "done" << endl;
 	
 
-		_graph->debug_writeGfaErrorfree(500, 500, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false, false, false, false, _mdbg, _minimizerSize, _nbCores);
+		_graph->debug_writeGfaErrorfree(500, 500, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false, false, false, false, _mdbg, _minimizerSize, _nbCores, false);
 			
 	}
 
@@ -778,9 +778,11 @@ public:
 
 
 				vector<u_int32_t> nodePath = unitig._nodes;
+				if(nodePath.size() == 1) continue;
 
 				if(unitig._startNode == unitig._endNode){ //Circular
 					
+					//cout << "circular: " << unitig._nbNodes << endl;
 					
 					for(size_t i=0; i<_kminmerSize-1; i++){
 						if(nodePath.size() == 0) break;
@@ -824,6 +826,10 @@ public:
 
 				//dereplicateContig2(contigs, nodePath, processedNodeNames, nodeName_to_contigIndex, contigIndexLala);
 
+				//if(nodePath.size() == 0){
+				//	cout << "empty contig " << endl;
+				//	getchar();
+				//}
 
 				u_int64_t size = nodePath.size();
 				gzwrite(outputContigFile_min, (const char*)&size, sizeof(size));

@@ -80,6 +80,7 @@ public:
 	ofstream _kminmerFile;
 	//ofstream _kminmerFile2;
 	ofstream _readFile;
+	ofstream _fileSmallContigs;
 	//string _filename_filteredMinimizers;
 	//string _filename_readCompositions;
 
@@ -304,10 +305,37 @@ public:
 		void operator () (const KminmerList& kminmerList) {
 
 
+
 			u_int64_t readIndex = kminmerList._readIndex;
 			const vector<u_int64_t>& readMinimizers = kminmerList._readMinimizers;
 			//const vector<KmerVec>& kminmers = kminmerList._kminmers;
 			const vector<ReadKminmerComplete>& kminmersInfos = kminmerList._kminmersInfo;
+
+			if(_extractingContigs){
+				if(kminmersInfos.size() == 0){
+					#pragma omp critical
+					{
+						u_int32_t contigSize = readMinimizers.size();
+						_graph._fileSmallContigs.write((const char*)&contigSize, sizeof(contigSize));
+						_graph._fileSmallContigs.write((const char*)&readMinimizers[0], contigSize*sizeof(u_int64_t));
+						//cout << "small contig" << endl;
+						//getchar();
+					}
+				}
+			}
+			/*
+			//Ici save too short contigs
+			#pragma omp critical
+			{
+				if(_kminmerSize > 30){
+					//if(_extractingContigs){
+						cout << readMinimizers.size() << " " << kminmersInfos.size() << endl;
+					//}
+				}
+			}
+			*/
+
+
 
 			//cout << readIndex << endl;
 			//vector<u_int16_t> minimizerPosOffset(readMinimizers.size());
@@ -348,6 +376,9 @@ public:
 					}
 					//}
 
+					if(!_isFirstPass){
+						//exist = true;
+					}
 					//cout << _bloomFilter->contains(vec.h()) << endl;
 					//if(_kminmerExist.find(vec) != _kminmerExist.end() || _parsingContigs ){ //|| !_isFirstPass
 					//if(_bloomFilter->contains(vec.h())){

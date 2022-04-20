@@ -235,9 +235,14 @@ public:
 		//_mdbgInit->load(mdbg_filename);
 		//cout << "MDBG nodes: " << _mdbgInit->_dbg_nodes.size() << endl;
 
+		string inputFilenameContigSmall = _inputDir + "/small_contigs.bin";
+
 		loadContigs_min(_inputFilenameContig);
+		loadContigs_min(inputFilenameContigSmall);
 		collectBestSupportingReads(_inputFilenameContig);
+		collectBestSupportingReads(inputFilenameContigSmall);
 		//extractKminmerSequences_all();
+		_kminmerCounts.clear();
 		_unitigDatas.clear();
 
 		//isKminmerRepeated.clear();
@@ -301,8 +306,13 @@ public:
 		}
 		*/
 		
-		createBaseContigs(_inputFilenameContig, _filename_outputContigs.c_str());
+		_contigIndex = 0;
+		_basespaceContigFile = gzopen(_filename_outputContigs.c_str(),"wb");
 
+		createBaseContigs(_inputFilenameContig);
+		createBaseContigs(inputFilenameContigSmall);
+
+		gzclose(_basespaceContigFile);
 		//delete _mdbg;
 		/*
 		gzclose(_outputFile_left);
@@ -426,7 +436,7 @@ public:
 				for(ReadSequence& readSequence : repeatedKminmers_variants[nodeName]){
 
 					if(readSequence._sequence == nullptr){
-						cout << "No model sequence" << endl;
+						//cout << "No model sequence" << endl;
 						continue;
 					}
 
@@ -594,7 +604,7 @@ public:
 
 		_nbContigs = 0;
 
-		cout << "Extracting kminmers (contigs)" << endl;
+		cout << "Extracting kminmers: " << contigFilename << endl;
 		KminmerParser parser(contigFilename, _minimizerSize, _kminmerSize, false);
 		auto fp = std::bind(&ToBasespace::loadContigs_min_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 		parser.parseMinspace(fp);
@@ -629,8 +639,18 @@ public:
 				continue;
 			}
 
+
+			if(kminmersInfos.size() <= 1) continue;
+
 			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
-			
+
+			//if(nodeName == 38376){
+
+			//	cout << "lala" << endl;
+			//	getchar();
+			//}
+			//cout << kminmersInfos.size() << " " << nodeName << endl;
+
 			_kminmerCounts[nodeName] += 1;
 
 			//if(_kminmerCounts[nodeName] > 1){
@@ -677,7 +697,6 @@ public:
 		auto fp = std::bind(&ToBasespace::collectBestSupportingReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 		parser.parseMinspace(fp);
 
-		_kminmerCounts.clear();
 
 		_contigFileSupported.close();
 
@@ -1412,7 +1431,7 @@ public:
 				//if(nodeName == 3114) cout << "OOOOOOOOOO " << nodeName << endl;
 				for(ReadSequence& readSequence : *readSequences){
 					if(readSequence._sequence == nullptr){
-						cout << "No model sequence" << endl;
+						//cout << "No model sequence" << endl;
 						continue;
 					}
 					char* dnaSeq_model_str = readSequence._sequence->to_string();
@@ -1751,24 +1770,21 @@ public:
 	u_int64_t _hifiasmContigIndex;
 	unordered_set<string> _hifiasmWrittenNodeNames;
 
-	void createBaseContigs(const string& contigFilename, const string& outputFilename){
+	void createBaseContigs(const string& contigFilename){
 
-		_contigIndex = 0;
 		_contigFileSupported_input = ifstream(contigFilename + ".tmp");
 
 		_hifiasmContigIndex = 0;
 		_fileHifiasmAll = ofstream(_inputDir + "/binning_results_hifiasm.csv");
 		_fileHifiasmAll << "Name,Colour" << endl;
 
-		cout << "Creating basespace contigs: " << contigFilename << " " << outputFilename << endl;
+		cout << "Creating basespace contigs: " << contigFilename << endl;
 
-		_basespaceContigFile = gzopen(outputFilename.c_str(),"wb");
 
 		KminmerParser parser(contigFilename, _minimizerSize, _kminmerSize, false);
 		auto fp = std::bind(&ToBasespace::createBaseContigs_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 		parser.parseMinspace(fp);
 
-		gzclose(_basespaceContigFile);
 		_fileHifiasmAll.close();
 		_contigFileSupported_input.close();
 	}
@@ -1800,7 +1816,11 @@ public:
 			}
 
 			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
-			
+			//if(nodeName == 38376){
+			//	cout << "lala" << endl;
+			//	getchar();
+			//}
+			//cout << nodeName << endl;
 			//vector<u_int64_t> minimizerSeq;
 			
 			//for(size_t i=kminmerInfo._read_pos_start; i<=kminmerInfo._read_pos_end; i++){
@@ -1819,7 +1839,7 @@ public:
 
 					char* seq;
 
-
+				
 					if(_kminmerSequence_entire.find(nodeName) != _kminmerSequence_entire.end()){
 						if(_kminmerSequence_entire[nodeName] == nullptr){
 							cout << "No sequence for kminmer" << endl;

@@ -1805,7 +1805,9 @@ public:
 
     void compact(bool rebuild, const vector<UnitigData>& unitigDatas){
 
+
         //if(rebuild && _rebuildInvalidUnitigs.size() == 0) return;
+
 
         #ifdef PRINT_DEBUG_SIMPLIFICATION
             cout << "\tCompacting" << endl;
@@ -1828,6 +1830,9 @@ public:
             //}
         }
         else{
+
+            cout << "\tCompacting" << endl;
+
             _nextUnitigIndex = 0;
             _unitigs.clear();
             _nodeToUnitig.clear();
@@ -1837,6 +1842,8 @@ public:
                 computeUnitig(nodeIndex, unitigDatas);
                 //cout << "done" << endl;
             }
+
+            cout << "\tCdone" << endl;
         }
 
 
@@ -3146,7 +3153,7 @@ public:
         }
     }
 
-    void debug_writeGfaErrorfree(u_int32_t currentAbundance, float abundanceCutoff_min, u_int32_t nodeIndex_source, u_int64_t k, bool saveGfa, bool doesSaveState, bool doesLoadState, const vector<UnitigData>& unitigDatas, bool crushBubble, bool smallBubbleOnly, bool detectRoundabout, bool insertBubble, bool saveAllState, bool doesSaveUnitigGraph, MDBG* mdbg, size_t minimizerSize, size_t nbCores){
+    void debug_writeGfaErrorfree(u_int32_t currentAbundance, float abundanceCutoff_min, u_int32_t nodeIndex_source, u_int64_t k, bool saveGfa, bool doesSaveState, bool doesLoadState, const vector<UnitigData>& unitigDatas, bool crushBubble, bool smallBubbleOnly, bool detectRoundabout, bool insertBubble, bool saveAllState, bool doesSaveUnitigGraph, MDBG* mdbg, size_t minimizerSize, size_t nbCores, bool useLocalAbundanceFilter){
 
         cout << "Cleaning graph" << endl;
         
@@ -3194,7 +3201,7 @@ public:
         clear(0);
         compact(false, unitigDatas);
 
-		if(doesSaveUnitigGraph) saveUnitigGraph(_outputDir + "/minimizer_graph_u.gfa", mdbg, minimizerSize, nbCores);
+		if(doesSaveUnitigGraph) saveUnitigGraph(_outputDir + "/minimizer_graph_u.gfa", mdbg, minimizerSize, nbCores, false);
 
         //vector<Bubble> bubbles;
         //vector<float> lala = {40, 800};
@@ -3492,16 +3499,29 @@ public:
         
 
             //if(doesSaveState){
-            checkSaveState(currentCutoff, unitigDatas, detectRoundabout, maxBubbleLength, currentSaveState, insertBubble, doesSaveUnitigGraph, mdbg, minimizerSize, nbCores);
             //}
 
-            u_int64_t nbErrorRemoved = removeErrors_2(k, abundanceCutoff_min, currentCutoff, currentSaveState, unitigDatas, detectRoundabout, maxBubbleLength, insertBubble, saveAllState, doesSaveUnitigGraph, mdbg, minimizerSize, nbCores);
             
-            if(nbErrorRemoved > 0){
-                isModification = true;
-                //isModSub = true;
+            if(useLocalAbundanceFilter){
+
+                if(_kminmerSize == 4){
+                    //removeErrors_4(k, abundanceCutoff_min, currentCutoff, currentSaveState, unitigDatas, detectRoundabout, maxBubbleLength, insertBubble, saveAllState, doesSaveUnitigGraph, mdbg, minimizerSize, nbCores);
+                
+                }
+                
+            }
+            else{
+                checkSaveState(currentCutoff, unitigDatas, detectRoundabout, maxBubbleLength, currentSaveState, insertBubble, doesSaveUnitigGraph, mdbg, minimizerSize, nbCores);
+            
+                u_int64_t nbErrorRemoved = removeErrors_2(k, abundanceCutoff_min, currentCutoff, currentSaveState, unitigDatas, detectRoundabout, maxBubbleLength, insertBubble, saveAllState, doesSaveUnitigGraph, mdbg, minimizerSize, nbCores);
+                
+                if(nbErrorRemoved > 0){
+                    isModification = true;
+                }
             }
 
+ 
+           
 
             //
             //    saveState();
@@ -3539,6 +3559,10 @@ public:
 
             if(!isModification) break;
         
+        }
+ 
+        if(useLocalAbundanceFilter){
+            checkSaveState(0, unitigDatas, detectRoundabout, maxBubbleLength, currentSaveState, insertBubble, doesSaveUnitigGraph, mdbg, minimizerSize, nbCores);
         }
 
         compact(false, unitigDatas);
@@ -3843,7 +3867,8 @@ public:
                     //detectRoundabouts(maxBubbleLength, unitigDatas);
                 }
                 
-                if(doesSaveUnitigGraph) saveUnitigGraph(_outputDir + "/minimizer_graph_u_cleaned.gfa", mdbg, minimizerSize, nbCores);
+                if(doesSaveUnitigGraph) saveUnitigGraph(_outputDir + "/minimizer_graph_u_cleaned.gfa", mdbg, minimizerSize, nbCores, true);
+                if(doesSaveUnitigGraph) saveGraph(_outputDir + "/minimizer_graph_cleaned.gfa");
 		        collectStartingUnitigs(_kminmerSize);
             }
 
@@ -3852,7 +3877,7 @@ public:
             unordered_set<u_int32_t> isNodeValid2_memo = _isNodeValid2;
             std::reverse(_bubbles.begin(), _bubbles.end());
 
-
+            /*
             //vector<u_int32_t> isLongUnitigNodes;
             for(u_int32_t nodeIndex : _isNodeValid2){
                 //if(_nodeToUnitig.find(nodeIndex) == _nodeToUnitig.end()) continue;
@@ -3864,11 +3889,13 @@ public:
                     //currentSaveState._longUnitigNodeAbundance[BiGraph::nodeIndex_to_nodeName(nodeIndex)] = _unitigs[unitigIndex]._abundance;
                 }
             }
+            */
 
             
             
             ///---------------------------- Inserting bubbles
             if(insertBubble){
+                cout << "inserting bubbles" << endl;
             #ifdef PRINT_DEBUG_SIMPLIFICATION
                 cout << "inserting bubbles" << endl;
             #endif
@@ -4367,6 +4394,198 @@ public:
                 */
                 //double localabundance = computeLocalAbundance(unitig._index, k, nodeLongNeighbors);
                 double cutoff = t; //min(t, localabundance*0.5);
+
+                if(unitig._abundance < cutoff){
+                    vector<u_int32_t> unitigNodes;
+                    getUnitigNodes(unitig, unitigNodes);
+                    for(u_int32_t node : unitigNodes){
+                        removedNodes.insert(node);
+                        removedNodes.insert(nodeIndex_toReverseDirection(node));
+                        saveState._nodeNameRemoved_tmp.insert(BiGraph::nodeIndex_to_nodeName(node));
+
+                        nbErrorsRemoved += 1;
+                    }
+                }
+
+
+            }
+            
+            unordered_set<u_int32_t> removedUnitigs;
+            for(u_int32_t nodeIndex : removedNodes){
+                removedUnitigs.insert(nodeIndex_to_unitigIndex(nodeIndex));
+            }
+            removeUnitigs(removedUnitigs);
+            for(u_int32_t nodeIndex : removedNodes){
+                _isNodeValid2.erase(nodeIndex);
+                //file_debug << BiGraph::nodeIndex_to_nodeName(nodeIndex) << "," << "red" << endl;
+                //_removedFrom[nodeIndex] = 4;
+            }
+            
+
+            t = t * (1+aplha);
+
+            //cout << nbErrorsRemoved << endl;
+            if(nbErrorsRemoved > 0) break;
+        }
+
+        return nbErrorsRemoved;
+
+    }
+
+    void removeErrors_4(size_t k, float abundanceCutoff_min, float& currentCutoff, SaveState2& saveState, const vector<UnitigData>& unitigDatas, bool detectRoundabout, u_int64_t maxBubbleLength, bool insertBubble, bool saveAllState, bool doesSaveUnitigGraph, MDBG* mdbg, size_t minimizerSize, size_t nbCores){
+
+
+        bool isErrorRemoved = true;
+
+        while(true){ 
+            
+            isErrorRemoved = false;
+            
+            unordered_set<u_int32_t> removedNodes;
+
+            compact(true, unitigDatas);
+
+            
+            for(Unitig& unitig : _unitigs){
+                if(unitig._startNode == -1) continue;
+
+                if(unitig._abundance <= 1){
+                    isErrorRemoved = true;
+                    vector<u_int32_t> unitigNodes;
+                    getUnitigNodes(unitig, unitigNodes);
+                    for(u_int32_t node : unitigNodes){
+                        removedNodes.insert(node);
+                        removedNodes.insert(nodeIndex_toReverseDirection(node));
+                        saveState._nodeNameRemoved_tmp.insert(BiGraph::nodeIndex_to_nodeName(node));
+                    }
+                }
+
+
+            }
+            
+            unordered_set<u_int32_t> removedUnitigs;
+            for(u_int32_t nodeIndex : removedNodes){
+                removedUnitigs.insert(nodeIndex_to_unitigIndex(nodeIndex));
+            }
+            removeUnitigs(removedUnitigs);
+            for(u_int32_t nodeIndex : removedNodes){
+                _isNodeValid2.erase(nodeIndex);
+                //file_debug << BiGraph::nodeIndex_to_nodeName(nodeIndex) << "," << "red" << endl;
+                //_removedFrom[nodeIndex] = 4;
+            }
+            
+            if(!isErrorRemoved) break;
+
+        }
+
+
+    }
+
+    u_int64_t removeErrors_3(size_t k, float abundanceCutoff_min, float& currentCutoff, SaveState2& saveState, const vector<UnitigData>& unitigDatas, bool detectRoundabout, u_int64_t maxBubbleLength, bool insertBubble, bool saveAllState, bool doesSaveUnitigGraph, MDBG* mdbg, size_t minimizerSize, size_t nbCores){
+
+        //return 0;
+        
+        //unordered_set<u_int32_t> 
+        u_int64_t nbErrorsRemoved = 0;
+        float localCutoffRate = 0.5;
+        float cutoffGlobal = 1;
+        float aplha = 0.1;
+        float t=2.5;
+        currentCutoff = min(t, abundanceCutoff_min);
+        u_int32_t prevCutoff = -1;
+        while(t < abundanceCutoff_min){ 
+            
+            //if(saveAllState) checkSaveState(currentCutoff, unitigDatas, detectRoundabout, maxBubbleLength, saveState, insertBubble, doesSaveUnitigGraph, mdbg, minimizerSize, nbCores);
+
+            currentCutoff = t;
+            unordered_set<u_int32_t> removedNodes;
+
+            #ifdef PRINT_DEBUG_SIMPLIFICATION
+                cout << t << " " << abundanceCutoff_min << endl;
+            #endif
+
+            cout << t << " " << abundanceCutoff_min << endl;
+
+            compact(true, unitigDatas);
+
+            
+            for(Unitig& unitig : _unitigs){
+                if(unitig._startNode == -1) continue;
+                //cout << unitig._nbNodes << " " << unitig._abundance << endl;
+                /*
+                if(unitig._nbNodes > 3*k) continue;
+                */
+               /*
+                if(unitig._nbNodes < 3*k) continue;
+                
+                    bool isValid = true;
+                    vector<u_int32_t> successors;
+                    getSuccessors_unitig(unitig._index, 0, successors);
+
+                    for(u_int32_t unitigIndex_succ : successors){
+                        vector<u_int32_t> predecessors;
+                        getPredecessors_unitig(unitigIndex_succ, 0, predecessors);
+                        if(predecessors.size() <= 1){
+                            isValid = false;
+                            break;
+                        }
+                    }
+
+                    vector<u_int32_t> predecessors;
+                    getPredecessors_unitig(unitig._index, 0, predecessors);
+
+                    for(u_int32_t unitigIndex_pred : predecessors){
+                        vector<u_int32_t> successors;
+                        getSuccessors_unitig(unitigIndex_pred, 0, successors);
+                        if(successors.size() <= 1){
+                            isValid = false;
+                            break;
+                        }
+                    }
+
+                    if(!isValid) continue;
+                }
+                */
+                //double localabundance = computeLocalAbundance(unitig._index, k, nodeLongNeighbors);
+                double abundanceSum = 0;
+                double abundanceN = 0;
+
+
+                vector<u_int32_t> successors;
+                getSuccessors_unitig(unitig._index, 0, successors);
+                vector<u_int32_t> predecessors;
+                getPredecessors_unitig(unitig._index, 0, predecessors);
+
+                for(u_int32_t unitigIndex : successors){
+                    abundanceSum += _unitigs[unitigIndex]._abundance * _unitigs[unitigIndex]._nbNodes;
+                    abundanceN += _unitigs[unitigIndex]._nbNodes;
+                    //if(_graph->_unitigs[unitigIndex]._abundance < minAbundance){
+                    //	minAbundance = _graph->_unitigs[unitigIndex]._abundance;
+                    //}
+                }
+                for(u_int32_t unitigIndex : predecessors){
+                    abundanceSum += _unitigs[unitigIndex]._abundance * _unitigs[unitigIndex]._nbNodes;
+                    abundanceN += _unitigs[unitigIndex]._nbNodes;
+                    //if(_graph->_unitigs[unitigIndex]._abundance < minAbundance){
+                    //	minAbundance = _graph->_unitigs[unitigIndex]._abundance;
+                    //}
+                }
+
+                double mean = abundanceSum / abundanceN;
+
+                //if(BiGraph::nodeIndex_to_nodeName(unitig._startNode) == 13568 || BiGraph::nodeIndex_to_nodeName(unitig._endNode) == 13568){
+                //    cout << "loulou: " <<  unitig._abundance << " " << mean << endl;
+                //}
+                //if(unitig._abundance < mean*0.25){
+                //    continue;
+                //}
+                //if(u._abundance < minAbundance){
+                //	continue;
+                //}
+
+
+                //double cutoff = t; //min(t, localabundance*0.5);
+                double cutoff = mean*0.2;
 
                 if(unitig._abundance < cutoff){
                     vector<u_int32_t> unitigNodes;
@@ -8206,7 +8425,7 @@ public:
         bool _ori;
     };
 
-    void saveUnitigGraph(const string& outputFilename, MDBG* mdbg, size_t minimizerSize, size_t nbCores){
+    void saveUnitigGraph(const string& outputFilename, MDBG* mdbg, size_t minimizerSize, size_t nbCores, bool doesWriteReadIndex){
 
         cout << "Saving unitig graph: " << outputFilename << endl;
         
@@ -8238,6 +8457,7 @@ public:
 
 
 	    writeReadPath(mdbg, minimizerSize, nbCores, selectedUnitigIndex);
+	    if(_kminmerSize == 4 && doesWriteReadIndex) writeReadIndex(mdbg, minimizerSize, nbCores, selectedUnitigIndex);
 
         unordered_set<u_int32_t> linkedUnitigIndex;
         unordered_set<DbgEdge, hash_pair> isEdge;
@@ -8343,6 +8563,10 @@ public:
 
         outputFile.close();
 
+
+        cout << "done" << endl;
+        //getchar();
+
     }
 
 	ofstream _file_readPath;
@@ -8441,6 +8665,145 @@ public:
 			_graph->writeReadPath(nodeNames);
 		}
 	};
+
+	unordered_map<u_int32_t, unordered_set<u_int64_t>> _unitigIndex_to_readIndexes;
+    MDBG* _mdbg;
+
+
+	void writeReadIndex(MDBG* mdbg, size_t minimizerSize, size_t nbCores, unordered_set<u_int32_t>& selectedUnitigIndex){
+
+		ofstream file(_outputDir + "/read_index.txt");
+
+		KminmerParserParallel readParser(_outputDir + "/read_data.txt", minimizerSize, _kminmerSize, false, nbCores);
+		readParser.parse(ReadIndexFunctor(this, mdbg, selectedUnitigIndex));
+
+
+		for(const auto& it: _unitigIndex_to_readIndexes){
+
+			u_int32_t nodeName = it.first;
+			string line = to_string(nodeName) + ":";
+
+            size_t i=0;
+
+            //cout << it.first << " " << it.second.size() << endl;
+
+			for(u_int64_t readIndex : it.second){
+				if(i==0){
+					line += to_string(readIndex);
+				}
+				else{
+					line += ";" + to_string(readIndex);
+				}
+                i += 1;
+			}
+
+			file << line << endl;
+		}
+
+		file.close();
+
+        _unitigIndex_to_readIndexes.clear();
+        _mdbg = nullptr;
+
+        //cout << _unitigs[8372]._abundance << " " << _unitigs[8372]._nbNodes << endl;
+	}
+
+	class ReadIndexFunctor {
+
+		public:
+
+		MDBG* _mdbg;
+		GraphSimplify* _graph;
+        unordered_set<u_int32_t>& _selectedUnitigIndex;
+
+		ReadIndexFunctor(GraphSimplify* graph, MDBG* mdbg, unordered_set<u_int32_t>& selectedUnitigIndex) : _selectedUnitigIndex(selectedUnitigIndex){
+			_mdbg = mdbg;
+			_graph = graph;
+		}
+
+		ReadIndexFunctor(const ReadIndexFunctor& copy): _selectedUnitigIndex(copy._selectedUnitigIndex){
+			_mdbg = copy._mdbg;
+			_graph = copy._graph;
+		}
+
+
+		void operator () (const KminmerList& kminmerList) {
+		
+			u_int64_t readIndex = kminmerList._readIndex;
+
+			const vector<u_int64_t>& minimizers = kminmerList._readMinimizers;
+			const vector<ReadKminmerComplete>& kminmersInfos = kminmerList._kminmersInfo;
+
+			vector<u_int32_t> nodeNames;
+            u_int32_t prevUnitigIndex = -1;
+
+			for(size_t i=0; i<kminmersInfos.size(); i++){
+
+				const ReadKminmerComplete& info = kminmersInfos[i];
+				const KmerVec& vec = info._vec;
+
+				if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
+					continue;
+				}
+				
+				u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
+
+
+                u_int32_t nodeIndex1 = BiGraph::nodeName_to_nodeIndex(nodeName, false);
+                u_int32_t nodeIndex2 = BiGraph::nodeName_to_nodeIndex(nodeName, true);
+
+                if(_graph->_isNodeValid2.find(nodeIndex1) == _graph->_isNodeValid2.end() && _graph->_isNodeValid2.find(nodeIndex2) == _graph->_isNodeValid2.end()) continue;
+
+                u_int32_t unitigIndex1 = _graph->nodeIndex_to_unitigIndex(nodeIndex1);
+                u_int32_t unitigIndex2 = _graph->nodeIndex_to_unitigIndex(nodeIndex2);
+                u_int32_t unitigIndex = -1;
+
+                if(_selectedUnitigIndex.find(unitigIndex1) != _selectedUnitigIndex.end()){
+                    unitigIndex = unitigIndex1;
+                }
+                else if(_selectedUnitigIndex.find(unitigIndex2) != _selectedUnitigIndex.end()){
+                    unitigIndex = unitigIndex2;
+                }
+
+                if(unitigIndex == -1) continue;
+                //const vector<u_int64_t>& readIndex = _nodeName_to_readIndexes[unitigIndex]; 
+                //if()
+
+                #pragma omp critical
+                {
+			        _graph->_unitigIndex_to_readIndexes[unitigIndex].insert(readIndex);
+                }
+
+                //if(unitigIndex != prevUnitigIndex){
+				//    nodeNames.push_back(unitigIndex);
+                //    prevUnitigIndex = unitigIndex;
+                //}
+
+			}
+
+		}
+	};
+
+    /*
+	void dumpReadIndex_read(const vector<u_int64_t>& minimizers, const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex){//}, const vector<KmerVec>& kminmers_k3, const vector<ReadKminmer>& kminmersInfos_k3){
+
+
+		for(const KmerVec& vec : kminmers){
+			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()) continue;
+
+			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
+
+			
+			_nodeName_to_readIndexes[].push_back(readIndex);
+			//u_int32_t nodeIndex = BiGraph::nodeName_to_nodeIndex(nodeName, true);
+			//UnitigData& unitigData = _unitigDatas[nodeName];
+			//unitigData._readIndexes.push_back(readIndex);
+		}
+
+
+
+	}
+    */
 
 };
 

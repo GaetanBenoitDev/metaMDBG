@@ -267,17 +267,32 @@ public:
 		GraphSimplify* graphSimplify = new GraphSimplify(_gfaFilename, _inputDir, 0, _kminmerSize);
 		_graph = graphSimplify;
 		
+
 		
 		//_graph->clear(0);
 		//_graph->compact(false, _unitigDatas);
 		//exit(1);
 		//Generate unitigs
 		//cout << "Indexing reads" << endl;
-		//_unitigDatas.resize(_mdbg->_dbg_nodes.size());
-		//_graph->clear(0);
-		//_graph->compact(false, _unitigDatas);
-		//removeUnsupportedEdges(_gfaFilename, gfa_filename_noUnsupportedEdges, _graph);
 		
+		/*
+		if(_kminmerSize == 31){
+			
+			_unitigDatas.resize(_mdbg->_dbg_nodes.size());
+			_graph->clear(0);
+			_graph->compact(false, _unitigDatas);
+			removeUnsupportedEdges(_gfaFilename, gfa_filename_noUnsupportedEdges, _graph);
+
+			cout << "loulou" << endl;
+			cout << Utils::computeSharedReads(_unitigDatas[3941], _unitigDatas[3938]) << endl;
+			cout << Utils::computeSharedReads(_unitigDatas[3941], _unitigDatas[9766]) << endl;
+			
+			cout << Utils::computeSharedReads(_unitigDatas[808], _unitigDatas[2879]) << endl;
+			cout << Utils::computeSharedReads(_unitigDatas[808], _unitigDatas[803]) << endl;
+
+		}
+		*/
+
 		//cout << "done" << endl;
 	
 
@@ -288,7 +303,7 @@ public:
 
 
 			cout << "Cleanning graph 1" << endl;
-			_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, true, false, true, true, _mdbg, _minimizerSize, _nbCores);
+			_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, true, false, true, true, _mdbg, _minimizerSize, _nbCores, true);
 			_isBubble = _graph->_isBubble;
 			
 			//cout << "Cleanning graph 2" << endl;
@@ -430,6 +445,8 @@ public:
 
 	void indexReads_read(const vector<u_int64_t>& minimizers, const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex){//}, const vector<KmerVec>& kminmers_k3, const vector<ReadKminmer>& kminmersInfos_k3){
 
+		//cout << readIndex << " " << kminmers.size() << endl;
+
 		if(_indexingContigs) readIndex += 2000000000ull;
 		//vector<ReadIndexType> unitigIndexex;
 
@@ -444,6 +461,11 @@ public:
 
 
 			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
+
+			//if(readIndex == 6081){
+			//	cout << nodeName << endl;
+			//}
+			//if(nodeName == 3857) cout << "lala" << endl;
 			u_int32_t nodeIndex = BiGraph::nodeName_to_nodeIndex(nodeName, true);
 			//if(_graph->_isNodeValid2.find(nodeIndex) == _graph->_isNodeValid2.end()) continue;
 			//if(_nodeData.find(nodeName) == _nodeData.end()) continue;
@@ -958,7 +980,12 @@ public:
 
 		//vector<float> readpathAbudance_values;
 		for(const Unitig& u : _graph->_unitigs){
-			if(u._nbNodes < _kminmerSize*2) continue;
+
+
+
+
+
+			//if(u._nbNodes < _kminmerSize*2) continue;
 
 			if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
 			if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
@@ -967,6 +994,7 @@ public:
 			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
 
 			vector<u_int32_t> nodepath = u._nodes;
+			/*
 			if(u._startNode == u._endNode){
 
 				u_int32_t nodeIndex = u._endNode;
@@ -981,11 +1009,56 @@ public:
 				}
 
 			}
+			else{
+			*/
+
+				
+				if(u._nbNodes < _kminmerSize*2){
+
+					double abundanceSum = 0;
+					double abundanceN = 0;
+
+					float minAbundance = std::numeric_limits<float>::max();
+
+					vector<u_int32_t> successors;
+					_graph->getSuccessors_unitig(u._index, 0, successors);
+					vector<u_int32_t> predecessors;
+					_graph->getPredecessors_unitig(u._index, 0, predecessors);
+
+					for(u_int32_t unitigIndex : successors){
+						abundanceSum += _graph->_unitigs[unitigIndex]._abundance * _graph->_unitigs[unitigIndex]._nbNodes;
+						abundanceN += _graph->_unitigs[unitigIndex]._nbNodes;
+						//if(_graph->_unitigs[unitigIndex]._abundance < minAbundance){
+						//	minAbundance = _graph->_unitigs[unitigIndex]._abundance;
+						//}
+					}
+					for(u_int32_t unitigIndex : predecessors){
+						abundanceSum += _graph->_unitigs[unitigIndex]._abundance * _graph->_unitigs[unitigIndex]._nbNodes;
+						abundanceN += _graph->_unitigs[unitigIndex]._nbNodes;
+						//if(_graph->_unitigs[unitigIndex]._abundance < minAbundance){
+						//	minAbundance = _graph->_unitigs[unitigIndex]._abundance;
+						//}
+					}
+
+					if(abundanceN > 0){
+						double mean = abundanceSum / abundanceN;
+						if(u._abundance < mean*0.35){
+							continue;
+						}
+					}
+					//if(u._abundance < minAbundance){
+					//	continue;
+					//}
+				}
+				
+				
+			//}
 
 			u_int64_t size = nodepath.size();
 
 			//if(size < _kminmerSize*2) continue;
 
+			//cout << BiGraph::nodeIndex_to_nodeName(u._startNode) << " " << u._nbNodes << endl;
 			gzwrite(outputContigFile_min, (const char*)&size, sizeof(size));
 			gzwrite(outputContigFile_min, (const char*)&nodepath[0], size * sizeof(u_int32_t));
 		}
@@ -1012,7 +1085,7 @@ public:
 			KmerVec& vec = kminmers[i];
 			
 
-			if(_mdbgNoFilter->_dbg_nodes.find(vec) == _mdbgNoFilter->_dbg_nodes.end()){
+			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
 				//if(i==2){ nbFailed += 1; }
 				cout << "Not good: " << i << endl;
 				cout << vec._kmers[0] << " " << vec._kmers[1] << " " << vec._kmers[2] << " " << vec._kmers[3] << endl;
@@ -1027,7 +1100,7 @@ public:
 
 		}
 
-		if(print_read){
+		if(true){ //print_read
 			cout << "\tNb minimizers: " << kminmers.size() << endl;
 			cout << "\tFound minimizers: " << nbFoundMinimizers << endl;
 			//if(kminmers.size() != nbFoundMinimizers) getchar();
@@ -1194,7 +1267,8 @@ public:
 				extendReadpath(minimizers, kminmersInfos, nodePathSolid, readpath, print_read);
 			}
 			
-			//readpath = minimizers;
+			
+			readpath = minimizers;
 			//vector<u_int32_t> contigpath;
 
 			if(print_read){

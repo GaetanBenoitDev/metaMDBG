@@ -125,18 +125,20 @@ public:
 	}
 
     void execute_pipeline(){
-		float density = 0.005;
+		float density = 0.01;
 		u_int16_t minimizerSize = 21;
 		size_t firstK = 4;
 
 		string command = "";
+
+		ofstream fileSmallContigs(_inputDir + "/small_contigs.bin");
 
 		writeParameters(minimizerSize, firstK, density, firstK);
 		//createInputFile(false);
 
 		//Read selection
 		command = _filename_exe + " readSelection -i " + _inputFilename + " -o " + _inputDir + " -f " + _inputDir + "/read_data_init.txt" + " -t " + to_string(_nbCores);
-		executeCommand(command);
+		//executeCommand(command);
 		
 
 		u_int64_t pass = 0;
@@ -215,6 +217,7 @@ public:
 
 
 
+
 			//command = _filename_exe + " toBasespaceFast " + " -o " + _inputDir + " -i " + _inputFilename + " -c " + _inputDir + "/contig_data.txt " + " -f " + _inputDir + "/contigs.fasta.gz " +  " --fasta";
 			//if(pass == 0) command += " --firstpass";
 			//executeCommand(command);	
@@ -222,7 +225,7 @@ public:
 
 			bool generatedContigs = false;
 			//if(k == 5 || k == 10 || k == 16 || k == 21 || k == 26 || k == 31){
-			if(k == 41 || k==81){
+			if(k == 41){
 
 
 				//Generate contigs
@@ -273,6 +276,8 @@ public:
 			cout << "pass done" << endl;
 			//if(generatedContigs) getchar();
 			//getchar();
+
+			//if(k > 30) getchar();
 		}
 
     }
@@ -293,9 +298,11 @@ public:
 		
 		if(fs::exists(_inputDir + "/groundtruth_position.csv")) fs::copy(_inputDir + "/groundtruth_position.csv", dir + "/groundtruth_position.csv");
 		if(fs::exists(_inputDir + "/read_path.txt")) fs::copy(_inputDir + "/read_path.txt", dir + "/read_path.txt");
+		if(fs::exists(_inputDir + "/read_index.txt")) fs::copy(_inputDir + "/read_index.txt", dir + "/read_index.txt");
 		fs::copy(_inputDir + "/minimizer_graph.gfa", dir + "/minimizer_graph.gfa");
 		fs::copy(_inputDir + "/minimizer_graph_u.gfa", dir + "/minimizer_graph_u.gfa");
 		fs::copy(_inputDir + "/minimizer_graph_u_cleaned.gfa", dir + "/minimizer_graph_u_cleaned.gfa");
+		fs::copy(_inputDir + "/minimizer_graph_cleaned.gfa", dir + "/minimizer_graph_cleaned.gfa");
 		fs::copy(_inputDir + "/parameters.gz", dir + "/parameters.gz");
 		fs::copy(_inputDir + "/mdbg_nodes.gz", dir + "/mdbg_nodes.gz");
 		//fs::copy(_inputDir + "/mdbg_nodes_init.gz", dir + "/mdbg_nodes_init.gz", copyOptions);

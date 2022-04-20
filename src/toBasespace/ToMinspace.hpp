@@ -689,6 +689,11 @@ public:
 			outputFile.write((const char*)&contigSize, sizeof(contigSize));
 			outputFile.write((const char*)&contigSequence[0], contigSize*sizeof(u_int64_t));
 
+			//cout << contigSize << endl;
+			//if(contigSize <= 0){
+			//	cout << "Empty contig: " << nodePath.size() << endl;
+			//	getchar();
+			//}
 
 			//vector<u_int16_t> minimizerPosOffset(contigSequence.size(), 0);
 			//outputFile.write((const char*)&minimizerPosOffset[0], size*sizeof(u_int16_t));
