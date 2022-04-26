@@ -26,6 +26,7 @@ public:
 	}
 
     void execute (){
+		//for(size_t i=0; i<1000; i++)
 		execute_pipeline();
 	}
 

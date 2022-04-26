@@ -336,7 +336,6 @@ public:
             }
 
             
-            cout << "2" << endl;
             
             while(true){
                 cout << "lala" << endl;
@@ -1172,14 +1171,12 @@ public:
             removedNodes.insert(nodeIndex_toReverseDirection(nodeIndex._nodeIndex));
             saveState._nodeNameRemoved_tmp.insert(BiGraph::nodeIndex_to_nodeName(nodeIndex._nodeIndex));
             //_isNodeValid2.erase(nodeIndex_toReverseDirection(nodeIndex));
-             //cout << "2" << endl;
         }
 
         //AAA -> AAT -> ATG
         //AAA --------> ATG
 
         //if(bubbleRC._nodes.size() == 0){ 
-        //    cout << "2" << endl;
         //    getchar();
         //}
         if(cancelBubble) return;
@@ -1833,9 +1830,12 @@ public:
 
             cout << "\tCompacting" << endl;
 
+
+            //_nodeToUnitig = unordered_map<u_int32_t, u_int32_t>();
+            _nodeToUnitig.clear();
+
             _nextUnitigIndex = 0;
             _unitigs.clear();
-            _nodeToUnitig.clear();
             _unitigDatas2.clear();
 
             for (u_int32_t nodeIndex : _isNodeValid2){
@@ -1967,6 +1967,7 @@ public:
     }
 
     void computeUnitig(u_int32_t nodeIndex, const vector<UnitigData>& unitigDatas){
+
         if(_nodeToUnitig.find(nodeIndex) != _nodeToUnitig.end()) return;
         
         vector<u_int32_t> neighbors;
@@ -2727,7 +2728,6 @@ public:
         //cout << "a" << endl;
         Unitig& unitig = _unitigs[unitigIndex];
 
-        //cout << "b" << endl;
         //cout << (unitig._endNode == -1)<< endl;
         //cout << BiGraph::nodeIndex_to_nodeName(unitig._endNode) << endl;
         vector<u_int32_t> successors_nodeIndex;
@@ -2780,7 +2780,6 @@ public:
         //cout << "a" << endl;
         Unitig& unitig = _unitigs[unitigIndex];
 
-        //cout << "b" << endl;
         //cout << (unitig._endNode == -1)<< endl;
         //cout << BiGraph::nodeIndex_to_nodeName(unitig._endNode) << endl;
         vector<AdjNode> successors_nodeIndex;
@@ -8427,6 +8426,9 @@ public:
 
     void saveUnitigGraph(const string& outputFilename, MDBG* mdbg, size_t minimizerSize, size_t nbCores, bool doesWriteReadIndex){
 
+        nbCores = 1;
+
+        //return;
         cout << "Saving unitig graph: " << outputFilename << endl;
         
         ofstream outputFile(outputFilename);
@@ -8444,7 +8446,7 @@ public:
 			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
 
             //cout << "line" << endl;
-            outputFile << "S" << "\t" << u._index << "\t" << "*" << "\t" << "LN:i:600" << "\t" << 'dp:i:39' << endl;
+            //outputFile << "S" << "\t" << u._index << "\t" << "*" << "\t" << "LN:i:600" << "\t" << 'dp:i:39' << endl;
 
             selectedUnitigIndex.insert(u._index);
 
