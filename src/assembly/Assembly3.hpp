@@ -303,7 +303,6 @@ public:
 
 
 			cout << "Cleanning graph 1" << endl;
-			_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, true, false, true, true, _mdbg, _minimizerSize, _nbCores, true);
 			_isBubble = _graph->_isBubble;
 			
 			//cout << "Cleanning graph 2" << endl;
@@ -340,8 +339,7 @@ public:
 		
 		//_graph->loadState2(100, -1, _unitigDatas);
 		//_graph->saveGraph(_inputDir + "/minimizer_graph_contigs.gfa");
-		_graph->loadState2(0, -1, _unitigDatas);
-		generateUnitigs();
+
 
 		_partitionDir = _inputDir + "/" + "partitions";
 		fs::path path(_partitionDir);
@@ -392,9 +390,16 @@ public:
 		//cout << endl << endl;
 		//partitionReads();
 
+		_graph->clear(0);
+		_graph->compact(false, _unitigDatas);
+		
 		extractKminmerSequences();
 		correctReads();
 		//getchar();
+
+		_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, true, false, true, true, _mdbg, _minimizerSize, _nbCores, true);
+		_graph->loadState2(0, -1, _unitigDatas);
+		generateUnitigs();
 
 		delete _mdbg;
 
@@ -1268,7 +1273,7 @@ public:
 			}
 			
 			
-			readpath = minimizers;
+			//readpath = minimizers;
 			//vector<u_int32_t> contigpath;
 
 			if(print_read){
