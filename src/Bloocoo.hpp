@@ -316,8 +316,8 @@ public:
 					#pragma omp critical
 					{
 						u_int32_t contigSize = readMinimizers.size();
-						_graph._fileSmallContigs.write((const char*)&contigSize, sizeof(contigSize));
-						_graph._fileSmallContigs.write((const char*)&readMinimizers[0], contigSize*sizeof(u_int64_t));
+						//_graph._fileSmallContigs.write((const char*)&contigSize, sizeof(contigSize));
+						//_graph._fileSmallContigs.write((const char*)&readMinimizers[0], contigSize*sizeof(u_int64_t));
 						//cout << "small contig" << endl;
 						//getchar();
 					}
