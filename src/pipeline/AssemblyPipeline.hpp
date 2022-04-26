@@ -34,16 +34,32 @@ public:
 		cxxopts::Options options("AssemblyPipeline", "");
 		options.add_options()
 		//("d,debug", "Enable debugging") // a bool parameter
-		(ARG_INPUT_FILENAME, "", cxxopts::value<string>())
-		(ARG_OUTPUT_DIR, "", cxxopts::value<string>())
+		("reads", "", cxxopts::value<string>())
+		//("asmDir", "", cxxopts::value<string>())
+		("outputDir", "", cxxopts::value<string>())
+		//(ARG_INPUT_FILENAME, "", cxxopts::value<string>())
+		//(ARG_OUTPUT_DIR, "", cxxopts::value<string>())
 		(ARG_INPUT_FILENAME_TRUTH, "", cxxopts::value<string>()->default_value(""))
+		(ARG_MINIMIZER_LENGTH, "", cxxopts::value<int>()->default_value("21"))
+		(ARG_MINIMIZER_DENSITY, "", cxxopts::value<float>()->default_value("0.01"))
 		(ARG_NB_CORES, "", cxxopts::value<int>()->default_value("8"));
+		//(ARG_KMINMER_LENGTH, "", cxxopts::value<int>()->default_value("3"))
+		//("k,kminmerSize", "File name", cxxopts::value<std::string>())
+		//("v,verbose", "Verbose output", cxxopts::value<bool>()->default_value("false"))
+		//;
+
+		//(ARG_INPUT_FILENAME_TRUTH, "", cxxopts::value<string>()->default_value(""))
+		//(ARG_EVAL, "", cxxopts::value<bool>()->default_value("false"))
+		//(ARG_INPUT_FILENAME_ABUNDANCE, "", cxxopts::value<string>()->default_value(""))
+		//(ARG_NB_CORES, "", cxxopts::value<int>()->default_value("8"));
 		//(ARG_KMINMER_LENGTH, "", cxxopts::value<int>()->default_value("3"))
 		//(ARG_MINIMIZER_LENGTH, "", cxxopts::value<int>()->default_value("21"))
 		//(ARG_MINIMIZER_DENSITY, "", cxxopts::value<float>()->default_value("0.005"));
 		//("k,kminmerSize", "File name", cxxopts::value<std::string>())
 		//("v,verbose", "Verbose output", cxxopts::value<bool>()->default_value("false"))
 		//;
+		options.parse_positional({"reads", "outputDir"});
+		options.positional_help("reads outputDir");
 
 		if(argc <= 1){
 			std::cout << options.help() << std::endl;
@@ -56,13 +72,18 @@ public:
 		try{
 			result = options.parse(argc, argv);
 
+
+			_inputFilename = result["reads"].as<string>();
+			//_inputDir = result["asmDir"].as<string>();
+			//_outputDir_binning = result["outputDir"].as<string>() + "/bins_/";
+
 			//_kminmerSize = result[ARG_KMINMER_LENGTH].as<int>(); //getInput()->getInt(STR_KMINMER_SIZE);
-			_inputFilename = result[ARG_INPUT_FILENAME].as<string>(); //getInput()->getStr(STR_INPUT);
-			//_minimizerSize = result[ARG_MINIMIZER_LENGTH].as<int>(); //getInput()->getInt(STR_MINIM_SIZE);
-			_inputDir = result[ARG_OUTPUT_DIR].as<string>(); //getInput()->getStr(STR_OUTPUT);
+			//_inputFilename = result[ARG_INPUT_FILENAME].as<string>(); //getInput()->getStr(STR_INPUT);
+			_inputDir = result["outputDir"].as<string>(); //getInput()->getStr(STR_OUTPUT);
 			_truthInputFilename = result[ARG_INPUT_FILENAME_TRUTH].as<string>();
 			_nbCores = result[ARG_NB_CORES].as<int>();
-			//_minimizerDensity = result[ARG_MINIMIZER_DENSITY].as<float>(); //getInput()->getDouble(STR_DENSITY);
+			_minimizerSize = result[ARG_MINIMIZER_LENGTH].as<int>(); //getInput()->getInt(STR_MINIM_SIZE);
+			_minimizerDensity = result[ARG_MINIMIZER_DENSITY].as<float>(); //getInput()->getDouble(STR_DENSITY);
 
 		}
 		catch (const std::exception& e){
@@ -93,9 +114,9 @@ public:
 		cout << endl;
 		cout << "Input: " << _inputFilename << endl;
 		cout << "Dir: " << _inputDir << endl;
-		//cout << "Minimizer length: " << _minimizerSize << endl;
+		cout << "Minimizer length: " << _minimizerSize << endl;
 		//cout << "Kminmer length: " << _kminmerSize << endl;
-		//cout << "Density: " << _minimizerDensity << endl;
+		cout << "Density: " << _minimizerDensity << endl;
 		cout << endl;
 
 		_filename_exe = argv[0];
@@ -125,20 +146,20 @@ public:
 	}
 
     void execute_pipeline(){
-		float density = 0.01;
-		u_int16_t minimizerSize = 21;
+		//float density = 0.005;
+		//u_int16_t minimizerSize = 21;
 		size_t firstK = 4;
 
 		string command = "";
 
 		ofstream fileSmallContigs(_inputDir + "/small_contigs.bin");
 
-		writeParameters(minimizerSize, firstK, density, firstK);
+		writeParameters(_minimizerSize, firstK, _minimizerDensity, firstK);
 		//createInputFile(false);
 
 		//Read selection
 		command = _filename_exe + " readSelection -i " + _inputFilename + " -o " + _inputDir + " -f " + _inputDir + "/read_data_init.txt" + " -t " + to_string(_nbCores);
-		//executeCommand(command);
+		executeCommand(command);
 		
 
 		u_int64_t pass = 0;
@@ -149,8 +170,7 @@ public:
 			//cout << "Start asm: " << k << endl;
 
 
-
-			writeParameters(minimizerSize, k, density, firstK);
+			writeParameters(_minimizerSize, k, _minimizerDensity, firstK);
 			//if(pass > 0) createInputFile(true);
 
 			//if(pass <= 0){
@@ -187,8 +207,8 @@ public:
 			//if(pass > 0) command += " -c " +  _inputDir + "/contig_data.gz";
 			executeCommand(command);
 
-			command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/unitigs.nodepath.gz" + " -f " + _inputDir + "/unitig_data.txt";
-			executeCommand(command);
+			//command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/unitigs.nodepath.gz" + " -f " + _inputDir + "/unitig_data.txt";
+			//executeCommand(command);
 
 			//command = ./bin/mdbgAsmMeta toMinspace -o ~/workspace/run/overlap_test_multik_AD/ -c ~/workspace/run/overlap_test_multik_AD/contigs.nodepath.gz
 
@@ -225,7 +245,7 @@ public:
 
 			bool generatedContigs = false;
 			//if(k == 5 || k == 10 || k == 16 || k == 21 || k == 26 || k == 31){
-			if(k == 41 || k == 81 || k == 121){
+			if(k == 21 || k == 31 || k == 41 || k == 51 || k == 61 || k == 71 || k == 81 || k == 91 || k == 101 || k == 111 || k == 121){
 
 
 				//Generate contigs
@@ -276,7 +296,7 @@ public:
 			cout << "pass done" << endl;
 			//if(generatedContigs) getchar();
 			//getchar();
-
+			//if(pass >= 2) break;
 			//if(k > 30) getchar();
 		}
 
@@ -298,7 +318,8 @@ public:
 		
 		if(fs::exists(_inputDir + "/groundtruth_position.csv")) fs::copy(_inputDir + "/groundtruth_position.csv", dir + "/groundtruth_position.csv");
 		if(fs::exists(_inputDir + "/read_path.txt")) fs::copy(_inputDir + "/read_path.txt", dir + "/read_path.txt");
-		if(fs::exists(_inputDir + "/read_index.txt")) fs::copy(_inputDir + "/read_index.txt", dir + "/read_index.txt");
+		if(fs::exists(_inputDir + "/read_path_cleaned.txt")) fs::copy(_inputDir + "/read_path_cleaned.txt", dir + "/read_path_cleaned.txt");
+		//if(fs::exists(_inputDir + "/read_index.txt")) fs::copy(_inputDir + "/read_index.txt", dir + "/read_index.txt");
 		fs::copy(_inputDir + "/minimizer_graph.gfa", dir + "/minimizer_graph.gfa");
 		fs::copy(_inputDir + "/minimizer_graph_u.gfa", dir + "/minimizer_graph_u.gfa");
 		fs::copy(_inputDir + "/minimizer_graph_u_cleaned.gfa", dir + "/minimizer_graph_u_cleaned.gfa");
