@@ -911,6 +911,7 @@ public:
 
             u_int32_t unitigIndex_exit = detectSuperbubble(unitig._index, maxLength, isBubble);
 
+            if(unitigIndex_exit == unitig._index || unitigIndex_exit == unitigIndex_toReverseDirection(unitig._index)) continue; //loop side of an inverse repeat
             if(unitigIndex_exit == -1) continue;
             if(isBubble[_unitigs[unitigIndex_exit]._startNode]) continue;
             if(isBubble[nodeIndex_toReverseDirection(_unitigs[unitigIndex_exit]._startNode)]) continue;
