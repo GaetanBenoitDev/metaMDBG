@@ -1154,8 +1154,8 @@ public:
 			//const vector<KmerVec>& kminmers = kminmerList._kminmers;
 			const vector<ReadKminmerComplete>& kminmersInfos = kminmerList._kminmersInfo;
 
-			_assembly3.writeCorrectedRead(minimizers, true, false);
-			return;
+			//_assembly3.writeCorrectedRead(minimizers, true, false);
+			//return;
 
 			//u_int32_t readSize = minimizers.size();
 			//_file_uncorrectedReads.write((const char*)&readSize, sizeof(readSize));
