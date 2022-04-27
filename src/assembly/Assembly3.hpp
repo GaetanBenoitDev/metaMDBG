@@ -392,7 +392,9 @@ public:
 
 		_graph->clear(0);
 		_graph->compact(false, _unitigDatas);
-		
+		//_graph->removeErrors_4(_kminmerSize, _unitigDatas);
+         
+
 		extractKminmerSequences();
 		correctReads();
 		//getchar();
@@ -1154,8 +1156,12 @@ public:
 			//const vector<KmerVec>& kminmers = kminmerList._kminmers;
 			const vector<ReadKminmerComplete>& kminmersInfos = kminmerList._kminmersInfo;
 
-			//_assembly3.writeCorrectedRead(minimizers, true, false);
-			//return;
+			if(_kminmerSize == 4 || _kminmerSize == 21){
+			}
+			else{
+				_assembly3.writeCorrectedRead(minimizers, true, false);
+				return;
+			}
 
 			//u_int32_t readSize = minimizers.size();
 			//_file_uncorrectedReads.write((const char*)&readSize, sizeof(readSize));

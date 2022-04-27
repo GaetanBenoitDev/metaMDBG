@@ -3200,7 +3200,8 @@ public:
 
         clear(0);
         compact(false, unitigDatas);
-
+        //removeErrors_4(k, unitigDatas);
+                
 		if(doesSaveUnitigGraph) saveUnitigGraph(_outputDir + "/minimizer_graph_u.gfa", mdbg, minimizerSize, nbCores, false);
 
         //vector<Bubble> bubbles;
@@ -4432,7 +4433,7 @@ public:
 
     }
 
-    void removeErrors_4(size_t k, float abundanceCutoff_min, float& currentCutoff, SaveState2& saveState, const vector<UnitigData>& unitigDatas, bool detectRoundabout, u_int64_t maxBubbleLength, bool insertBubble, bool saveAllState, bool doesSaveUnitigGraph, MDBG* mdbg, size_t minimizerSize, size_t nbCores){
+    void removeErrors_4(size_t k, const vector<UnitigData>& unitigDatas){
 
 
         bool isErrorRemoved = true;
@@ -4449,14 +4450,14 @@ public:
             for(Unitig& unitig : _unitigs){
                 if(unitig._startNode == -1) continue;
 
-                if(unitig._abundance <= 1){
+                if(unitig._nbNodes < k*2 && unitig._abundance < 2){
                     isErrorRemoved = true;
                     vector<u_int32_t> unitigNodes;
                     getUnitigNodes(unitig, unitigNodes);
                     for(u_int32_t node : unitigNodes){
                         removedNodes.insert(node);
                         removedNodes.insert(nodeIndex_toReverseDirection(node));
-                        saveState._nodeNameRemoved_tmp.insert(BiGraph::nodeIndex_to_nodeName(node));
+                        //saveState._nodeNameRemoved_tmp.insert(BiGraph::nodeIndex_to_nodeName(node));
                     }
                 }
 
@@ -4479,6 +4480,7 @@ public:
         }
 
 
+        compact(false, unitigDatas);
     }
 
     u_int64_t removeErrors_3(size_t k, float abundanceCutoff_min, float& currentCutoff, SaveState2& saveState, const vector<UnitigData>& unitigDatas, bool detectRoundabout, u_int64_t maxBubbleLength, bool insertBubble, bool saveAllState, bool doesSaveUnitigGraph, MDBG* mdbg, size_t minimizerSize, size_t nbCores){
