@@ -556,8 +556,8 @@ public:
             if(unitig._startNode == -1) continue;
 
 
-            //if(unitig._length > maxLength) continue;
-            if(unitig._nbNodes >= _kminmerSize*2) continue;
+            if(unitig._length > maxLength) continue;
+            //if(unitig._nbNodes >= _kminmerSize*2) continue;
             //if(_isNodeValid2.find(unitig._startNode) == _isNodeValid2.end()) continue; //already removed
 
 

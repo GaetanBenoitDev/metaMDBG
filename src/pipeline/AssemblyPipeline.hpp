@@ -42,7 +42,7 @@ public:
 		//(ARG_OUTPUT_DIR, "", cxxopts::value<string>())
 		(ARG_INPUT_FILENAME_TRUTH, "", cxxopts::value<string>()->default_value(""))
 		(ARG_MINIMIZER_LENGTH, "", cxxopts::value<int>()->default_value("21"))
-		(ARG_MINIMIZER_DENSITY, "", cxxopts::value<float>()->default_value("0.01"))
+		(ARG_MINIMIZER_DENSITY, "", cxxopts::value<float>()->default_value("0.005"))
 		(ARG_NB_CORES, "", cxxopts::value<int>()->default_value("8"));
 		//(ARG_KMINMER_LENGTH, "", cxxopts::value<int>()->default_value("3"))
 		//("k,kminmerSize", "File name", cxxopts::value<std::string>())
@@ -246,7 +246,7 @@ public:
 
 			bool generatedContigs = false;
 			//if(k == 5 || k == 10 || k == 16 || k == 21 || k == 26 || k == 31){
-			if(k == 21 || k == 31 || k == 41 || k == 51 || k == 61 || k == 71 || k == 81 || k == 91 || k == 101 || k == 111 || k == 121){
+			if(k == 41 || k == 51 || k == 61 || k == 71 || k == 81 || k == 91 || k == 101 || k == 111 || k == 121){
 
 
 				//Generate contigs
