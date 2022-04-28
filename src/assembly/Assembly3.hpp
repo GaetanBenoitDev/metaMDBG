@@ -395,6 +395,8 @@ public:
 		//_graph->removeErrors_4(_kminmerSize, _unitigDatas);
          
 
+		//if(_kminmerSize == 8) removeUnsupportedEdges(_gfaFilename, gfa_filename_noUnsupportedEdges, _graph);
+
 		extractKminmerSequences();
 		correctReads();
 		//getchar();
@@ -468,19 +470,21 @@ public:
 
 
 			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
-
+			if(nodeName == 12636){
+				cout << readIndex << endl;
+			}
 			//if(readIndex == 6081){
 			//	cout << nodeName << endl;
 			//}
 			//if(nodeName == 3857) cout << "lala" << endl;
-			u_int32_t nodeIndex = BiGraph::nodeName_to_nodeIndex(nodeName, true);
+			//u_int32_t nodeIndex = BiGraph::nodeName_to_nodeIndex(nodeName, true);
 			//if(_graph->_isNodeValid2.find(nodeIndex) == _graph->_isNodeValid2.end()) continue;
 			//if(_nodeData.find(nodeName) == _nodeData.end()) continue;
 
 			//UnitigData& unitigData = _nodeData[nodeName];
-			UnitigData& unitigData = _unitigDatas[nodeName];
+			//UnitigData& unitigData = _unitigDatas[nodeName];
 			//if(std::find(unitigData._readIndexes.begin(), unitigData._readIndexes.end(), readIndex) != unitigData._readIndexes.end()) continue;
-			unitigData._readIndexes.push_back(readIndex);
+			//unitigData._readIndexes.push_back(readIndex);
 			//cout << "indexing : " << readIndex << endl;
 		}
 
@@ -532,6 +536,7 @@ public:
 		auto fp = std::bind(&Assembly3::indexReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
 		parser.parse(fp);
 		
+		return;
 		//_indexingContigs = true;
 		//KminmerParser parser2(_inputDir + "/contig_data.txt", _minimizerSize, _kminmerSize, false);
 		//auto fp = std::bind(&Assembly::indexReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5);
@@ -1181,7 +1186,10 @@ public:
 			//}
 			
 			bool print_read = false;
-			if(readIndex % 10000 == 0) print_read = true;
+			//if(readIndex % 10000 == 0) print_read = true;
+			//if(readIndex == 6996) print_read = true;
+
+			//8208
 
 			//file_correction = ofstream(_inputDir + "/correction.csv");
 			//file_correction << "Name,Color" << endl;
@@ -1282,7 +1290,7 @@ public:
 			}
 			else{
 				success = true;
-				extendReadpath(minimizers, kminmersInfos, nodePathSolid, readpath, print_read);
+				//extendReadpath(minimizers, kminmersInfos, nodePathSolid, readpath, print_read);
 			}
 			
 			
@@ -1296,6 +1304,8 @@ public:
 					cout << minimizer << " ";
 				}
 				cout << endl;
+
+				getchar();
 			}
 
 
@@ -1332,11 +1342,13 @@ public:
 						for(u_int64_t m : minimizerSeq){
 							readpath.push_back(m);
 							if(print_read)  cout << "Add: " << m << endl;
+							checkLastCorrectionValid(readpath);
 						}
 					}
 					else{
 						if(print_read)  cout << "Add: " << minimizerSeq[minimizerSeq.size()-1] << endl;
 						readpath.push_back(minimizerSeq[minimizerSeq.size()-1]);
+						checkLastCorrectionValid(readpath);
 					}
 				}
 				else{
@@ -1345,11 +1357,13 @@ public:
 						for(u_int64_t m : minimizerSeq){
 							readpath.push_back(m);
 							if(print_read)  cout << "Add: " << m << endl;
+							checkLastCorrectionValid(readpath);
 						}
 					}
 					else{
 						if(print_read)  cout << "Add: " << minimizerSeq[0] << endl;
 						readpath.push_back(minimizerSeq[0]);
+						checkLastCorrectionValid(readpath);
 					}
 
 				}
@@ -1370,6 +1384,30 @@ public:
 			}
 		}
 
+		void checkLastCorrectionValid(const vector<u_int64_t>& readpath){
+
+			if(readpath.size() < _kminmerSize) return;
+
+			KmerVec vec;
+			for(size_t i=readpath.size()-_kminmerSize; i < readpath.size(); i++){
+				vec._kmers.push_back(readpath[i]);
+			}
+
+			vec = vec.normalize();
+
+			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
+				//if(i==2){ nbFailed += 1; }
+				cout << "Not good: " << endl;
+				//cout << vec._kmers[0] << " " << vec._kmers[1] << " " << vec._kmers[2] << " " << vec._kmers[3] << endl;
+
+				//notGood = true;
+				//continue;	
+				getchar();
+			}
+			//else{
+			//	cout << "good" << endl;
+			//}
+		}
 
 		void fillUncorrectedArea(u_int32_t position_source, u_int32_t nodeIndex_dest, const vector<u_int64_t>& readMinimizers, vector<u_int64_t>& readpath, const vector<ReadKminmerComplete>& kminmersInfos, bool isFirstIteration, bool print_read){
 			
@@ -1544,7 +1582,7 @@ public:
 
 				if(nodeIndex_dest == -1) break; //no node index dest found (typically error at the end of the read)
 
-				if(false && tryFindPathDirect(nodeIndex_source, nodeIndex_dest, readpath_nodes)){
+				if(tryFindPathDirect(nodeIndex_source, nodeIndex_dest, readpath_nodes)){
 					
 
 					fillCorrectedArea(nodeIndex_source, nodeIndex_dest, readMinimizers, readpath, kminmersInfos, isFirstIteration, print_read);
@@ -1563,7 +1601,7 @@ public:
 				else{
 
 					vector<u_int32_t> path;
-					if(false) _graph->findUniquePath(nodeIndex_source, nodeIndex_dest, path, false, true, maxDepth);
+					_graph->findUniquePath(nodeIndex_source, nodeIndex_dest, path, false, true, maxDepth);
 
 					if(path.size() != 0){
 						std::reverse(path.begin(), path.end());
@@ -1647,8 +1685,8 @@ public:
 			u_int32_t nodeNameSolidLeft = BiGraph::nodeIndex_to_nodeName(nodeIndex_left);
 			u_int32_t nodeNameSolidRight = BiGraph::nodeIndex_to_nodeName(nodeIndex_right);
 
-			bool needExtendLeft = true; //_graph->isEdgeNode(nodeIndex_left) || _graph->isNeighborOfEdgeNode(nodeIndex_left);// || _isNodeNameUnsupported.find(nodeNameSolidLeft) != _isNodeNameUnsupported.end();
-			bool needExtendRight = true; //_graph->isEdgeNode(nodeIndex_right) || _graph->isNeighborOfEdgeNode(nodeIndex_right);// || _isNodeNameUnsupported.find(nodeNameSolidRight) != _isNodeNameUnsupported.end();
+			bool needExtendLeft = _graph->isEdgeNode(nodeIndex_left) || _graph->isNeighborOfEdgeNode(nodeIndex_left);// || _isNodeNameUnsupported.find(nodeNameSolidLeft) != _isNodeNameUnsupported.end();
+			bool needExtendRight = _graph->isEdgeNode(nodeIndex_right) || _graph->isNeighborOfEdgeNode(nodeIndex_right);// || _isNodeNameUnsupported.find(nodeNameSolidRight) != _isNodeNameUnsupported.end();
 
 			if(!needExtendLeft && !needExtendRight) return;
 
