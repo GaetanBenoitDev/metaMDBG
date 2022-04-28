@@ -1156,12 +1156,16 @@ public:
 			//const vector<KmerVec>& kminmers = kminmerList._kminmers;
 			const vector<ReadKminmerComplete>& kminmersInfos = kminmerList._kminmersInfo;
 
+			//_assembly3.writeCorrectedRead(minimizers, true, false);
+			//	return;
+			/*
 			if(_kminmerSize == 4 || _kminmerSize == 21){
 			}
 			else{
 				_assembly3.writeCorrectedRead(minimizers, true, false);
 				return;
 			}
+			*/
 
 			//u_int32_t readSize = minimizers.size();
 			//_file_uncorrectedReads.write((const char*)&readSize, sizeof(readSize));
@@ -1540,7 +1544,7 @@ public:
 
 				if(nodeIndex_dest == -1) break; //no node index dest found (typically error at the end of the read)
 
-				if(tryFindPathDirect(nodeIndex_source, nodeIndex_dest, readpath_nodes)){
+				if(false && tryFindPathDirect(nodeIndex_source, nodeIndex_dest, readpath_nodes)){
 					
 
 					fillCorrectedArea(nodeIndex_source, nodeIndex_dest, readMinimizers, readpath, kminmersInfos, isFirstIteration, print_read);
@@ -1559,7 +1563,7 @@ public:
 				else{
 
 					vector<u_int32_t> path;
-					_graph->findUniquePath(nodeIndex_source, nodeIndex_dest, path, false, true, maxDepth);
+					if(false) _graph->findUniquePath(nodeIndex_source, nodeIndex_dest, path, false, true, maxDepth);
 
 					if(path.size() != 0){
 						std::reverse(path.begin(), path.end());
@@ -1643,8 +1647,8 @@ public:
 			u_int32_t nodeNameSolidLeft = BiGraph::nodeIndex_to_nodeName(nodeIndex_left);
 			u_int32_t nodeNameSolidRight = BiGraph::nodeIndex_to_nodeName(nodeIndex_right);
 
-			bool needExtendLeft = _graph->isEdgeNode(nodeIndex_left) || _graph->isNeighborOfEdgeNode(nodeIndex_left);// || _isNodeNameUnsupported.find(nodeNameSolidLeft) != _isNodeNameUnsupported.end();
-			bool needExtendRight = _graph->isEdgeNode(nodeIndex_right) || _graph->isNeighborOfEdgeNode(nodeIndex_right);// || _isNodeNameUnsupported.find(nodeNameSolidRight) != _isNodeNameUnsupported.end();
+			bool needExtendLeft = true; //_graph->isEdgeNode(nodeIndex_left) || _graph->isNeighborOfEdgeNode(nodeIndex_left);// || _isNodeNameUnsupported.find(nodeNameSolidLeft) != _isNodeNameUnsupported.end();
+			bool needExtendRight = true; //_graph->isEdgeNode(nodeIndex_right) || _graph->isNeighborOfEdgeNode(nodeIndex_right);// || _isNodeNameUnsupported.find(nodeNameSolidRight) != _isNodeNameUnsupported.end();
 
 			if(!needExtendLeft && !needExtendRight) return;
 

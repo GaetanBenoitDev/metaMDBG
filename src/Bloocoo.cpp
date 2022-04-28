@@ -209,8 +209,8 @@ void Bloocoo::createMDBG (){
 		_parsingContigs = true;
 		const string& filename_contigs = _outputDir + "/unitig_data.txt";
 
-		KminmerParserParallel parser3(filename_contigs, _minimizerSize, _kminmerSize, false, _nbCores);
-		parser3.parse(IndexKminmerFunctor(*this, true));
+		//KminmerParserParallel parser3(filename_contigs, _minimizerSize, _kminmerSize, false, _nbCores);
+		//parser3.parse(IndexKminmerFunctor(*this, true));
 		
 	}
 
