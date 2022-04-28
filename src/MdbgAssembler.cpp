@@ -12,6 +12,7 @@
 #include "contigFeatures/KmerCounter.hpp"
 #include "mapping/Mapping.hpp"
 #include "mapping/Mapping_BinReads.hpp"
+#include "mapping/Mapping_ContigToMDBG.hpp"
 
 void displayHelp(){
 	cout << "Usage: ./simkaMin [option]" << endl;
@@ -113,6 +114,9 @@ int main (int argc, char* argv[])
     		}
     		else if(programName == "map-binreads"){
                 Mapping_BinReads().run (argc, args);
+    		}
+    		else if(programName == "map-contigToMDBG"){
+                Mapping_ContigToMDBG().run (argc, args);
     		}
     		else{
     			displayHelp();

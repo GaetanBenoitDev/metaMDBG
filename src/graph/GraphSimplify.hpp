@@ -4450,7 +4450,7 @@ public:
             for(Unitig& unitig : _unitigs){
                 if(unitig._startNode == -1) continue;
 
-                if(unitig._abundance < 2){ //unitig._nbNodes < k*2 && 
+                if(unitig._abundance <= 1){ //unitig._nbNodes < k*2 && 
                     isErrorRemoved = true;
                     vector<u_int32_t> unitigNodes;
                     getUnitigNodes(unitig, unitigNodes);
@@ -8436,6 +8436,7 @@ public:
         
         ofstream outputFile(outputFilename);
 		unordered_set<u_int32_t> writtenUnitigs;
+        ofstream file_nodeNameToUnitigIndex(_outputDir + "/nodeName_to_unitigIndex.bin");
 
         unordered_set<u_int32_t> selectedUnitigIndex;
         u_int32_t unitigIndex_source = -1;
@@ -8453,6 +8454,12 @@ public:
 
             selectedUnitigIndex.insert(u._index);
 
+            for(u_int32_t nodeIndex : u._nodes){
+                u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
+		        file_nodeNameToUnitigIndex.write((const char*)&nodeName, sizeof(nodeName));
+		        file_nodeNameToUnitigIndex.write((const char*)&u._index, sizeof(u._index));
+            }
+
             if(unitigIndex_source == -1) unitigIndex_source = u._index;
             //mark[u._startNode] = i<<1 | 0;
             //mark[u._endNode] = i<<1 | 1;
@@ -8460,9 +8467,10 @@ public:
             //i += 1;
         }
 
+        file_nodeNameToUnitigIndex.close();
 
-	    writeReadPath(mdbg, minimizerSize, nbCores, selectedUnitigIndex);
-	    if(_kminmerSize == 4 && doesWriteReadIndex) writeReadIndex(mdbg, minimizerSize, nbCores, selectedUnitigIndex);
+	    //writeReadPath(mdbg, minimizerSize, nbCores, selectedUnitigIndex);
+	    //if(_kminmerSize == 4 && doesWriteReadIndex) writeReadIndex(mdbg, minimizerSize, nbCores, selectedUnitigIndex);
 
         unordered_set<u_int32_t> linkedUnitigIndex;
         unordered_set<DbgEdge, hash_pair> isEdge;

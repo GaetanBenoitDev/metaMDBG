@@ -316,7 +316,7 @@ public:
 		//const auto copyOptions = fs::copy_options::overwrite_existing;
 		//fs::copy(_inputDir + "/read_data.txt", dir + "/read_data.txt");
 
-		
+		if(fs::exists(_inputDir + "/nodeName_to_unitigIndex.bin")) fs::copy(_inputDir + "/nodeName_to_unitigIndex.bin", dir + "/nodeName_to_unitigIndex.bin");
 		if(fs::exists(_inputDir + "/groundtruth_position.csv")) fs::copy(_inputDir + "/groundtruth_position.csv", dir + "/groundtruth_position.csv");
 		if(fs::exists(_inputDir + "/read_path.txt")) fs::copy(_inputDir + "/read_path.txt", dir + "/read_path.txt");
 		if(fs::exists(_inputDir + "/read_path_cleaned.txt")) fs::copy(_inputDir + "/read_path_cleaned.txt", dir + "/read_path_cleaned.txt");
