@@ -376,8 +376,10 @@ public:
 					}
 					//}
 
-					if(!_isFirstPass){
-						//exist = true;
+					//exist = true;
+
+					if(_isFirstPass){
+						exist = true;
 					}
 					//cout << _bloomFilter->contains(vec.h()) << endl;
 					//if(_kminmerExist.find(vec) != _kminmerExist.end() || _parsingContigs ){ //|| !_isFirstPass
@@ -462,7 +464,7 @@ public:
 							//}
 
 							if(_isFirstPass){
-								node._abundance = 2;
+								node._abundance = 1;
 							}
 							else{
 								vector<u_int64_t> rlePositions;

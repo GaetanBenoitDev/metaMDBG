@@ -3200,7 +3200,7 @@ public:
 
         clear(0);
         compact(false, unitigDatas);
-        //removeErrors_4(k, unitigDatas);
+        removeErrors_4(k, unitigDatas);
                 
 		if(doesSaveUnitigGraph) saveUnitigGraph(_outputDir + "/minimizer_graph_u.gfa", mdbg, minimizerSize, nbCores, false);
 
@@ -4450,7 +4450,7 @@ public:
             for(Unitig& unitig : _unitigs){
                 if(unitig._startNode == -1) continue;
 
-                if(unitig._nbNodes < k*2 && unitig._abundance < 2){
+                if(unitig._abundance < 2){ //unitig._nbNodes < k*2 && 
                     isErrorRemoved = true;
                     vector<u_int32_t> unitigNodes;
                     getUnitigNodes(unitig, unitigNodes);

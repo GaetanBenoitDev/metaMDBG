@@ -392,7 +392,7 @@ public:
 
 		_graph->clear(0);
 		_graph->compact(false, _unitigDatas);
-		//_graph->removeErrors_4(_kminmerSize, _unitigDatas);
+		_graph->removeErrors_4(_kminmerSize, _unitigDatas);
          
 
 		//if(_kminmerSize == 8) removeUnsupportedEdges(_gfaFilename, gfa_filename_noUnsupportedEdges, _graph);
