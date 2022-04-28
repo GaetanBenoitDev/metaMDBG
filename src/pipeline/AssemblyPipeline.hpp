@@ -149,7 +149,7 @@ public:
     void execute_pipeline(){
 		//float density = 0.005;
 		//u_int16_t minimizerSize = 21;
-		size_t firstK = 4;
+		size_t firstK = 3;
 
 		string command = "";
 

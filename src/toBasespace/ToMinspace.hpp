@@ -31,6 +31,7 @@ public:
 	float _minimizerDensity;
     size_t _minimizerSize;
     size_t _kminmerSize;
+    size_t _kminmerSizeFirst;
 
 	string _filename_inputContigs;
 	string _filename_readMinimizers;
@@ -102,6 +103,7 @@ public:
 		gzread(file_parameters, (char*)&_minimizerSize, sizeof(_minimizerSize));
 		gzread(file_parameters, (char*)&_kminmerSize, sizeof(_kminmerSize));
 		gzread(file_parameters, (char*)&_minimizerDensity, sizeof(_minimizerDensity));
+		gzread(file_parameters, (char*)&_kminmerSizeFirst, sizeof(_kminmerSizeFirst));
 		gzclose(file_parameters);
 
 
@@ -491,7 +493,7 @@ public:
 
 	void createMinimizerContigs(){
 
-		size_t firstK = 4;
+		size_t firstK = _kminmerSizeFirst;
 
 		cout << endl;
 		cout << "Creating mContigs" << endl;
