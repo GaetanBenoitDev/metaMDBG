@@ -16,6 +16,7 @@ public:
 	MinimizerParser* _minimizerParser;
 	size_t _minimizerSize;
 	size_t _kminmerSize;
+	size_t _kminmerSizeFirst;
 	float _minimizerDensity;
 
 	MDBG* _mdbg;
@@ -27,6 +28,7 @@ public:
 
 	void parseArgs(int argc, char* argv[]){
 
+		_kminmerSizeFirst = 4;
 		//_kminmerSize = 4;
 		//_minimizerSize = 21;
 		//_minimizerDensity = 0.05;
@@ -186,7 +188,7 @@ public:
 
 		vector<KmerVec> kminmers; 
 		vector<ReadKminmer> kminmersInfo;
-		MDBG::getKminmers(_minimizerSize, _kminmerSize, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex, false);
+		MDBG::getKminmers(_minimizerSize, _kminmerSizeFirst, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex, false);
 
 		for(size_t i=0; i<kminmers.size(); i++){
 
@@ -246,15 +248,24 @@ public:
 			//cout << nodeName << endl;
 			if(_nodeName_to_unitigIndexes.find(nodeName) == _nodeName_to_unitigIndexes.end()) continue;
 
-			//cout << "?" << endl;
-			if(_kmerVec_to_binIndexes.find(vec) == _kmerVec_to_binIndexes.end()) continue;
-			cout << "oui" << endl;
 
-			const vector<u_int32_t>& binIndexes = _kmerVec_to_binIndexes[vec];
+			vector<u_int64_t> rlePositions;
+			vector<u_int64_t> minimizers_pos;//(minimizers.size());
+			vector<KmerVec> kminmers; 
+			vector<ReadKminmer> kminmersInfo;
+			MDBG::getKminmers(_minimizerSize, _kminmerSizeFirst, vec._kmers, minimizers_pos, kminmers, kminmersInfo, rlePositions, 0, false);
 
-			for(u_int32_t unitigIndex : _nodeName_to_unitigIndexes[nodeName]){
-				for(u_int32_t binIndex : binIndexes){
-					_unitigIndex_to_binIndexes[unitigIndex].push_back(binIndex);
+			for(const KmerVec& vec : kminmers){
+
+				//cout << "?" << endl;
+				if(_kmerVec_to_binIndexes.find(vec) == _kmerVec_to_binIndexes.end()) continue;
+
+				const vector<u_int32_t>& binIndexes = _kmerVec_to_binIndexes[vec];
+
+				for(u_int32_t unitigIndex : _nodeName_to_unitigIndexes[nodeName]){
+					for(u_int32_t binIndex : binIndexes){
+						_unitigIndex_to_binIndexes[unitigIndex].push_back(binIndex);
+					}
 				}
 			}
 			
