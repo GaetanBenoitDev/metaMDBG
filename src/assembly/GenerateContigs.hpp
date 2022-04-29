@@ -200,7 +200,7 @@ public:
 		//cout << "done" << endl;
 	
 
-		_graph->debug_writeGfaErrorfree(500, 500, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false, false, false, false, _mdbg, _minimizerSize, _nbCores, false);
+		_graph->debug_writeGfaErrorfree(2000, 2000, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false, false, false, false, _mdbg, _minimizerSize, _nbCores, false, true);
 			
 	}
 
@@ -690,7 +690,7 @@ public:
 		fileHifiasmAll << "Name,Colour" << endl;
 
 		gzFile outputContigFile_min = gzopen(outputFilename.c_str(),"wb");
-		gzFile outputContigFile_fasta = gzopen(outputFilename_fasta.c_str(),"wb");
+		//gzFile outputContigFile_fasta = gzopen(outputFilename_fasta.c_str(),"wb");
 
 		ofstream file_asmResult = ofstream(_inputDir + "/binning_results.csv");
 		file_asmResult << "Name,Colour" << endl;
@@ -778,7 +778,7 @@ public:
 
 
 				vector<u_int32_t> nodePath = unitig._nodes;
-				if(nodePath.size() == 1) continue;
+				if(nodePath.size() <= _kminmerSize) continue;
 
 				if(unitig._startNode == unitig._endNode){ //Circular
 					
@@ -859,6 +859,24 @@ public:
 		}
 
 
+		for(const Unitig& unitig : _graph->_cleanedLongTips){
+
+			if(isContigAssembled(unitig._nodes)) continue;
+
+			if(unitig._nodes.size() == 1) continue;
+
+			u_int64_t size = unitig._nodes.size();
+			gzwrite(outputContigFile_min, (const char*)&size, sizeof(size));
+			gzwrite(outputContigFile_min, (const char*)&unitig._nodes[0], size * sizeof(u_int32_t));
+
+			for(u_int32_t nodeIndex : unitig._nodes){
+				u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
+				_processedNodeNames.insert(nodeName);
+			}
+
+			contigIndex += 1;
+		}
+
 		/*
 		unordered_map<u_int32_t, u_int32_t> nodeCounts;
 
@@ -912,7 +930,7 @@ public:
 		*/
 
 		gzclose(outputContigFile_min);
-		gzclose(outputContigFile_fasta);
+		//gzclose(outputContigFile_fasta);
 		fileHifiasmAll.close();
 		//file_contigToNode.close();
 

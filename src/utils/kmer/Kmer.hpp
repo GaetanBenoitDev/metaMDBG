@@ -988,6 +988,8 @@ public:
 		minimizers.clear();
 		minimizersPos.clear();
 
+		//parse_windowed(seq, minimizers, minimizersPos, 200);
+		//return;
 		//0 0
 		//100000 3278692
 		//200000 6550207
@@ -1043,6 +1045,65 @@ public:
 			
 			//pos += 1;
 		}
+
+	}
+
+	void parse_windowed(const string& seq, vector<u_int64_t>& minimizers, vector<u_int64_t>& minimizersPos, size_t w){
+
+		minimizers.clear();
+		minimizersPos.clear();
+
+		//0 0
+		//100000 3278692
+		//200000 6550207
+		//300000 9827077
+
+		vector<u_int64_t> kmers;
+		_kmerModel->iterate(seq.c_str(), seq.size(), kmers);
+
+		if(kmers.size() == 0) return;
+
+		//unordered_set<u_int64_t> selectedMinimizers;
+
+		int lastSelectedW = 0;
+		vector<u_int64_t> kmersCurrent;
+		for(u_int64_t pos=1; pos<kmers.size()-1; pos++){
+
+			u_int64_t kmerValue = kmers[pos];
+			MurmurHash3_x64_128 ((const char*)&kmerValue, sizeof(kmerValue), _seed, _hash_otpt);
+			u_int64_t kemrHashed = _hash_otpt[0];
+
+			kmersCurrent.push_back(kemrHashed);
+
+			if(pos >= w){
+				u_int64_t minimizer = -1; 
+				for(u_int64_t kmer : kmersCurrent){
+					if(kmer < minimizer){
+						minimizer = kmer;
+					}
+				}
+				//cout << kmers[0] << endl;
+				//auto it = minimizers_0_set.find(kmers[0]);
+				//minimizers_0_set.erase(it);
+
+				kmersCurrent.erase(kmersCurrent.begin());
+
+				lastSelectedW += 1;
+				//if
+				//selectedMinimizers.insert(minimizer);
+				//minimizersPos.push_back(pos);
+				if(minimizers.size() == 0 || minimizer != minimizers[minimizers.size()-1] || lastSelectedW >= w){
+					minimizers.push_back(minimizer);
+					minimizersPos.push_back(pos);
+					lastSelectedW = 0;
+				}
+				//	minimizers_0.push_back(minimizer);
+				//}
+				//cout << "Min: " << (*minimizers_0_set.begin()) << endl;
+			}
+
+		}
+
 
 	}
 

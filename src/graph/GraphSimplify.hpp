@@ -126,6 +126,7 @@ public:
     size_t _kminmerSize;
     unordered_set<u_int32_t> _isNodenameRoundabout;
     bool _isCopy;
+    vector<Unitig> _cleanedLongTips;
 
     GraphSimplify(const string& inputGfaFilename, const string& outputDir, u_int32_t nbNodes, size_t kminmerSize){
         _inputGfaFilename = inputGfaFilename;
@@ -244,6 +245,7 @@ public:
 
     void clear(float abundanceCutoff_min){
 
+        _cleanedLongTips.clear();
         //_isNodenameRoundabout.clear();
         _repeatedNodenames.clear();
         _rareReads.clear();
@@ -541,7 +543,7 @@ public:
 
     //unordered_map<u_int32_t, u_int32_t> _removedFrom;
 
-    u_int64_t tip(float maxLength, bool indexingTips, unordered_set<u_int32_t>& isTips, SaveState2& saveState){
+    u_int64_t tip(float maxLength, bool indexingTips, unordered_set<u_int32_t>& isTips, SaveState2& saveState, bool removeLongTips){
 
         unordered_set<u_int32_t> removedNodes;
 
@@ -555,8 +557,12 @@ public:
         for(Unitig& unitig : _unitigs){
             if(unitig._startNode == -1) continue;
 
-
-            if(unitig._length > maxLength) continue;
+            if(removeLongTips){
+                if(unitig._length > maxLength) continue;
+            }
+            else{
+                if(unitig._nbNodes >= _kminmerSize*2) continue;
+            }
             //if(unitig._nbNodes >= _kminmerSize*2) continue;
             //if(_isNodeValid2.find(unitig._startNode) == _isNodeValid2.end()) continue; //already removed
 
@@ -577,9 +583,16 @@ public:
                 }
                 
                 if(nbPredecessors != 1){
-                    if(unitig._nbNodes >= _kminmerSize*2){
-                        continue;
+                    if(removeLongTips){
+                        if(unitig._length > maxLength) continue;
                     }
+                    else{
+                        if(unitig._nbNodes >= _kminmerSize*2) continue;
+                    }
+
+                    //if(unitig._nbNodes >= _kminmerSize*2){
+                    //    continue;
+                    //}
                 }
             }
 
@@ -606,6 +619,10 @@ public:
                 isTips.insert(unitig._index);
                 isTips.insert(unitigIndex_toReverseDirection(unitig._index));
                 continue;
+            }
+
+            if(removeLongTips && unitig._nbNodes >= _kminmerSize*2){
+                _cleanedLongTips.push_back(unitig);
             }
 
             vector<u_int32_t> unitigNodes; 
@@ -3153,7 +3170,7 @@ public:
         }
     }
 
-    void debug_writeGfaErrorfree(u_int32_t currentAbundance, float abundanceCutoff_min, u_int32_t nodeIndex_source, u_int64_t k, bool saveGfa, bool doesSaveState, bool doesLoadState, const vector<UnitigData>& unitigDatas, bool crushBubble, bool smallBubbleOnly, bool detectRoundabout, bool insertBubble, bool saveAllState, bool doesSaveUnitigGraph, MDBG* mdbg, size_t minimizerSize, size_t nbCores, bool useLocalAbundanceFilter){
+    void debug_writeGfaErrorfree(u_int32_t currentAbundance, float abundanceCutoff_min, u_int32_t nodeIndex_source, u_int64_t k, bool saveGfa, bool doesSaveState, bool doesLoadState, const vector<UnitigData>& unitigDatas, bool crushBubble, bool smallBubbleOnly, bool detectRoundabout, bool insertBubble, bool saveAllState, bool doesSaveUnitigGraph, MDBG* mdbg, size_t minimizerSize, size_t nbCores, bool useLocalAbundanceFilter, bool removeLongTips){
 
         cout << "Cleaning graph" << endl;
         
@@ -3382,8 +3399,8 @@ public:
                     unordered_set<u_int32_t> isTips;
                     //nbTipsRemoved = tip(4*k, true, isTips);
                     //nbTipsRemoved = tip(4*k, false, isTips);
-                    nbTipsRemoved = tip(50000, true, isTips, currentSaveState);
-                    nbTipsRemoved = tip(50000, false, isTips, currentSaveState);
+                    nbTipsRemoved = tip(50000, true, isTips, currentSaveState, removeLongTips);
+                    nbTipsRemoved = tip(50000, false, isTips, currentSaveState, removeLongTips);
 
                     #ifdef PRINT_DEBUG_SIMPLIFICATION
                         cout << "Nb tip removed: " << nbTipsRemoved << endl;
@@ -4450,7 +4467,7 @@ public:
             for(Unitig& unitig : _unitigs){
                 if(unitig._startNode == -1) continue;
 
-                if(unitig._abundance <= 1){ //unitig._nbNodes < k*2 && 
+                if(unitig._abundance <= 2){ //unitig._nbNodes < k*2 && 
                     isErrorRemoved = true;
                     vector<u_int32_t> unitigNodes;
                     getUnitigNodes(unitig, unitigNodes);

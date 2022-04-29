@@ -109,6 +109,7 @@ public:
 	float _minimizerDensity;
     size_t _minimizerSize;
     size_t _kminmerSize;
+	size_t _kminmerSizeFirst;
 	vector<UnitigData> _unitigDatas;
 
 	string _partitionDir;
@@ -194,11 +195,12 @@ public:
 		gzread(file_parameters, (char*)&_minimizerSize, sizeof(_minimizerSize));
 		gzread(file_parameters, (char*)&_kminmerSize, sizeof(_kminmerSize));
 		gzread(file_parameters, (char*)&_minimizerDensity, sizeof(_minimizerDensity));
+		gzread(file_parameters, (char*)&_kminmerSizeFirst, sizeof(_kminmerSizeFirst));
 		gzclose(file_parameters);
 
-		ifstream file_data(_inputDir + "/data.txt");
-		file_data.read((char*)&_nbReads, sizeof(_nbReads));
-		file_data.close();
+		//ifstream file_data(_inputDir + "/data.txt");
+		//file_data.read((char*)&_nbReads, sizeof(_nbReads));
+		//file_data.close();
 
 		cout << endl;
 		cout << "Input dir: " << _inputDir << endl;
@@ -206,7 +208,7 @@ public:
 		cout << "Minimizer length: " << _minimizerSize << endl;
 		cout << "Kminmer length: " << _kminmerSize << endl;
 		cout << "Density: " << _minimizerDensity << endl;
-		cout << "Nb reads: " << _nbReads << endl;
+		//cout << "Nb reads: " << _nbReads << endl;
 		cout << endl;
 
 		//getchar();
@@ -401,7 +403,7 @@ public:
 		correctReads();
 		//getchar();
 
-		_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, true, false, true, true, _mdbg, _minimizerSize, _nbCores, true);
+		_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, true, false, true, true, _mdbg, _minimizerSize, _nbCores, true, false);
 		_graph->loadState2(0, -1, _unitigDatas);
 		generateUnitigs();
 
@@ -1163,14 +1165,14 @@ public:
 
 			//_assembly3.writeCorrectedRead(minimizers, true, false);
 			//	return;
-			/*
-			if(_kminmerSize == 4 || _kminmerSize == 21){
+			
+			if(_kminmerSize == _assembly3._kminmerSizeFirst){
 			}
 			else{
 				_assembly3.writeCorrectedRead(minimizers, true, false);
 				return;
 			}
-			*/
+			
 
 			//u_int32_t readSize = minimizers.size();
 			//_file_uncorrectedReads.write((const char*)&readSize, sizeof(readSize));

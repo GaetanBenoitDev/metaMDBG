@@ -248,12 +248,15 @@ public:
 			//cout << nodeName << endl;
 			if(_nodeName_to_unitigIndexes.find(nodeName) == _nodeName_to_unitigIndexes.end()) continue;
 
-
+			vector<u_int64_t> minimizers = vec._kmers;
+			if(it.second._isReversed){
+				std::reverse(minimizers.begin(), minimizers.end());
+			}
 			vector<u_int64_t> rlePositions;
 			vector<u_int64_t> minimizers_pos;//(minimizers.size());
 			vector<KmerVec> kminmers; 
 			vector<ReadKminmer> kminmersInfo;
-			MDBG::getKminmers(_minimizerSize, _kminmerSizeFirst, vec._kmers, minimizers_pos, kminmers, kminmersInfo, rlePositions, 0, false);
+			MDBG::getKminmers(_minimizerSize, _kminmerSizeFirst, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, 0, false);
 
 			for(const KmerVec& vec : kminmers){
 
