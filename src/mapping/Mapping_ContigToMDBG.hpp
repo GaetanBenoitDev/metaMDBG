@@ -28,7 +28,6 @@ public:
 
 	void parseArgs(int argc, char* argv[]){
 
-		_kminmerSizeFirst = 4;
 		//_kminmerSize = 4;
 		//_minimizerSize = 21;
 		//_minimizerDensity = 0.05;
@@ -84,6 +83,9 @@ public:
 		//cout << "Nb reads: " << _nbReads << endl;
 		cout << endl;
 
+		_minimizerSize = 17;
+		_minimizerDensity = 0.01;
+		_kminmerSizeFirst = 4;
 
 		_minimizerParser = new MinimizerParser(_minimizerSize, _minimizerDensity);
 	}
