@@ -147,7 +147,8 @@ public:
 	void execute (){
 
 		loadGraph();
-		generateContigs2(_inputDir + "/contigs.nodepath.gz", _inputDir + "/contigs.fasta.gz");
+		generateUnitigs();
+		//generateContigs2(_inputDir + "/contigs.nodepath.gz", _inputDir + "/contigs.fasta.gz");
 
 	}
 
@@ -188,6 +189,10 @@ public:
 		_graph = graphSimplify;
 		
 
+		_graph->clear(0);
+		_graph->compact(false, _unitigDatas);
+		//_graph->removeErrors_4(_kminmerSize, _unitigDatas);
+
 		//Generate unitigs
 		//cout << "Indexing reads" << endl;
 		//_unitigDatas.resize(_mdbg->_dbg_nodes.size());
@@ -200,7 +205,8 @@ public:
 		//cout << "done" << endl;
 	
 
-		_graph->debug_writeGfaErrorfree(2000, 2000, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false, false, false, false, _mdbg, _minimizerSize, _nbCores, false, true);
+		_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false, false, false, false, _mdbg, _minimizerSize, _nbCores, false, true);
+		//_graph->debug_writeGfaErrorfree(2000, 2000, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false, false, false, false, _mdbg, _minimizerSize, _nbCores, false, true);
 			
 	}
 
@@ -457,6 +463,172 @@ public:
 
 		//return sharedRate > 0.98;
 		//return distinctContigIndex.size() == 1;
+	}
+
+	void generateUnitigs(){
+		//if(_kminmerSize < 10) return;
+
+		const string& outputFilename = _inputDir + "/unitigs.nodepath.gz";
+
+		cout << "Generating contigs" << endl;
+		
+		//const string& outputFilename = _inputDir + "/contigs.nodepath.gz";
+		gzFile outputContigFile_min = gzopen(outputFilename.c_str(),"wb");
+
+		unordered_set<u_int32_t> writtenUnitigs;
+
+		//vector<float> readpathAbudance_values;
+		for(const Unitig& u : _graph->_unitigs){
+
+
+
+
+
+			//if(u._nbNodes < _kminmerSize*2) continue;
+
+			if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
+			if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
+
+			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._startNode));
+			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
+
+			vector<u_int32_t> nodepath = u._nodes;
+			/*
+			if(u._startNode == u._endNode){
+
+				u_int32_t nodeIndex = u._endNode;
+				for(size_t i=0; i<_kminmerSize; i++){
+					
+					vector<u_int32_t> successors;
+					_graph->getSuccessors(nodeIndex, 0, successors);
+
+					nodeIndex = successors[0];
+					nodepath.push_back(nodeIndex);
+
+				}
+
+			}
+			else{
+			*/
+
+				
+				if(u._nbNodes < _kminmerSize*2){
+
+					double abundanceSum = 0;
+					double abundanceN = 0;
+
+					float minAbundance = std::numeric_limits<float>::max();
+
+					vector<u_int32_t> successors;
+					_graph->getSuccessors_unitig(u._index, 0, successors);
+					vector<u_int32_t> predecessors;
+					_graph->getPredecessors_unitig(u._index, 0, predecessors);
+
+					for(u_int32_t unitigIndex : successors){
+						abundanceSum += _graph->_unitigs[unitigIndex]._abundance * _graph->_unitigs[unitigIndex]._nbNodes;
+						abundanceN += _graph->_unitigs[unitigIndex]._nbNodes;
+						//if(_graph->_unitigs[unitigIndex]._abundance < minAbundance){
+						//	minAbundance = _graph->_unitigs[unitigIndex]._abundance;
+						//}
+					}
+					for(u_int32_t unitigIndex : predecessors){
+						abundanceSum += _graph->_unitigs[unitigIndex]._abundance * _graph->_unitigs[unitigIndex]._nbNodes;
+						abundanceN += _graph->_unitigs[unitigIndex]._nbNodes;
+						//if(_graph->_unitigs[unitigIndex]._abundance < minAbundance){
+						//	minAbundance = _graph->_unitigs[unitigIndex]._abundance;
+						//}
+					}
+
+					if(abundanceN > 0){
+						double mean = abundanceSum / abundanceN;
+						if(u._abundance < mean*0.35){
+							continue;
+						}
+					}
+					//if(u._abundance < minAbundance){
+					//	continue;
+					//}
+				}
+				
+				
+			//}
+
+			u_int64_t size = nodepath.size();
+
+			//if(size < _kminmerSize*2) continue;
+
+			//cout << BiGraph::nodeIndex_to_nodeName(u._startNode) << " " << u._nbNodes << endl;
+			gzwrite(outputContigFile_min, (const char*)&size, sizeof(size));
+			gzwrite(outputContigFile_min, (const char*)&nodepath[0], size * sizeof(u_int32_t));
+		}
+		
+
+		for(const Unitig& u : _graph->_cleanedLongTips){
+
+
+			if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
+			if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
+
+			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._startNode));
+			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
+
+			//if(isContigAssembled(u._nodes)) continue;
+
+			if(u._nodes.size() <= _kminmerSize) continue;
+
+			if(u._nbNodes < _kminmerSize*2){
+
+				double abundanceSum = 0;
+				double abundanceN = 0;
+
+				float minAbundance = std::numeric_limits<float>::max();
+
+				vector<u_int32_t> successors;
+				_graph->getSuccessors_unitig(u._index, 0, successors);
+				vector<u_int32_t> predecessors;
+				_graph->getPredecessors_unitig(u._index, 0, predecessors);
+
+				for(u_int32_t unitigIndex : successors){
+					abundanceSum += _graph->_unitigs[unitigIndex]._abundance * _graph->_unitigs[unitigIndex]._nbNodes;
+					abundanceN += _graph->_unitigs[unitigIndex]._nbNodes;
+					//if(_graph->_unitigs[unitigIndex]._abundance < minAbundance){
+					//	minAbundance = _graph->_unitigs[unitigIndex]._abundance;
+					//}
+				}
+				for(u_int32_t unitigIndex : predecessors){
+					abundanceSum += _graph->_unitigs[unitigIndex]._abundance * _graph->_unitigs[unitigIndex]._nbNodes;
+					abundanceN += _graph->_unitigs[unitigIndex]._nbNodes;
+					//if(_graph->_unitigs[unitigIndex]._abundance < minAbundance){
+					//	minAbundance = _graph->_unitigs[unitigIndex]._abundance;
+					//}
+				}
+
+				if(abundanceN > 0){
+					double mean = abundanceSum / abundanceN;
+					if(u._abundance < mean*0.35){
+						continue;
+					}
+				}
+				//if(u._abundance < minAbundance){
+				//	continue;
+				//}
+			}
+
+
+			u_int64_t size = u._nodes.size();
+			gzwrite(outputContigFile_min, (const char*)&size, sizeof(size));
+			gzwrite(outputContigFile_min, (const char*)&u._nodes[0], size * sizeof(u_int32_t));
+
+			//for(u_int32_t nodeIndex : u._nodes){
+			//	u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
+			//	_processedNodeNames.insert(nodeName);
+			//}
+
+			//contigIndex += 1;
+		}
+
+
+		gzclose(outputContigFile_min);
 	}
 
 	/*
@@ -757,13 +929,13 @@ public:
 			for(const UnitigLength& unitigLength : startingUnitigs){
 
 				u_int32_t source_nodeIndex = unitigLength._startNodeIndex;
-				const Unitig& unitig = _graph->nodeIndex_to_unitig(source_nodeIndex);
+				const Unitig& u = _graph->nodeIndex_to_unitig(source_nodeIndex);
 
 				//cout << "Cutoff: " << unitigLength_cutoff_min << "-" << unitigLength_cutoff_max << " " << cutoff << " " << processedUnitigs << " " << startingUnitigs.size() << "     " << unitig._length << endl;
 				processedUnitigs += 1;
 
 				//if(unitig._nodes.size() < _kminmerSize*2) continue;
-				if(isContigAssembled(unitig._nodes)) continue;
+				if(isContigAssembled(u._nodes)) continue;
 
 
 				//u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(unitig._startNode);
@@ -777,10 +949,49 @@ public:
 				//}
 
 
-				vector<u_int32_t> nodePath = unitig._nodes;
+				vector<u_int32_t> nodePath = u._nodes;
 				if(nodePath.size() <= _kminmerSize) continue;
 
-				if(unitig._startNode == unitig._endNode){ //Circular
+				if(u._nbNodes < _kminmerSize*2){
+
+					double abundanceSum = 0;
+					double abundanceN = 0;
+
+					float minAbundance = std::numeric_limits<float>::max();
+
+					vector<u_int32_t> successors;
+					_graph->getSuccessors_unitig(u._index, 0, successors);
+					vector<u_int32_t> predecessors;
+					_graph->getPredecessors_unitig(u._index, 0, predecessors);
+
+					for(u_int32_t unitigIndex : successors){
+						abundanceSum += _graph->_unitigs[unitigIndex]._abundance * _graph->_unitigs[unitigIndex]._nbNodes;
+						abundanceN += _graph->_unitigs[unitigIndex]._nbNodes;
+						//if(_graph->_unitigs[unitigIndex]._abundance < minAbundance){
+						//	minAbundance = _graph->_unitigs[unitigIndex]._abundance;
+						//}
+					}
+					for(u_int32_t unitigIndex : predecessors){
+						abundanceSum += _graph->_unitigs[unitigIndex]._abundance * _graph->_unitigs[unitigIndex]._nbNodes;
+						abundanceN += _graph->_unitigs[unitigIndex]._nbNodes;
+						//if(_graph->_unitigs[unitigIndex]._abundance < minAbundance){
+						//	minAbundance = _graph->_unitigs[unitigIndex]._abundance;
+						//}
+					}
+
+					if(abundanceN > 0){
+						double mean = abundanceSum / abundanceN;
+						if(u._abundance < mean*0.35){
+							continue;
+						}
+					}
+					//if(u._abundance < minAbundance){
+					//	continue;
+					//}
+				}
+
+
+				if(u._startNode == u._endNode){ //Circular
 					
 					//cout << "circular: " << unitig._nbNodes << endl;
 					
@@ -859,17 +1070,56 @@ public:
 		}
 
 
-		for(const Unitig& unitig : _graph->_cleanedLongTips){
+		for(const Unitig& u : _graph->_cleanedLongTips){
 
-			if(isContigAssembled(unitig._nodes)) continue;
+			if(isContigAssembled(u._nodes)) continue;
 
-			if(unitig._nodes.size() == 1) continue;
+			if(u._nodes.size() <= _kminmerSize) continue;
 
-			u_int64_t size = unitig._nodes.size();
+			if(u._nbNodes < _kminmerSize*2){
+
+				double abundanceSum = 0;
+				double abundanceN = 0;
+
+				float minAbundance = std::numeric_limits<float>::max();
+
+				vector<u_int32_t> successors;
+				_graph->getSuccessors_unitig(u._index, 0, successors);
+				vector<u_int32_t> predecessors;
+				_graph->getPredecessors_unitig(u._index, 0, predecessors);
+
+				for(u_int32_t unitigIndex : successors){
+					abundanceSum += _graph->_unitigs[unitigIndex]._abundance * _graph->_unitigs[unitigIndex]._nbNodes;
+					abundanceN += _graph->_unitigs[unitigIndex]._nbNodes;
+					//if(_graph->_unitigs[unitigIndex]._abundance < minAbundance){
+					//	minAbundance = _graph->_unitigs[unitigIndex]._abundance;
+					//}
+				}
+				for(u_int32_t unitigIndex : predecessors){
+					abundanceSum += _graph->_unitigs[unitigIndex]._abundance * _graph->_unitigs[unitigIndex]._nbNodes;
+					abundanceN += _graph->_unitigs[unitigIndex]._nbNodes;
+					//if(_graph->_unitigs[unitigIndex]._abundance < minAbundance){
+					//	minAbundance = _graph->_unitigs[unitigIndex]._abundance;
+					//}
+				}
+
+				if(abundanceN > 0){
+					double mean = abundanceSum / abundanceN;
+					if(u._abundance < mean*0.35){
+						continue;
+					}
+				}
+				//if(u._abundance < minAbundance){
+				//	continue;
+				//}
+			}
+
+
+			u_int64_t size = u._nodes.size();
 			gzwrite(outputContigFile_min, (const char*)&size, sizeof(size));
-			gzwrite(outputContigFile_min, (const char*)&unitig._nodes[0], size * sizeof(u_int32_t));
+			gzwrite(outputContigFile_min, (const char*)&u._nodes[0], size * sizeof(u_int32_t));
 
-			for(u_int32_t nodeIndex : unitig._nodes){
+			for(u_int32_t nodeIndex : u._nodes){
 				u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
 				_processedNodeNames.insert(nodeName);
 			}
