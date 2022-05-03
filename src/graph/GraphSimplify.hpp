@@ -8631,11 +8631,11 @@ public:
                     const unordered_set<u_int32_t>& contigIndexes = it.second;
 
                     if(contigIndexes.size() > 1){
-                        outputFileContigColor << unitigIndex << "," << "-1" << endl;
+                        outputFileContigColor << unitigIndex << "," << "red" << endl;
                     }
                     else{
                         for(u_int32_t contigIndex : contigIndexes){
-                            outputFileContigColor << unitigIndex << "," << contigIndex << endl;
+                            outputFileContigColor << unitigIndex << "," << "green" << endl; //contigIndex
                         }
                     }
                 }

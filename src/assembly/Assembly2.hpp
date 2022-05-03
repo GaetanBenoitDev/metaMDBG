@@ -1605,7 +1605,7 @@ public:
 
 	void extractContigKminmers_read2(const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex, u_int64_t datasetIndex, const string& header, const string& seq){
 
-		if(seq.size() < 2500) return;
+		//if(seq.size() < 2500) return;
 		//cout << seq.size() << endl;
 		//if(readIndex == 20010) getchar(); 
 
