@@ -26,6 +26,12 @@ struct NodeAbundance{
     double _abundance;
 };
 
+struct UnitigTip{
+    u_int32_t _unitigIndex;
+    u_int32_t _startNodeIndex;
+    u_int32_t _length;
+};
+
 struct Bubble{
     u_int32_t _startNode;
     u_int32_t _endNode;
@@ -207,6 +213,17 @@ public:
 		return a._length < b._length;
 	}
 
+	static bool UnitigTipComparator_ByLength_Reverse(const UnitigTip &a, const UnitigTip &b){
+        if(a._startNodeIndex == b._startNodeIndex){
+            return a._length < b._length;
+        }
+        return a._startNodeIndex < b._startNodeIndex;
+        //if(a._length == b._length){
+        //    return a._startNodeIndex < b._startNodeIndex;
+        //}
+		//return a._length < b._length;
+	}
+    
 	static bool UnitigComparator_ByAbundance(const UnitigLength &a, const UnitigLength &b){
 		return a._abundance > b._abundance;
 	}
@@ -248,6 +265,10 @@ public:
     }
 
     void clear(float abundanceCutoff_min){
+
+        _nextUnitigIndex = 0;
+        _unitigs.clear();
+        _nodeToUnitig.clear();
 
         _cleanedLongTips.clear();
         //_isNodenameRoundabout.clear();
@@ -547,7 +568,37 @@ public:
 
     //unordered_map<u_int32_t, u_int32_t> _removedFrom;
 
+
     u_int64_t tip(float maxLength, bool indexingTips, unordered_set<u_int32_t>& isTips, SaveState2& saveState, bool removeLongTips){
+
+		unordered_set<u_int32_t> writtenUnitigs;
+
+
+        vector<UnitigTip> unitigTips;
+        for(Unitig& u : _unitigs){
+            if(u._startNode == -1) continue;
+            //if(u._startNode % 2 != 0) continue;
+
+            if(removeLongTips){
+                if(u._length > maxLength) continue;
+            }
+            else{
+                if(u._nbNodes >= _kminmerSize*2) continue;
+            }
+
+
+			//if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
+			//if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
+
+			//writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._startNode));
+			//writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
+            
+
+            unitigTips.push_back({u._index, u._startNode, u._length});
+        }
+
+        std::sort(unitigTips.begin(), unitigTips.end(), UnitigTipComparator_ByLength_Reverse);
+        
 
         unordered_set<u_int32_t> removedNodes;
 
@@ -558,23 +609,40 @@ public:
         //vector<bool> isVisited(_graphSuccessors->_nbNodes, false);
         bool dummy = false;
 
-        for(Unitig& unitig : _unitigs){
-            if(unitig._startNode == -1) continue;
+        for(const UnitigTip& unitigTip : unitigTips){
 
-            if(removeLongTips){
-                if(unitig._length > maxLength) continue;
-            }
-            else{
-                if(unitig._nbNodes >= _kminmerSize*2) continue;
-            }
+            //cout << unitigTip._length << endl;
+
+            const Unitig& unitig = _unitigs[unitigTip._unitigIndex];
+
+            //cout << unitig._startNode << endl;
+        
+
+            //if(removeLongTips){
+            //    if(unitig._length > maxLength) continue;
+            //}
+            //else{
+            //    if(unitig._nbNodes >= _kminmerSize*2) continue;
+            //}
             //if(unitig._nbNodes >= _kminmerSize*2) continue;
             //if(_isNodeValid2.find(unitig._startNode) == _isNodeValid2.end()) continue; //already removed
 
+
+            getSuccessors(unitig._endNode, 0, neighbors);
+            if(neighbors.size() > 0) continue;
 
             //if(isVisited[unitig._startNode]) continue;
             //if(isVisited[unitig._endNode]) continue;
 
             getPredecessors(unitig._startNode, 0, neighbors);
+            //if(unitig._index == 116){
+            //    cout << neighbors.size() << endl;
+            //}
+
+            //if(neighbors.size() == 0) continue;
+
+
+
             if(indexingTips){
                 if(neighbors.size() == 0) continue;
             }
@@ -586,7 +654,9 @@ public:
                     if(isTips.find(unitigIndex) == isTips.end()) nbPredecessors += 1;
                 }
                 
-                if(nbPredecessors != 1){
+                if(nbPredecessors != 1) continue;
+                
+                //if(nbPredecessors != 0){
                     if(removeLongTips){
                         if(unitig._length > maxLength) continue;
                     }
@@ -597,14 +667,15 @@ public:
                     //if(unitig._nbNodes >= _kminmerSize*2){
                     //    continue;
                     //}
-                }
+                //}
             }
 
 
 
-            getSuccessors(unitig._endNode, 0, neighbors);
-            if(neighbors.size() > 0) continue;
 
+            //if(unitig._index == 116){
+            //    cout << neighbors.size() << endl;
+            //}
 
             //isVisited[unitig._startNode] = true;
             //isVisited[unitig._endNode] = true;
@@ -646,6 +717,10 @@ public:
                 removedNodes.insert(nodeIndex_toReverseDirection(node));
                 saveState._nodeNameRemoved_tmp.insert(BiGraph::nodeIndex_to_nodeName(node));
             }
+
+            //if(unitig._index == 116){
+            //    cout << "omg" << endl;
+            //}
             //cout << "blabla2" << endl;
 
             //removedUnitigs.insert(unitig._index);
@@ -707,8 +782,33 @@ public:
         //vector<bool> isVisited(_graphSuccessors->_nbNodes, false);
         bool dummy = false;
 
-        for(Unitig& unitig : _unitigs){
-            if(unitig._startNode == -1) continue;
+		unordered_set<u_int32_t> writtenUnitigs;
+
+        vector<UnitigTip> unitigTips;
+        for(Unitig& u : _unitigs){
+            if(u._startNode == -1) continue;
+            //if(u._startNode % 2 != 0) continue;
+
+			//if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
+			//if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
+
+			//writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._startNode));
+			//writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
+            
+
+            unitigTips.push_back({u._index, u._startNode, u._length});
+        }
+
+        std::sort(unitigTips.begin(), unitigTips.end(), UnitigTipComparator_ByLength_Reverse);
+        
+
+        for(const UnitigTip& unitigTip : unitigTips){
+
+
+            const Unitig& unitig = _unitigs[unitigTip._unitigIndex];
+
+        //for(Unitig& unitig : _unitigs){
+        //    if(unitig._startNode == -1) continue;
 
 
             //if(unitig._length > maxLength) continue;
@@ -915,17 +1015,40 @@ public:
         #endif 
 
         u_int64_t nbRemoved = 0;
+		unordered_set<u_int32_t> writtenUnitigs;
 
+        vector<UnitigTip> unitigTips;
+        for(Unitig& u : _unitigs){
+            if(u._startNode == -1) continue;
+            //if(u._startNode % 2 != 0) continue;
+
+			//if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
+			//if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
+
+			//writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._startNode));
+			//writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
+            
+
+            unitigTips.push_back({u._index, u._startNode, u._length});
+        }
+
+        std::sort(unitigTips.begin(), unitigTips.end(), UnitigTipComparator_ByLength_Reverse);
+        
+
+        for(const UnitigTip& unitigTip : unitigTips){
+
+
+            const Unitig& unitig = _unitigs[unitigTip._unitigIndex];
         //cout << "Super bubble!" << endl;
-        for(Unitig& unitig : _unitigs){
-            if(unitig._startNode == -1) continue;
+        //for(Unitig& unitig : _unitigs){
+            //if(unitig._startNode == -1) continue;
             //if(BiGraph::nodeIndex_to_nodeName(unitig._endNode) != 1307) continue;
             //cout << BiGraph::nodeIndex_to_nodeName(unitig._endNode) << endl;
 
             if(isBubble[unitig._endNode]) continue;
             if(isBubble[nodeIndex_toReverseDirection(unitig._endNode)]) continue;
-            
-
+ 
+    
             vector<u_int32_t> successors;
             getSuccessors_unitig(unitig._index, 0, successors);
             if(successors.size() <= 1) continue;
@@ -936,6 +1059,8 @@ public:
             if(unitigIndex_exit == -1) continue;
             if(isBubble[_unitigs[unitigIndex_exit]._startNode]) continue;
             if(isBubble[nodeIndex_toReverseDirection(_unitigs[unitigIndex_exit]._startNode)]) continue;
+
+            //cout << unitig._startNode << endl;
 
             #ifdef PRINT_DEBUG_SIMPLIFICATION
                 cout << "\tSuperbubble: " << BiGraph::nodeToString(unitig._endNode) << " " << BiGraph::nodeToString(_unitigs[unitigIndex_exit]._startNode) << endl;
@@ -1384,8 +1509,35 @@ public:
         vector<u_int32_t> unitigNodes;
         bool dummy = false;
 
-        for(Unitig& unitig : _unitigs){
-            if(unitig._startNode == -1) continue;
+
+		unordered_set<u_int32_t> writtenUnitigs;
+
+        vector<UnitigTip> unitigTips;
+        for(Unitig& u : _unitigs){
+            if(u._startNode == -1) continue;
+            //if(u._startNode % 2 != 0) continue;
+
+			//if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
+			//if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
+
+			//writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._startNode));
+			//writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
+            
+
+            unitigTips.push_back({u._index, u._startNode, u._length});
+        }
+
+        std::sort(unitigTips.begin(), unitigTips.end(), UnitigTipComparator_ByLength_Reverse);
+        
+
+        for(const UnitigTip& unitigTip : unitigTips){
+
+
+            const Unitig& unitig = _unitigs[unitigTip._unitigIndex];
+
+
+        //for(Unitig& unitig : _unitigs){
+            //if(unitig._startNode == -1) continue;
             //cout << "-------------" << endl;
 
             //u_int32_t startNodeName = _graphSuccessors->nodeIndex_to_nodeName(unitig._startNode, dummy);
@@ -1661,8 +1813,34 @@ public:
         //vector<bool> isVisited(_graphSuccessors->_nbNodes, false);
         bool dummy = false;
 
-        for(Unitig& unitig_source : _unitigs){
-            if(unitig_source._startNode == -1) continue;
+
+		unordered_set<u_int32_t> writtenUnitigs;
+
+        vector<UnitigTip> unitigTips;
+        for(Unitig& u : _unitigs){
+            if(u._startNode == -1) continue;
+            //if(u._startNode % 2 != 0) continue;
+
+			//if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
+			//if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
+
+			//writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._startNode));
+			//writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
+            
+
+            unitigTips.push_back({u._index, u._startNode, u._length});
+        }
+
+        std::sort(unitigTips.begin(), unitigTips.end(), UnitigTipComparator_ByLength_Reverse);
+        
+
+        for(const UnitigTip& unitigTip : unitigTips){
+
+
+            const Unitig& unitig_source = _unitigs[unitigTip._unitigIndex];
+
+        //for(Unitig& unitig_source : _unitigs){
+            //if(unitig_source._startNode == -1) continue;
 
 
             //if(isVisited[unitig_source._startNode]) continue;
@@ -1834,7 +2012,13 @@ public:
 
         if(rebuild){
 
-            for(u_int32_t unitigIndex : _removedUnitigs){
+            vector<u_int32_t> unitigIndexes;
+            for (u_int32_t unitigIndex : _removedUnitigs){
+                unitigIndexes.push_back(unitigIndex);
+            }
+            std::sort(unitigIndexes.begin(), unitigIndexes.end());
+
+            for(u_int32_t unitigIndex : unitigIndexes){
                 //cout << unitigIndex << endl;
                 vector<u_int32_t> unitigNodes; 
                 getUnitigNodes(_unitigs[unitigIndex], unitigNodes);
@@ -1860,7 +2044,15 @@ public:
             _unitigs.clear();
             _unitigDatas2.clear();
 
+            vector<u_int32_t> nodes;
             for (u_int32_t nodeIndex : _isNodeValid2){
+                nodes.push_back(nodeIndex);
+            }
+            std::sort(nodes.begin(), nodes.end());
+            //srand(time(NULL));
+            //std::random_shuffle(nodes.begin(), nodes.end());
+
+            for (u_int32_t nodeIndex : nodes){
                 computeUnitig(nodeIndex, unitigDatas);
                 //cout << "done" << endl;
             }
@@ -2356,12 +2548,14 @@ public:
                 
                 _unitigs.push_back({_nextUnitigIndex, startNode, endNode, median, length, nbNodes, nodes});
                 _unitigs.push_back({unitigIndexRC, nodeIndex_toReverseDirection(endNode), nodeIndex_toReverseDirection(startNode), median, length, nbNodes, nodesRC});
+
+                
             }
 
 
         //}
 
-
+        
         /*
         //---------- Unitig supporting reads
         unordered_set<u_int64_t> readIndexes_unique;
@@ -3361,6 +3555,20 @@ public:
 
                 /*
                 bool isHere = false;
+                for(Unitig& u : _unitigs){
+                    if(u._index == 116){
+                        cout << u._length << endl;
+                        if(u._startNode != -1){
+                            isHere = true;
+                        }
+                    }
+                }
+                cout << isHere << endl;
+                getchar();
+                */
+
+                /*
+                bool isHere = false;
                 for(u_int32_t nodeIndex : _isNodeValid2){
                     if(BiGraph::nodeIndex_to_nodeName(nodeIndex) == 0){
                         isHere = true;
@@ -3396,7 +3604,7 @@ public:
                     getchar();
                 }*/
 
-
+                
                 while(true){
                     compact(true, unitigDatas);
 
@@ -3414,6 +3622,19 @@ public:
                     isModSub = true;
                 }
 
+                /*
+                isHere = false;
+                for(Unitig& u : _unitigs){
+                    if(u._index == 116){
+                        cout << u._length << endl;
+                        if(u._startNode != -1){
+                            isHere = true;
+                        }
+                    }
+                }
+                cout << isHere << endl;
+                getchar();
+                */
                 
                 while(true){
                     compact(true, unitigDatas);
@@ -3457,13 +3678,13 @@ public:
                         isModSub = true;
                     }
                 }
-                
+
                 //cout << _isBubble[BiGraph::nodeName_to_nodeIndex(510153, true)] << " " << _isBubble[BiGraph::nodeName_to_nodeIndex(510153, false)] << endl;
                 //cout << _isBubble[BiGraph::nodeName_to_nodeIndex(1718667, true)] << " " << _isBubble[BiGraph::nodeName_to_nodeIndex(1718667, false)] << endl;
                 //cout << getNodeUnitigAbundance(BiGraph::nodeName_to_nodeIndex(1473953, true)) << endl;
                 //cout << getNodeUnitigAbundance(BiGraph::nodeName_to_nodeIndex(3541558, true)) << endl;
                 
-
+                
                 while(true){
                     compact(true, unitigDatas);
                     nbSmallLoopRemoved = removeSmallLoop(10000, currentSaveState);
@@ -3474,6 +3695,7 @@ public:
                     isModification = true;
                     isModSub = true;
                 }
+                
                 
                 /*
                 cout << "detecting readpath 1" << endl;
@@ -4468,8 +4690,31 @@ public:
             compact(true, unitigDatas);
 
             
-            for(Unitig& unitig : _unitigs){
-                if(unitig._startNode == -1) continue;
+
+            unordered_set<u_int32_t> writtenUnitigs;
+
+
+            vector<UnitigTip> unitigTips;
+            for(Unitig& u : _unitigs){
+                if(u._startNode == -1) continue;
+                //if(u._startNode % 2 != 0) continue;
+
+                //if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
+                //if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
+
+                //writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._startNode));
+                //writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
+                
+                unitigTips.push_back({u._index, u._startNode, u._length});
+            }
+
+            std::sort(unitigTips.begin(), unitigTips.end(), UnitigTipComparator_ByLength_Reverse);
+
+
+
+            for(const UnitigTip& unitigTip : unitigTips){
+
+                const Unitig& unitig = _unitigs[unitigTip._unitigIndex];
 
                 if(unitig._abundance <= 2){ //unitig._nbNodes < k*2 && 
                     isErrorRemoved = true;
@@ -8449,6 +8694,46 @@ public:
         bool _ori;
     };
 
+    unordered_set<u_int32_t> _debug_selectedUnitigIndex;
+
+    void debug_selectUnitigIndex(){
+
+		unordered_set<u_int32_t> writtenUnitigs;
+
+        for(const Unitig& u : _unitigs){
+
+			if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
+			if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
+
+			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._startNode));
+			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
+
+            _debug_selectedUnitigIndex.insert(u._index);
+
+        }
+    }
+
+    u_int32_t debug_nodeName_toSelectedUnitigIndex(u_int32_t nodeName){
+
+        u_int32_t nodeIndex1 = BiGraph::nodeName_to_nodeIndex(nodeName, false);
+        u_int32_t nodeIndex2 = BiGraph::nodeName_to_nodeIndex(nodeName, true);
+
+        if(_isNodeValid2.find(nodeIndex1) == _isNodeValid2.end() && _isNodeValid2.find(nodeIndex2) == _isNodeValid2.end()) return -1;
+
+        u_int32_t unitigIndex1 = nodeIndex_to_unitigIndex(nodeIndex1);
+        u_int32_t unitigIndex2 = nodeIndex_to_unitigIndex(nodeIndex2);
+        u_int32_t unitigIndex = -1;
+
+        if(_debug_selectedUnitigIndex.find(unitigIndex1) != _debug_selectedUnitigIndex.end()){
+            unitigIndex = unitigIndex1;
+        }
+        else if(_debug_selectedUnitigIndex.find(unitigIndex2) != _debug_selectedUnitigIndex.end()){
+            unitigIndex = unitigIndex2;
+        }
+
+        return unitigIndex; 
+    }
+
     void saveUnitigGraph(const string& outputFilename, MDBG* mdbg, size_t minimizerSize, size_t nbCores, bool isCleanedGraph){
 
         cout << "Saving unitig graph: " << outputFilename << endl;
@@ -8457,8 +8742,9 @@ public:
 		unordered_set<u_int32_t> writtenUnitigs;
 
         unordered_set<u_int32_t> selectedUnitigIndex;
-        u_int32_t unitigIndex_source = -1;
+        //u_int32_t unitigIndex_source = -1;
 
+        cout << _unitigs.size() << endl;
 		for(const Unitig& u : _unitigs){
 
 			if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
@@ -8470,10 +8756,10 @@ public:
             //cout << "line" << endl;
 
             //if(_contigFeature == nullptr) outputFile << "S" << "\t" << u._index << "\t" << "*" << "\t" << "LN:i:600" << "\t" << 'dp:i:39' << endl;
-
+            //cout << "Select: " << u._index << " " << u._nbNodes << endl;
             selectedUnitigIndex.insert(u._index);
 
-            if(unitigIndex_source == -1) unitigIndex_source = u._index;
+            //if(unitigIndex_source == -1) unitigIndex_source = u._index;
 
             /*
             if(isCleanedGraph){
@@ -8494,7 +8780,7 @@ public:
             //i += 1;
         }
 
-        if(_contigFeature == nullptr){
+        //if(_contigFeature == nullptr){
             
             ofstream outputFile(outputFilename);
 
@@ -8604,8 +8890,9 @@ public:
 
 
             outputFile.close();
-        }
-        else{
+        //}
+        //else{
+        if(_contigFeature != nullptr){
             if(isCleanedGraph){
 
                 unordered_map<u_int32_t, unordered_set<u_int32_t>> unitigIndex_to_contigIndex;
@@ -8623,7 +8910,7 @@ public:
                 }
 
 
-                ofstream outputFileContigColor(_outputDir + "/" + "contig_color.csv");
+                ofstream outputFileContigColor(_outputDir + "/" + "contig_nt_color.csv");
                 outputFileContigColor << "Name,Color" << endl;
 
                 for(const auto& it : unitigIndex_to_contigIndex){

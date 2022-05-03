@@ -157,7 +157,7 @@ public:
 			file_contigBin.read((char*)&binIndex, sizeof(binIndex));
 
 
-			cout << contigIndex << " -> " << binIndex << endl;
+			//cout << contigIndex << " -> " << binIndex << endl;
 
 			//if(std::find(_binIndex_to_contigIndex[binIndex].begin(), _binIndex_to_contigIndex[binIndex].end(), contigIndex) != _binIndex_to_contigIndex[binIndex].end()){
 				//cout << "duplicate" << endl;
@@ -1306,7 +1306,7 @@ public:
 			float tnf_dist = cal_tnf_dist(composition1, composition2, contigIndex1, contigIndex2);
 			distance = 1-tnf_dist;
 
-			cout << "Composition distance: " << tnf_dist << " " << _contigLengths[contigIndex1] << " " << _contigLengths[contigIndex2]  << endl;
+			//cout << "Composition distance: " << tnf_dist << " " << _contigLengths[contigIndex1] << " " << _contigLengths[contigIndex2]  << endl;
 		}
 
 

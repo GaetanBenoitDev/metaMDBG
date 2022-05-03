@@ -1,4 +1,5 @@
 
+
 #ifndef MDBG_METAG_GENERATECONTIGS
 #define MDBG_METAG_GENERATECONTIGS
 
@@ -189,8 +190,8 @@ public:
 		_graph = graphSimplify;
 		
 
-		_graph->clear(0);
-		_graph->compact(false, _unitigDatas);
+		//_graph->clear(0);
+		//_graph->compact(false, _unitigDatas);
 		//_graph->removeErrors_4(_kminmerSize, _unitigDatas);
 
 		//Generate unitigs
@@ -204,8 +205,12 @@ public:
 
 		//cout << "done" << endl;
 	
+    //void debug_writeGfaErrorfree(unitigDatas, crushBubble, smallBubbleOnly, detectRoundabout, insertBubble, saveAllState, doesSaveUnitigGraph, MDBG* mdbg, size_t minimizerSize, size_t nbCores, bool useLocalAbundanceFilter, bool removeLongTips){
 
-		_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false, false, false, false, _mdbg, _minimizerSize, _nbCores, false, true);
+	  //_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, true, false, true, true, _mdbg, _minimizerSize, _nbCores, true, false);
+		//_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false, false, false, true, _mdbg, _minimizerSize, _nbCores, false, false);
+		_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false, false, false, true, _mdbg, _minimizerSize, _nbCores, false, false);
+		_graph->debug_selectUnitigIndex();
 		//_graph->debug_writeGfaErrorfree(2000, 2000, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false, false, false, false, _mdbg, _minimizerSize, _nbCores, false, true);
 			
 	}
@@ -465,8 +470,32 @@ public:
 		//return distinctContigIndex.size() == 1;
 	}
 
+/*
+                ofstream outputFileContigColor(_outputDir + "/" + "contig_color.csv");
+                outputFileContigColor << "Name,Color" << endl;
+
+                for(const auto& it : unitigIndex_to_contigIndex){
+                    u_int32_t unitigIndex = it.first;
+                    const unordered_set<u_int32_t>& contigIndexes = it.second;
+
+                    if(contigIndexes.size() > 1){
+                        outputFileContigColor << unitigIndex << "," << "red" << endl;
+                    }
+                    else{
+                        for(u_int32_t contigIndex : contigIndexes){
+                            outputFileContigColor << unitigIndex << "," << "green" << endl; //contigIndex
+                        }
+                    }
+                }
+
+                outputFileContigColor.close();
+				*/
+
 	void generateUnitigs(){
 		//if(_kminmerSize < 10) return;
+
+		ofstream outputFileContigColor(_inputDir + "/" + "contig_color.csv");
+		outputFileContigColor << "Name,Color" << endl;
 
 		const string& outputFilename = _inputDir + "/unitigs.nodepath.gz";
 
@@ -480,7 +509,10 @@ public:
 		//vector<float> readpathAbudance_values;
 		for(const Unitig& u : _graph->_unitigs){
 
-
+			//if(u._index == 98){
+			//	cout << u._nodes.size() << endl;
+			//	getchar();
+ 			//}
 
 
 
@@ -493,6 +525,17 @@ public:
 			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
 
 			vector<u_int32_t> nodepath = u._nodes;
+
+
+			//if(u._index == 14) cout << u._nodes.size() << endl;
+			//if(u._index == 64) cout << u._nodes.size() << endl;
+
+
+			for(u_int32_t nodeIndex : u._nodes){
+				u_int32_t unitigIndex = _graph->debug_nodeName_toSelectedUnitigIndex(BiGraph::nodeIndex_to_nodeName(nodeIndex));
+				outputFileContigColor << unitigIndex << "," << "blue" << endl; //contigIndex
+			}
+
 			/*
 			if(u._startNode == u._endNode){
 
@@ -511,6 +554,7 @@ public:
 			else{
 			*/
 
+				if(u._nbNodes < _kminmerSize) continue;
 				
 				if(u._nbNodes < _kminmerSize*2){
 
@@ -556,14 +600,19 @@ public:
 			u_int64_t size = nodepath.size();
 
 			//if(size < _kminmerSize*2) continue;
-
+			for(u_int32_t nodeIndex : u._nodes){
+				u_int32_t unitigIndex = _graph->debug_nodeName_toSelectedUnitigIndex(BiGraph::nodeIndex_to_nodeName(nodeIndex));
+				outputFileContigColor << unitigIndex << "," << "red" << endl; //contigIndex
+			}
+			
 			//cout << BiGraph::nodeIndex_to_nodeName(u._startNode) << " " << u._nbNodes << endl;
 			gzwrite(outputContigFile_min, (const char*)&size, sizeof(size));
 			gzwrite(outputContigFile_min, (const char*)&nodepath[0], size * sizeof(u_int32_t));
 		}
 		
-
+		cout << "Nb cleaned long tips: " << _graph->_cleanedLongTips.size() << endl;
 		for(const Unitig& u : _graph->_cleanedLongTips){
+
 
 
 			if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
@@ -571,6 +620,11 @@ public:
 
 			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._startNode));
 			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
+
+			for(u_int32_t nodeIndex : u._nodes){
+				u_int32_t unitigIndex = _graph->debug_nodeName_toSelectedUnitigIndex(BiGraph::nodeIndex_to_nodeName(nodeIndex));
+				outputFileContigColor << unitigIndex << "," << "blue" << endl; //contigIndex
+			}
 
 			//if(isContigAssembled(u._nodes)) continue;
 
@@ -614,6 +668,10 @@ public:
 				//}
 			}
 
+			for(u_int32_t nodeIndex : u._nodes){
+				u_int32_t unitigIndex = _graph->debug_nodeName_toSelectedUnitigIndex(BiGraph::nodeIndex_to_nodeName(nodeIndex));
+				outputFileContigColor << unitigIndex << "," << "green" << endl; //contigIndex
+			}
 
 			u_int64_t size = u._nodes.size();
 			gzwrite(outputContigFile_min, (const char*)&size, sizeof(size));
@@ -628,6 +686,7 @@ public:
 		}
 
 
+		outputFileContigColor.close();
 		gzclose(outputContigFile_min);
 	}
 

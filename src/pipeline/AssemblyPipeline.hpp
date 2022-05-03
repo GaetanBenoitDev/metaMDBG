@@ -166,7 +166,7 @@ public:
 		u_int64_t pass = 0;
 		u_int32_t prevK = -1;
 
-		for(size_t k=firstK; k<122; k+=1){
+		for(size_t k=firstK; k<42; k+=1){
 
 			//cout << "Start asm: " << k << endl;
 

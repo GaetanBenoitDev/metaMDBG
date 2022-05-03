@@ -378,7 +378,11 @@ public:
 		GraphSimplify* graphSimplify = new GraphSimplify(_gfaFilename, _inputDir, 0, _kminmerSize);
 		_graph = graphSimplify;
 		
+		delete _mdbg;
 		
+		_graph->_contigFeature = &_contigFeature;
+		_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false, false, false, true, _mdbg, _minimizerSize, _nbCores, false, false);
+
 		//Generate unitigs
 		//cout << "Indexing reads" << endl;
 		//_unitigDatas.resize(_mdbg->_dbg_nodes.size());
@@ -388,7 +392,6 @@ public:
 
 
 
-		delete _mdbg;
 		//cout << "done" << endl;
 	
 
@@ -396,8 +399,6 @@ public:
 		//cout << graphSimplify->_graphSuccessors->_nbEdges << endl;
 		//graphSimplify->execute(5, _kminmerSize);
 		//graphSimplify->debug_writeGfaErrorfree(1000, PathExplorer::computeAbundanceCutoff(1000, 0, CutoffType::ERROR), -1, _kminmerSize, false, true, false, _unitigDatas);
-		_graph->_contigFeature = &_contigFeature;
-		_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false, false, false, true, _mdbg, _minimizerSize, _nbCores, false, false);
 
 
 

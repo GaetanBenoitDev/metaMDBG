@@ -403,7 +403,7 @@ public:
 		correctReads();
 		//getchar();
 
-		_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, true, false, true, true, _mdbg, _minimizerSize, _nbCores, true, false);
+		_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, true, false, true, true, _mdbg, _minimizerSize, _nbCores, true, true);
 		_graph->loadState2(0, -1, _unitigDatas);
 		generateUnitigs();
 

@@ -1,7 +1,7 @@
 
 
 
-
+#python3 ../scripts/pipeline_laptop.py ../../../data/simulation/datasets/datasets/simul_complete_2/datasets/input.txt lala ../../../run/missing_contigs ../../../run/missing_contigs/binning 21 7
 
 import os, sys, argparse
 
@@ -34,13 +34,13 @@ def main(argv):
     drepDir = binDir + "/drep"
     kmerCoverageFilename = asmDir + "/kmerCoverages_k" + args.kminmerLength + ".tsv"
 
-    command = mdbgFilename + " asm -i " + inputFilenameLong + " -o " + asmDir + " -t " + str(nbCores)
-    #execute_command(command)
-
-    command = mdbgFilename + " countKmer -o " + kmerCoverageFilename + " -i " + inputFilenameShort + " -c " + contigsFilename + " -k 61 -t " + str(nbCores)
+    command = mdbgFilename + " asm " + inputFilenameLong + " " + asmDir + " -t " + str(nbCores)
     execute_command(command)
 
-    command = mdbgFilename + " bin " + contigsFilename + " " + asmDir + " " + binDir  + " -a " + kmerCoverageFilename
+    #command = mdbgFilename + " countKmer -o " + kmerCoverageFilename + " -i " + inputFilenameShort + " -c " + contigsFilename + " -k 61 -t " + str(nbCores)
+    #execute_command(command)
+
+    command = mdbgFilename + " bin " + contigsFilename + " " + asmDir + " " + binDir # + " -a " + kmerCoverageFilename
     execute_command(command)
     
     command = "python3 " + drepScriptFilename + " " + binRegex + " " + binDir + "/binScore.txt" 
