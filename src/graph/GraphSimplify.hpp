@@ -13,6 +13,7 @@
 
 #include "Commons.hpp"
 #include <limits>
+#include "contigFeatures/ContigFeature.hpp"
 //#include <experimental/filesystem>
 
 //using namespace std;
@@ -127,8 +128,11 @@ public:
     unordered_set<u_int32_t> _isNodenameRoundabout;
     bool _isCopy;
     vector<Unitig> _cleanedLongTips;
+    ContigFeature* _contigFeature;
 
     GraphSimplify(const string& inputGfaFilename, const string& outputDir, u_int32_t nbNodes, size_t kminmerSize){
+
+        _contigFeature = nullptr;
         _inputGfaFilename = inputGfaFilename;
         _outputDir = outputDir;
         _kminmerSize = kminmerSize;
@@ -8439,21 +8443,18 @@ public:
 
     }
 
+
     struct UnitigOri{
         u_int32_t _unitigIndex;
         bool _ori;
     };
 
-    void saveUnitigGraph(const string& outputFilename, MDBG* mdbg, size_t minimizerSize, size_t nbCores, bool doesWriteReadIndex){
+    void saveUnitigGraph(const string& outputFilename, MDBG* mdbg, size_t minimizerSize, size_t nbCores, bool isCleanedGraph){
 
-        nbCores = 1;
-
-        //return;
         cout << "Saving unitig graph: " << outputFilename << endl;
         
-        ofstream outputFile(outputFilename);
+        nbCores = 1;
 		unordered_set<u_int32_t> writtenUnitigs;
-        ofstream file_nodeNameToUnitigIndex(_outputDir + "/nodeName_to_unitigIndex.bin");
 
         unordered_set<u_int32_t> selectedUnitigIndex;
         u_int32_t unitigIndex_source = -1;
@@ -8467,132 +8468,219 @@ public:
 			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
 
             //cout << "line" << endl;
-            //outputFile << "S" << "\t" << u._index << "\t" << "*" << "\t" << "LN:i:600" << "\t" << 'dp:i:39' << endl;
+
+            //if(_contigFeature == nullptr) outputFile << "S" << "\t" << u._index << "\t" << "*" << "\t" << "LN:i:600" << "\t" << 'dp:i:39' << endl;
 
             selectedUnitigIndex.insert(u._index);
 
-            for(u_int32_t nodeIndex : u._nodes){
-                u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
-		        file_nodeNameToUnitigIndex.write((const char*)&nodeName, sizeof(nodeName));
-		        file_nodeNameToUnitigIndex.write((const char*)&u._index, sizeof(u._index));
-            }
-
             if(unitigIndex_source == -1) unitigIndex_source = u._index;
+
+            /*
+            if(isCleanedGraph){
+                if(u._index == 448){
+                    vector<u_int32_t> succ;
+                    getPredecessors(u._startNode, 0, succ);
+                    cout << succ.size() << endl;
+                    getSuccessors(u._endNode, 0, succ);
+                    cout << succ.size() << endl;
+                    cout << BiGraph::nodeIndex_to_nodeName(u._startNode) << " " << BiGraph::nodeIndex_to_nodeName(u._endNode) << endl;
+                    getchar();
+                }
+            }
+            */
             //mark[u._startNode] = i<<1 | 0;
             //mark[u._endNode] = i<<1 | 1;
 
             //i += 1;
         }
 
-        file_nodeNameToUnitigIndex.close();
+        if(_contigFeature == nullptr){
+            
+            ofstream outputFile(outputFilename);
 
-	    //writeReadPath(mdbg, minimizerSize, nbCores, selectedUnitigIndex);
-	    //if(_kminmerSize == 4 && doesWriteReadIndex) writeReadIndex(mdbg, minimizerSize, nbCores, selectedUnitigIndex);
+            //writeReadPath(mdbg, minimizerSize, nbCores, selectedUnitigIndex, isCleanedGraph);
+            //if(_kminmerSize == 4 && doesWriteReadIndex) writeReadIndex(mdbg, minimizerSize, nbCores, selectedUnitigIndex);
 
-        unordered_set<u_int32_t> linkedUnitigIndex;
-        unordered_set<DbgEdge, hash_pair> isEdge;
-        unordered_set<u_int32_t> isVisited;
-        cout << outputFilename << endl;
-        //outputFile << "lala" << endl;
-        
+            unordered_set<u_int32_t> linkedUnitigIndex;
+            unordered_set<DbgEdge, hash_pair> isEdge;
+            unordered_set<u_int32_t> isVisited;
+            //cout << outputFilename << endl;
+            //outputFile << "lala" << endl;
+            
 
-        for(const Unitig& unitig : _unitigs){
+            for(const Unitig& unitig : _unitigs){
 
-            if(selectedUnitigIndex.find(unitig._index) == selectedUnitigIndex.end()) continue;
-            if(isVisited.find(unitig._index) != isVisited.end()) continue;
+                if(selectedUnitigIndex.find(unitig._index) == selectedUnitigIndex.end()) continue;
+                if(isVisited.find(unitig._index) != isVisited.end()) continue;
 
-            queue<u_int32_t> queue;
-            queue.push(unitig._index);
+                queue<u_int32_t> queue;
+                queue.push(unitig._index);
 
-            while(queue.size() > 0){
-                u_int32_t unitigIndex = queue.front();
-                queue.pop();
+                while(queue.size() > 0){
+                    u_int32_t unitigIndex = queue.front();
+                    queue.pop();
 
-                if(isVisited.find(unitigIndex) != isVisited.end()) continue;
-                isVisited.insert(unitigIndex);
+                    if(isVisited.find(unitigIndex) != isVisited.end()) continue;
+                    isVisited.insert(unitigIndex);
 
-                string ori = "+";
-                if(selectedUnitigIndex.find(unitigIndex) == selectedUnitigIndex.end()){
-                    unitigIndex = unitigIndex_toReverseDirection(unitigIndex);
-                    ori = "-";
-                }
-
-                //isVisited.insert(unitigIndex_toReverseDirection(unitigIndex));
-                //linkedUnitigIndex.insert(unitigIndex);
-
-                outputFile << "S" << "\t" << unitigIndex << "\t" << "*" << "\t" << "LN:i:" << _unitigs[unitigIndex]._length << "\t" << "dp:i:" << _unitigs[unitigIndex]._abundance << endl;
-
-
-                vector<u_int32_t> successors;
-                getSuccessors_unitig(unitigIndex, 0, successors);
-
-                for(u_int32_t unitigIndexN : successors){
-
-                    string ori2 = "+";
-                    if(selectedUnitigIndex.find(unitigIndexN) == selectedUnitigIndex.end()){
-                        unitigIndexN = unitigIndex_toReverseDirection(unitigIndexN);
-                        ori2 = "-";
+                    string ori = "+";
+                    if(selectedUnitigIndex.find(unitigIndex) == selectedUnitigIndex.end()){
+                        unitigIndex = unitigIndex_toReverseDirection(unitigIndex);
+                        ori = "-";
                     }
 
-                    //if(linkedUnitigIndex.find(unitigIndex_toReverseDirection(unitigIndexN)) != linkedUnitigIndex.end()){
-                    //    unitigIndexNN = unitigIndex_toReverseDirection(unitigIndexN);
-                    //    ori = "-";
-                    //}
-                    
+                    //isVisited.insert(unitigIndex_toReverseDirection(unitigIndex));
+                    //linkedUnitigIndex.insert(unitigIndex);
 
-                    //DbgEdge edge = {unitigIndex, unitigIndexN};
-                    //edge = edge.normalize();
-                    //if(isEdge.find(edge) != isEdge.end()) continue;
-                    //isEdge.insert(edge);
+                    outputFile << "S" << "\t" << unitigIndex << "\t" << "*" << "\t" << "LN:i:" << _unitigs[unitigIndex]._length << "\t" << "dp:i:" << _unitigs[unitigIndex]._abundance << endl;
 
-                    //linkedUnitigIndex.insert(unitigIndexNN);
-                    
-                    u_int32_t overlap = 600;
-                    outputFile << "L" << "\t" << unitigIndex << "\t" << ori << "\t" << unitigIndexN << "\t" << ori2 << "\t" << overlap << "M" << endl;
-                    queue.push(unitigIndexN);
-                }
 
-                
-                vector<u_int32_t> predecessors;
-                getPredecessors_unitig(unitigIndex, 0, predecessors);
-                for(u_int32_t unitigIndexN : predecessors){
+                    vector<u_int32_t> successors;
+                    getSuccessors_unitig(unitigIndex, 0, successors);
 
-                    string ori2 = "+";
-                    if(selectedUnitigIndex.find(unitigIndexN) == selectedUnitigIndex.end()){
-                        unitigIndexN = unitigIndex_toReverseDirection(unitigIndexN);
-                        ori2 = "-";
+                    for(u_int32_t unitigIndexN : successors){
+
+                        string ori2 = "+";
+                        if(selectedUnitigIndex.find(unitigIndexN) == selectedUnitigIndex.end()){
+                            unitigIndexN = unitigIndex_toReverseDirection(unitigIndexN);
+                            ori2 = "-";
+                        }
+
+                        //if(linkedUnitigIndex.find(unitigIndex_toReverseDirection(unitigIndexN)) != linkedUnitigIndex.end()){
+                        //    unitigIndexNN = unitigIndex_toReverseDirection(unitigIndexN);
+                        //    ori = "-";
+                        //}
+                        
+
+                        //DbgEdge edge = {unitigIndex, unitigIndexN};
+                        //edge = edge.normalize();
+                        //if(isEdge.find(edge) != isEdge.end()) continue;
+                        //isEdge.insert(edge);
+
+                        //linkedUnitigIndex.insert(unitigIndexNN);
+                        
+                        u_int32_t overlap = 600;
+                        outputFile << "L" << "\t" << unitigIndex << "\t" << ori << "\t" << unitigIndexN << "\t" << ori2 << "\t" << overlap << "M" << endl;
+                        queue.push(unitigIndexN);
                     }
 
-                    //if(linkedUnitigIndex.find(unitigIndex_toReverseDirection(unitigIndexN)) != linkedUnitigIndex.end()){
-                    //    unitigIndexNN = unitigIndex_toReverseDirection(unitigIndexN);
-                    //    ori = "-";
+                    
+                    vector<u_int32_t> predecessors;
+                    getPredecessors_unitig(unitigIndex, 0, predecessors);
+                    for(u_int32_t unitigIndexN : predecessors){
+
+                        string ori2 = "+";
+                        if(selectedUnitigIndex.find(unitigIndexN) == selectedUnitigIndex.end()){
+                            unitigIndexN = unitigIndex_toReverseDirection(unitigIndexN);
+                            ori2 = "-";
+                        }
+
+                        //if(linkedUnitigIndex.find(unitigIndex_toReverseDirection(unitigIndexN)) != linkedUnitigIndex.end()){
+                        //    unitigIndexNN = unitigIndex_toReverseDirection(unitigIndexN);
+                        //    ori = "-";
+                        //}
+                        
+
+                        //DbgEdge edge = {unitigIndex, unitigIndexN};
+                        //edge = edge.normalize();
+                        //if(isEdge.find(edge) != isEdge.end()) continue;
+                        //isEdge.insert(edge);
+
+                        //linkedUnitigIndex.insert(unitigIndexNN);
+                        
+                        u_int32_t overlap = 600;
+                        outputFile << "L" << "\t" << unitigIndexN << "\t" << ori2 << "\t" << unitigIndex << "\t" << ori << "\t" << overlap << "M" << endl;
+                        queue.push(unitigIndexN);
+                    }
+                    
+
+                    //if(unitigIndex == 452){
+                    //    cout << successors.size() << " " << predecessors.size() << endl;
                     //}
-                    
 
-                    //DbgEdge edge = {unitigIndex, unitigIndexN};
-                    //edge = edge.normalize();
-                    //if(isEdge.find(edge) != isEdge.end()) continue;
-                    //isEdge.insert(edge);
-
-                    //linkedUnitigIndex.insert(unitigIndexNN);
-                    
-                    u_int32_t overlap = 600;
-                    outputFile << "L" << "\t" << unitigIndexN << "\t" << ori2 << "\t" << unitigIndex << "\t" << ori << "\t" << overlap << "M" << endl;
-                    queue.push(unitigIndexN);
                 }
-                
+            }
 
-                //if(unitigIndex == 452){
-                //    cout << successors.size() << " " << predecessors.size() << endl;
-                //}
 
+
+            outputFile.close();
+        }
+        else{
+            if(isCleanedGraph){
+
+                unordered_map<u_int32_t, unordered_set<u_int32_t>> unitigIndex_to_contigIndex;
+
+                for(const auto& it : _contigFeature->_nodeName_to_contigIndex){
+                    u_int32_t nodeName = it.first;
+                    const vector<u_int32_t>& contigIndexes = it.second;
+
+                    u_int32_t unitigIndex = nodeName_toSelectedUnitigIndex(nodeName, selectedUnitigIndex);
+                    if(unitigIndex == -1) continue;
+
+                    for(u_int32_t contigIndex : contigIndexes){
+                        unitigIndex_to_contigIndex[unitigIndex].insert(contigIndex);
+                    }
+                }
+
+
+                ofstream outputFileContigColor(_outputDir + "/" + "contig_color.csv");
+                outputFileContigColor << "Name,Color" << endl;
+
+                for(const auto& it : unitigIndex_to_contigIndex){
+                    u_int32_t unitigIndex = it.first;
+                    const unordered_set<u_int32_t>& contigIndexes = it.second;
+
+                    if(contigIndexes.size() > 1){
+                        outputFileContigColor << unitigIndex << "," << "-1" << endl;
+                    }
+                    else{
+                        for(u_int32_t contigIndex : contigIndexes){
+                            outputFileContigColor << unitigIndex << "," << contigIndex << endl;
+                        }
+                    }
+                }
+
+                outputFileContigColor.close();
+
+
+
+                ofstream outputFileContigPath(_outputDir + "/" + "contig_path.txt");
+
+                for(const auto& it : _contigFeature->_contigIndex_to_nodeName){
+                    u_int32_t contigIndex = it.first;
+                    const vector<u_int32_t>& nodeNames = it.second;
+
+                    outputFileContigPath << "ctg" << contigIndex << ":";
+                    u_int32_t prevUnitigIndex = -1;
+
+                    for(size_t i=0; i<nodeNames.size(); i++){
+
+                        u_int32_t nodeName = nodeNames[i];
+                        u_int32_t unitigIndex = nodeName_toSelectedUnitigIndex(nodeName, selectedUnitigIndex);
+                        if(unitigIndex == -1) continue;
+
+                        if(unitigIndex != prevUnitigIndex){
+                            if(i == 0){
+                                outputFileContigPath << unitigIndex;
+                            }
+                            else{
+                                outputFileContigPath << ";" << unitigIndex;
+                            }
+                            prevUnitigIndex = unitigIndex;
+                        }
+
+                    }
+
+                    outputFileContigPath << endl;
+                }
+
+                outputFileContigPath.close();
+
+
+                //cout << "lala" << endl;
+                //getchar();
             }
         }
-
-
-
-        outputFile.close();
-
 
         cout << "done" << endl;
         //getchar();
@@ -8603,9 +8691,14 @@ public:
 
 
 
-	void writeReadPath(MDBG* mdbg, size_t minimizerSize, size_t nbCores, unordered_set<u_int32_t>& selectedUnitigIndex){
+	void writeReadPath(MDBG* mdbg, size_t minimizerSize, size_t nbCores, unordered_set<u_int32_t>& selectedUnitigIndex, bool isCleanedGraph){
 
-		_file_readPath = ofstream(_outputDir + "/read_path.txt");
+        if(isCleanedGraph){
+		    _file_readPath = ofstream(_outputDir + "/read_path_cleaned.txt");
+        }
+        else{
+		    _file_readPath = ofstream(_outputDir + "/read_path.txt");
+        }
 
 		KminmerParserParallel readParser(_outputDir + "/read_data.txt", minimizerSize, _kminmerSize, false, nbCores);
 		readParser.parse(ReadPathFunctor(this, mdbg, selectedUnitigIndex));
@@ -8669,21 +8762,7 @@ public:
 				}
 				
 				u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
-
-
-                u_int32_t nodeIndex1 = BiGraph::nodeName_to_nodeIndex(nodeName, false);
-                u_int32_t nodeIndex2 = BiGraph::nodeName_to_nodeIndex(nodeName, true);
-
-                u_int32_t unitigIndex1 = _graph->nodeIndex_to_unitigIndex(nodeIndex1);
-                u_int32_t unitigIndex2 = _graph->nodeIndex_to_unitigIndex(nodeIndex2);
-                u_int32_t unitigIndex = -1;
-
-                if(_selectedUnitigIndex.find(unitigIndex1) != _selectedUnitigIndex.end()){
-                    unitigIndex = unitigIndex1;
-                }
-                else if(_selectedUnitigIndex.find(unitigIndex2) != _selectedUnitigIndex.end()){
-                    unitigIndex = unitigIndex2;
-                }
+                u_int32_t unitigIndex = _graph->nodeName_toSelectedUnitigIndex(nodeName, _selectedUnitigIndex);
 
                 if(unitigIndex != prevUnitigIndex){
 				    nodeNames.push_back(unitigIndex);
@@ -8699,7 +8778,7 @@ public:
 	unordered_map<u_int32_t, unordered_set<u_int64_t>> _unitigIndex_to_readIndexes;
     MDBG* _mdbg;
 
-
+    /*
 	void writeReadIndex(MDBG* mdbg, size_t minimizerSize, size_t nbCores, unordered_set<u_int32_t>& selectedUnitigIndex){
 
 		ofstream file(_outputDir + "/read_index.txt");
@@ -8737,103 +8816,28 @@ public:
 
         //cout << _unitigs[8372]._abundance << " " << _unitigs[8372]._nbNodes << endl;
 	}
-
-	class ReadIndexFunctor {
-
-		public:
-
-		MDBG* _mdbg;
-		GraphSimplify* _graph;
-        unordered_set<u_int32_t>& _selectedUnitigIndex;
-
-		ReadIndexFunctor(GraphSimplify* graph, MDBG* mdbg, unordered_set<u_int32_t>& selectedUnitigIndex) : _selectedUnitigIndex(selectedUnitigIndex){
-			_mdbg = mdbg;
-			_graph = graph;
-		}
-
-		ReadIndexFunctor(const ReadIndexFunctor& copy): _selectedUnitigIndex(copy._selectedUnitigIndex){
-			_mdbg = copy._mdbg;
-			_graph = copy._graph;
-		}
-
-
-		void operator () (const KminmerList& kminmerList) {
-		
-			u_int64_t readIndex = kminmerList._readIndex;
-
-			const vector<u_int64_t>& minimizers = kminmerList._readMinimizers;
-			const vector<ReadKminmerComplete>& kminmersInfos = kminmerList._kminmersInfo;
-
-			vector<u_int32_t> nodeNames;
-            u_int32_t prevUnitigIndex = -1;
-
-			for(size_t i=0; i<kminmersInfos.size(); i++){
-
-				const ReadKminmerComplete& info = kminmersInfos[i];
-				const KmerVec& vec = info._vec;
-
-				if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
-					continue;
-				}
-				
-				u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
-
-
-                u_int32_t nodeIndex1 = BiGraph::nodeName_to_nodeIndex(nodeName, false);
-                u_int32_t nodeIndex2 = BiGraph::nodeName_to_nodeIndex(nodeName, true);
-
-                if(_graph->_isNodeValid2.find(nodeIndex1) == _graph->_isNodeValid2.end() && _graph->_isNodeValid2.find(nodeIndex2) == _graph->_isNodeValid2.end()) continue;
-
-                u_int32_t unitigIndex1 = _graph->nodeIndex_to_unitigIndex(nodeIndex1);
-                u_int32_t unitigIndex2 = _graph->nodeIndex_to_unitigIndex(nodeIndex2);
-                u_int32_t unitigIndex = -1;
-
-                if(_selectedUnitigIndex.find(unitigIndex1) != _selectedUnitigIndex.end()){
-                    unitigIndex = unitigIndex1;
-                }
-                else if(_selectedUnitigIndex.find(unitigIndex2) != _selectedUnitigIndex.end()){
-                    unitigIndex = unitigIndex2;
-                }
-
-                if(unitigIndex == -1) continue;
-                //const vector<u_int64_t>& readIndex = _nodeName_to_readIndexes[unitigIndex]; 
-                //if()
-
-                #pragma omp critical
-                {
-			        _graph->_unitigIndex_to_readIndexes[unitigIndex].insert(readIndex);
-                }
-
-                //if(unitigIndex != prevUnitigIndex){
-				//    nodeNames.push_back(unitigIndex);
-                //    prevUnitigIndex = unitigIndex;
-                //}
-
-			}
-
-		}
-	};
-
-    /*
-	void dumpReadIndex_read(const vector<u_int64_t>& minimizers, const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex){//}, const vector<KmerVec>& kminmers_k3, const vector<ReadKminmer>& kminmersInfos_k3){
-
-
-		for(const KmerVec& vec : kminmers){
-			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()) continue;
-
-			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
-
-			
-			_nodeName_to_readIndexes[].push_back(readIndex);
-			//u_int32_t nodeIndex = BiGraph::nodeName_to_nodeIndex(nodeName, true);
-			//UnitigData& unitigData = _unitigDatas[nodeName];
-			//unitigData._readIndexes.push_back(readIndex);
-		}
-
-
-
-	}
     */
+
+    u_int32_t nodeName_toSelectedUnitigIndex(u_int32_t nodeName, unordered_set<u_int32_t>& selectedUnitigIndex){
+
+        u_int32_t nodeIndex1 = BiGraph::nodeName_to_nodeIndex(nodeName, false);
+        u_int32_t nodeIndex2 = BiGraph::nodeName_to_nodeIndex(nodeName, true);
+
+        if(_isNodeValid2.find(nodeIndex1) == _isNodeValid2.end() && _isNodeValid2.find(nodeIndex2) == _isNodeValid2.end()) return -1;
+
+        u_int32_t unitigIndex1 = nodeIndex_to_unitigIndex(nodeIndex1);
+        u_int32_t unitigIndex2 = nodeIndex_to_unitigIndex(nodeIndex2);
+        u_int32_t unitigIndex = -1;
+
+        if(selectedUnitigIndex.find(unitigIndex1) != selectedUnitigIndex.end()){
+            unitigIndex = unitigIndex1;
+        }
+        else if(selectedUnitigIndex.find(unitigIndex2) != selectedUnitigIndex.end()){
+            unitigIndex = unitigIndex2;
+        }
+
+        return unitigIndex; 
+    }
 
 };
 

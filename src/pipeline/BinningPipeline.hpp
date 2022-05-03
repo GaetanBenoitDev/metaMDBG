@@ -153,8 +153,8 @@ public:
 		for(long k=firstK; k>=4; k-=10){
 
 			string ouputDir = _inputDir + "/pass_k" + to_string(k);
-			const string& binningFilename_input = _inputDir + "pass_k" + to_string(prevK) + "/contigToBin.bin";
-			const string& binningFilename_output = _inputDir + "pass_k" + to_string(k) + "/contigToBin.bin";
+			const string& binningFilename_input = _inputDir + "/pass_k" + to_string(prevK) + "/contigToBin.bin";
+			const string& binningFilename_output = _inputDir + "/pass_k" + to_string(k) + "/contigToBin.bin";
 			lastBinFilename = binningFilename_output;
 
 			command = _filename_exe + " binPass -o " + ouputDir + " -c " + _filename_inputContigs + " --bo " + binningFilename_output;
@@ -286,6 +286,5 @@ public:
 
 
 #endif 
-
 
 

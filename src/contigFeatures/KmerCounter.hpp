@@ -354,6 +354,11 @@ public:
 
 		void operator () (const Read& read) {
 
+			//#pragma omp critical
+			//{
+			//	cout << read._index << " " << read._seq.size() << endl;
+			//}
+
 			#pragma omp atomic
 			_kmerCounter._nbContigs += 1;
 

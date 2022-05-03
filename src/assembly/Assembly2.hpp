@@ -97,7 +97,6 @@ ToBasespaceOnTheFly: en théorie, on peut reconstruire la partie manquante des c
 #include "graph/GraphSimplify.hpp"
 #include "eval/ContigStatistics.hpp"
 #include "toBasespace/ToBasespaceOnTheFly.hpp"
-#include "contigFeatures/ContigFeature.hpp"
 //#include "assembly/Assembly.hpp"
 
 const u_int32_t LONG_UNITIG_LENGTH = 10000;
@@ -397,7 +396,8 @@ public:
 		//cout << graphSimplify->_graphSuccessors->_nbEdges << endl;
 		//graphSimplify->execute(5, _kminmerSize);
 		//graphSimplify->debug_writeGfaErrorfree(1000, PathExplorer::computeAbundanceCutoff(1000, 0, CutoffType::ERROR), -1, _kminmerSize, false, true, false, _unitigDatas);
-		_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false, false, false, false, _mdbg, _minimizerSize, _nbCores, false, false);
+		_graph->_contigFeature = &_contigFeature;
+		_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false, false, false, true, _mdbg, _minimizerSize, _nbCores, false, false);
 
 
 
@@ -1524,6 +1524,8 @@ public:
 		parser.parseKminmers(fp);
 
 		_file_contigToNode.close();
+
+		//getchar();
 		//vector<u_int32_t> nodePath = {933376, 1651014, 1762772, 732878};
 		//vector<float> lala1;
 		//vector<float> lala2;
@@ -1606,6 +1608,8 @@ public:
 		if(seq.size() < 2500) return;
 		//cout << seq.size() << endl;
 		//if(readIndex == 20010) getchar(); 
+
+		//cout << readIndex << " " << seq.size() << endl;
 
 		vector<float> composition;
 		_contigFeature.sequenceToComposition(seq, composition);
