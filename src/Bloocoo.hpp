@@ -311,6 +311,33 @@ public:
 			//const vector<KmerVec>& kminmers = kminmerList._kminmers;
 			const vector<ReadKminmerComplete>& kminmersInfos = kminmerList._kminmersInfo;
 
+			/*
+			bool isHere = false;
+
+			vector<u_int64_t> rlePositions;
+			vector<u_int64_t> minimizers_pos;//(minimizers.size());
+			vector<KmerVec> kminmers; 
+			vector<ReadKminmer> kminmersInfo;
+			MDBG::getKminmers(_minimizerSize, _kminmerSizeFirst, readMinimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex, false);
+
+
+			for(const KmerVec& vec : kminmers){
+				if(_mdbgInit->_dbg_nodes.find(vec) != _mdbgInit->_dbg_nodes.end()){
+
+					if(vec._kmers[0] == 66918863945726617 && vec._kmers[1] == 46622693399843280 && vec._kmers[2] == 91239340561015544){
+						isHere = true;
+					}
+				}
+			}
+
+			if(isHere){
+				cout << "yes! " << readIndex << " " << _extractingContigs << endl;
+				getchar();
+			}
+			*/
+
+
+
 			if(_extractingContigs){
 				if(kminmersInfos.size() == 0){
 					#pragma omp critical
@@ -377,6 +404,7 @@ public:
 					//}
 
 					//exist = true;
+
 
 					if(_isFirstPass){
 						exist = true;
@@ -467,6 +495,10 @@ public:
 								node._abundance = 1;
 							}
 							else{
+
+								//cout << "---------------" << endl;
+								//for(u_int64_t m : minimizerSeq) cout << m << endl;
+								//cout << endl;
 								vector<u_int64_t> rlePositions;
 								vector<u_int64_t> minimizers_pos;//(minimizers.size());
 								vector<KmerVec> kminmers; 
@@ -611,6 +643,8 @@ public:
 					//}
 
 
+
+
 						if(isNewKey){
 
 							u_int32_t nodeName;
@@ -657,6 +691,7 @@ public:
 
 
 			}
+
 
 		}
 	};

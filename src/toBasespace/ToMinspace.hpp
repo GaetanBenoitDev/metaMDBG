@@ -730,6 +730,12 @@ public:
 			for(size_t i=0; i<kminmers.size(); i++){
 				KmerVec& vec = kminmers[i];
 				
+				//if(vec._kmers[0] == 66918863945726617 && vec._kmers[1] == 46622693399843280 && vec._kmers[2] == 91239340561015544){
+				//if(vec._kmers[0] == 4901087538459952 && vec._kmers[1] == 14618695441502469 && vec._kmers[2] == 79737352576542472){
+				//	cout << "HAHAHAHA: " << kminmers.size() << endl;
+					//getchar();
+				//}
+
 				/*
 				if(i  == 0){
 					cout << "---" << endl;
@@ -760,7 +766,7 @@ public:
 				if(mdbg->_dbg_nodes.find(vec) == mdbg->_dbg_nodes.end()){
 					//if(i==2){ nbFailed += 1; }
 					cout << "Not good: " << i << endl;
-					cout << vec._kmers[0] << " " << vec._kmers[1] << " " << vec._kmers[2] << " " << vec._kmers[3] << endl;
+					//cout << vec._kmers[0] << " " << vec._kmers[1] << " " << vec._kmers[2] << " " << vec._kmers[3] << endl;
 					
 					//if(mdbg->_dbg_nodes.find(kminmers[i-1]) != mdbg->_dbg_nodes.end()){
 					//	cout << mdbg->_dbg_nodes[kminmers[i-1]]._index << endl;

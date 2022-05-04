@@ -148,8 +148,8 @@ public:
 	void execute (){
 
 		loadGraph();
-		generateUnitigs();
-		//generateContigs2(_inputDir + "/contigs.nodepath.gz", _inputDir + "/contigs.fasta.gz");
+		//generateUnitigs();
+		generateContigs2(_inputDir + "/contigs.nodepath.gz", _inputDir + "/contigs.fasta.gz");
 
 	}
 
@@ -201,7 +201,6 @@ public:
 		//_graph->compact(false, _unitigDatas);
 		//removeUnsupportedEdges(_gfaFilename, gfa_filename_noUnsupportedEdges, _graph);
 		
-		delete _mdbg;
 
 		//cout << "done" << endl;
 	
@@ -213,6 +212,8 @@ public:
 		_graph->debug_selectUnitigIndex();
 		//_graph->debug_writeGfaErrorfree(2000, 2000, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false, false, false, false, _mdbg, _minimizerSize, _nbCores, false, true);
 			
+		delete _mdbg;
+		
 	}
 
 	void indexReads_read(const vector<u_int64_t>& minimizers, const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex){//}, const vector<KmerVec>& kminmers_k3, const vector<ReadKminmer>& kminmersInfos_k3){
@@ -509,7 +510,8 @@ public:
 		//vector<float> readpathAbudance_values;
 		for(const Unitig& u : _graph->_unitigs){
 
-			//if(u._index == 98){
+			
+			//if(u._index == 880){
 			//	cout << u._nodes.size() << endl;
 			//	getchar();
  			//}

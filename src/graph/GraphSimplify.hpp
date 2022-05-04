@@ -3370,6 +3370,21 @@ public:
 
     void debug_writeGfaErrorfree(u_int32_t currentAbundance, float abundanceCutoff_min, u_int32_t nodeIndex_source, u_int64_t k, bool saveGfa, bool doesSaveState, bool doesLoadState, const vector<UnitigData>& unitigDatas, bool crushBubble, bool smallBubbleOnly, bool detectRoundabout, bool insertBubble, bool saveAllState, bool doesSaveUnitigGraph, MDBG* mdbg, size_t minimizerSize, size_t nbCores, bool useLocalAbundanceFilter, bool removeLongTips){
 
+        /*
+        u_int32_t targetNodeName = -1;
+        if(mdbg != nullptr){
+            for(auto& it : mdbg->_dbg_nodes){
+                        
+                for(size_t i=0; i<it.first._kmers.size()-2; i++){
+                    if(it.first._kmers[i] == 4901087538459952 && it.first._kmers[i+1] == 14618695441502469 && it.first._kmers[i+2] == 79737352576542472){
+                        targetNodeName = it.second._index;
+                    }
+                }
+            }
+        }
+        */
+
+
         cout << "Cleaning graph" << endl;
         
         u_int64_t maxBubbleLength;
@@ -3412,11 +3427,34 @@ public:
             cout << "Start cleaning: " << saveGfa << " " << doesSaveState << " " << doesLoadState << endl;
         #endif
 
-
         clear(0);
         compact(false, unitigDatas);
+
+        /*
+        bool isHere = false;
+        for(u_int32_t nodeIndex : _isNodeValid2){
+            if(BiGraph::nodeIndex_to_nodeName(nodeIndex) == targetNodeName){
+                isHere = true;
+                break;
+            }
+        }
+        cout << "Is here 1: " << isHere << endl;
+        cout << getNodeUnitigAbundance(BiGraph::nodeName_to_nodeIndex(targetNodeName, false)) << endl;
+        */
+
         removeErrors_4(k, unitigDatas);
-                
+
+        /*
+        isHere = false;
+        for(u_int32_t nodeIndex : _isNodeValid2){
+            if(BiGraph::nodeIndex_to_nodeName(nodeIndex) == targetNodeName){
+                isHere = true;
+                break;
+            }
+        }
+        cout << "Is here 2: " << isHere << endl;
+        */
+
 		if(doesSaveUnitigGraph) saveUnitigGraph(_outputDir + "/minimizer_graph_u.gfa", mdbg, minimizerSize, nbCores, false);
 
         //vector<Bubble> bubbles;
@@ -3568,16 +3606,17 @@ public:
                 */
 
                 /*
-                bool isHere = false;
+                isHere = false;
                 for(u_int32_t nodeIndex : _isNodeValid2){
-                    if(BiGraph::nodeIndex_to_nodeName(nodeIndex) == 0){
+                    if(BiGraph::nodeIndex_to_nodeName(nodeIndex) == targetNodeName){
                         isHere = true;
                         break;
                     }
                 }
-                cout << isHere << endl;
-                getchar();
+                cout << "Is here: " << isHere << endl;
                 */
+                //getchar();
+                
                 /*
                 bool isHere = false;
                 for(u_int32_t nodeIndex : _isNodeValid2){
@@ -4716,7 +4755,7 @@ public:
 
                 const Unitig& unitig = _unitigs[unitigTip._unitigIndex];
 
-                if(unitig._abundance <= 2){ //unitig._nbNodes < k*2 && 
+                if(unitig._nbNodes < k*2 && unitig._abundance <= 1){ //unitig._nbNodes < k*2 && 
                     isErrorRemoved = true;
                     vector<u_int32_t> unitigNodes;
                     getUnitigNodes(unitig, unitigNodes);
@@ -8909,7 +8948,7 @@ public:
                     }
                 }
 
-
+                unordered_set<u_int32_t> coloredUnitigs;
                 ofstream outputFileContigColor(_outputDir + "/" + "contig_nt_color.csv");
                 outputFileContigColor << "Name,Color" << endl;
 
@@ -8919,15 +8958,46 @@ public:
 
                     if(contigIndexes.size() > 1){
                         outputFileContigColor << unitigIndex << "," << "red" << endl;
+                        coloredUnitigs.insert(unitigIndex);
                     }
                     else{
                         for(u_int32_t contigIndex : contigIndexes){
                             outputFileContigColor << unitigIndex << "," << "green" << endl; //contigIndex
+                            coloredUnitigs.insert(unitigIndex);
+                        }
+                    }
+
+                }
+
+                /*
+                cout << coloredUnitigs.size() << endl;
+                for(u_int32_t unitigIndex : selectedUnitigIndex){
+                    if(coloredUnitigs.find(unitigIndex) == coloredUnitigs.end()) cout << unitigIndex << " " << _unitigs[unitigIndex]._length << endl;
+                    if(unitigIndex == 192){
+                        for(u_int32_t nodeIndex : _unitigs[unitigIndex]._nodes){
+                            //u_int32_t nodeIndex = _unitigs[unitigIndex]._nodes[_unitigs[unitigIndex]._nbNodes];
+                            u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
+                            cout << nodeName << endl;
+                            for(auto& it : mdbg->_dbg_nodes){
+                                if (it.second._index == nodeName){
+                                    cout << it.second._abundance << endl;
+                                    cout << it.first._kmers[0] << " " << it.first._kmers[1] << " " << it.first._kmers[2] << endl;
+                                      
+                                    if(it.first._kmers[0] == 4901087538459952 && it.first._kmers[1] == 14618695441502469 && it.first._kmers[2] == 79737352576542472){
+                                    //if(it.first._kmers[0] == 66918863945726617 && it.first._kmers[1] == 46622693399843280 && it.first._kmers[2] == 91239340561015544){
+                                        getchar();
+                                        //getchar();
+                                    }
+                                }
+                            }
                         }
                     }
                 }
+                */
+                
 
                 outputFileContigColor.close();
+                //getchar();
 
 
 

@@ -378,11 +378,11 @@ public:
 		GraphSimplify* graphSimplify = new GraphSimplify(_gfaFilename, _inputDir, 0, _kminmerSize);
 		_graph = graphSimplify;
 		
-		delete _mdbg;
-		
+
 		_graph->_contigFeature = &_contigFeature;
 		_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false, false, false, true, _mdbg, _minimizerSize, _nbCores, false, false);
 
+		delete _mdbg;
 		//Generate unitigs
 		//cout << "Indexing reads" << endl;
 		//_unitigDatas.resize(_mdbg->_dbg_nodes.size());
@@ -1773,7 +1773,7 @@ public:
 				binningThresholds = {0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65};
 			}
 			else{
-				binningThresholds = {0.99, 0.95, 0.75};
+				binningThresholds = {0.99, 0.95};
 			}
 
 			vector<u_int64_t> lengthThresholds = {100000, 50000, 10000};
