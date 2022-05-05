@@ -242,7 +242,7 @@ public:
 		*/
 
 
-
+		/*
 		unordered_set<u_int32_t> component;
 		_graph->getConnectedComponent_unitig(141512, component);
 		unordered_set<u_int32_t> contigIndexes;
@@ -265,12 +265,13 @@ public:
 		
 
 		_fileOutput_contigBin.close();
+		*/
 
-		//execute_binning2();
+		execute_binning2();
 		//execute_detectSpecies_byCutoff();
 		
-		//gzclose(_outputContigFile);
-		//gzclose(_outputContigFile_complete);
+		gzclose(_outputContigFile);
+		gzclose(_outputContigFile_complete);
 
 		//cout << _nbHighQualityBins << " " << _nbMedQualityBins << " " << _nbLowQualityBins << "    " << _nbContaminatedBins << endl;
 
