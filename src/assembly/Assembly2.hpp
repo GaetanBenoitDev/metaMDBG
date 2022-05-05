@@ -243,11 +243,31 @@ public:
 
 
 
-		execute_binning2();
+		unordered_set<u_int32_t> component;
+		_graph->getConnectedComponent_unitig(141512, component);
+		unordered_set<u_int32_t> contigIndexes;
+		for(u_int32_t unitigIndex : component){
+			
+			u_int32_t contigIndex = _contigFeature.nodepathToContigIndex(_graph->_unitigs[unitigIndex]._nodes);
+			contigIndexes.insert(contigIndex);
+		}
+
+		u_int32_t binIndex = 0;
+		cout << "Nb contigs: " << contigIndexes.size();
+		for(u_int32_t contigIndex : contigIndexes){
+			cout << contigIndex << " " << endl;
+			_fileOutput_contigBin.write((const char*)&contigIndex, sizeof(contigIndex));
+			_fileOutput_contigBin.write((const char*)&binIndex, sizeof(binIndex));
+		}
+		
+
+		_fileOutput_contigBin.close();
+
+		//execute_binning2();
 		//execute_detectSpecies_byCutoff();
 		
-		gzclose(_outputContigFile);
-		gzclose(_outputContigFile_complete);
+		//gzclose(_outputContigFile);
+		//gzclose(_outputContigFile_complete);
 
 		//cout << _nbHighQualityBins << " " << _nbMedQualityBins << " " << _nbLowQualityBins << "    " << _nbContaminatedBins << endl;
 
@@ -1657,6 +1677,10 @@ public:
 	float _minUnitigAbundance;
 	
 	void execute_binning2(){
+
+
+
+
 
 
 		_isFinalPass = false;
