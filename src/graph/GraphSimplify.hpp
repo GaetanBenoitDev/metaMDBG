@@ -8781,9 +8781,11 @@ public:
 		unordered_set<u_int32_t> writtenUnitigs;
 
         unordered_set<u_int32_t> selectedUnitigIndex;
+
+        ofstream file_nodeNameToUnitigIndex(_outputDir +  "/nodeName_to_unitigIndex.bin");
         //u_int32_t unitigIndex_source = -1;
 
-        cout << _unitigs.size() << endl;
+        //cout << _unitigs.size() << endl;
 		for(const Unitig& u : _unitigs){
 
 			if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
@@ -8798,6 +8800,11 @@ public:
             //cout << "Select: " << u._index << " " << u._nbNodes << endl;
             selectedUnitigIndex.insert(u._index);
 
+            for(u_int32_t nodeIndex : u._nodes){
+                u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
+		        file_nodeNameToUnitigIndex.write((const char*)&nodeName, sizeof(nodeName));
+		        file_nodeNameToUnitigIndex.write((const char*)&u._index, sizeof(u._index));
+            }
             //if(unitigIndex_source == -1) unitigIndex_source = u._index;
 
             /*
@@ -8818,6 +8825,8 @@ public:
 
             //i += 1;
         }
+
+        file_nodeNameToUnitigIndex.close();
 
         //if(_contigFeature == nullptr){
             
