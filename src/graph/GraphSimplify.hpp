@@ -4151,7 +4151,7 @@ public:
                 }
                 
                 if(doesSaveUnitigGraph) saveUnitigGraph(_outputDir + "/minimizer_graph_u_cleaned.gfa", mdbg, minimizerSize, nbCores, true);
-                if(doesSaveUnitigGraph) saveGraph(_outputDir + "/minimizer_graph_cleaned.gfa");
+                //if(doesSaveUnitigGraph) saveGraph(_outputDir + "/minimizer_graph_cleaned.gfa");
 		        collectStartingUnitigs(_kminmerSize);
             }
 
