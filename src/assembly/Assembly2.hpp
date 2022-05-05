@@ -252,10 +252,13 @@ public:
 			contigIndexes.insert(contigIndex);
 		}
 
+		_fileOutput_contigBin = ofstream(_filename_outputBinning);
+			
 		u_int32_t binIndex = 0;
 		cout << "Nb contigs: " << contigIndexes.size();
 		for(u_int32_t contigIndex : contigIndexes){
 			cout << contigIndex << " " << endl;
+			if(contigIndex == -1) continue;
 			_fileOutput_contigBin.write((const char*)&contigIndex, sizeof(contigIndex));
 			_fileOutput_contigBin.write((const char*)&binIndex, sizeof(binIndex));
 		}
