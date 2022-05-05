@@ -149,7 +149,7 @@ public:
     void execute_pipeline(){
 		//float density = 0.005;
 		//u_int16_t minimizerSize = 21;
-		size_t firstK = 3;
+		size_t firstK = 4;
 
 		string command = "";
 
@@ -256,7 +256,7 @@ public:
 
 			bool generatedContigs = false;
 			//if(k == 5 || k == 10 || k == 16 || k == 21 || k == 26 || k == 31){
-			if(k == 41 || k == 51 || k == 61 || k == 71 || k == 81 || k == 91 || k == 101 || k == 111 || k == 121){
+			if(k == 41){
 
 				/*
 				//Generate contigs

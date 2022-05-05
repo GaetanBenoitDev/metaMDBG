@@ -268,6 +268,7 @@ public:
 		*/
 
 		execute_binning2();
+		mergeBins();
 		//execute_detectSpecies_byCutoff();
 		
 		gzclose(_outputContigFile);
@@ -1917,6 +1918,10 @@ public:
 		file_binStats.close();
 		file_bin_all.close();
 		_fileOutput_contigBin.close();
+
+	}
+
+	void mergeBins(){
 
 	}
 
