@@ -1053,10 +1053,10 @@ public:
 					//}
 				}
 
-				cout << u._nbNodes  << " " << u._startNode << " " <<  u._endNode << endl;
+				//cout << u._nbNodes  << " " << u._startNode << " " <<  u._endNode << endl;
 				if(u._startNode == u._endNode){ //Circular
 					
-					cout << "circular: " << u._nbNodes << endl;
+					//cout << "circular: " << u._nbNodes << endl;
 					
 					for(size_t i=0; i<_kminmerSize-1; i++){
 						if(nodePath.size() == 0) break;

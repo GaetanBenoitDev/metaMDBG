@@ -404,8 +404,12 @@ public:
 		_graph = graphSimplify;
 		
 
-		_graph->_contigFeature = &_contigFeature;
-		_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false, false, false, true, _mdbg, _minimizerSize, _nbCores, false, false);
+		_graph->clear(0);
+		_graph->compact(false, _unitigDatas);
+		_graph->removeErrors_4(_kminmerSize, _unitigDatas);
+
+		//_graph->_contigFeature = &_contigFeature;
+		//_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false, false, false, true, _mdbg, _minimizerSize, _nbCores, false, false);
 
 		delete _mdbg;
 		//Generate unitigs
