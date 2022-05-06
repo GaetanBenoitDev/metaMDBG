@@ -612,6 +612,7 @@ public:
 			gzwrite(outputContigFile_min, (const char*)&nodepath[0], size * sizeof(u_int32_t));
 		}
 		
+		/*
 		cout << "Nb cleaned long tips: " << _graph->_cleanedLongTips.size() << endl;
 		for(const Unitig& u : _graph->_cleanedLongTips){
 
@@ -686,6 +687,7 @@ public:
 
 			//contigIndex += 1;
 		}
+		*/
 
 
 		outputFileContigColor.close();
@@ -1051,40 +1053,16 @@ public:
 					//}
 				}
 
-
+				cout << u._nbNodes  << " " << u._startNode << " " <<  u._endNode << endl;
 				if(u._startNode == u._endNode){ //Circular
 					
-					//cout << "circular: " << unitig._nbNodes << endl;
+					cout << "circular: " << u._nbNodes << endl;
 					
 					for(size_t i=0; i<_kminmerSize-1; i++){
 						if(nodePath.size() == 0) break;
 						nodePath.pop_back();
 					}
-					/*
-					nodePath.pop_back();
-					nodePath.pop_back();
-					nodePath.pop_back();
-					nodePath.pop_back();
 
-					nodePath.pop_back();
-					nodePath.pop_back();
-					nodePath.pop_back();
-					nodePath.pop_back();
-
-					nodePath.pop_back();
-					nodePath.pop_back();
-					nodePath.pop_back();
-					nodePath.pop_back();
-
-					nodePath.pop_back();
-					nodePath.pop_back();
-					nodePath.pop_back();
-					nodePath.pop_back();
-					
-					nodePath.pop_back();
-					nodePath.pop_back();
-					nodePath.pop_back();
-					*/
 				}
 				//vector<u_int64_t> nodePath_supportingReads;
 				//assembly.solveBin2(unitig._startNode, unitig._abundance, _graph, 0, 0, false, nodePath, nodePath_supportingReads, 0);
@@ -1130,7 +1108,7 @@ public:
 
 		}
 
-
+		/*
 		for(const Unitig& u : _graph->_cleanedLongTips){
 
 			if(isContigAssembled(u._nodes)) continue;
@@ -1187,6 +1165,7 @@ public:
 
 			contigIndex += 1;
 		}
+		*/
 
 		/*
 		unordered_map<u_int32_t, u_int32_t> nodeCounts;

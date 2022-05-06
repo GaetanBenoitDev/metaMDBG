@@ -579,12 +579,13 @@ public:
             if(u._startNode == -1) continue;
             //if(u._startNode % 2 != 0) continue;
 
-            if(removeLongTips){
-                if(u._length > maxLength) continue;
-            }
-            else{
-                if(u._nbNodes >= _kminmerSize*2) continue;
-            }
+            if(u._length > maxLength) continue;
+            //if(removeLongTips){
+            //    if(u._length > maxLength) continue;
+            //}
+            //else{
+            //    if(u._nbNodes >= _kminmerSize*2) continue;
+            //}
 
 
 			//if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
@@ -654,15 +655,17 @@ public:
                     if(isTips.find(unitigIndex) == isTips.end()) nbPredecessors += 1;
                 }
                 
-                if(nbPredecessors != 1) continue;
+                //if(nbPredecessors != 1) continue;
+                if(nbPredecessors == 0) continue;
                 
                 //if(nbPredecessors != 0){
-                    if(removeLongTips){
-                        if(unitig._length > maxLength) continue;
-                    }
-                    else{
-                        if(unitig._nbNodes >= _kminmerSize*2) continue;
-                    }
+                        //if(unitig._length > maxLength) continue;
+                    //if(removeLongTips){
+                    //    if(unitig._length > maxLength) continue;
+                    //}
+                    //else{
+                    //    if(unitig._nbNodes >= _kminmerSize*2) continue;
+                    //}
 
                     //if(unitig._nbNodes >= _kminmerSize*2){
                     //    continue;
@@ -696,10 +699,13 @@ public:
                 continue;
             }
 
-            if(removeLongTips && unitig._nbNodes >= _kminmerSize*2){
-                _cleanedLongTips.push_back(unitig);
-            }
+            //if(removeLongTips && unitig._nbNodes >= _kminmerSize*2){
+            //    _cleanedLongTips.push_back(unitig);
+            //}
 
+            removedNodes.insert(unitig._startNode);
+
+            /*
             vector<u_int32_t> unitigNodes; 
             getUnitigNodes(unitig, unitigNodes);
             for(u_int32_t node : unitigNodes){
@@ -717,6 +723,7 @@ public:
                 removedNodes.insert(nodeIndex_toReverseDirection(node));
                 saveState._nodeNameRemoved_tmp.insert(BiGraph::nodeIndex_to_nodeName(node));
             }
+            */
 
             //if(unitig._index == 116){
             //    cout << "omg" << endl;
@@ -759,13 +766,28 @@ public:
             //    cout << "KOUERK" << endl;
             //}
             removedUnitigs.insert(nodeIndex_to_unitigIndex(nodeIndex));
+            removedUnitigs.insert(nodeIndex_to_unitigIndex(GraphSimplify::nodeIndex_toReverseDirection(nodeIndex)));
         }
         removeUnitigs(removedUnitigs);
+        for(u_int32_t nodeIndexTo : removedNodes){
+
+            vector<u_int32_t> predecessors;
+            getPredecessors(nodeIndexTo, 0, predecessors);
+
+            for(u_int32_t nodeIndexFrom : predecessors){
+                //cout << nodeIndexFrom << " -> " << nodeIndexTo << endl;
+			    _graphSuccessors->removeEdge(nodeIndexFrom, nodeIndexTo);
+			    _graphSuccessors->removeEdge(GraphSimplify::nodeIndex_toReverseDirection(nodeIndexTo), GraphSimplify::nodeIndex_toReverseDirection(nodeIndexFrom));
+            }
+            
+        }
+        /*
         for(u_int32_t nodeIndex : removedNodes){
             //_removedFrom[nodeIndex] = 1;
             _isNodeValid2.erase(nodeIndex);
             //file_debug << BiGraph::nodeIndex_to_nodeName(nodeIndex) << "," << "green" << endl;
         }
+        */
 
         return nbRemoved;
     }
@@ -3643,7 +3665,7 @@ public:
                     getchar();
                 }*/
 
-                
+                /*
                 while(true){
                     compact(true, unitigDatas);
 
@@ -3660,6 +3682,7 @@ public:
                     isModification = true;
                     isModSub = true;
                 }
+                */
 
                 /*
                 isHere = false;
@@ -3692,30 +3715,61 @@ public:
                 
                 //3526895 2681795
                 if(crushBubble){
+
                     while(true){
-                        compact(true, unitigDatas);
-                        u_int64_t nbSuperbubblesRemoved = superbubble(maxBubbleLength, isBubble, currentSaveState, false, nullptr);
-                        #ifdef PRINT_DEBUG_SIMPLIFICATION
-                            cout << "Nb superbubble removed: " << nbSuperbubblesRemoved << endl;
-                        #endif
-                        if(nbSuperbubblesRemoved == 0) break;
-                        isModification = true;
-                        isModSub = true;
+
+                        bool isModBubble = false;
+
+                        
+                        while(true){
+                            compact(true, unitigDatas);
+                            u_int64_t nbSuperbubblesRemoved = superbubble(maxBubbleLength, isBubble, currentSaveState, false, nullptr);
+                            #ifdef PRINT_DEBUG_SIMPLIFICATION
+                                cout << "Nb superbubble removed: " << nbSuperbubblesRemoved << endl;
+                            #endif
+                            if(nbSuperbubblesRemoved == 0) break;
+                            isModification = true;
+                            isModSub = true;
+                            isModBubble = true;
+                        }
+                        
+
+                        //cout << "Nb nodes valid: " << _isNodeValid2.size() << endl;
+
+                        while(true){
+                            compact(true, unitigDatas);
+                            nbBubblesRemoved = bubble(maxBubbleLength, currentSaveState, false, nullptr);
+                            #ifdef PRINT_DEBUG_SIMPLIFICATION
+                                cout << "Nb bubble removed: " << nbBubblesRemoved << endl;
+                            #endif
+                            if(nbBubblesRemoved == 0) break;
+                            isModification = true;
+                            isModSub = true;
+                            isModBubble = true;
+                        }
+
+                        if(!isModBubble) break;
                     }
                     
+                    compact(true, unitigDatas);
 
-                    //cout << "Nb nodes valid: " << _isNodeValid2.size() << endl;
+                    unordered_set<u_int32_t> isTips;
+                    //nbTipsRemoved = tip(4*k, true, isTips);
+                    //nbTipsRemoved = tip(4*k, false, isTips);
+                    nbTipsRemoved = tip(50000, true, isTips, currentSaveState, removeLongTips);
+                    nbTipsRemoved = tip(50000, false, isTips, currentSaveState, removeLongTips);
 
-                    while(true){
-                        compact(true, unitigDatas);
-                        nbBubblesRemoved = bubble(maxBubbleLength, currentSaveState, false, nullptr);
-                        #ifdef PRINT_DEBUG_SIMPLIFICATION
-                            cout << "Nb bubble removed: " << nbBubblesRemoved << endl;
-                        #endif
-                        if(nbBubblesRemoved == 0) break;
+                    #ifdef PRINT_DEBUG_SIMPLIFICATION
+                        cout << "Nb tip removed: " << nbTipsRemoved << endl;
+                    #endif
+                    if(nbTipsRemoved > 0){
                         isModification = true;
                         isModSub = true;
                     }
+                    //if(nbTipsRemoved == 0) break;
+                    //isModification = true;
+                    //isModSub = true;
+
                 }
 
                 //cout << _isBubble[BiGraph::nodeName_to_nodeIndex(510153, true)] << " " << _isBubble[BiGraph::nodeName_to_nodeIndex(510153, false)] << endl;
