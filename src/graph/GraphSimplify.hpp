@@ -575,28 +575,41 @@ public:
 
 
         vector<UnitigTip> unitigTips;
-        for(Unitig& u : _unitigs){
-            if(u._startNode == -1) continue;
-            //if(u._startNode % 2 != 0) continue;
 
-            if(u._length > maxLength) continue;
-            //if(removeLongTips){
-            //    if(u._length > maxLength) continue;
-            //}
-            //else{
-            //    if(u._nbNodes >= _kminmerSize*2) continue;
-            //}
+        if(_unitigIndexToClean.size() == 0){
+            for(Unitig& u : _unitigs){
+                if(u._startNode == -1) continue;
+                //if(u._startNode % 2 != 0) continue;
+
+                if(u._length > maxLength) continue;
+                //if(removeLongTips){
+                //    if(u._length > maxLength) continue;
+                //}
+                //else{
+                //    if(u._nbNodes >= _kminmerSize*2) continue;
+                //}
 
 
-			//if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
-			//if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
+                //if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
+                //if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
 
-			//writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._startNode));
-			//writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
-            
+                //writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._startNode));
+                //writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
+                
 
-            unitigTips.push_back({u._index, u._startNode, u._length});
+                unitigTips.push_back({u._index, u._startNode, u._length});
+            }
+
         }
+        else{
+            for(u_int32_t unitigIndex : _unitigIndexToClean){
+                const Unitig& u = _unitigs[unitigIndex];
+                if(u._startNode == -1) continue;
+                if(u._length > maxLength) continue;
+                unitigTips.push_back({u._index, u._startNode, u._length});
+            }
+        }
+
 
         std::sort(unitigTips.begin(), unitigTips.end(), UnitigTipComparator_ByLength_Reverse);
         
@@ -693,11 +706,13 @@ public:
             }
             */
 
+            /*
             if(indexingTips){
                 isTips.insert(unitig._index);
                 isTips.insert(unitigIndex_toReverseDirection(unitig._index));
                 continue;
             }
+            */
 
             //if(removeLongTips && unitig._nbNodes >= _kminmerSize*2){
             //    _cleanedLongTips.push_back(unitig);
@@ -806,19 +821,30 @@ public:
 
 		unordered_set<u_int32_t> writtenUnitigs;
 
-        vector<UnitigTip> unitigTips;
-        for(Unitig& u : _unitigs){
-            if(u._startNode == -1) continue;
-            //if(u._startNode % 2 != 0) continue;
+        if(_unitigIndexToClean.size() == 0){
+            for(Unitig& u : _unitigs){
+                if(u._startNode == -1) continue;
+                //if(u._startNode % 2 != 0) continue;
 
-			//if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
-			//if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
+                //if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
+                //if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
 
-			//writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._startNode));
-			//writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
-            
+                //writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._startNode));
+                //writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
+                
 
-            unitigTips.push_back({u._index, u._startNode, u._length});
+                unitigTips.push_back({u._index, u._startNode, u._length});
+            }
+
+        }
+        else{
+
+            for(u_int32_t unitigIndex : _unitigIndexToClean){
+                const Unitig& u = _unitigs[unitigIndex];
+                if(u._startNode == -1) continue;
+                if(u._length > maxLength) continue;
+                unitigTips.push_back({u._index, u._startNode, u._length});
+            }
         }
 
         std::sort(unitigTips.begin(), unitigTips.end(), UnitigTipComparator_ByLength_Reverse);
@@ -1037,22 +1063,37 @@ public:
         #endif 
 
         u_int64_t nbRemoved = 0;
-		unordered_set<u_int32_t> writtenUnitigs;
+		//unordered_set<u_int32_t> writtenUnitigs;
+
 
         vector<UnitigTip> unitigTips;
-        for(Unitig& u : _unitigs){
-            if(u._startNode == -1) continue;
-            //if(u._startNode % 2 != 0) continue;
 
-			//if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
-			//if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
+        if(_unitigIndexToClean.size() == 0){
+            for(Unitig& u : _unitigs){
+                if(u._startNode == -1) continue;
+                //if(u._startNode % 2 != 0) continue;
 
-			//writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._startNode));
-			//writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
-            
+                //if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
+                //if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
 
-            unitigTips.push_back({u._index, u._startNode, u._length});
+                //writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._startNode));
+                //writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
+                
+
+                unitigTips.push_back({u._index, u._startNode, u._length});
+            }
+
         }
+        else{
+
+            for(u_int32_t unitigIndex : _unitigIndexToClean){
+                const Unitig& u = _unitigs[unitigIndex];
+                if(u._startNode == -1) continue;
+                if(u._length > maxLength) continue;
+                unitigTips.push_back({u._index, u._startNode, u._length});
+            }
+        }
+
 
         std::sort(unitigTips.begin(), unitigTips.end(), UnitigTipComparator_ByLength_Reverse);
         
@@ -1693,20 +1734,33 @@ public:
 		unordered_set<u_int32_t> writtenUnitigs;
 
         vector<UnitigTip> unitigTips;
-        for(Unitig& u : _unitigs){
-            if(u._startNode == -1) continue;
-            //if(u._startNode % 2 != 0) continue;
 
-			//if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
-			//if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
+        if(_unitigIndexToClean.size() == 0){
+            for(Unitig& u : _unitigs){
+                if(u._startNode == -1) continue;
+                //if(u._startNode % 2 != 0) continue;
 
-			//writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._startNode));
-			//writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
-            
+                //if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
+                //if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
 
-            unitigTips.push_back({u._index, u._startNode, u._length});
+                //writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._startNode));
+                //writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
+                
+
+                unitigTips.push_back({u._index, u._startNode, u._length});
+            }
+
         }
+        else{
 
+            for(u_int32_t unitigIndex : _unitigIndexToClean){
+                const Unitig& u = _unitigs[unitigIndex];
+                if(u._startNode == -1) continue;
+                if(u._length > maxLength) continue;
+                unitigTips.push_back({u._index, u._startNode, u._length});
+            }
+        }
+        
         std::sort(unitigTips.begin(), unitigTips.end(), UnitigTipComparator_ByLength_Reverse);
         
 
@@ -1996,19 +2050,30 @@ public:
 
 		unordered_set<u_int32_t> writtenUnitigs;
 
-        vector<UnitigTip> unitigTips;
-        for(Unitig& u : _unitigs){
-            if(u._startNode == -1) continue;
-            //if(u._startNode % 2 != 0) continue;
+        if(_unitigIndexToClean.size() == 0){
+            for(Unitig& u : _unitigs){
+                if(u._startNode == -1) continue;
+                //if(u._startNode % 2 != 0) continue;
 
-			//if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
-			//if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
+                //if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
+                //if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
 
-			//writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._startNode));
-			//writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
-            
+                //writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._startNode));
+                //writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
+                
 
-            unitigTips.push_back({u._index, u._startNode, u._length});
+                unitigTips.push_back({u._index, u._startNode, u._length});
+            }
+
+        }
+        else{
+
+            for(u_int32_t unitigIndex : _unitigIndexToClean){
+                const Unitig& u = _unitigs[unitigIndex];
+                if(u._startNode == -1) continue;
+                if(u._length > maxLength) continue;
+                unitigTips.push_back({u._index, u._startNode, u._length});
+            }
         }
 
         std::sort(unitigTips.begin(), unitigTips.end(), UnitigTipComparator_ByLength_Reverse);
@@ -2180,9 +2245,12 @@ public:
     }
     */
 
+    unordered_set<u_int32_t> _unitigIndexToClean;
+
     void compact(bool rebuild, const vector<UnitigData>& unitigDatas){
 
 
+        _unitigIndexToClean.clear();
         //if(rebuild && _rebuildInvalidUnitigs.size() == 0) return;
 
 
@@ -2204,7 +2272,7 @@ public:
                 getUnitigNodes(_unitigs[unitigIndex], unitigNodes);
                 for(u_int32_t nodeIndex : unitigNodes){
                     if(_isNodeValid2.find(nodeIndex) == _isNodeValid2.end()) continue;
-                    computeUnitig(nodeIndex, unitigDatas);
+                    computeUnitig(nodeIndex, unitigDatas, rebuild);
                 }
             }
             //for(u_int32_t invalidUnitigIndex : _rebuildInvalidUnitigs){
@@ -2219,7 +2287,6 @@ public:
 
             //_nodeToUnitig = unordered_map<u_int32_t, u_int32_t>();
             _nodeToUnitig.clear();
-
             _nextUnitigIndex = 0;
             _unitigs.clear();
             _unitigDatas2.clear();
@@ -2233,7 +2300,7 @@ public:
             //std::random_shuffle(nodes.begin(), nodes.end());
 
             for (u_int32_t nodeIndex : nodes){
-                computeUnitig(nodeIndex, unitigDatas);
+                computeUnitig(nodeIndex, unitigDatas, rebuild);
                 //cout << "done" << endl;
             }
 
@@ -2360,7 +2427,7 @@ public:
         //outfile.close();
     }
 
-    void computeUnitig(u_int32_t nodeIndex, const vector<UnitigData>& unitigDatas){
+    void computeUnitig(u_int32_t nodeIndex, const vector<UnitigData>& unitigDatas, bool rebuild){
 
         if(_nodeToUnitig.find(nodeIndex) != _nodeToUnitig.end()) return;
         
@@ -2729,6 +2796,9 @@ public:
                 _unitigs.push_back({_nextUnitigIndex, startNode, endNode, median, length, nbNodes, nodes});
                 _unitigs.push_back({unitigIndexRC, nodeIndex_toReverseDirection(endNode), nodeIndex_toReverseDirection(startNode), median, length, nbNodes, nodesRC});
 
+                if(rebuild){
+                    _unitigIndexToClean.insert(_nextUnitigIndex);
+                }
                 
             }
 
@@ -3932,7 +4002,7 @@ public:
                     unordered_set<u_int32_t> isTips;
                     //nbTipsRemoved = tip(4*k, true, isTips);
                     //nbTipsRemoved = tip(4*k, false, isTips);
-                    nbTipsRemoved = tip(50000, true, isTips, currentSaveState, removeLongTips);
+                    //nbTipsRemoved = tip(50000, true, isTips, currentSaveState, removeLongTips);
                     nbTipsRemoved = tip(50000, false, isTips, currentSaveState, removeLongTips);
 
                     #ifdef PRINT_DEBUG_SIMPLIFICATION
@@ -3953,7 +4023,7 @@ public:
                 //cout << getNodeUnitigAbundance(BiGraph::nodeName_to_nodeIndex(1473953, true)) << endl;
                 //cout << getNodeUnitigAbundance(BiGraph::nodeName_to_nodeIndex(3541558, true)) << endl;
                 
-                
+                /*
                 while(true){
                     compact(true, unitigDatas);
                     nbSmallLoopRemoved = removeSmallLoop(10000, currentSaveState);
@@ -3964,6 +4034,7 @@ public:
                     isModification = true;
                     isModSub = true;
                 }
+                */
                 
                 
                 /*
