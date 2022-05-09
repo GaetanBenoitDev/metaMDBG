@@ -821,9 +821,12 @@ public:
 
 		unordered_set<u_int32_t> writtenUnitigs;
 
+        vector<UnitigTip> unitigTips;
+
         if(_unitigIndexToClean.size() == 0){
             for(Unitig& u : _unitigs){
                 if(u._startNode == -1) continue;
+                if(u._nbNodes != 1) continue;
                 //if(u._startNode % 2 != 0) continue;
 
                 //if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
@@ -842,7 +845,8 @@ public:
             for(u_int32_t unitigIndex : _unitigIndexToClean){
                 const Unitig& u = _unitigs[unitigIndex];
                 if(u._startNode == -1) continue;
-                if(u._length > maxLength) continue;
+                if(u._nbNodes != 1) continue;
+                //if(u._length > maxLength) continue;
                 unitigTips.push_back({u._index, u._startNode, u._length});
             }
         }
@@ -860,7 +864,6 @@ public:
 
 
             //if(unitig._length > maxLength) continue;
-            if(unitig._nbNodes != 1) continue;
             //if(_isNodeValid2.find(unitig._startNode) == _isNodeValid2.end()) continue; //already removed
 
 
@@ -1089,7 +1092,7 @@ public:
             for(u_int32_t unitigIndex : _unitigIndexToClean){
                 const Unitig& u = _unitigs[unitigIndex];
                 if(u._startNode == -1) continue;
-                if(u._length > maxLength) continue;
+                //if(u._length > maxLength) continue;
                 unitigTips.push_back({u._index, u._startNode, u._length});
             }
         }
@@ -1756,7 +1759,7 @@ public:
             for(u_int32_t unitigIndex : _unitigIndexToClean){
                 const Unitig& u = _unitigs[unitigIndex];
                 if(u._startNode == -1) continue;
-                if(u._length > maxLength) continue;
+                //if(u._length > maxLength) continue;
                 unitigTips.push_back({u._index, u._startNode, u._length});
             }
         }
@@ -2049,6 +2052,7 @@ public:
 
 
 		unordered_set<u_int32_t> writtenUnitigs;
+        vector<UnitigTip> unitigTips;
 
         if(_unitigIndexToClean.size() == 0){
             for(Unitig& u : _unitigs){
@@ -2071,7 +2075,7 @@ public:
             for(u_int32_t unitigIndex : _unitigIndexToClean){
                 const Unitig& u = _unitigs[unitigIndex];
                 if(u._startNode == -1) continue;
-                if(u._length > maxLength) continue;
+                //if(u._length > maxLength) continue;
                 unitigTips.push_back({u._index, u._startNode, u._length});
             }
         }
