@@ -403,11 +403,11 @@ public:
 					}
 					//}
 
-					//exist = true;
+					exist = true;
 
 
 					if(_isFirstPass){
-						exist = true;
+						//exist = true;
 					}
 					//cout << _bloomFilter->contains(vec.h()) << endl;
 					//if(_kminmerExist.find(vec) != _kminmerExist.end() || _parsingContigs ){ //|| !_isFirstPass
@@ -492,7 +492,7 @@ public:
 							//}
 
 							if(_isFirstPass){
-								node._abundance = 1;
+								node._abundance = 2;
 							}
 							else{
 

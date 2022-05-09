@@ -1751,7 +1751,7 @@ public:
 
 		allCutoffs = {0};
 
-
+		
 		for(float cutoff : allCutoffs){
 
 			_graph->loadState2(cutoff, -1, _unitigDatas);
@@ -1763,6 +1763,7 @@ public:
 			unordered_set<u_int32_t> writtenContigs;
 			u_int32_t componentIndex = 0;
 
+			/*
 			for(const Unitig& u : _graph->_unitigs){
 				
 				if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
@@ -1793,6 +1794,26 @@ public:
 
 				componentIndex += 1;
 			}
+			*/
+
+
+			for(const Unitig& u : _graph->_unitigs){
+				
+				if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
+				if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
+
+				writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._startNode));
+				writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
+
+				u_int32_t contigIndex = _contigFeature.nodepathToContigIndex(u._nodes);
+				if(contigIndex == -1) continue;
+				
+				if(writtenContigs.find(contigIndex) != writtenContigs.end()) continue;
+				writtenContigs.insert(contigIndex);
+
+				_contigIndex_to_componentIndex[contigIndex] = componentIndex;
+				_componentIndex_to_contigIndexes[componentIndex].push_back(contigIndex);
+			}
 
 			cout << "Nb components: " << componentIndex << endl;
 			//getchar();
@@ -1806,10 +1827,10 @@ public:
 				binningThresholds = {0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65};
 			}
 			else{
-				binningThresholds = {0.99, 0.95};
+				binningThresholds = {0.99};
 			}
 
-			vector<u_int64_t> lengthThresholds = {100000, 50000, 10000};
+			vector<u_int64_t> lengthThresholds = {100000, 50000, 10000, 2500}; 
 
 			//0.01, 0.05, 0.5, 1.0, 2.0
 			for(float binningThreshold : binningThresholds){

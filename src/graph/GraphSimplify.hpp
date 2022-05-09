@@ -3716,6 +3716,7 @@ public:
                 //3526895 2681795
                 if(crushBubble){
 
+                    
                     while(true){
 
                         bool isModBubble = false;

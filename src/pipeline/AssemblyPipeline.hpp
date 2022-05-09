@@ -250,6 +250,7 @@ public:
 
 
 
+
 			//command = _filename_exe + " toBasespaceFast " + " -o " + _inputDir + " -i " + _inputFilename + " -c " + _inputDir + "/contig_data.txt " + " -f " + _inputDir + "/contigs.fasta.gz " +  " --fasta";
 			//if(pass == 0) command += " --firstpass";
 			//executeCommand(command);	

@@ -1008,7 +1008,8 @@ public:
 			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
 
 			vector<u_int32_t> nodepath = u._nodes;
-			/*
+			
+				/*
 			if(u._startNode == u._endNode){
 
 				u_int32_t nodeIndex = u._endNode;
@@ -1024,9 +1025,8 @@ public:
 
 			}
 			else{
-			*/
+			
 
-				
 				if(u._nbNodes < _kminmerSize*2){
 
 					double abundanceSum = 0;
@@ -1066,8 +1066,9 @@ public:
 				}
 				
 				
-			//}
+			}
 
+				*/
 			u_int64_t size = nodepath.size();
 
 			//if(size < _kminmerSize*2) continue;
@@ -1165,13 +1166,16 @@ public:
 
 			//_assembly3.writeCorrectedRead(minimizers, true, false);
 			//	return;
-			
+			/*
 			if(_kminmerSize == _assembly3._kminmerSizeFirst){
 			}
 			else{
 				_assembly3.writeCorrectedRead(minimizers, true, false);
 				return;
 			}
+			*/
+			
+			
 			
 
 			//u_int32_t readSize = minimizers.size();
