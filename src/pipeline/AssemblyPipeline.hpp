@@ -166,7 +166,7 @@ public:
 		u_int64_t pass = 0;
 		u_int32_t prevK = -1;
 
-		for(size_t k=firstK; k<42; k+=1){
+		for(size_t k=firstK; k<82; k+=1){
 
 			//cout << "Start asm: " << k << endl;
 
@@ -208,57 +208,25 @@ public:
 			//if(pass > 0) command += " -c " +  _inputDir + "/contig_data.gz";
 			executeCommand(command);
 
-			//command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/unitigs.nodepath.gz" + " -f " + _inputDir + "/unitig_data.txt";
-			//executeCommand(command);
-
-			/*
+			//Generate contigs
 			command = _filename_exe + " contig " + " -o " + _inputDir;
 			if(!_truthInputFilename.empty()) command += " --itruth " + _truthInputFilename;
 			//if(pass == 0) command += " --firstpass";
 			executeCommand(command);
-			*/
 
+			command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/contigs.nodepath.gz" + " -f " + _inputDir + "/unitig_data.txt";
+			executeCommand(command);
+
+
+			/*
 			command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/unitigs.nodepath.gz" + " -f " + _inputDir + "/unitig_data.txt";
 			executeCommand(command);
-			
-
-			//command = ./bin/mdbgAsmMeta toMinspace -o ~/workspace/run/overlap_test_multik_AD/ -c ~/workspace/run/overlap_test_multik_AD/contigs.nodepath.gz
-
-			//command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/correctedReads_" + to_string(k) + ".min.gz" + " -f "  + _inputDir + "/read_data.txt.corrected.txt";
-			//executeCommand(command);
-
-
-
-			//command = _filename_exe + " toBasespace -i " + _inputFilename +  " -o " + _inputDir;
-			//if(pass > 0) command += " -c " +  _inputDir + "/contigs.min.gz";
-			//executeCommand(command);
-
-			//command = _filename_exe + " toBasespaceFast " +  " -o " + _inputDir + " -i " + _inputFilenameComplete;
-			//command = _filename_exe + " toBasespaceFast " + " -o " + _inputDir + " -i " + inputFilename + " -c " + _inputDir + "/correctedReads_" + to_string(k) + ".min.gz";
-			//if(pass == 0) command += " --firstpass";
-			//executeCommand(command);
-
-			//command = _filename_exe + " toBasespaceFast " + " -o " + _inputDir + " -i " + inputFilename + " -c " + _inputDir + "/correctedReads_" + to_string(k) + ".min.gz";
-			//if(pass == 0) command += " --firstpass";
-			//executeCommand(command);
-
-			
-			//if(pass > 0){
-
-			
-
-
-
-
-
-			//command = _filename_exe + " toBasespaceFast " + " -o " + _inputDir + " -i " + _inputFilename + " -c " + _inputDir + "/contig_data.txt " + " -f " + _inputDir + "/contigs.fasta.gz " +  " --fasta";
-			//if(pass == 0) command += " --firstpass";
-			//executeCommand(command);	
+			*/
 
 
 			bool generatedContigs = false;
 			//if(k == 5 || k == 10 || k == 16 || k == 21 || k == 26 || k == 31){
-			if(k == 41){
+			if(k == 41 || k == 51 || k == 61 || k == 71 || k == 81){
 
 				
 				//Generate contigs

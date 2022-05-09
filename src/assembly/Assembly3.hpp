@@ -1164,8 +1164,8 @@ public:
 			//const vector<KmerVec>& kminmers = kminmerList._kminmers;
 			const vector<ReadKminmerComplete>& kminmersInfos = kminmerList._kminmersInfo;
 
-			//_assembly3.writeCorrectedRead(minimizers, true, false);
-			//	return;
+			_assembly3.writeCorrectedRead(minimizers, true, false);
+			return;
 			/*
 			if(_kminmerSize == _assembly3._kminmerSizeFirst){
 			}

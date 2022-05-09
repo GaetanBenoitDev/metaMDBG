@@ -208,7 +208,7 @@ public:
 
 	  //_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, true, false, true, true, _mdbg, _minimizerSize, _nbCores, true, false);
 		//_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false, false, false, true, _mdbg, _minimizerSize, _nbCores, false, false);
-		_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false, false, false, true, _mdbg, _minimizerSize, _nbCores, false, false);
+		_graph->debug_writeGfaErrorfree(2000, 2000, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false, false, false, true, _mdbg, _minimizerSize, _nbCores, false, false);
 		_graph->debug_selectUnitigIndex();
 		//_graph->debug_writeGfaErrorfree(2000, 2000, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false, false, false, false, _mdbg, _minimizerSize, _nbCores, false, true);
 			
@@ -964,7 +964,7 @@ public:
 			vector<UnitigLength> startingUnitigs;
 
 			_graph->loadState2(cutoff, -1, _unitigDatas);
-			_minUnitigAbundance = cutoff / 0.2;
+			_minUnitigAbundance = cutoff / 0.5;
 
 			//if(cutoff == 102.862){
 			//	_graph->saveGraph(_inputDir + "/minimizer_graph_contigs.gfa");
@@ -1013,8 +1013,21 @@ public:
 
 
 				vector<u_int32_t> nodePath = u._nodes;
-				if(nodePath.size() <= _kminmerSize) continue;
+				if(nodePath.size() <= 1) continue;
 
+
+                vector<u_int32_t> successors;
+                _graph->getSuccessors_unitig(u._index, 0, successors);
+
+                vector<u_int32_t> predecessors;
+                _graph->getPredecessors_unitig(u._index, 0, predecessors);
+
+				if(successors.size() == 0 && predecessors.size() == 0 && u._abundance == 1) continue;
+				//if(_kminmerSize == 41){
+				//	if(u._abundance <= 1) continue;
+				//}
+				/*
+				//if(nodePath.size() <= _kminmerSize) continue;
 				if(u._nbNodes < _kminmerSize*2){
 
 					double abundanceSum = 0;
@@ -1052,6 +1065,7 @@ public:
 					//	continue;
 					//}
 				}
+				*/
 
 				//cout << u._nbNodes  << " " << u._startNode << " " <<  u._endNode << endl;
 				if(u._startNode == u._endNode){ //Circular

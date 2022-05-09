@@ -492,7 +492,7 @@ public:
 							//}
 
 							if(_isFirstPass){
-								node._abundance = 2;
+								node._abundance = 1;
 							}
 							else{
 
