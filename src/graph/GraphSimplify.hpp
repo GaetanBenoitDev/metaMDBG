@@ -2254,9 +2254,9 @@ public:
     void compact(bool rebuild, const vector<UnitigData>& unitigDatas){
 
 
-        _unitigIndexToClean.clear();
         //if(rebuild && _rebuildInvalidUnitigs.size() == 0) return;
 
+        _unitigIndexToClean.clear();
 
         #ifdef PRINT_DEBUG_SIMPLIFICATION
             cout << "\tCompacting" << endl;
@@ -2802,6 +2802,7 @@ public:
 
                 if(rebuild){
                     _unitigIndexToClean.insert(_nextUnitigIndex);
+                    _unitigIndexToClean.insert(unitigIndexRC);
                 }
                 
             }
@@ -3953,11 +3954,15 @@ public:
                     
                     while(true){
 
+                        //if(_unitigIndexToClean.size() > 100000){
+                        //    compact(false, unitigDatas);
+                        //}
+
                         bool isModBubble = false;
 
-                        
                         while(true){
                             compact(true, unitigDatas);
+                            //cout << "1: " << _unitigIndexToClean.size() << endl;
                             u_int64_t nbSuperbubblesRemoved = superbubble(maxBubbleLength, isBubble, currentSaveState, false, nullptr, false);
                             #ifdef PRINT_DEBUG_SIMPLIFICATION
                                 cout << "Nb superbubble removed: " << nbSuperbubblesRemoved << endl;
@@ -3985,8 +3990,10 @@ public:
 
                         //cout << "Nb nodes valid: " << _isNodeValid2.size() << endl;
 
+
                         while(true){
                             compact(true, unitigDatas);
+                            //cout << "2: " << _unitigIndexToClean.size() << endl;
                             nbBubblesRemoved = bubble(maxBubbleLength, currentSaveState, false, nullptr);
                             #ifdef PRINT_DEBUG_SIMPLIFICATION
                                 cout << "Nb bubble removed: " << nbBubblesRemoved << endl;
@@ -4001,21 +4008,29 @@ public:
                         if(!isModBubble) break;
                     }
                     
-                    compact(true, unitigDatas);
+                    while(true){
+                        compact(true, unitigDatas);
+                        //cout << "3: " << _unitigIndexToClean.size() << endl;
 
-                    unordered_set<u_int32_t> isTips;
-                    //nbTipsRemoved = tip(4*k, true, isTips);
-                    //nbTipsRemoved = tip(4*k, false, isTips);
-                    //nbTipsRemoved = tip(50000, true, isTips, currentSaveState, removeLongTips);
-                    nbTipsRemoved = tip(50000, false, isTips, currentSaveState, removeLongTips);
+                        unordered_set<u_int32_t> isTips;
+                        //nbTipsRemoved = tip(4*k, true, isTips);
+                        //nbTipsRemoved = tip(4*k, false, isTips);
+                        //nbTipsRemoved = tip(50000, true, isTips, currentSaveState, removeLongTips);
+                        u_int64_t nbRemoved = tip(50000, false, isTips, currentSaveState, removeLongTips);
 
-                    #ifdef PRINT_DEBUG_SIMPLIFICATION
-                        cout << "Nb tip removed: " << nbTipsRemoved << endl;
-                    #endif
-                    if(nbTipsRemoved > 0){
-                        isModification = true;
-                        isModSub = true;
+                        #ifdef PRINT_DEBUG_SIMPLIFICATION
+                            cout << "Nb tip removed: " << nbRemoved << endl;
+                        #endif
+                        if(nbRemoved > 0){
+                            isModification = true;
+                            isModSub = true;
+                        }
+                        else{
+                            break;
+                        }
                     }
+
+                    //cout << "4: " << _unitigIndexToClean.size() << endl;
                     //if(nbTipsRemoved == 0) break;
                     //isModification = true;
                     //isModSub = true;
