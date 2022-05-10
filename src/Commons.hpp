@@ -193,6 +193,7 @@ struct DbgNode{
 	u_int16_t _overlapLength_start;
 	u_int16_t _overlapLength_end;
 	bool _isReversed;
+	u_int32_t _unitigNbNodes;
 };
 
 

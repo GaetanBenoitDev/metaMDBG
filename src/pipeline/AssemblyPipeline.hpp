@@ -213,6 +213,7 @@ public:
 			if(!_truthInputFilename.empty()) command += " --itruth " + _truthInputFilename;
 			//if(pass == 0) command += " --firstpass";
 			executeCommand(command);
+			//getchar();
 
 			command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/contigs.nodepath.gz" + " -f " + _inputDir + "/unitig_data.txt";
 			executeCommand(command);

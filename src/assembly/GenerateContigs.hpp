@@ -151,6 +151,20 @@ public:
 		//generateUnitigs();
 		generateContigs2(_inputDir + "/contigs.nodepath.gz", _inputDir + "/contigs.fasta.gz");
 
+		
+		//if(_kminmerSize == 4){
+			_mdbg = new MDBG(_kminmerSize);
+			_mdbg->load(_inputDir + "/mdbg_nodes.gz");
+			for(auto& it : _mdbg->_dbg_nodes){
+				if(_nodeNameAbundances.find(it.second._index) == _nodeNameAbundances.end()) continue;
+				const NodeAb& nodeAb = _nodeNameAbundances[it.second._index];
+				it.second._abundance = nodeAb._abundance;
+				it.second._unitigNbNodes = nodeAb._nbNodes;
+				//cout << nodeAb._abundance << " " << nodeAb._nbNodes << endl;
+			}
+			_mdbg->dump(_inputDir + "/mdbg_nodes.gz");
+		//}
+
 	}
 
 	void loadGraph(){
@@ -165,9 +179,9 @@ public:
 
 		
 		cout << _gfaFilename << endl;
-		_mdbg = new MDBG(_kminmerSize);
-		_mdbg->load(mdbg_filename);
-		cout << "Nb nodes: " <<  _mdbg->_dbg_nodes.size() << endl;
+		//_mdbg = new MDBG(_kminmerSize);
+		//_mdbg->load(mdbg_filename);
+		//cout << "Nb nodes: " <<  _mdbg->_dbg_nodes.size() << endl;
 
 		//extractContigKminmers2(_inputDir + "/contigs.fasta.gz");
 
@@ -209,10 +223,10 @@ public:
 	  //_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, true, false, true, true, _mdbg, _minimizerSize, _nbCores, true, false);
 		//_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false, false, false, true, _mdbg, _minimizerSize, _nbCores, false, false);
 		_graph->debug_writeGfaErrorfree(2000, 2000, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false, false, false, true, _mdbg, _minimizerSize, _nbCores, false, false);
-		_graph->debug_selectUnitigIndex();
+		//_graph->debug_selectUnitigIndex();
 		//_graph->debug_writeGfaErrorfree(2000, 2000, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false, false, false, false, _mdbg, _minimizerSize, _nbCores, false, true);
 			
-		delete _mdbg;
+		//delete _mdbg;
 		
 	}
 
@@ -908,7 +922,13 @@ public:
 	}
 
 
+	struct NodeAb{
+		float _abundance;
+		u_int32_t _nbNodes;
+	};
+
 	unordered_set<u_int32_t> _processedNodeNames;
+	unordered_map<u_int32_t, NodeAb> _nodeNameAbundances;
 
 	void generateContigs2(const string& outputFilename, const string& outputFilename_fasta){
 
@@ -1102,6 +1122,11 @@ public:
 				for(u_int32_t nodeIndex : nodePath){
 					u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
 					_processedNodeNames.insert(nodeName);
+
+					//if(_kminmerSize == 4){
+						_nodeNameAbundances[nodeName] = {_graph->getNodeUnitigAbundance(nodeIndex), _graph->nodeIndex_to_unitig(nodeIndex)._nbNodes};
+					//}
+
 					//if(nodeName == 289994){
 					//	isLala = true;
 					//}

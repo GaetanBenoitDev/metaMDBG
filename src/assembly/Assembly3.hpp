@@ -407,6 +407,8 @@ public:
 		//_graph->loadState2(0, -1, _unitigDatas);
 		//generateUnitigs();
 
+
+
 		delete _mdbg;
 
 		//_toBasespace.create(_inputDir);
@@ -1164,16 +1166,21 @@ public:
 			//const vector<KmerVec>& kminmers = kminmerList._kminmers;
 			const vector<ReadKminmerComplete>& kminmersInfos = kminmerList._kminmersInfo;
 
-			_assembly3.writeCorrectedRead(minimizers, true, false);
-			return;
+			//_assembly3.writeCorrectedRead(minimizers, true, false);
+			//return;
+
+			
 			/*
-			if(_kminmerSize == _assembly3._kminmerSizeFirst){
+			if(_kminmerSize == 5){
 			}
 			else{
 				_assembly3.writeCorrectedRead(minimizers, true, false);
 				return;
 			}
 			*/
+			
+			
+			
 			
 			
 			

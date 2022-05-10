@@ -1830,7 +1830,7 @@ public:
 				binningThresholds = {0.99};
 			}
 
-			vector<u_int64_t> lengthThresholds = {100000, 50000, 10000, 2500}; 
+			vector<u_int64_t> lengthThresholds = {100000, 50000, 10000}; 
 
 			//0.01, 0.05, 0.5, 1.0, 2.0
 			for(float binningThreshold : binningThresholds){

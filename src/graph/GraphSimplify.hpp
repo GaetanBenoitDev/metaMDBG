@@ -4939,7 +4939,7 @@ public:
         float localCutoffRate = 0.5;
         float cutoffGlobal = 1;
         float aplha = 0.1;
-        float t=2.5;
+        float t=1.1;
         currentCutoff = min(t, abundanceCutoff_min);
         u_int32_t prevCutoff = -1;
         while(t < abundanceCutoff_min){ 

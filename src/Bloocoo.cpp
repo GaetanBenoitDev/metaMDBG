@@ -159,8 +159,8 @@ void Bloocoo::createMDBG (){
 
 	if(!_isFirstPass){
 		
-		_mdbgInit = new MDBG(_kminmerSizeFirst);
-		_mdbgInit->load(_outputDir + "/mdbg_nodes_init.gz");
+		_mdbgInit = new MDBG(_kminmerSize-1);
+		_mdbgInit->load(_outputDir + "/mdbg_nodes.gz");
 
 		_readFile = ofstream(_outputDir + "/read_data.txt");
 
