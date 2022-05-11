@@ -173,6 +173,17 @@ public:
 
 		}
 
+		/*
+		cout << "--------------------------------" << endl;
+		for(const auto& it : _binIndex_to_contigIndex){
+			//cout << "---" << endl;
+			for(u_int32_t contigIndex : it.second){
+				cout << contigIndex << " ";
+			}
+			cout << endl;
+		}
+		*/
+
 		//cout << contigIndexToBinIndex(209) << endl;
 		//getchar();
 

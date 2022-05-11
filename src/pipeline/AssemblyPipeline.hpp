@@ -231,7 +231,7 @@ public:
 
 				
 				//Generate contigs
-				command = _filename_exe + " contig " + " -o " + _inputDir;
+				command = _filename_exe + " contig " + " -o " + _inputDir + " --final";
 				if(!_truthInputFilename.empty()) command += " --itruth " + _truthInputFilename;
 				//if(pass == 0) command += " --firstpass";
 				executeCommand(command);

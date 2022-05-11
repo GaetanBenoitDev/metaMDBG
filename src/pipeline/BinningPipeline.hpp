@@ -150,6 +150,7 @@ public:
 
 		string lastBinFilename = "";
 
+		
 		for(long k=firstK; k>=4; k-=10){
 
 			string ouputDir = _inputDir + "/pass_k" + to_string(k);
@@ -167,6 +168,7 @@ public:
 			prevK = k;
 			pass += 1;
 		}
+		
 
 		dumpBins(_filename_inputContigs, lastBinFilename);
     }
@@ -195,12 +197,22 @@ public:
 
 	void dumpBins(const string& contigFilename, const string binFilename){
 
+		
+
 		_contigFeature.loadContigBins(binFilename);
 		loadContigs(contigFilename);
 
 		u_int64_t binIndex = 0;
 		
-		
+		/*
+		for(const auto& it : _contigFeature._binIndex_to_contigIndex){
+			cout << "---" << endl;
+			for(u_int32_t contigIndex : it.second){
+				cout << contigIndex << " ";
+			}
+			cout << endl;
+		}
+		*/
 
 		for(const auto& it : _contigFeature._binIndex_to_contigIndex){
 			bool isValid = dumpBin(binIndex, it.second);
@@ -247,10 +259,13 @@ public:
 
 		if(lengthTotal < 20000) return false;
 
+		//cout << "Bin: " << binIndex << endl;
+
 		const string& filename = _outputDir_binning + "/bin_" + to_string(binIndex) + ".fasta";
 		ofstream file = ofstream(filename);
 
 		for(const ContigSequence& contig : binSequences){
+			//cout << contig._contigIndex << endl;
 			string header = ">ctg" + to_string(contig._contigIndex);
 			file << header << endl;
 			file << contig._sequence << endl;

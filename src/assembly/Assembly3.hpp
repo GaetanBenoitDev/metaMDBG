@@ -266,7 +266,7 @@ public:
             //gfa_filename = _inputDir + "/minimizer_graph_debug.gfa";
 		//}
 		
-		GraphSimplify* graphSimplify = new GraphSimplify(_gfaFilename, _inputDir, 0, _kminmerSize);
+		GraphSimplify* graphSimplify = new GraphSimplify(_gfaFilename, _inputDir, 0, _kminmerSize, _nbCores);
 		_graph = graphSimplify;
 		
 
@@ -852,7 +852,7 @@ public:
 		_nbreadsLala = 0;
 		_nbUncorrectedReads = 0;
 
-		_graph->loadState2(0, -1, _unitigDatas);
+		//_graph->loadState2(0, -1, _unitigDatas);
 		_graph->_isBubble = _isBubble;
 
 		//const string& outputFilename_correctedReads = _inputDir + "/correctedReads_" + to_string(_kminmerSize) + ".min.gz";

@@ -40,6 +40,7 @@ public:
 	string _outputFilename;
 	string _outputFilename_complete;
 	bool _debug;
+	bool _isFinalAssembly;
 	string _inputFilename_unitigNt;
 	string _inputFilename_unitigCluster;
 	string _filename_abundance;
@@ -85,10 +86,11 @@ public:
 		(ARG_OUTPUT_DIR, "", cxxopts::value<string>())
 		(ARG_INPUT_FILENAME_CONTIG, "", cxxopts::value<string>()->default_value(""))
 		(ARG_INPUT_FILENAME_TRUTH, "", cxxopts::value<string>()->default_value(""))
-		(ARG_DEBUG, "", cxxopts::value<bool>()->default_value("false"))
-		(ARG_INPUT_FILENAME_UNITIG_NT, "", cxxopts::value<string>()->default_value(""))
-		(ARG_INPUT_FILENAME_UNITIG_CLUSTER, "", cxxopts::value<string>()->default_value(""))
-		(ARG_INPUT_FILENAME_ABUNDANCE, "", cxxopts::value<string>()->default_value(""));
+		//(ARG_DEBUG, "", cxxopts::value<bool>()->default_value("false"))
+		//(ARG_INPUT_FILENAME_UNITIG_NT, "", cxxopts::value<string>()->default_value(""))
+		//(ARG_INPUT_FILENAME_UNITIG_CLUSTER, "", cxxopts::value<string>()->default_value(""))
+		(ARG_FINAL, "", cxxopts::value<bool>()->default_value("false"));
+		//(ARG_INPUT_FILENAME_ABUNDANCE, "", cxxopts::value<string>()->default_value(""));
 
 
 
@@ -105,10 +107,11 @@ public:
 			_inputDir = result[ARG_OUTPUT_DIR].as<string>();
 			_filename_inputContigs = result[ARG_INPUT_FILENAME_CONTIG].as<string>();
 			_truthInputFilename = result[ARG_INPUT_FILENAME_TRUTH].as<string>();
-			_inputFilename_unitigNt = result[ARG_INPUT_FILENAME_UNITIG_NT].as<string>();
-			_inputFilename_unitigCluster = result[ARG_INPUT_FILENAME_UNITIG_CLUSTER].as<string>();
-			_debug = result[ARG_DEBUG].as<bool>();
-			_filename_abundance = result[ARG_INPUT_FILENAME_ABUNDANCE].as<string>();
+			//_inputFilename_unitigNt = result[ARG_INPUT_FILENAME_UNITIG_NT].as<string>();
+			//_inputFilename_unitigCluster = result[ARG_INPUT_FILENAME_UNITIG_CLUSTER].as<string>();
+			//_debug = result[ARG_DEBUG].as<bool>();
+			_isFinalAssembly = result[ARG_FINAL].as<bool>();
+			//_filename_abundance = result[ARG_INPUT_FILENAME_ABUNDANCE].as<string>();
 		}
 		catch (const std::exception& e){
 			std::cout << options.help() << std::endl;
@@ -200,7 +203,7 @@ public:
             //gfa_filename = _inputDir + "/minimizer_graph_debug.gfa";
 		//}
 		
-		GraphSimplify* graphSimplify = new GraphSimplify(_gfaFilename, _inputDir, 0, _kminmerSize);
+		GraphSimplify* graphSimplify = new GraphSimplify(_gfaFilename, _inputDir, 0, _kminmerSize, _nbCores);
 		_graph = graphSimplify;
 		
 
@@ -1088,21 +1091,35 @@ public:
 				*/
 
 				//cout << u._nbNodes  << " " << u._startNode << " " <<  u._endNode << endl;
-				if(u._startNode == u._endNode){ //Circular
-					
-					//cout << "circular: " << u._nbNodes << endl;
-					
-					for(size_t i=0; i<_kminmerSize-1; i++){
-						if(nodePath.size() == 0) break;
-						nodePath.pop_back();
-					}
+				
+				if(_isFinalAssembly){
+					if(u._startNode == u._endNode){ //Circular
+						
+						//cout << "circular: " << u._nbNodes << endl;
+						
+						for(size_t i=0; i<_kminmerSize-1; i++){
+							if(nodePath.size() == 0) break;
+							nodePath.pop_back();
+						}
 
+					}
 				}
+				
 				//vector<u_int64_t> nodePath_supportingReads;
 				//assembly.solveBin2(unitig._startNode, unitig._abundance, _graph, 0, 0, false, nodePath, nodePath_supportingReads, 0);
 
-
-
+				/*
+				if(nodePath.size() > 200){
+					cout << "-----" << endl;
+					for(size_t i=0; i<_kminmerSize; i++){
+						cout << nodePath[i] << endl;
+					}
+					cout << "-----" << endl;
+					for(size_t i=0; i<_kminmerSize; i++){
+						cout << nodePath[nodePath.size()-_kminmerSize-1+i] << endl;
+					}
+				}
+				*/
 
 				//string unitigSequenceExpanded;
 				//_toBasespace.createSequence(nodePath, unitigSequenceExpanded);

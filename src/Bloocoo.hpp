@@ -654,7 +654,7 @@ public:
 
 					if(!_isFirstPass){
 						float ab = getAbundance(readMinimizers, kminmerInfo);
-						if(ab < abundanceCutoff){
+						if(ab == 1 && ab < abundanceCutoff){
 							//cout << "Out: " << ab << " " << abundanceCutoff << endl;
 							continue;
 						}
