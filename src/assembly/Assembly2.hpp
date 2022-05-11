@@ -892,7 +892,7 @@ public:
 			}
 		}
 
-		cout << "Current: " << contigIndex_model << endl;
+		//cout << "Current: " << contigIndex_model << endl;
 		for(u_int32_t contigIndex : binContigIndexes){
 			assignContigToBin(contigIndex, binIndex);
 			processedContigIndex.insert(contigIndex);
@@ -1658,7 +1658,7 @@ public:
 
 	void extractContigKminmers_read2(const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex, u_int64_t datasetIndex, const string& header, const string& seq){
 
-		cout << readIndex << " " << kminmers.size() << endl;
+		//cout << readIndex << " " << kminmers.size() << endl;
 		if(seq.size() < 2500) return;
 		//cout << seq.size() << endl;
 		//if(readIndex == 20010) getchar(); 

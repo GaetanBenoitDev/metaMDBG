@@ -654,12 +654,13 @@ public:
 
 					if(!_isFirstPass){
 						float ab = getAbundance(readMinimizers, kminmerInfo);
-						if(ab == 1 && ab < abundanceCutoff){
+						if(ab == 1){//} && ab < abundanceCutoff){
 							//cout << "Out: " << ab << " " << abundanceCutoff << endl;
 							continue;
 						}
 					}
 
+					/*
 					bool exist = false;
 					#pragma omp critical
 					{
@@ -678,7 +679,7 @@ public:
 					}
 					}
 
-					exist = true;
+					//exist = true;
 					
 					if(_isFirstPass){
 						exist = true;
@@ -688,7 +689,9 @@ public:
 					else{
 						//exist = true;
 					}
+					*/
 					
+					bool exist = true;
 					//cout << _bloomFilter->contains(vec.h()) << endl;
 					//if(_kminmerExist.find(vec) != _kminmerExist.end() || _parsingContigs ){ //|| !_isFirstPass
 					//if(_bloomFilter->contains(vec.h())){
