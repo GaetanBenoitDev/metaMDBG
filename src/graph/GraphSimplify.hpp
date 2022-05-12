@@ -2800,6 +2800,7 @@ public:
     void compact(bool rebuild, const vector<UnitigData>& unitigDatas){
 
 
+        cout << "\tCompacting" << endl;
         //if(rebuild && _rebuildInvalidUnitigs.size() == 0) return;
 
         _unitigIndexToClean.clear();
@@ -2929,6 +2930,7 @@ public:
             cout << "Nb unitigs: " << _unitigs.size() << endl;
         #endif
 
+        cout << "done" << endl;
         //cout << "Nb unitigs: " << _unitigs.size() << endl;
         //cout << "Unitigs: " << _unitigs.size() << " " << _nodeToUnitig.size() << endl;
         //getchar();
