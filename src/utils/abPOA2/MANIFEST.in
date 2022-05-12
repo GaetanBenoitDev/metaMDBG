@@ -1,0 +1,21 @@
+include src/abpoa_align.h
+include src/abpoa_graph.h
+include src/abpoa.h
+include src/abpoa_output.h
+include src/abpoa_seed.h
+include src/abpoa_seq.h
+include src/kalloc.h
+include src/kdq.h
+include src/khash.h
+include src/kseq.h
+include src/ksort.h
+include src/kstring.h
+include src/kvec.h
+include src/simd_abpoa_align.h
+include src/simd_instruction.h
+include src/utils.h
+recursive-include include/ *.h
+include python/cabpoa.pxd
+include python/pyabpoa.c
+include python/pyabpoa.pyx
+include python/README.md

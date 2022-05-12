@@ -15,7 +15,7 @@ Tester la vitesse de racon pour verifier que je suis sur la bonne voix
 #include "../utils/edlib.h"
 #include "../utils/spoa/include/spoa/spoa.hpp"
 #include "../utils/DnaBitset.hpp"
-#include "../utils/abPOA/include/abpoa.h"
+#include "../utils/abPOA2/include/abpoa.h"
 //#include <seqan/align.h>
 //#include <seqan/graph_msa.h>
 //#include <cstring>

@@ -1,0 +1,75 @@
+# Object files
+*.o
+*.ko
+*.obj
+*.elf
+.idea/*
+build/*
+
+# dot
+abpoa.dot
+abpoa.dot.pdf
+
+
+# readme
+README.html
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Libraries
+lib/*
+*.lib
+*.a
+*.la
+*.lo
+
+
+# Shared objects (inc. Windows DLLs)
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Executables
+bin/*
+example
+sub_example
+*.exe
+*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
+
+# Debug files
+*.dSYM/
+*.su
+
+#data
+data/*
+test_data/cons.fa
+*.dot
+*.png
+*.pdf
+
+#tags
+tags
+cscope.*
+
+# python
+dist/*
+pyabpoa.egg-info/*
+python/build/*
+python/dist/*
+python/example.png
+python/pyabpoa.c
+python/pyabpoa.egg-info/*
+python/src/*
+
+# eval file
+evaluation/msa_abPOA
+evaluation/msa_spoa
+#evaluation/racon_abPOA
+#evaluation/racon_spoa

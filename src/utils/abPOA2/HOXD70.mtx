@@ -1,0 +1,8 @@
+# all five kinds of bases need to be included
+# do not forget to set gap-open/extension penalty with -O/-E
+    A       C       G       T       N
+A   91      -114    -31     -123    0
+C   -114    100     -125    -31     0
+G   -31     -125    100     -114    0
+T   -123    -31     -144    91      0
+N   0       0       0       0       0

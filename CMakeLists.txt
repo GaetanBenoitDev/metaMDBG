@@ -41,7 +41,7 @@ endif ()
 target_link_libraries(${PROJECT_NAME} spoa::spoa)
 
 if (NOT TARGET abPOA)
-  add_subdirectory(src/utils/abPOA EXCLUDE_FROM_ALL)
+  add_subdirectory(src/utils/abPOA2 EXCLUDE_FROM_ALL)
 endif ()
 target_link_libraries(${PROJECT_NAME} abpoa)
 
