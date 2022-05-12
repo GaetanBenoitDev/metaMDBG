@@ -1036,7 +1036,6 @@ public:
 
 
 				vector<u_int32_t> nodePath = u._nodes;
-				if(nodePath.size() <= 1) continue;
 
 
                 vector<u_int32_t> successors;
@@ -1131,6 +1130,7 @@ public:
 				//	cout << "empty contig " << endl;
 				//	getchar();
 				//}
+				if(nodePath.size() <= 1) continue;
 
 				u_int64_t size = nodePath.size();
 				gzwrite(outputContigFile_min, (const char*)&size, sizeof(size));
