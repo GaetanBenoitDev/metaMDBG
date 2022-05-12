@@ -40,6 +40,7 @@ public:
 	string _outputFilename;
 	string _outputFilename_complete;
 	bool _debug;
+	bool _isFinalAssembly;
 	string _inputFilename_unitigNt;
 	string _inputFilename_unitigCluster;
 	string _filename_abundance;
@@ -85,10 +86,11 @@ public:
 		(ARG_OUTPUT_DIR, "", cxxopts::value<string>())
 		(ARG_INPUT_FILENAME_CONTIG, "", cxxopts::value<string>()->default_value(""))
 		(ARG_INPUT_FILENAME_TRUTH, "", cxxopts::value<string>()->default_value(""))
-		(ARG_DEBUG, "", cxxopts::value<bool>()->default_value("false"))
-		(ARG_INPUT_FILENAME_UNITIG_NT, "", cxxopts::value<string>()->default_value(""))
-		(ARG_INPUT_FILENAME_UNITIG_CLUSTER, "", cxxopts::value<string>()->default_value(""))
-		(ARG_INPUT_FILENAME_ABUNDANCE, "", cxxopts::value<string>()->default_value(""));
+		//(ARG_DEBUG, "", cxxopts::value<bool>()->default_value("false"))
+		//(ARG_INPUT_FILENAME_UNITIG_NT, "", cxxopts::value<string>()->default_value(""))
+		//(ARG_INPUT_FILENAME_UNITIG_CLUSTER, "", cxxopts::value<string>()->default_value(""))
+		(ARG_FINAL, "", cxxopts::value<bool>()->default_value("false"));
+		//(ARG_INPUT_FILENAME_ABUNDANCE, "", cxxopts::value<string>()->default_value(""));
 
 
 
@@ -105,10 +107,11 @@ public:
 			_inputDir = result[ARG_OUTPUT_DIR].as<string>();
 			_filename_inputContigs = result[ARG_INPUT_FILENAME_CONTIG].as<string>();
 			_truthInputFilename = result[ARG_INPUT_FILENAME_TRUTH].as<string>();
-			_inputFilename_unitigNt = result[ARG_INPUT_FILENAME_UNITIG_NT].as<string>();
-			_inputFilename_unitigCluster = result[ARG_INPUT_FILENAME_UNITIG_CLUSTER].as<string>();
-			_debug = result[ARG_DEBUG].as<bool>();
-			_filename_abundance = result[ARG_INPUT_FILENAME_ABUNDANCE].as<string>();
+			//_inputFilename_unitigNt = result[ARG_INPUT_FILENAME_UNITIG_NT].as<string>();
+			//_inputFilename_unitigCluster = result[ARG_INPUT_FILENAME_UNITIG_CLUSTER].as<string>();
+			//_debug = result[ARG_DEBUG].as<bool>();
+			_isFinalAssembly = result[ARG_FINAL].as<bool>();
+			//_filename_abundance = result[ARG_INPUT_FILENAME_ABUNDANCE].as<string>();
 		}
 		catch (const std::exception& e){
 			std::cout << options.help() << std::endl;
@@ -151,6 +154,20 @@ public:
 		//generateUnitigs();
 		generateContigs2(_inputDir + "/contigs.nodepath.gz", _inputDir + "/contigs.fasta.gz");
 
+		
+		//if(_kminmerSize == 4){
+			_mdbg = new MDBG(_kminmerSize);
+			_mdbg->load(_inputDir + "/mdbg_nodes.gz");
+			for(auto& it : _mdbg->_dbg_nodes){
+				if(_nodeNameAbundances.find(it.second._index) == _nodeNameAbundances.end()) continue;
+				const NodeAb& nodeAb = _nodeNameAbundances[it.second._index];
+				it.second._abundance = nodeAb._abundance;
+				it.second._unitigNbNodes = nodeAb._nbNodes;
+				//cout << nodeAb._abundance << " " << nodeAb._nbNodes << endl;
+			}
+			_mdbg->dump(_inputDir + "/mdbg_nodes.gz");
+		//}
+
 	}
 
 	void loadGraph(){
@@ -165,9 +182,9 @@ public:
 
 		
 		cout << _gfaFilename << endl;
-		_mdbg = new MDBG(_kminmerSize);
-		_mdbg->load(mdbg_filename);
-		cout << "Nb nodes: " <<  _mdbg->_dbg_nodes.size() << endl;
+		//_mdbg = new MDBG(_kminmerSize);
+		//_mdbg->load(mdbg_filename);
+		//cout << "Nb nodes: " <<  _mdbg->_dbg_nodes.size() << endl;
 
 		//extractContigKminmers2(_inputDir + "/contigs.fasta.gz");
 
@@ -186,7 +203,7 @@ public:
             //gfa_filename = _inputDir + "/minimizer_graph_debug.gfa";
 		//}
 		
-		GraphSimplify* graphSimplify = new GraphSimplify(_gfaFilename, _inputDir, 0, _kminmerSize);
+		GraphSimplify* graphSimplify = new GraphSimplify(_gfaFilename, _inputDir, 0, _kminmerSize, _nbCores);
 		_graph = graphSimplify;
 		
 
@@ -208,11 +225,11 @@ public:
 
 	  //_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, true, false, true, true, _mdbg, _minimizerSize, _nbCores, true, false);
 		//_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false, false, false, true, _mdbg, _minimizerSize, _nbCores, false, false);
-		_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false, false, false, true, _mdbg, _minimizerSize, _nbCores, false, false);
-		_graph->debug_selectUnitigIndex();
+		_graph->debug_writeGfaErrorfree(2000, 2000, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false, false, false, true, _mdbg, _minimizerSize, _nbCores, false, false);
+		//_graph->debug_selectUnitigIndex();
 		//_graph->debug_writeGfaErrorfree(2000, 2000, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false, false, false, false, _mdbg, _minimizerSize, _nbCores, false, true);
 			
-		delete _mdbg;
+		//delete _mdbg;
 		
 	}
 
@@ -908,7 +925,13 @@ public:
 	}
 
 
+	struct NodeAb{
+		float _abundance;
+		u_int32_t _nbNodes;
+	};
+
 	unordered_set<u_int32_t> _processedNodeNames;
+	unordered_map<u_int32_t, NodeAb> _nodeNameAbundances;
 
 	void generateContigs2(const string& outputFilename, const string& outputFilename_fasta){
 
@@ -964,7 +987,7 @@ public:
 			vector<UnitigLength> startingUnitigs;
 
 			_graph->loadState2(cutoff, -1, _unitigDatas);
-			_minUnitigAbundance = cutoff / 0.2;
+			_minUnitigAbundance = cutoff / 0.5;
 
 			//if(cutoff == 102.862){
 			//	_graph->saveGraph(_inputDir + "/minimizer_graph_contigs.gfa");
@@ -1013,8 +1036,21 @@ public:
 
 
 				vector<u_int32_t> nodePath = u._nodes;
-				if(nodePath.size() <= _kminmerSize) continue;
+				if(nodePath.size() <= 1) continue;
 
+
+                vector<u_int32_t> successors;
+                _graph->getSuccessors_unitig(u._index, 0, successors);
+
+                vector<u_int32_t> predecessors;
+                _graph->getPredecessors_unitig(u._index, 0, predecessors);
+
+				if(successors.size() == 0 && predecessors.size() == 0 && u._abundance == 1) continue;
+				//if(_kminmerSize == 41){
+				//	if(u._abundance <= 1) continue;
+				//}
+				/*
+				//if(nodePath.size() <= _kminmerSize) continue;
 				if(u._nbNodes < _kminmerSize*2){
 
 					double abundanceSum = 0;
@@ -1052,23 +1088,38 @@ public:
 					//	continue;
 					//}
 				}
+				*/
 
 				//cout << u._nbNodes  << " " << u._startNode << " " <<  u._endNode << endl;
-				if(u._startNode == u._endNode){ //Circular
-					
-					//cout << "circular: " << u._nbNodes << endl;
-					
-					for(size_t i=0; i<_kminmerSize-1; i++){
-						if(nodePath.size() == 0) break;
-						nodePath.pop_back();
-					}
+				
+				if(_isFinalAssembly){
+					if(u._startNode == u._endNode){ //Circular
+						
+						//cout << "circular: " << u._nbNodes << endl;
+						
+						for(size_t i=0; i<_kminmerSize-1; i++){
+							if(nodePath.size() == 0) break;
+							nodePath.pop_back();
+						}
 
+					}
 				}
+				
 				//vector<u_int64_t> nodePath_supportingReads;
 				//assembly.solveBin2(unitig._startNode, unitig._abundance, _graph, 0, 0, false, nodePath, nodePath_supportingReads, 0);
 
-
-
+				/*
+				if(nodePath.size() > 200){
+					cout << "-----" << endl;
+					for(size_t i=0; i<_kminmerSize; i++){
+						cout << nodePath[i] << endl;
+					}
+					cout << "-----" << endl;
+					for(size_t i=0; i<_kminmerSize; i++){
+						cout << nodePath[nodePath.size()-_kminmerSize-1+i] << endl;
+					}
+				}
+				*/
 
 				//string unitigSequenceExpanded;
 				//_toBasespace.createSequence(nodePath, unitigSequenceExpanded);
@@ -1088,6 +1139,11 @@ public:
 				for(u_int32_t nodeIndex : nodePath){
 					u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
 					_processedNodeNames.insert(nodeName);
+
+					//if(_kminmerSize == 4){
+						_nodeNameAbundances[nodeName] = {_graph->getNodeUnitigAbundance(nodeIndex), _graph->nodeIndex_to_unitig(nodeIndex)._nbNodes};
+					//}
+
 					//if(nodeName == 289994){
 					//	isLala = true;
 					//}

@@ -266,7 +266,7 @@ public:
             //gfa_filename = _inputDir + "/minimizer_graph_debug.gfa";
 		//}
 		
-		GraphSimplify* graphSimplify = new GraphSimplify(_gfaFilename, _inputDir, 0, _kminmerSize);
+		GraphSimplify* graphSimplify = new GraphSimplify(_gfaFilename, _inputDir, 0, _kminmerSize, _nbCores);
 		_graph = graphSimplify;
 		
 
@@ -403,9 +403,11 @@ public:
 		correctReads();
 		//getchar();
 
-		_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, true, false, true, true, _mdbg, _minimizerSize, _nbCores, true, true);
-		_graph->loadState2(0, -1, _unitigDatas);
-		generateUnitigs();
+		//_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, true, false, true, true, _mdbg, _minimizerSize, _nbCores, true, true);
+		//_graph->loadState2(0, -1, _unitigDatas);
+		//generateUnitigs();
+
+
 
 		delete _mdbg;
 
@@ -850,7 +852,7 @@ public:
 		_nbreadsLala = 0;
 		_nbUncorrectedReads = 0;
 
-		_graph->loadState2(0, -1, _unitigDatas);
+		//_graph->loadState2(0, -1, _unitigDatas);
 		_graph->_isBubble = _isBubble;
 
 		//const string& outputFilename_correctedReads = _inputDir + "/correctedReads_" + to_string(_kminmerSize) + ".min.gz";
@@ -1164,16 +1166,21 @@ public:
 			//const vector<KmerVec>& kminmers = kminmerList._kminmers;
 			const vector<ReadKminmerComplete>& kminmersInfos = kminmerList._kminmersInfo;
 
-			//_assembly3.writeCorrectedRead(minimizers, true, false);
-			//	return;
+			_assembly3.writeCorrectedRead(minimizers, true, false);
+			return;
+
+			
 			/*
-			if(_kminmerSize == _assembly3._kminmerSizeFirst){
+			if(_kminmerSize == 5){
 			}
 			else{
 				_assembly3.writeCorrectedRead(minimizers, true, false);
 				return;
 			}
 			*/
+			
+			
+			
 			
 			
 			

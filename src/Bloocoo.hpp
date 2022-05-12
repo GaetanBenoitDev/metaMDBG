@@ -302,6 +302,143 @@ public:
 			//delete _minimizerParser;
 		}
 
+		
+		float getAbundance(const vector<u_int64_t>& readMinimizers, const ReadKminmerComplete& kminmerInfo){
+
+			const KmerVec& vec = kminmerInfo._vec;
+
+			vector<u_int64_t> minimizerSeq;
+			for(size_t i=kminmerInfo._read_pos_start; i<=kminmerInfo._read_pos_end; i++){
+				minimizerSeq.push_back(readMinimizers[i]);
+			}
+			if(kminmerInfo._isReversed){
+				std::reverse(minimizerSeq.begin(), minimizerSeq.end());
+			}
+
+
+			vector<u_int64_t> rlePositions;
+			vector<u_int64_t> minimizers_pos;//(minimizers.size());
+			vector<KmerVec> kminmers; 
+			vector<ReadKminmer> kminmersInfo;
+			MDBG::getKminmers(_minimizerSize, _kminmerSize-1, minimizerSeq, minimizers_pos, kminmers, kminmersInfo, rlePositions, 0, false);
+
+
+			u_int32_t minAbundance = -1;
+			float sum = 0;
+			float n = 0;
+			//vector<float> abundances;
+			//cout << kminmers.size() << endl;
+			for(const KmerVec& vec : kminmers){
+				//cout << (_mdbgInit->_dbg_nodes.find(vec) != _mdbgInit->_dbg_nodes.end()) << endl;
+				if(_mdbgInit->_dbg_nodes.find(vec) != _mdbgInit->_dbg_nodes.end()){
+
+					u_int32_t abundance = _mdbgInit->_dbg_nodes[vec]._abundance;
+
+					//if(nodeName == 17430) cout << abundance << endl;
+
+					if(abundance < minAbundance){
+						minAbundance = abundance;
+					}
+					//cout << abundance << " ";
+					//abundances.push_back(abundance);
+
+					sum += abundance;
+					n += 1;
+				}
+				else{
+					minAbundance = 1;
+					break;
+				}
+			}
+
+			return minAbundance;
+		}
+		
+		/*
+		struct SumN{
+			double _sum;
+			double _n;
+			double _nbNodes_sum;
+			double _nbNodes_n;
+		};
+
+		SumN getAbundanceMean(const vector<u_int64_t>& readMinimizers, const ReadKminmerComplete& kminmerInfo){
+
+			SumN sumN = {0, 0, 0, 0};
+
+			const KmerVec& vec = kminmerInfo._vec;
+
+			vector<u_int64_t> minimizerSeq;
+			for(size_t i=kminmerInfo._read_pos_start; i<=kminmerInfo._read_pos_end; i++){
+				minimizerSeq.push_back(readMinimizers[i]);
+			}
+			if(kminmerInfo._isReversed){
+				std::reverse(minimizerSeq.begin(), minimizerSeq.end());
+			}
+
+
+			vector<u_int64_t> rlePositions;
+			vector<u_int64_t> minimizers_pos;//(minimizers.size());
+			vector<KmerVec> kminmers; 
+			vector<ReadKminmer> kminmersInfo;
+			MDBG::getKminmers(_minimizerSize, _kminmerSizeFirst, minimizerSeq, minimizers_pos, kminmers, kminmersInfo, rlePositions, 0, false);
+
+
+			//u_int32_t minAbundance = -1;
+			//float sum = 0;
+			//float n = 0;
+			//vector<float> abundances;
+			//cout << kminmers.size() << endl;
+			
+			float lastAbundance = -1;
+			float lastN = -1;
+
+			//cout << kminmers.size() << endl;
+
+			for(const KmerVec& vec : kminmers){
+				//cout << (_mdbgInit->_dbg_nodes.find(vec) != _mdbgInit->_dbg_nodes.end()) << endl;
+
+
+				if(_mdbgInit->_dbg_nodes.find(vec) != _mdbgInit->_dbg_nodes.end()){
+
+					u_int32_t abundance = _mdbgInit->_dbg_nodes[vec]._abundance;
+					size_t n = _mdbgInit->_dbg_nodes[vec]._unitigNbNodes;
+
+					//if(abundance == lastAbundance && lastN == n) continue;
+
+					for(size_t i=0; i<n; i++){
+						sumN._n += 1;
+						sumN._sum += abundance;
+					}
+
+					sumN._nbNodes_sum += n;
+					sumN._nbNodes_n += 1;
+
+					cout << abundance << " " << n << endl;
+
+					lastAbundance = abundance;
+					lastN = n;
+					//if(nodeName == 17430) cout << abundance << endl;
+
+					//if(abundance < minAbundance){
+					//	minAbundance = abundance;
+					//}
+					//cout << abundance << " ";
+					//abundances.push_back(abundance);
+
+					//sum += abundance;
+					//n += 1;
+				}
+				//else{
+					//minAbundance = 1;
+					//break;
+				//}
+			}
+
+			return sumN;
+		}
+		*/
+
 		void operator () (const KminmerList& kminmerList) {
 
 
@@ -311,6 +448,135 @@ public:
 			//const vector<KmerVec>& kminmers = kminmerList._kminmers;
 			const vector<ReadKminmerComplete>& kminmersInfos = kminmerList._kminmersInfo;
 
+			
+			double abundanceCutoff = 0;
+			if(!_isFirstPass){
+				
+
+				vector<u_int64_t> rlePositions;
+				vector<u_int64_t> minimizers_pos;//(minimizers.size());
+				vector<KmerVec> kminmers; 
+				vector<ReadKminmer> kminmersInfo;
+				MDBG::getKminmers(_minimizerSize, _kminmerSize-1, readMinimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, 0, false);
+
+
+				//u_int32_t minAbundance = -1;
+				double sumTotal = 0;
+				double nTotal = 0;
+				//vector<float> abundances;
+				//cout << kminmers.size() << endl;
+				
+				float lastAbundance = -1;
+				float lastN = -1;
+				double nMax = 0;
+
+				//cout << "-------------" << endl;
+
+				for(const KmerVec& vec : kminmers){
+					//cout << (_mdbgInit->_dbg_nodes.find(vec) != _mdbgInit->_dbg_nodes.end()) << endl;
+
+
+					if(_mdbgInit->_dbg_nodes.find(vec) != _mdbgInit->_dbg_nodes.end()){
+
+						u_int32_t abundance = _mdbgInit->_dbg_nodes[vec]._abundance;
+						size_t n = _mdbgInit->_dbg_nodes[vec]._unitigNbNodes;
+
+
+						//if(abundance == lastAbundance && lastN == n) continue;
+
+						sumTotal += abundance * n;
+						nTotal += n;
+						
+						if (n > nMax) nMax = n;
+						//for(size_t i=0; i<n; i++){
+							//sumN._n += 1;
+							//sumN._sum += abundance;
+						//}
+
+						//sumN._nbNodes_sum += n;
+						//sumN._nbNodes_n += 1;
+
+						//cout << abundance << " " << n << endl;
+
+						lastAbundance = abundance;
+						lastN = n;
+						//if(nodeName == 17430) cout << abundance << endl;
+
+						//if(abundance < minAbundance){
+						//	minAbundance = abundance;
+						//}
+						//cout << abundance << " ";
+						//abundances.push_back(abundance);
+
+						//sum += abundance;
+						//n += 1;
+					}
+					//else{
+						//minAbundance = 1;
+						//break;
+					//}
+				}
+
+				//cout << nTotal << endl;
+				if(nTotal == 0){
+					abundanceCutoff = 0;
+				}
+				else{
+					//cout << sumTotal << " " << nTotal << endl;
+					double abundanceMean = sumTotal / nTotal;
+					abundanceCutoff = abundanceMean * 0.5;
+
+					if(nMax < 300) abundanceCutoff = 0;
+					//cout << abundanceMean << " " << nMax << endl;
+
+					//if(abundanceMean > 60) getchar();
+				}
+				//abundanceCutoff = ;
+				/*
+				double sum = 0;
+				double n = 0;
+				double nbNodes_sum = 0;
+				double nbNodes_n = 0;
+				//vector<float> abundances;
+				//cout << "------------" << endl;
+				for(size_t i=0; i<kminmersInfos.size(); i++){
+					
+					//const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
+
+					const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
+					//const KmerVec& vec = kminmerInfo._vec;
+
+					
+					SumN sumN = getAbundanceMean(readMinimizers, kminmerInfo);
+					//abundances.push_back(getAbundance(readMinimizers, kminmerInfo));
+
+					sum += sumN._sum;
+					n += sumN._n;
+					nbNodes_sum += sumN._nbNodes_sum;
+					nbNodes_n += sumN._nbNodes_n;
+					//cout << minAbundance << endl;
+					
+				}
+
+				if(n == 0){
+					abundanceCutoff = 0;
+				}
+				else{
+					abundanceCutoff = sum / n;
+					//abundanceCutoff = Utils::compute_median_float(abundances) / 5.0;
+					//cout << abundanceCutoff << endl;
+					abundanceCutoff *= 0.1;
+				}
+
+				double nbNodes = nbNodes_sum / nbNodes_n;
+				if(sum / n > 60){
+					cout << readIndex << " " << nbNodes << " " << (sum / n) << endl;
+					getchar();
+				}
+				if(n < 100) abundanceCutoff = 0;
+				*/
+			}
+			
 			/*
 			bool isHere = false;
 
@@ -380,14 +646,24 @@ public:
 				//cout << readIndex << " " << kminmersInfos.size() << endl;
 				for(size_t i=0; i<kminmersInfos.size(); i++){
 					
+
 					//const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
 
 					const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
 					const KmerVec& vec = kminmerInfo._vec;
 
+					if(!_isFirstPass){
+						float ab = getAbundance(readMinimizers, kminmerInfo);
+						if(ab == 1){//} && ab < abundanceCutoff){
+							//cout << "Out: " << ab << " " << abundanceCutoff << endl;
+							continue;
+						}
+					}
+
+					/*
 					bool exist = false;
-					//#pragma omp critical
-					//{
+					#pragma omp critical
+					{
 
 					if(_extractingContigs){
 						exist = true;
@@ -401,14 +677,21 @@ public:
 							_bloomFilter->insert(vec.h());
 						}
 					}
-					//}
+					}
 
-					exist = true;
-
-
+					//exist = true;
+					
 					if(_isFirstPass){
+						exist = true;
+					}
+					else if (_kminmerSize == 5){
+					}
+					else{
 						//exist = true;
 					}
+					*/
+					
+					bool exist = true;
 					//cout << _bloomFilter->contains(vec.h()) << endl;
 					//if(_kminmerExist.find(vec) != _kminmerExist.end() || _parsingContigs ){ //|| !_isFirstPass
 					//if(_bloomFilter->contains(vec.h())){
@@ -492,10 +775,11 @@ public:
 							//}
 
 							if(_isFirstPass){
-								node._abundance = 2;
+								node._abundance = 1;
 							}
 							else{
 
+								/*
 								//cout << "---------------" << endl;
 								//for(u_int64_t m : minimizerSeq) cout << m << endl;
 								//cout << endl;
@@ -503,7 +787,7 @@ public:
 								vector<u_int64_t> minimizers_pos;//(minimizers.size());
 								vector<KmerVec> kminmers; 
 								vector<ReadKminmer> kminmersInfo;
-								MDBG::getKminmers(_minimizerSize, _kminmerSizeFirst, minimizerSeq, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex, false);
+								MDBG::getKminmers(_minimizerSize, _kminmerSize-1, minimizerSeq, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex, false);
 
 
 								u_int32_t minAbundance = -1;
@@ -533,13 +817,13 @@ public:
 										break;
 									}
 								}
-
+								*/
 								//if(minAbundance == -1) minAbundance = 1;
 								//cout << endl;
 
 								//cout << (sum / 2) << " " << Utils::compute_median_float(abundances) << endl;
 
-								node._abundance = minAbundance;
+								node._abundance = getAbundance(readMinimizers, kminmerInfo);
 								//cout << minAbundance << endl;
 							}
 

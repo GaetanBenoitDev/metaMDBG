@@ -85,6 +85,7 @@ const string ARG_MINIMIZER_LENGTH = "l";
 const string ARG_KMINMER_LENGTH = "k";
 const string ARG_MINIMIZER_DENSITY = "d";
 const string ARG_DEBUG = "debug";
+const string ARG_FINAL = "final";
 const string ARG_INPUT_FILENAME_CONTIG = "c";
 const string ARG_INPUT_FILENAME_CONTIG_FASTA = "cf";
 const string ARG_INPUT_FILENAME_UNITIG_NT = "unitigNt";
@@ -193,6 +194,7 @@ struct DbgNode{
 	u_int16_t _overlapLength_start;
 	u_int16_t _overlapLength_end;
 	bool _isReversed;
+	u_int32_t _unitigNbNodes;
 };
 
 

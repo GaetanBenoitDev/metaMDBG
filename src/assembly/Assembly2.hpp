@@ -400,7 +400,7 @@ public:
             //gfa_filename = _inputDir + "/minimizer_graph_debug.gfa";
 		//}
 		
-		GraphSimplify* graphSimplify = new GraphSimplify(_gfaFilename, _inputDir, 0, _kminmerSize);
+		GraphSimplify* graphSimplify = new GraphSimplify(_gfaFilename, _inputDir, 0, _kminmerSize, _nbCores);
 		_graph = graphSimplify;
 		
 
@@ -892,6 +892,7 @@ public:
 			}
 		}
 
+		//cout << "Current: " << contigIndex_model << endl;
 		for(u_int32_t contigIndex : binContigIndexes){
 			assignContigToBin(contigIndex, binIndex);
 			processedContigIndex.insert(contigIndex);
@@ -1529,14 +1530,36 @@ public:
 	}
 	*/
 
+
+	
+	unordered_map<u_int32_t, u_int32_t> _contigIndex_to_binIndex;
 	void assignContigToBin(u_int32_t contigIndex, u_int32_t binIndex){
+
+		_contigIndex_to_binIndex[contigIndex] = binIndex;
+		//if(_contigFeature._contigLengths[contigIndex] > 500000)
 		//cout << "Assign: " << contigIndex << " -> " << binIndex << endl;
-		_fileOutput_contigBin.write((const char*)&contigIndex, sizeof(contigIndex));
-		_fileOutput_contigBin.write((const char*)&binIndex, sizeof(binIndex));
+		//_fileOutput_contigBin.write((const char*)&contigIndex, sizeof(contigIndex));
+		//_fileOutput_contigBin.write((const char*)&binIndex, sizeof(binIndex));
 		//_fileOutput_contigBin.flush();
 
 		//if(contigIndex == 209) getchar();
 	}
+	
+
+	void dumpBins(){
+		
+		_fileOutput_contigBin = ofstream(_filename_outputBinning);
+
+		for(const auto& it : _contigIndex_to_binIndex){
+			u_int32_t contigIndex = it.first;
+			u_int32_t binIndex = it.second;
+			_fileOutput_contigBin.write((const char*)&contigIndex, sizeof(contigIndex));
+			_fileOutput_contigBin.write((const char*)&binIndex, sizeof(binIndex));
+		}
+
+		_fileOutput_contigBin.close();
+	}
+
 
 	ofstream _fileTestLala;
 
@@ -1635,6 +1658,7 @@ public:
 
 	void extractContigKminmers_read2(const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex, u_int64_t datasetIndex, const string& header, const string& seq){
 
+		//cout << readIndex << " " << kminmers.size() << endl;
 		if(seq.size() < 2500) return;
 		//cout << seq.size() << endl;
 		//if(readIndex == 20010) getchar(); 
@@ -1830,7 +1854,7 @@ public:
 				binningThresholds = {0.99};
 			}
 
-			vector<u_int64_t> lengthThresholds = {100000, 50000, 10000, 2500}; 
+			vector<u_int64_t> lengthThresholds = {100000, 50000, 10000}; 
 
 			//0.01, 0.05, 0.5, 1.0, 2.0
 			for(float binningThreshold : binningThresholds){
@@ -1880,9 +1904,11 @@ public:
 
 
 				//if(binningThreshold != 0.01){
-				_fileOutput_contigBin.close();
+				dumpBins();
+				_contigIndex_to_binIndex.clear();
+				//_fileOutput_contigBin.close();
 				_contigFeature.loadContigBins(_filename_outputBinning);
-				_fileOutput_contigBin = ofstream(_filename_outputBinning);
+				//_fileOutput_contigBin = ofstream(_filename_outputBinning);
 				cout << binningThreshold << endl;
 					//getchar();
 				//}
@@ -1933,6 +1959,7 @@ public:
 
 
 
+		dumpBins();
 
 		file_groundTruth.close();
 		//file_groundTruth_hifiasmContigs.close();
