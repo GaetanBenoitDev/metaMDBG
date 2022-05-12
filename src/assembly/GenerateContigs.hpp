@@ -80,7 +80,6 @@ public:
 	void parseArgs(int argc, char* argv[]){
 
 
-		_nbCores = 1;
 		cxxopts::Options options("Assembly", "");
 		options.add_options()
 		(ARG_OUTPUT_DIR, "", cxxopts::value<string>())
@@ -89,7 +88,8 @@ public:
 		//(ARG_DEBUG, "", cxxopts::value<bool>()->default_value("false"))
 		//(ARG_INPUT_FILENAME_UNITIG_NT, "", cxxopts::value<string>()->default_value(""))
 		//(ARG_INPUT_FILENAME_UNITIG_CLUSTER, "", cxxopts::value<string>()->default_value(""))
-		(ARG_FINAL, "", cxxopts::value<bool>()->default_value("false"));
+		(ARG_FINAL, "", cxxopts::value<bool>()->default_value("false"))
+		(ARG_NB_CORES, "", cxxopts::value<int>()->default_value(NB_CORES_DEFAULT));
 		//(ARG_INPUT_FILENAME_ABUNDANCE, "", cxxopts::value<string>()->default_value(""));
 
 
@@ -111,6 +111,7 @@ public:
 			//_inputFilename_unitigCluster = result[ARG_INPUT_FILENAME_UNITIG_CLUSTER].as<string>();
 			//_debug = result[ARG_DEBUG].as<bool>();
 			_isFinalAssembly = result[ARG_FINAL].as<bool>();
+			_nbCores = result[ARG_NB_CORES].as<int>();
 			//_filename_abundance = result[ARG_INPUT_FILENAME_ABUNDANCE].as<string>();
 		}
 		catch (const std::exception& e){
@@ -971,10 +972,36 @@ public:
 
 		for(const SaveState2& saveState : _graph->_cachedGraphStates){
 			allCutoffs.push_back(saveState._abundanceCutoff_min);
-			cout << saveState._abundanceCutoff_min << endl;
+			//cout << saveState._abundanceCutoff_min << endl;
 		}
 		
 		std::reverse(allCutoffs.begin(), allCutoffs.end());
+
+
+
+
+        //file_debug = ofstream("/home/gats/workspace/run//debug_graph.csv");
+		//file_debug << "Name,Colour" << endl;
+
+        //auto t1 = std::chrono::high_resolution_clock::now();
+
+        _graph->clear(0);
+
+        for(const SaveState2& saveState : _graph->_cachedGraphStates){
+            //if(saveState._abundanceCutoff_min > abundanceCutoff_min) break;
+
+            for(const u_int32_t nodeName : saveState._nodeNameRemoved){
+
+                u_int32_t nodeIndex1 = BiGraph::nodeName_to_nodeIndex(nodeName, true);
+                u_int32_t nodeIndex2 = BiGraph::nodeName_to_nodeIndex(nodeName, false);
+                _graph->_isNodeValid2.erase(nodeIndex1);
+                _graph->_isNodeValid2.erase(nodeIndex2);
+            }
+
+            for(const DbgEdge& dbgEdge : saveState._isEdgeRemoved){
+                _graph->_isEdgeRemoved.insert(dbgEdge);
+            }
+        }
 
 
 
@@ -982,11 +1009,55 @@ public:
 		//unordered_map<u_int32_t, u_int32_t> nodeName_to_contigIndex;
 		vector<Contig> contigs;
 
-		for(float cutoff : allCutoffs){
+		for(size_t i=0; i<allCutoffs.size(); i++){
+
+			float cutoff = allCutoffs[i];
+
+			if(i > 0){
+
+				//cout << i << endl;
+				//if(cutoff == 0) continue;
+				const vector<u_int32_t>& nodeNameRemoved = _graph->_cachedGraphStates[_graph->_cachedGraphStates.size()-1-i+1]._nodeNameRemoved;
+				const vector<DbgEdge>& isEdgeRemoved = _graph->_cachedGraphStates[_graph->_cachedGraphStates.size()-1-i+1]._isEdgeRemoved;
+
+				//cout << nodeNameRemoved.size() << endl;
+				//cout << isEdgeRemoved.size() << endl;
+				//cout << "Unload state: " << _graph->_cachedGraphStates[_graph->_cachedGraphStates.size()-1-i+1]._abundanceCutoff_min << endl;
+
+				for(const u_int32_t nodeName : nodeNameRemoved){
+
+					u_int32_t nodeIndex1 = BiGraph::nodeName_to_nodeIndex(nodeName, true);
+					u_int32_t nodeIndex2 = BiGraph::nodeName_to_nodeIndex(nodeName, false);
+					_graph->_isNodeValid2.insert(nodeIndex1);
+					_graph->_isNodeValid2.insert(nodeIndex2);
+				}
+
+				/*
+				for(const u_int32_t nodeName : saveState._isBubble){
+
+					u_int32_t nodeIndex1 = BiGraph::nodeName_to_nodeIndex(nodeName, true);
+					u_int32_t nodeIndex2 = BiGraph::nodeName_to_nodeIndex(nodeName, false);
+
+					_isBubble[nodeIndex1] = true;
+					_isBubble[nodeIndex2] = true;
+				}
+				*/
+
+				for(const DbgEdge& dbgEdge : isEdgeRemoved){
+					_graph->_isEdgeRemoved.erase(dbgEdge);
+				}
+				//cout << _graph->_isEdgeRemoved.size() << endl;
+				//cout << _graph->_isEdgeRemoved.size() << endl;
+
+			}
+
+
+        	_graph->compact(false, _unitigDatas);
+
 
 			vector<UnitigLength> startingUnitigs;
 
-			_graph->loadState2(cutoff, -1, _unitigDatas);
+			//_graph->loadState2(cutoff, -1, _unitigDatas);
 			_minUnitigAbundance = cutoff / 0.5;
 
 			//if(cutoff == 102.862){

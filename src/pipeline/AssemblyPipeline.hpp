@@ -209,7 +209,7 @@ public:
 			executeCommand(command);
 
 			//Generate contigs
-			command = _filename_exe + " contig " + " -o " + _inputDir;
+			command = _filename_exe + " contig " + " -o " + _inputDir + " -t " + to_string(_nbCores);;
 			if(!_truthInputFilename.empty()) command += " --itruth " + _truthInputFilename;
 			//if(pass == 0) command += " --firstpass";
 			executeCommand(command);
@@ -231,7 +231,7 @@ public:
 
 				
 				//Generate contigs
-				command = _filename_exe + " contig " + " -o " + _inputDir + " --final";
+				command = _filename_exe + " contig " + " -o " + _inputDir + " --final " + " -t " + to_string(_nbCores);
 				if(!_truthInputFilename.empty()) command += " --itruth " + _truthInputFilename;
 				//if(pass == 0) command += " --firstpass";
 				executeCommand(command);
