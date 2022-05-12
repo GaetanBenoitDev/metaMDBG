@@ -34,7 +34,7 @@ def main(argv):
     drepDir = binDir + "/drep"
     kmerCoverageFilename = asmDir + "/kmerCoverages_k" + args.kminmerLength + ".tsv"
 
-    command = mdbgFilename + " asm " + inputFilenameLong + " " + asmDir + " -t " + str(nbCores)
+    command = mdbgFilename + " asm " + inputFilenameLong + " " + asmDir + " -t " + str(nbCores) + " -l 13"
     execute_command(command)
 
     #command = mdbgFilename + " countKmer -o " + kmerCoverageFilename + " -i " + inputFilenameShort + " -c " + contigsFilename + " -k 61 -t " + str(nbCores)

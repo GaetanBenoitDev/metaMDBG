@@ -15,10 +15,53 @@ Tester la vitesse de racon pour verifier que je suis sur la bonne voix
 #include "../utils/edlib.h"
 #include "../utils/spoa/include/spoa/spoa.hpp"
 #include "../utils/DnaBitset.hpp"
+#include "../utils/abPOA/include/abpoa.h"
 //#include <seqan/align.h>
 //#include <seqan/graph_msa.h>
 //#include <cstring>
 
+
+// for nt
+// AaCcGgTtNn ==> 0,1,2,3,4
+extern unsigned char nt4_table;
+unsigned char nt4_table2[256] = {
+       0, 1, 2, 3,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
+       4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
+       4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4 /*'-'*/, 4, 4,
+       4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
+       4, 0, 4, 1,  4, 4, 4, 2,  4, 4, 4, 4,  4, 4, 4, 4, 
+       4, 4, 4, 4,  3, 3, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
+       4, 0, 4, 1,  4, 4, 4, 2,  4, 4, 4, 4,  4, 4, 4, 4, 
+       4, 4, 4, 4,  3, 3, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
+       4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
+       4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
+       4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
+       4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
+       4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
+       4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
+       4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
+       4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4
+};
+
+// 65,97=>A, 67,99=>C, 71,103=>G, 84,85,116,117=>T, else=>N
+const char nt256_table2[256] = {
+       'A', 'C', 'G', 'T',  'N', '-', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
+       'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', '-',  'N', 'N', 'N', 'N',
+       'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
+       'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
+       'N', 'A', 'N', 'C',  'N', 'N', 'N', 'G',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
+       'N', 'N', 'N', 'N',  'T', 'T', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
+       'N', 'A', 'N', 'C',  'N', 'N', 'N', 'G',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
+       'N', 'N', 'N', 'N',  'T', 'T', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
+       'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
+       'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
+       'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
+       'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
+       'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
+       'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
+       'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
+       'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N'
+};
 
 
 struct KminmerSequenceVariant{
@@ -206,12 +249,19 @@ public:
 	vector<vector<u_int64_t>> _unitigDatas;
 	ofstream _contigFileSupported;
 	ifstream _contigFileSupported_input;
+	abpoa_para_t *abpt;
 
     void execute (){
 		
 
+		abpt = abpoa_init_para();
+		abpt->out_msa = 1; // generate Row-Column multiple sequence alignment(RC-MSA), set 0 to disable
+		abpt->out_cons = 0; // generate consensus sequence, set 0 to disable
+		abpt->w = 6, abpt->k = 9; abpt->min_w = 10; // minimizer-based seeding and partition
+		abpt->progressive_poa = 1;
+		abpt->max_n_cons = 2;
 
-
+		abpoa_post_set_para(abpt);
 
 		//_kminmerSize = 4;
 
@@ -1174,6 +1224,7 @@ public:
 		
 		spoa::Graph _graph;
 		std::unique_ptr<spoa::AlignmentEngine> _alignementEngine;
+		abpoa_t *ab;
 
 		ExtractKminmerSequenceFunctor(size_t minimizerSize, float minimizerDensity, ToBasespace& toBasespace, bool collectModel) : _toBasespace(toBasespace){
 			_minimizerSize = minimizerSize;
@@ -1191,6 +1242,7 @@ public:
 
 			_alignementEngine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kNW, 3, -5, -3);  // linear gaps
 			_collectModel = copy._collectModel;
+
 
 		}
 
@@ -1577,7 +1629,126 @@ public:
 				correctedSequence = "";
 				return;
 			}
+			
+			
+			ab = abpoa_init();
 
+
+			/*
+			vector<string> seqSorted;
+			for(size_t i=1; i<sequences.size(); i++){
+				DnaBitset* dna = sequences[i];
+				//const DnaBitset* dna = variant._sequence; //sequenceCopies[s._sequenceIndex];
+				char* dnaStr = dna->to_string();
+				seqSorted.push_back(string(dnaStr));
+				free(dnaStr);
+			}
+
+
+			std::sort(seqSorted.begin(), seqSorted.end());
+
+			DnaBitset* dnaModel = sequences[0];
+			//const DnaBitset* dna = variant._sequence; //sequenceCopies[s._sequenceIndex];
+			char* dnaStrModel = dnaModel->to_string();
+			seqSorted.insert(seqSorted.begin(), string(dnaStrModel));
+			free(dnaStrModel);
+			*/
+
+			//cout << "1" << endl;
+			int n_seqs = sequences.size();
+			int *seq_lens = (int*)malloc(sizeof(int) * n_seqs);
+			uint8_t **bseqs = (uint8_t**)malloc(sizeof(uint8_t*) * n_seqs);
+			
+			for(size_t i=0; i<sequences.size(); i++){ //&& processedSequences < 5
+
+				DnaBitset* dna = sequences[i];
+				//const DnaBitset* dna = variant._sequence; //sequenceCopies[s._sequenceIndex];
+				char* dnaStr = dna->to_string();
+
+				seq_lens[i] = strlen(dnaStr);
+				bseqs[i] = (uint8_t*)malloc(sizeof(uint8_t) * seq_lens[i]);
+
+				for (int j = 0; j < seq_lens[i]; ++j){
+					bseqs[i][j] = nt4_table2[(int)(dnaStr[j])];
+					//cout << dnaStr[j] << " " << bseqs[i][j] << endl;
+				}
+
+				//cout << s._sequenceIndex << " " << s._editDistance << endl;
+
+				//auto alignment = _alignementEngine->Align(dnaStr, dna->m_len, _graph);
+				//_graph.AddAlignment(alignment, dnaStr, dna->m_len);
+				//sequencesStr.push_back()
+				free(dnaStr);
+
+				//processedSequences += 1;
+			}
+
+			
+			abpoa_msa(ab, _toBasespace.abpt, n_seqs, NULL, seq_lens, bseqs, NULL);
+
+
+			
+			abpoa_cons_t *abc = ab->abc;
+			vector<vector<u_int32_t>> counts(abc->msa_len, vector<u_int32_t>(4, 0));
+
+			for (int i = 0; i < abc->n_seq; ++i) {
+				for (int j = 0; j < abc->msa_len; ++j) {
+
+					char c = nt256_table2[abc->msa_base[i][j]];
+					if(c == 'A'){
+						counts[j][0] += 1;
+					}
+					else if(c == 'C'){
+						counts[j][1] += 1;
+					}
+					else if(c == 'G'){
+						counts[j][2] += 1;
+					}
+					else if(c == 'T'){
+						counts[j][3] += 1;
+					}
+
+					//cout << (int) nt256_table2[abc->msa_base[i][j]];
+					//fprintf(stdout, "%c", nt256_table2[abc->msa_base[i][j]]);
+				}
+				//cout << endl;
+				//fprintf(stdout, "\n");
+			}
+
+			float t = n_seqs * 0.25;
+
+			correctedSequence.clear();
+
+			for(size_t i=0; i<counts.size(); i++){
+				for(size_t j=0; j<4; j++){
+					if(counts[i][j] > t){
+
+						if(j == 0){
+							correctedSequence += 'A';
+						}
+						else if(j == 1){
+							correctedSequence += 'C';
+						}
+						else if(j == 2){
+							correctedSequence += 'G';
+						}
+						else if(j == 3){
+							correctedSequence += 'T';
+						}
+						
+						break;
+					}
+				}
+			}
+
+			for (int i = 0; i < n_seqs; ++i) free(bseqs[i]); free(bseqs); free(seq_lens);
+			abpoa_free(ab);
+			
+
+			//cout << "3" << endl;
+			//cout << correctedSequence << endl;
+			//return;
+			
 			/*
 			if(sequences.size() == 1){
 				char* seq = sequences[0]->to_string();
@@ -1595,7 +1766,6 @@ public:
 
 
 
-			_graph.Clear();
 
 			
 			/*
@@ -1645,23 +1815,44 @@ public:
 			*/
 
 			//std::reverse(sequences.begin(), sequences.end());
-
-			for(size_t i=0; i<sequences.size(); i++){ //&& processedSequences < 5
-
+			
+			/*
+			_graph.Clear();
+			
+			vector<string> seqSorted;
+			for(size_t i=1; i<sequences.size(); i++){
 				DnaBitset* dna = sequences[i];
 				//const DnaBitset* dna = variant._sequence; //sequenceCopies[s._sequenceIndex];
 				char* dnaStr = dna->to_string();
+				seqSorted.push_back(string(dnaStr));
+				free(dnaStr);
+			}
+
+
+			std::sort(seqSorted.begin(), seqSorted.end());
+
+			DnaBitset* dnaModel = sequences[0];
+			//const DnaBitset* dna = variant._sequence; //sequenceCopies[s._sequenceIndex];
+			char* dnaStrModel = dnaModel->to_string();
+			seqSorted.insert(seqSorted.begin(), string(dnaStrModel));
+			free(dnaStrModel);
+
+
+			for(size_t i=0; i<seqSorted.size(); i++){ //&& processedSequences < 5
+
+				//DnaBitset* dna = sequences[i];
+				//const DnaBitset* dna = variant._sequence; //sequenceCopies[s._sequenceIndex];
+				//char* dnaStr = dna->to_string();
 
 				//cout << s._sequenceIndex << " " << s._editDistance << endl;
 
-				auto alignment = _alignementEngine->Align(dnaStr, dna->m_len, _graph);
-				_graph.AddAlignment(alignment, dnaStr, dna->m_len);
+				auto alignment = _alignementEngine->Align(seqSorted[i].c_str(), seqSorted[i].size(), _graph);
+				_graph.AddAlignment(alignment, seqSorted[i].c_str(), seqSorted[i].size());
 
-				free(dnaStr);
+				//free(dnaStr);
 
 				//processedSequences += 1;
 			}
-
 
 			//string consensus = _graph.GenerateConsensus();
 			//correctedSequence = consensus;
@@ -1670,6 +1861,7 @@ public:
 			//cout << endl;
 			const vector<string>& msa = _graph.GenerateMultipleSequenceAlignment();
 			vector<vector<u_int32_t>> counts(msa[0].size(), vector<u_int32_t>(4, 0));
+
 
 			for(const string& seq : msa){
 				for(size_t i=0; i<seq.size(); i++){
@@ -1687,6 +1879,7 @@ public:
 					}
 				}
 			}
+
 
 			float t = msa.size() * 0.5;
 
@@ -1706,14 +1899,13 @@ public:
 							correctedSequence += 'G';
 						}
 						else if(j == 3){
-							correctedSequence += 'T';
-						}
-						
-						break;
+				seqSorted		break;
 					}
 				}
 			}
-
+			*/
+			
+			
 		}
 
 	};
