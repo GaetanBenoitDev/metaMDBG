@@ -38,7 +38,7 @@ public:
 		("mdbgDir", "", cxxopts::value<string>())
 		("contigs", "", cxxopts::value<string>())
 		("outputFilename", "", cxxopts::value<string>())
-		("minContigLength", "", cxxopts::value<string>());
+		("minContigLength", "", cxxopts::value<int>());
 
 		options.parse_positional({"mdbgDir", "contigs", "outputFilename", "minContigLength"});
 		options.positional_help("mdbgDir contigs outputFilename minContigLength");
