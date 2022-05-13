@@ -149,7 +149,6 @@ public:
         _graphSuccessors = GfaParser::createBiGraph_lol(inputGfaFilename, true, nbNodes);
         _isCopy = false;
 
-        srand(time(NULL));
         //cout << "lala " << _graphSuccessors->_nodeAbundances.size() << " " << _graphSuccessors->_nodeLengths.size() << endl;
 	    //_graphPredecessors = GfaParser::createBiGraph_lol(inputGfaFilename, false);
         //clear(0);
@@ -1159,7 +1158,7 @@ public:
             //    _cleanedLongTips.push_back(unitig);
             //}
 
-            #pragma omp critical
+            #pragma omp critical(tip)
             {
                 _removedNodes.insert(unitig._startNode);
             }
@@ -1485,8 +1484,13 @@ public:
             
             const Unitig& unitig = _graph->_unitigs[unitigIndex];
             
-            if(_isBubble[unitig._endNode]) return;
-            if(_isBubble[nodeIndex_toReverseDirection(unitig._endNode)]) return;
+            bool exist = false;
+            #pragma omp critical(superbubble)
+            {
+                if(_isBubble[unitig._endNode]) exist = true;
+                if(_isBubble[nodeIndex_toReverseDirection(unitig._endNode)]) exist = true;
+            }
+            if(exist) return;
  
     
             vector<u_int32_t> successors;
@@ -1505,8 +1509,15 @@ public:
 
             if(unitigIndex_exit == -1) return;
             if(unitigIndex_exit == unitig._index || unitigIndex_exit == _graph->unitigIndex_toReverseDirection(unitig._index)) return; //loop side of an inverse repeat
-            if(_isBubble[_unitigs[unitigIndex_exit]._startNode]) return;
-            if(_isBubble[nodeIndex_toReverseDirection(_unitigs[unitigIndex_exit]._startNode)]) return;
+            //if(_isBubble[_unitigs[unitigIndex_exit]._startNode]) return;
+            //if(_isBubble[nodeIndex_toReverseDirection(_unitigs[unitigIndex_exit]._startNode)]) return;
+            exist = false;
+            #pragma omp critical(superbubble)
+            {
+                if(_isBubble[_unitigs[unitigIndex_exit]._startNode]) exist = true;
+                if(_isBubble[nodeIndex_toReverseDirection(_unitigs[unitigIndex_exit]._startNode)]) exist = true;
+            }
+            if(exist) return;
 
             //cout << unitig._startNode << endl;
 
@@ -1556,8 +1567,17 @@ public:
 
                 for(const AdjNode& node : successors){
                     u_int32_t u = node._index;
-                    if(isBubble[_unitigs[u]._startNode]) return -1;
-                    if(isBubble[nodeIndex_toReverseDirection(_unitigs[u]._startNode)]) return -1;
+
+                    bool exist = false;
+                    #pragma omp critical(superbubble)
+                    {
+                        if(isBubble[_unitigs[u]._startNode]) exist = true;
+                        if(isBubble[nodeIndex_toReverseDirection(_unitigs[u]._startNode)]) exist = true;
+                    }
+                    if(exist) return -1;
+
+                    //if(isBubble[_unitigs[u]._startNode]) return -1;
+                    //if(isBubble[nodeIndex_toReverseDirection(_unitigs[u]._startNode)]) return -1;
                     if(u == unitigIndex_source) return -1; //cycle including s
 
                     if(isVisited.find(u) == isVisited.end()){
@@ -1805,7 +1825,7 @@ public:
 
 
 
-            #pragma omp critical
+            #pragma omp critical(superbubble)
             {
 
                 bool isValid = true;
@@ -1952,6 +1972,9 @@ public:
             }
         }
 
+
+        srand(time(NULL));
+        std::random_shuffle(unitigTips.begin(), unitigTips.end());
 
         SuperbubbleFunctor functor(this, removedNodes, isBubble, maxLength, saveState);
         size_t i = 0;
@@ -2263,6 +2286,9 @@ public:
         
         //std::sort(unitigTips.begin(), unitigTips.end(), UnitigTipComparator_ByLength_Reverse);
         
+        srand(time(NULL));
+        std::random_shuffle(unitigTips.begin(), unitigTips.end());
+        
 
         BubbleFunctor functor(this, removedNodes, isBubble, maxLength, saveState);
         size_t i = 0;
@@ -2361,7 +2387,14 @@ public:
 
             //u_int32_t startNodeName = _graphSuccessors->nodeIndex_to_nodeName(unitig._startNode, dummy);
             //u_int32_t visitedNodeIndex = unitig._startNode;
-            if(_isVisited[unitig._startNode] || _isVisited[nodeIndex_toReverseDirection(unitig._startNode)]) return;
+
+            bool exist = false;
+            #pragma omp critical(bubble)
+            {
+                if(_isVisited[unitig._startNode] || _isVisited[nodeIndex_toReverseDirection(unitig._startNode)]) exist = true;
+            }
+            if(exist) return;
+
             //if(_isBubble[unitig._startNode]) continue;
             //if(_isBubble[nodeIndex_toReverseDirection(unitig._startNode)]) continue;
             
@@ -2446,7 +2479,7 @@ public:
                 //visitedNodeIndex = _graphSuccessors->nodeIndex_to_nodeName(utg_2._startNode, dummy);
                 //if(_isBubble[utg_2._startNode]) continue;
                 //if(_isBubble[nodeIndex_toReverseDirection(utg_2._startNode)]) continue;
-                if(_isVisited[utg_2._startNode] || _isVisited[nodeIndex_toReverseDirection(utg_2._startNode)]) continue;
+                //if(_isVisited[utg_2._startNode] || _isVisited[nodeIndex_toReverseDirection(utg_2._startNode)]) continue;
                 //isVisited[startNodeName] = true;
 
 
@@ -2454,7 +2487,7 @@ public:
                 for(size_t j=i+1; j<neighbors_utg1.size(); j++){
                     Unitig& utg_3 = _graph->nodeIndex_to_unitig(neighbors_utg1[j]); //_unitigs[_nodeToUnitig[neighbors_utg1[j]]];
                     //startNodeName = _graphSuccessors->nodeIndex_to_nodeName(utg_3._startNode, dummy);
-                    if(_isVisited[utg_3._startNode] || _isVisited[nodeIndex_toReverseDirection(utg_3._startNode)]) continue;
+                    //if(_isVisited[utg_3._startNode] || _isVisited[nodeIndex_toReverseDirection(utg_3._startNode)]) continue;
                     //if(_isBubble[utg_3._startNode]) continue;
                     //if(_isBubble[nodeIndex_toReverseDirection(utg_3._startNode)]) continue;
                     //isVisited[startNodeName] = true;
@@ -2469,7 +2502,7 @@ public:
                     Unitig& utg_4 = _graph->nodeIndex_to_unitig(neighbors_utg2[0]); //_unitigs[_nodeToUnitig[neighbors_utg2[0]]];
 
                     //startNodeName = _graphSuccessors->nodeIndex_to_nodeName(utg_4._startNode, dummy);
-                    if(_isVisited[utg_4._startNode] || _isVisited[nodeIndex_toReverseDirection(utg_4._startNode)]) continue;
+                    //if(_isVisited[utg_4._startNode] || _isVisited[nodeIndex_toReverseDirection(utg_4._startNode)]) continue;
                     //if(_isBubble[utg_4._startNode]) continue;
                     //if(_isBubble[nodeIndex_toReverseDirection(utg_4._startNode)]) continue;
                     //isVisited[startNodeName] = true;
@@ -2490,7 +2523,7 @@ public:
                         cout << "\tBubble: " << _graphSuccessors->nodeIndex_to_nodeName(utg_1._endNode, dummy) << " " << _graphSuccessors->nodeIndex_to_nodeName(utg_2._startNode, dummy) << " " << _graphSuccessors->nodeIndex_to_nodeName(utg_3._startNode, dummy) << " " << _graphSuccessors->nodeIndex_to_nodeName(utg_4._startNode, dummy) << " " << utg_2._length << " " << utg_3._length << endl;
                     #endif
 
-                    #pragma omp critical
+                    #pragma omp critical(bubble)
                     {
 
                         bool isValid = true;
@@ -2800,7 +2833,7 @@ public:
     void compact(bool rebuild, const vector<UnitigData>& unitigDatas){
 
 
-        cout << "\tCompacting" << endl;
+        //cout << "\tCompacting" << endl;
         //if(rebuild && _rebuildInvalidUnitigs.size() == 0) return;
 
         _unitigIndexToClean.clear();
@@ -2875,6 +2908,7 @@ public:
 
         //for(size_t nodeIndex=0; nodeIndex<_graphSuccessors->_nbNodes; nodeIndex++){
 
+        srand(time(NULL));
         std::random_shuffle(nodes.begin(), nodes.end());
 
         /*
@@ -2930,7 +2964,7 @@ public:
             cout << "Nb unitigs: " << _unitigs.size() << endl;
         #endif
 
-        cout << "done" << endl;
+        //cout << "done" << endl;
         //cout << "Nb unitigs: " << _unitigs.size() << endl;
         //cout << "Unitigs: " << _unitigs.size() << " " << _nodeToUnitig.size() << endl;
         //getchar();
@@ -3046,8 +3080,13 @@ public:
 
 		void operator () (u_int32_t nodeIndex) {
 
-            if(_nodeToUnitig.find(nodeIndex) != _nodeToUnitig.end()) return;
-            
+            bool exist = false;
+            #pragma omp critical(unitig)
+            {
+                if(_nodeToUnitig.find(nodeIndex) != _nodeToUnitig.end()) exist = true;
+            }
+            if(exist) return;
+
             vector<u_int32_t> neighbors;
             bool dummy = false;
 
@@ -3392,7 +3431,7 @@ public:
             //cout << "Unitig: " << BiGraph::nodeIndex_to_nodeName(startNode) << " " << length << endl;
             //cout << BiGraph::nodeIndex_to_nodeName(startNode) << " " << BiGraph::nodeIndex_to_nodeName(endNode) << endl;
 
-            #pragma omp critical
+            #pragma omp critical(unitig)
             {
                 bool isValid = _nodeToUnitig.find(nodes[0]) == _nodeToUnitig.end();
                 
@@ -5005,7 +5044,7 @@ public:
                         //}
 
                         bool isModBubble = false;
-
+                        
                         while(true){
                             compact(true, unitigDatas);
                             //cout << "1: " << _unitigIndexToClean.size() << endl;
@@ -5018,6 +5057,7 @@ public:
                             isModSub = true;
                             isModBubble = true;
                         }
+                        
                         
                         /*
                         while(true){
@@ -5036,7 +5076,7 @@ public:
 
                         //cout << "Nb nodes valid: " << _isNodeValid2.size() << endl;
 
-
+                        
                         while(true){
                             compact(true, unitigDatas);
                             //cout << "2: " << _unitigIndexToClean.size() << endl;
@@ -5081,6 +5121,7 @@ public:
                         if(!isModBubble) break;
                     }
                     
+                    
                     while(true){
                         //compact(true, unitigDatas);
                         //cout << "3: " << _unitigIndexToClean.size() << endl;
@@ -5115,6 +5156,7 @@ public:
                             break;
                         }
                     }
+                    
 
                     //cout << "4: " << _unitigIndexToClean.size() << endl;
                     //if(nbTipsRemoved == 0) break;

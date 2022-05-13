@@ -1058,7 +1058,7 @@ public:
 			vector<UnitigLength> startingUnitigs;
 
 			//_graph->loadState2(cutoff, -1, _unitigDatas);
-			_minUnitigAbundance = cutoff / 0.5;
+			_minUnitigAbundance = cutoff / 0.2;
 
 			//if(cutoff == 102.862){
 			//	_graph->saveGraph(_inputDir + "/minimizer_graph_contigs.gfa");
