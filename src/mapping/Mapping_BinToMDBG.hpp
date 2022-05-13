@@ -1,16 +1,16 @@
 
 
-#ifndef MDBG_METAG_MAPPINGCONTIGTOMDBG
-#define MDBG_METAG_MAPPINGCONTIGTOMDBG
+#ifndef MDBG_METAG_MAPPINGBINTOMDBG
+#define MDBG_METAG_MAPPINGBINTOMDBG
 
 #include "../Commons.hpp"
 
-class Mapping_ContigToMDBG : public Tool{
+class Mapping_BinToMDBG : public Tool{
     
 public:
 
 	string _mdbgDir;
-	string _contigFilename;
+	string _binDir;
 	string _outputFilename;
 
 	MinimizerParser* _minimizerParser;
@@ -21,7 +21,7 @@ public:
 
 	MDBG* _mdbg;
 
-	Mapping_ContigToMDBG(): Tool (){
+	Mapping_BinToMDBG(): Tool (){
 
 	}
 
@@ -35,11 +35,11 @@ public:
 		cxxopts::Options options("ToBasespace", "");
 		options.add_options()
 		("mdbgDir", "", cxxopts::value<string>())
-		("contigs", "", cxxopts::value<string>())
+		("binDir", "", cxxopts::value<string>())
 		("outputFilename", "", cxxopts::value<string>());
 
-		options.parse_positional({"mdbgDir", "contigs", "outputFilename"});
-		options.positional_help("mdbgDir contigs outputFilename");
+		options.parse_positional({"mdbgDir", "binDir", "outputFilename"});
+		options.positional_help("mdbgDir binDir outputFilename");
 
 
 
@@ -54,7 +54,7 @@ public:
 			result = options.parse(argc, argv);
 
 			_mdbgDir = result["mdbgDir"].as<string>();
-			_contigFilename = result["contigs"].as<string>();
+			_binDir = result["binDir"].as<string>();
 			_outputFilename = result["outputFilename"].as<string>();
 		}
 		catch (const std::exception& e){
@@ -131,10 +131,8 @@ public:
 		file.close();
 	}
 
-	
 	void extract_truth_kminmers(){
-		extract_truth_kminmers_bin(_contigFilename);
-		/*
+
 		_currentBinIndex = 0;
 		//_outputFile = ofstream(_outputFilename);
 		//_outputFile << "Name,Color" << endl;
@@ -163,13 +161,12 @@ public:
 		}
 
 		//_outputFile.close();
-		*/
 	}
 
-	
+
 	void extract_truth_kminmers_bin(const string& binFilename){
 
-		auto fp = std::bind(&Mapping_ContigToMDBG::extract_truth_kminmers_bin_read, this, std::placeholders::_1);
+		auto fp = std::bind(&Mapping_BinToMDBG::extract_truth_kminmers_bin_read, this, std::placeholders::_1);
 		ReadParser readParser(binFilename, true, false);
 		readParser.parse(fp);
 	}
@@ -200,7 +197,15 @@ public:
 			KmerVec& vec = kminmers[i];
 			_kmerVec_to_binIndexes[vec].push_back(_currentBinIndex);
 			//cout << _currentBinIndex << endl;
+			/*
+			cout << "oue?" << endl;
+			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()) continue;
 
+			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
+			cout << nodeName << endl;
+
+			if(_nodeName_to_unitigIndexes.find(nodeName) == _nodeName_to_unitigIndexes.end()) continue;
+			*/
 
 			//if(_kmervec_to_unitigName.find(vec) == _kmervec_to_unitigName.end()) continue;
 
@@ -211,14 +216,27 @@ public:
 			//_outputFile << unitigName << "," << _currentBinIndex << endl;
 			//_writtenUnitigNames.insert(unitigName);
 			//_kmervec_to_unitigName[vec] = read._header;
+			/*
+			if(_mdbg->_dbg_nodes.find(vec) != _mdbg->_dbg_nodes.end()){
 
+				u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
+				
+
+				_evaluation_hifiasmGroundTruth_nodeName_to_unitigName[_mdbg->_dbg_nodes[vec]._index].push_back(read._header);
+				_evaluation_hifiasmGroundTruth_path.push_back(_mdbg->_dbg_nodes[vec]._index);
+
+
+			}
+			else{
+				_evaluation_hifiasmGroundTruth_path.push_back(-1);
+			}
+			*/
 
 
 		}
 
 
 	}
-	
 
 	void mapToMdbg(){
 
