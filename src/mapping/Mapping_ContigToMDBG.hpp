@@ -18,6 +18,7 @@ public:
 	size_t _kminmerSize;
 	size_t _kminmerSizeFirst;
 	float _minimizerDensity;
+	size_t _minContigLength;
 
 	MDBG* _mdbg;
 
@@ -36,10 +37,11 @@ public:
 		options.add_options()
 		("mdbgDir", "", cxxopts::value<string>())
 		("contigs", "", cxxopts::value<string>())
-		("outputFilename", "", cxxopts::value<string>());
+		("outputFilename", "", cxxopts::value<string>())
+		("minContigLength", "", cxxopts::value<string>());
 
-		options.parse_positional({"mdbgDir", "contigs", "outputFilename"});
-		options.positional_help("mdbgDir contigs outputFilename");
+		options.parse_positional({"mdbgDir", "contigs", "outputFilename", "minContigLength"});
+		options.positional_help("mdbgDir contigs outputFilename minContigLength");
 
 
 
@@ -56,6 +58,7 @@ public:
 			_mdbgDir = result["mdbgDir"].as<string>();
 			_contigFilename = result["contigs"].as<string>();
 			_outputFilename = result["outputFilename"].as<string>();
+			_minContigLength = result["minContigLength"].as<int>();
 		}
 		catch (const std::exception& e){
 			std::cout << options.help() << std::endl;
@@ -177,6 +180,12 @@ public:
 	void extract_truth_kminmers_bin_read(const Read& read){
 		//ottalSize += strlen(read->seq.s);
 
+		if(read._seq.size() >= _minContigLength){
+			_currentBinIndex = 1;
+		}
+		else{
+			_currentBinIndex = 0;
+		}
 
 		u_int64_t readIndex = read._index;
 
