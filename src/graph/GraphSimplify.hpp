@@ -979,7 +979,7 @@ public:
         TipFunctor functor(this, removedNodes);
         size_t i = 0;
 
-        #pragma omp parallel num_threads(_nbCores)
+        #pragma omp parallel num_threads(1)
         {
 
             TipFunctor functorSub(functor);
@@ -1979,7 +1979,7 @@ public:
         SuperbubbleFunctor functor(this, removedNodes, isBubble, maxLength, saveState);
         size_t i = 0;
 
-        #pragma omp parallel num_threads(_nbCores)
+        #pragma omp parallel num_threads(1)
         {
 
             SuperbubbleFunctor functorSub(functor);
@@ -2293,7 +2293,7 @@ public:
         BubbleFunctor functor(this, removedNodes, isBubble, maxLength, saveState);
         size_t i = 0;
 
-        #pragma omp parallel num_threads(_nbCores)
+        #pragma omp parallel num_threads(1)
         {
 
             BubbleFunctor functorSub(functor);
@@ -2921,7 +2921,7 @@ public:
         UnitigFunctor functor(this, rebuild);
         size_t i=0;
 
-        #pragma omp parallel num_threads(_nbCores)
+        #pragma omp parallel num_threads(1)
         {
 
             UnitigFunctor functorSub(functor);
