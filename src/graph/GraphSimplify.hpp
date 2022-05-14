@@ -2833,7 +2833,7 @@ public:
     void compact(bool rebuild, const vector<UnitigData>& unitigDatas){
 
 
-        //cout << "\tCompacting" << endl;
+        cout << "\tCompacting" << endl;
         //if(rebuild && _rebuildInvalidUnitigs.size() == 0) return;
 
         _unitigIndexToClean.clear();
@@ -2908,16 +2908,17 @@ public:
 
         //for(size_t nodeIndex=0; nodeIndex<_graphSuccessors->_nbNodes; nodeIndex++){
 
-        srand(time(NULL));
-        std::random_shuffle(nodes.begin(), nodes.end());
+        //srand(time(NULL));
+        //std::random_shuffle(nodes.begin(), nodes.end());
 
-        /*
+        
         for (u_int32_t nodeIndex : nodes){
             computeUnitig(nodeIndex, unitigDatas, rebuild);
             //cout << "done" << endl;
         }
-        */
+        
 
+        /*
         UnitigFunctor functor(this, rebuild);
         size_t i=0;
 
@@ -2954,6 +2955,7 @@ public:
         }
 
         std::sort(_unitigs.begin(), _unitigs.end(), UnitigComparator_ByIndex);
+        */
 
         //cout << _nextUnitigIndex << endl;
         //cout << "\tCdone" << endl;
@@ -2964,7 +2966,7 @@ public:
             cout << "Nb unitigs: " << _unitigs.size() << endl;
         #endif
 
-        //cout << "done" << endl;
+        cout << "done" << endl;
         //cout << "Nb unitigs: " << _unitigs.size() << endl;
         //cout << "Unitigs: " << _unitigs.size() << " " << _nodeToUnitig.size() << endl;
         //getchar();
