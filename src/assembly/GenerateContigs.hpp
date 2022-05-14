@@ -112,6 +112,7 @@ public:
 			//_debug = result[ARG_DEBUG].as<bool>();
 			_isFinalAssembly = result[ARG_FINAL].as<bool>();
 			_nbCores = result[ARG_NB_CORES].as<int>();
+			_nbCores = 1;
 			//_filename_abundance = result[ARG_INPUT_FILENAME_ABUNDANCE].as<string>();
 		}
 		catch (const std::exception& e){
@@ -1058,7 +1059,7 @@ public:
 			vector<UnitigLength> startingUnitigs;
 
 			//_graph->loadState2(cutoff, -1, _unitigDatas);
-			_minUnitigAbundance = cutoff / 0.2;
+			_minUnitigAbundance = cutoff / 0.5;
 
 			//if(cutoff == 102.862){
 			//	_graph->saveGraph(_inputDir + "/minimizer_graph_contigs.gfa");
