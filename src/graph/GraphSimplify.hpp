@@ -1021,7 +1021,7 @@ public:
 
 
 
-    u_int64_t tip(float maxLength, bool indexingTips, SaveState2& saveState, bool removeLongTips){
+    u_int64_t tip(float maxLength, bool indexingTips, SaveState2& saveState, bool lengthIsKminmerSize){
 
 		unordered_set<u_int32_t> writtenUnitigs;
 
@@ -1033,13 +1033,15 @@ public:
                 if(u._startNode == -1) continue;
                 //if(u._startNode % 2 != 0) continue;
 
-                if(u._length > maxLength) continue;
-                //if(removeLongTips){
-                //    if(u._length > maxLength) continue;
-                //}
-                //else{
-                //    if(u._nbNodes >= _kminmerSize*2) continue;
-                //}
+                
+                if(u._length > 50000) continue;
+                
+                if(lengthIsKminmerSize){
+                    if(u._nbNodes > maxLength) continue;
+                }
+                else{
+                    if(u._length > maxLength) continue;
+                }
 
 
                 //if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
@@ -4912,8 +4914,52 @@ public:
 
                         if(!isModBubble) break;
                     }
-                    
-                    
+
+                    while(true){
+                        compact(true, unitigDatas);
+                        u_int64_t nbRemoved = tip(_kminmerSize, false, currentSaveState, true);
+                        #ifdef PRINT_DEBUG_SIMPLIFICATION
+                            cout << "Nb tip removed: " << nbRemoved << endl;
+                        #endif
+                        if(nbRemoved > 0){
+                            isModification = true;
+                            isModSub = true;
+                        }
+                        else{
+                            break;
+                        }
+                    }
+
+                    while(true){
+                        compact(true, unitigDatas);
+                        u_int64_t nbRemoved = tip(_kminmerSize*2, false, currentSaveState, true);
+                        #ifdef PRINT_DEBUG_SIMPLIFICATION
+                            cout << "Nb tip removed: " << nbRemoved << endl;
+                        #endif
+                        if(nbRemoved > 0){
+                            isModification = true;
+                            isModSub = true;
+                        }
+                        else{
+                            break;
+                        }
+                    }
+
+                    while(true){
+                        compact(true, unitigDatas);
+                        u_int64_t nbRemoved = tip(50000, false, currentSaveState, false);
+                        #ifdef PRINT_DEBUG_SIMPLIFICATION
+                            cout << "Nb tip removed: " << nbRemoved << endl;
+                        #endif
+                        if(nbRemoved > 0){
+                            isModification = true;
+                            isModSub = true;
+                        }
+                        else{
+                            break;
+                        }
+                    }
+                    /*
                     while(true){
                         //compact(true, unitigDatas);
                         //cout << "3: " << _unitigIndexToClean.size() << endl;
@@ -4948,7 +4994,7 @@ public:
                             break;
                         }
                     }
-                    
+                    */
 
                     //cout << "4: " << _unitigIndexToClean.size() << endl;
                     //if(nbTipsRemoved == 0) break;
