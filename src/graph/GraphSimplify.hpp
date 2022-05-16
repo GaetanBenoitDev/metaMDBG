@@ -1503,7 +1503,7 @@ public:
 
         //std::sort(unitigTips.begin(), unitigTips.end(), UnitigTipComparator_ByLength_Reverse);
         
-
+        cout << "\t" << unitigTips.size() << endl;
         for(const UnitigTip& unitigTip : unitigTips){
 
 
@@ -1517,11 +1517,11 @@ public:
             if(isBubble[unitig._endNode]) continue;
             if(isBubble[nodeIndex_toReverseDirection(unitig._endNode)]) continue;
  
-    
             vector<u_int32_t> successors;
             getSuccessors_unitig(unitig._index, 0, successors);
             if(successors.size() <= 1) continue;
 
+            cout << "Detect: " << unitig._index << endl;
             u_int32_t unitigIndex_exit = -1;
             if(withCycle){
                 unitigIndex_exit = detectSuperbubble_withCycle(unitig._index, maxLength, isBubble);
@@ -1546,12 +1546,15 @@ public:
             #endif
 
             //cout << "Found superbubble: " << BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex_exit]._startNode) << endl;
+            cout << "\tsimplify" << endl;
             simplifySuperbubble(unitig._index, unitigIndex_exit, removedNodes, isBubble, saveState);
+            cout << "\tdone" << endl;
 
 
             nbRemoved += 1;
         }
 
+        cout << "\tRemove unitigs" << endl; 
         unordered_set<u_int32_t> removedUnitigs;
         for(u_int32_t nodeIndex : removedNodes){
             removedUnitigs.insert(nodeIndex_to_unitigIndex(nodeIndex));
