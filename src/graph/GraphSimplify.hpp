@@ -1596,9 +1596,9 @@ public:
 
         while(queue.size() > 0){
             u_int32_t v = queue[queue.size()-1];
-            //if(unitigIndex_source == 173321){
-            //    cout << "Start: " << v << " " << _unitigs[v]._startNode << endl;
-            //} 
+            if(unitigIndex_source == 173315){
+                cout << "Start: " << v << " " << _unitigs[v]._startNode << endl;
+            } 
             //cout << "\tVisited: " << BiGraph::nodeIndex_to_nodeName(_unitigs[v]._startNode) << " " << BiGraph::nodeIndex_to_nodeName(_unitigs[v]._endNode) << endl;
             queue.pop_back();
 
@@ -1652,9 +1652,9 @@ public:
                 if(allPredecessorsAreVisited){
                     //cout << "\t\tAll predecessors visited: " << BiGraph::nodeIndex_to_nodeName(_unitigs[u]._startNode) << endl;
 
-                    //if(unitigIndex_source == 173321){
-                    //    cout << "Push: " << u << " " << _unitigs[u]._startNode << endl;
-                    //} 
+                    if(unitigIndex_source == 173315){
+                        cout << "Push: " << u << " " << _unitigs[u]._startNode << endl;
+                    } 
 
                     queue.push_back(u);
                 }
