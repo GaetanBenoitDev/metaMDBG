@@ -1459,6 +1459,7 @@ public:
 
     u_int64_t superbubble(u_int64_t maxLength, vector<bool>& isBubble, SaveState2& saveState, bool useReadpathSubgraph, GraphSimplify* graphMain, bool withCycle){
 
+        cout << "superbubble" << endl;
 
         unordered_set<u_int32_t> removedNodes;
         //unordered_set<u_int32_t> removedUnitigs;
@@ -1566,6 +1567,8 @@ public:
                 //}
         }
 
+
+        cout << "superbubble end" << endl;
 
         //exit(1);
         return nbRemoved;
