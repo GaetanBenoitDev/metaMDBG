@@ -1622,6 +1622,7 @@ public:
                 if(isBubble[_unitigs[u]._startNode]) return -1;
                 if(isBubble[nodeIndex_toReverseDirection(_unitigs[u]._startNode)]) return -1;
                 if(u == unitigIndex_source) return -1; //cycle including s
+                
 
                 if(isVisited.find(u) == isVisited.end()){
                     seen.insert(u);
@@ -1630,6 +1631,9 @@ public:
                     //if(length < 0) length = _unitigs[u]._length;
                     pathLength[u] = pathLength[v] + length;
                     //pathLength[u] = pathLength[v] + _unitigs[u]._nbNodes;
+                }
+                else{
+                    return -1; //cycle ?
                 }
 
             }
