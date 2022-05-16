@@ -112,7 +112,7 @@ public:
 			//_debug = result[ARG_DEBUG].as<bool>();
 			_isFinalAssembly = result[ARG_FINAL].as<bool>();
 			_nbCores = result[ARG_NB_CORES].as<int>();
-			_nbCores = 1;
+			//_nbCores = 1;
 			//_filename_abundance = result[ARG_INPUT_FILENAME_ABUNDANCE].as<string>();
 		}
 		catch (const std::exception& e){
