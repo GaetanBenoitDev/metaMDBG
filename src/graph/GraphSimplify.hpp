@@ -1520,9 +1520,9 @@ public:
             getSuccessors_unitig(unitig._index, 0, successors);
             if(successors.size() <= 1) continue;
 
-            if(unitig._index == 173321){
-                cout << "Detect: " << unitig._index << endl;
-            }
+            //if(unitig._index == 173321){
+            cout << "Detect: " << unitig._index << endl;
+            //}
 
             u_int32_t unitigIndex_exit = -1;
             if(withCycle){
@@ -1596,9 +1596,9 @@ public:
 
         while(queue.size() > 0){
             u_int32_t v = queue[queue.size()-1];
-            if(unitigIndex_source == 173321){
-                cout << "Start: " << v << " " << _unitigs[v]._startNode << endl;
-            } 
+            //if(unitigIndex_source == 173321){
+            //    cout << "Start: " << v << " " << _unitigs[v]._startNode << endl;
+            //} 
             //cout << "\tVisited: " << BiGraph::nodeIndex_to_nodeName(_unitigs[v]._startNode) << " " << BiGraph::nodeIndex_to_nodeName(_unitigs[v]._endNode) << endl;
             queue.pop_back();
 
@@ -1652,9 +1652,9 @@ public:
                 if(allPredecessorsAreVisited){
                     //cout << "\t\tAll predecessors visited: " << BiGraph::nodeIndex_to_nodeName(_unitigs[u]._startNode) << endl;
 
-                    if(unitigIndex_source == 173321){
-                        cout << "Push: " << u << " " << _unitigs[u]._startNode << endl;
-                    } 
+                    //if(unitigIndex_source == 173321){
+                    //    cout << "Push: " << u << " " << _unitigs[u]._startNode << endl;
+                    //} 
 
                     queue.push_back(u);
                 }
@@ -2688,7 +2688,7 @@ public:
 
         //for(size_t nodeIndex=0; nodeIndex<_graphSuccessors->_nbNodes; nodeIndex++){
 
-        std::random_shuffle(nodes.begin(), nodes.end());
+        //std::random_shuffle(nodes.begin(), nodes.end());
 
         /*
         for (u_int32_t nodeIndex : nodes){
