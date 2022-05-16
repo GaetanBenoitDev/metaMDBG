@@ -1459,7 +1459,6 @@ public:
 
     u_int64_t superbubble(u_int64_t maxLength, vector<bool>& isBubble, SaveState2& saveState, bool useReadpathSubgraph, GraphSimplify* graphMain, bool withCycle){
 
-        cout << "superbubble" << endl;
 
         unordered_set<u_int32_t> removedNodes;
         //unordered_set<u_int32_t> removedUnitigs;
@@ -1521,7 +1520,10 @@ public:
             getSuccessors_unitig(unitig._index, 0, successors);
             if(successors.size() <= 1) continue;
 
-            cout << "Detect: " << unitig._index << endl;
+            if(unitig._index == 173321){
+                cout << "Detect: " << unitig._index << endl;
+            }
+
             u_int32_t unitigIndex_exit = -1;
             if(withCycle){
                 unitigIndex_exit = detectSuperbubble_withCycle(unitig._index, maxLength, isBubble);
@@ -1546,15 +1548,15 @@ public:
             #endif
 
             //cout << "Found superbubble: " << BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex_exit]._startNode) << endl;
-            cout << "\tsimplify" << endl;
+            //cout << "\tsimplify" << endl;
             simplifySuperbubble(unitig._index, unitigIndex_exit, removedNodes, isBubble, saveState);
-            cout << "\tdone" << endl;
+            //cout << "\tdone" << endl;
 
 
             nbRemoved += 1;
         }
 
-        cout << "\tRemove unitigs" << endl; 
+        //cout << "\tRemove unitigs" << endl; 
         unordered_set<u_int32_t> removedUnitigs;
         for(u_int32_t nodeIndex : removedNodes){
             removedUnitigs.insert(nodeIndex_to_unitigIndex(nodeIndex));
@@ -1571,7 +1573,7 @@ public:
         }
 
 
-        cout << "superbubble end" << endl;
+        //cout << "superbubble end" << endl;
 
         //exit(1);
         return nbRemoved;
@@ -1594,6 +1596,9 @@ public:
 
         while(queue.size() > 0){
             u_int32_t v = queue[queue.size()-1];
+            if(unitigIndex_source == 173321){
+                cout << "Start: " << v << " " << _unitigs[v]._startNode << endl;
+            } 
             //cout << "\tVisited: " << BiGraph::nodeIndex_to_nodeName(_unitigs[v]._startNode) << " " << BiGraph::nodeIndex_to_nodeName(_unitigs[v]._endNode) << endl;
             queue.pop_back();
 
@@ -1646,6 +1651,11 @@ public:
 
                 if(allPredecessorsAreVisited){
                     //cout << "\t\tAll predecessors visited: " << BiGraph::nodeIndex_to_nodeName(_unitigs[u]._startNode) << endl;
+
+                    if(unitigIndex_source == 173321){
+                        cout << "Push: " << u << " " << _unitigs[u]._startNode << endl;
+                    } 
+
                     queue.push_back(u);
                 }
 
