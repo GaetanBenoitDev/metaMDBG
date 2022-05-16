@@ -646,7 +646,8 @@ public:
 
 		vector<DbgEdge> removedEdges;
 
-		for(Unitig& unitig : graph->_unitigs){
+        for(const auto& it: _graph->_unitigs){
+            const Unitig& unitig = it.second;
 
 			//bool nodeName_ori;
 			u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(unitig._endNode);
@@ -1821,7 +1822,8 @@ public:
 			*/
 
 
-			for(const Unitig& u : _graph->_unitigs){
+			for(const auto& it: _graph->_unitigs){
+				const Unitig& u = it.second;
 				
 				if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
 				if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
@@ -1875,7 +1877,8 @@ public:
 					processedUnitigs = 0;
 					startingUnitigs.clear();
 
-			for(const Unitig& unitig : _graph->_unitigs){
+			for(const auto& it: _graph->_unitigs){
+				const Unitig& unitig = it.second;
 				//if(unitig._nbNodes <= _kminmerSize*2) continue;
 				//if(unitig._length < 100000) continue;
 

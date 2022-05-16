@@ -592,7 +592,8 @@ public:
 
 		vector<DbgEdge> removedEdges;
 
-		for(Unitig& unitig : graph->_unitigs){
+        for(const auto& it: _graph->_unitigs){
+            const Unitig& unitig = it.second;
 
 			//bool nodeName_ori;
 			u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(unitig._endNode);
@@ -999,7 +1000,8 @@ public:
 		unordered_set<u_int32_t> writtenUnitigs;
 
 		//vector<float> readpathAbudance_values;
-		for(const Unitig& u : _graph->_unitigs){
+        for(const auto& it: _graph->_unitigs){
+            const Unitig& u = it.second;
 
 
 
