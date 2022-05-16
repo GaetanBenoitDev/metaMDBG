@@ -1035,7 +1035,7 @@ public:
 
                 
                 if(u._length > 50000) continue;
-                
+
                 if(lengthIsKminmerSize){
                     if(u._nbNodes > maxLength) continue;
                 }
@@ -1692,9 +1692,9 @@ public:
         Bubble bubble = {_unitigs[source_unitigIndex]._endNode, _unitigs[source_unitigIndex]._startNode, {}};
         Bubble bubbleRC = {nodeIndex_toReverseDirection(_unitigs[source_unitigIndex]._startNode), nodeIndex_toReverseDirection(_unitigs[source_unitigIndex]._endNode), {}};;
 
+        /*
         unordered_set<u_int32_t> isVisited;
         
-
 
 
 
@@ -1759,38 +1759,7 @@ public:
                         found = true;
                         break;
                     }
-                    /*
-                    u_int32_t unitigIndexDest = -1;
 
-                    if(destPaths.find(v) != destPaths.end()){
-                        unitigIndexDest = v;
-                    }
-                    else if(destPaths.find(unitigIndex_toReverseDirection(v)) != destPaths.end()){
-                        unitigIndexDest = unitigIndex_toReverseDirection(v);
-                    }
-
-                    if(unitigIndexDest != -1){
-                        vector<u_int32_t> path;
-
-                        u_int32_t n = v;
-                        while(n != source_unitigIndex){
-
-
-                            if(n == v){
-                                if(includeSink) path.push_back(n);
-                            }
-                            else{
-                                path.push_back(n);
-                            }
-
-                            n = prev[n];
-                        }
-                        if(includeSource) path.push_back(source_unitigIndex);
-
-                        destPaths[unitigIndexDest] = path;
-
-                    }
-                    */
                     //if(v == sink_unitigIndex || v == sink_unitigIndex_rev){
                     //    found_unitigIndex = v;
                     //    found = true;
@@ -1826,9 +1795,9 @@ public:
             n = prev[n];
         }
         path.push_back(source_unitigIndex);
+        */
 
-
-        /*
+        
         //Choose one path in the superbubble
         u_int32_t unitigIndex = source_unitigIndex;
         vector<u_int32_t> path = {source_unitigIndex};
@@ -1850,7 +1819,7 @@ public:
 
             if(unitigIndex == sink_unitigIndex) break;
         }
-        */
+        
         
         /*
         bool print_superbubble = false;
