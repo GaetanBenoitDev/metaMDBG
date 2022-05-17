@@ -449,10 +449,10 @@ public:
 			const vector<ReadKminmerComplete>& kminmersInfos = kminmerList._kminmersInfo;
 
 			
+			/*
 			double abundanceCutoff = 0;
 			if(!_isFirstPass){
 				
-
 				vector<u_int64_t> rlePositions;
 				vector<u_int64_t> minimizers_pos;//(minimizers.size());
 				vector<KmerVec> kminmers; 
@@ -532,50 +532,9 @@ public:
 					//if(abundanceMean > 60) getchar();
 				}
 				//abundanceCutoff = ;
-				/*
-				double sum = 0;
-				double n = 0;
-				double nbNodes_sum = 0;
-				double nbNodes_n = 0;
-				//vector<float> abundances;
-				//cout << "------------" << endl;
-				for(size_t i=0; i<kminmersInfos.size(); i++){
-					
-					//const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
 
-					const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
-					//const KmerVec& vec = kminmerInfo._vec;
-
-					
-					SumN sumN = getAbundanceMean(readMinimizers, kminmerInfo);
-					//abundances.push_back(getAbundance(readMinimizers, kminmerInfo));
-
-					sum += sumN._sum;
-					n += sumN._n;
-					nbNodes_sum += sumN._nbNodes_sum;
-					nbNodes_n += sumN._nbNodes_n;
-					//cout << minAbundance << endl;
-					
-				}
-
-				if(n == 0){
-					abundanceCutoff = 0;
-				}
-				else{
-					abundanceCutoff = sum / n;
-					//abundanceCutoff = Utils::compute_median_float(abundances) / 5.0;
-					//cout << abundanceCutoff << endl;
-					abundanceCutoff *= 0.1;
-				}
-
-				double nbNodes = nbNodes_sum / nbNodes_n;
-				if(sum / n > 60){
-					cout << readIndex << " " << nbNodes << " " << (sum / n) << endl;
-					getchar();
-				}
-				if(n < 100) abundanceCutoff = 0;
-				*/
 			}
+			*/
 			
 			/*
 			bool isHere = false;
@@ -603,7 +562,7 @@ public:
 			*/
 
 
-
+			/*
 			if(_extractingContigs){
 				if(kminmersInfos.size() == 0){
 					#pragma omp critical
@@ -616,6 +575,7 @@ public:
 					}
 				}
 			}
+			*/
 			/*
 			//Ici save too short contigs
 			#pragma omp critical
