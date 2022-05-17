@@ -612,9 +612,10 @@ public:
 					const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
 					const KmerVec& vec = kminmerInfo._vec;
 
+					float kminmerAbundance = -1;
 					if(!_isFirstPass){
-						float ab = getAbundance(readMinimizers, kminmerInfo);
-						if(ab == 1){//} && ab < abundanceCutoff){
+						kminmerAbundance = getAbundance(readMinimizers, kminmerInfo);
+						if(kminmerAbundance == 1){//} && ab < abundanceCutoff){
 							//cout << "Out: " << ab << " " << abundanceCutoff << endl;
 							continue;
 						}
@@ -666,7 +667,7 @@ public:
 								v.second._abundance += 1;
 							}
 						},           
-						[&vec, this, &kminmerInfo, &readMinimizers, &readIndex, &isNewKey](const MdbgNodeMap::constructor& ctor) { // key inserted
+						[&vec, this, &kminmerInfo, &readMinimizers, &readIndex, &isNewKey, &kminmerAbundance](const MdbgNodeMap::constructor& ctor) { // key inserted
 							
 							
 							isNewKey = true;
@@ -783,7 +784,7 @@ public:
 
 								//cout << (sum / 2) << " " << Utils::compute_median_float(abundances) << endl;
 
-								node._abundance = getAbundance(readMinimizers, kminmerInfo);
+								node._abundance = kminmerAbundance; //getAbundance(readMinimizers, kminmerInfo);
 								//cout << minAbundance << endl;
 							}
 
@@ -899,7 +900,7 @@ public:
 								
 								nodeName = _graph._node_id;
 								_graph._node_id += 1;
-
+								/*
 								vector<u_int64_t> minimizerSeq;
 								for(size_t i=kminmerInfo._read_pos_start; i<=kminmerInfo._read_pos_end; i++){
 									minimizerSeq.push_back(readMinimizers[i]);
@@ -922,6 +923,30 @@ public:
 								_kminmerFile.write((const char*)&length, sizeof(length));
 								_kminmerFile.write((const char*)&lengthStart, sizeof(lengthStart));
 								_kminmerFile.write((const char*)&lengthEnd, sizeof(lengthEnd));
+								*/
+								/*
+								vector<u_int64_t> minimizerSeq = vec._kmers;
+								//if(kminmerInfo._isReversed){
+								//	std::reverse(minimizerSeq.begin(), minimizerSeq.end());
+								//}
+
+								u_int16_t size = minimizerSeq.size();
+								//_kminmerFile.write((const char*)&size, sizeof(size));
+								_kminmerFile.write((const char*)&minimizerSeq[0], size*sizeof(uint64_t));
+
+								//u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
+								u_int32_t length = kminmerInfo._read_pos_end - kminmerInfo._read_pos_start;
+								u_int32_t lengthStart = kminmerInfo._seq_length_start;
+								u_int32_t lengthEnd = kminmerInfo._seq_length_end;
+								//bool isReversed = kminmerInfo._isReversed;
+
+								//cout << length << " " << lengthStart << " " << lengthEnd << endl;
+								_kminmerFile.write((const char*)&nodeName, sizeof(nodeName));
+								//_kminmerFile.write((const char*)&length, sizeof(length));
+								//_kminmerFile.write((const char*)&lengthStart, sizeof(lengthStart));
+								//_kminmerFile.write((const char*)&lengthEnd, sizeof(lengthEnd));
+								*/
+
 							}
 
 							auto set_value = [&nodeName](MdbgNodeMap::value_type& v) { v.second._index = nodeName; };

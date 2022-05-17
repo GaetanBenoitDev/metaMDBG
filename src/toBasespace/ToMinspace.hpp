@@ -359,14 +359,15 @@ public:
 
 		while (true) {
 
-			u_int16_t size;
-			kminmerFile.read((char*)&size, sizeof(size));
+			u_int16_t size = _kminmerSize;
+			//kminmerFile.read((char*)&size, sizeof(size));
 
-			if(kminmerFile.eof())break;
 
 			vector<u_int64_t> minimizerSeq;
 			minimizerSeq.resize(size);
 			kminmerFile.read((char*)&minimizerSeq[0], size*sizeof(u_int64_t));
+
+			if(kminmerFile.eof())break;
 
 			u_int32_t nodeName;
 			u_int32_t length;
@@ -375,10 +376,13 @@ public:
 			//bool isReversed = false;
 
 			kminmerFile.read((char*)&nodeName, sizeof(nodeName));
-			kminmerFile.read((char*)&length, sizeof(length));
-			kminmerFile.read((char*)&lengthStart, sizeof(lengthStart));
-			kminmerFile.read((char*)&lengthEnd, sizeof(lengthEnd));
+			//kminmerFile.read((char*)&length, sizeof(length));
+			//kminmerFile.read((char*)&lengthStart, sizeof(lengthStart));
+			//kminmerFile.read((char*)&lengthEnd, sizeof(lengthEnd));
 
+			length = _kminmerSize-1;
+			lengthStart = 1;
+			lengthEnd = 1;
 			//length = _kminmerSize;
 			//lengthStart = 1;
 			//lengthEnd = 1;
@@ -389,17 +393,17 @@ public:
 
 				//cout << "entire" << endl;
 				
-				u_int32_t startPosition = 0; //kminmerInfo._read_pos_start;
-				u_int32_t len = length; //startPosition + kminmerInfo._read_pos_end - kminmerInfo._read_pos_start;
+				//u_int32_t startPosition = 0; //kminmerInfo._read_pos_start;
+				//u_int32_t len = length; //startPosition + kminmerInfo._read_pos_end - kminmerInfo._read_pos_start;
 				
 
 				//cout << startPosition << " " << len << " "  << minimizerSeq.size() << endl;
-				vector<u_int64_t> minimizerSeq_sub; 
-				for(size_t i=startPosition; i <= len; i++){
+				//vector<u_int64_t> minimizerSeq_sub; 
+				//for(size_t i=startPosition; i <= len; i++){
 					//cout << i << " " << " " << minimizerSeq.size() << endl;
-					minimizerSeq_sub.push_back(minimizerSeq[i]);
+					//minimizerSeq_sub.push_back(minimizerSeq[i]);
 					//cout << minimizerSeq[i] << " ";
-				}
+				//}
 			
 				//cout << startPosition << " " << len << " " << minimizerSeq_sub.size() << endl;
 
