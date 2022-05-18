@@ -723,9 +723,6 @@ public:
 			}
 		}
 		
-Nb contigs: 10
-Nb bps: 4345965
-Nb nodes (sum check): 2193642412277
 
 
 		_kminmerCounts.clear();
