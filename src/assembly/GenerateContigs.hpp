@@ -472,8 +472,8 @@ public:
 
 	bool isContigAssembled(const vector<u_int32_t>& nodePath){
 
-		unordered_set<u_int32_t> distinctContigIndex;
-		u_int64_t nbBinnedNodes = 0;
+		//unordered_set<u_int32_t> distinctContigIndex;
+		//u_int64_t nbBinnedNodes = 0;
 
 		for(u_int32_t nodeIndex : nodePath){
 			u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
@@ -915,21 +915,43 @@ public:
 	}
 	*/
 
+
+	struct Contig{
+		u_int64_t _readIndex;
+		vector<u_int32_t> _nodepath;
+	};
+
 	static bool UnitigComparator_ByLength2(const UnitigLength &a, const UnitigLength &b){
 		return a._length > b._length;
 	}
 
 	float _minUnitigAbundance;
 
-	struct Contig{
-		vector<u_int32_t> _nodepath;
-		vector<u_int32_t> _nodepath_sorted;
-	};
+	//struct Contig{
+	//	vector<u_int32_t> _nodepath;
+	//	vector<u_int32_t> _nodepath_sorted;
+	//};
 
 	static bool ContigComparator_ByLength(const Contig &a, const Contig &b){
 		return a._nodepath.size() > b._nodepath.size();
 	}
+	
+	static bool ContigComparator_ByLength2(const Contig &a, const Contig &b){
 
+		if(a._nodepath.size() == b._nodepath.size()){
+			for(size_t i=0; i<a._nodepath.size() && i<b._nodepath.size(); i++){
+				if(a._nodepath[i] == b._nodepath[i]){
+					continue;
+				}
+				else{
+					return a._nodepath[i] > b._nodepath[i];
+				}
+			}
+		}
+
+
+		return a._nodepath.size() > b._nodepath.size();
+	}
 
 	struct NodeAb{
 		float _abundance;
@@ -941,6 +963,7 @@ public:
 
 	void generateContigs2(const string& outputFilename, const string& outputFilename_fasta){
 
+		u_int64_t nbNodesCheckSum = 0;
 		string clusterDir = _inputDir + "/" + "binGreedy";
 		fs::path path(clusterDir);
 		if(!fs::exists (path)){
@@ -1013,6 +1036,10 @@ public:
 		u_int64_t contigIndexLala = 0;
 		//unordered_map<u_int32_t, u_int32_t> nodeName_to_contigIndex;
 		vector<Contig> contigs;
+		u_int64_t checksum_global = 0;
+		double checksum_abundance = 0;
+		u_int64_t checksum_nbNodes = 0;
+		u_int64_t checkSum = 0;
 
 		for(size_t i=0; i<allCutoffs.size(); i++){
 
@@ -1058,9 +1085,12 @@ public:
 
 
         	_graph->compact(false, _unitigDatas);
+			//cout << "Cutoff: " << cutoff << " " << _graph->getChecksumGlobal() << endl;
+			checksum_global += _graph->getChecksumGlobal_utg();
+			checksum_abundance += _graph->getChecksumGlobal_abundanceUtg();
 
 
-			vector<UnitigLength> startingUnitigs;
+			vector<Contig> startingUnitigs;
 
 			//_graph->loadState2(cutoff, -1, _unitigDatas);
 			_minUnitigAbundance = cutoff / 0.5;
@@ -1068,37 +1098,41 @@ public:
 			//if(cutoff == 102.862){
 			//	_graph->saveGraph(_inputDir + "/minimizer_graph_contigs.gfa");
 			//}
-
+			
 			for(const auto& it: _graph->_unitigs){
 				const Unitig& unitig = it.second;
 				//cout << unitig._length << " " << unitig._abundance << endl;
-				if(unitig._index % 2 == 1) continue;
-				/*
-				if(unitig._length < unitigLength_cutoff_min) continue;
-				if(unitig._length > unitigLength_cutoff_max) continue;
-				*/
+				//if(unitig._index % 2 == 1) continue;
+
 				if(unitig._abundance < _minUnitigAbundance) continue;
+				if(isContigAssembled(unitig._nodes)) continue;
 				//if(unitig._nbNodes < _kminmerSize*2) continue;
 				//if(cutoff == 0 && unitig._length < 10000) continue;
 				//if(cutoff == 0) continue;
 
-				startingUnitigs.push_back({unitig._length, unitig._abundance, unitig._startNode});
+				//startingUnitigs.push_back({unitig._length, unitig._abundance, unitig._startNode});
+				startingUnitigs.push_back({unitig._index, unitig._nodes});
 			}
 
-			std::sort(startingUnitigs.begin(), startingUnitigs.end(), UnitigComparator_ByLength2);
-
+			
 			//cout << "Cutoff: " << unitigLength_cutoff_min << "-" << unitigLength_cutoff_max << " " << cutoff << endl;
 				
-			for(const UnitigLength& unitigLength : startingUnitigs){
-
-				u_int32_t source_nodeIndex = unitigLength._startNodeIndex;
-				const Unitig& u = _graph->nodeIndex_to_unitig(source_nodeIndex);
+			std::sort(startingUnitigs.begin(), startingUnitigs.end(), ContigComparator_ByLength2);
+			
+			for(const Contig& unitigLength : startingUnitigs){
+			//for(const auto& it: _graph->_unitigs){
+				const Unitig& u = _graph->_unitigs[unitigLength._readIndex];
+				//vector<u_int32_t> nodePath = 
+				//u_int32_t source_nodeIndex = unitigLength._startNodeIndex;
+				//const Unitig& u = _graph->nodeIndex_to_unitig(source_nodeIndex);
+				if(u._abundance < _minUnitigAbundance) continue;
+				if(isContigAssembled(u._nodes)) continue;
+				//if(u._index % 2 == 1) continue;
 
 				//cout << "Cutoff: " << unitigLength_cutoff_min << "-" << unitigLength_cutoff_max << " " << cutoff << " " << processedUnitigs << " " << startingUnitigs.size() << "     " << unitig._length << endl;
 				processedUnitigs += 1;
 
 				//if(unitig._nodes.size() < _kminmerSize*2) continue;
-				if(isContigAssembled(u._nodes)) continue;
 
 
 				//u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(unitig._startNode);
@@ -1110,7 +1144,6 @@ public:
 				//for(u_int32_t nodeIndex : unitig._nodes){
 				//	processedNodeNames.insert(BiGraph::nodeIndex_to_nodeName(nodeIndex));
 				//}
-
 
 				vector<u_int32_t> nodePath = u._nodes;
 
@@ -1168,8 +1201,13 @@ public:
 
 				//cout << u._nbNodes  << " " << u._startNode << " " <<  u._endNode << endl;
 				
+
+
+				bool isCircular = false;
 				if(_isFinalAssembly){
 					if(u._startNode == u._endNode){ //Circular
+						isCircular = true;
+						
 						
 						//cout << "circular: " << u._nbNodes << endl;
 						
@@ -1178,9 +1216,23 @@ public:
 							nodePath.pop_back();
 						}
 
+
+						//continue;
+
 					}
 				}
 				
+				if(nodePath.size() <= 1) continue;
+
+				/*
+				if(isCircular){
+					for(u_int32_t nodeIndex : nodePath){
+						cout << nodeIndex << " ";
+					}
+					cout << endl;
+				}
+				*/
+			
 				//vector<u_int64_t> nodePath_supportingReads;
 				//assembly.solveBin2(unitig._startNode, unitig._abundance, _graph, 0, 0, false, nodePath, nodePath_supportingReads, 0);
 
@@ -1196,7 +1248,7 @@ public:
 					}
 				}
 				*/
-
+			
 				//string unitigSequenceExpanded;
 				//_toBasespace.createSequence(nodePath, unitigSequenceExpanded);
 				//cout << "\tExpanded contigs: " << nodePath.size() << endl; //<< " " << unitigSequenceExpanded.size() << endl;
@@ -1207,7 +1259,7 @@ public:
 				//	cout << "empty contig " << endl;
 				//	getchar();
 				//}
-				if(nodePath.size() <= 1) continue;
+				//if(nodePath.size() <= 0) continue;
 
 				u_int64_t size = nodePath.size();
 				gzwrite(outputContigFile_min, (const char*)&size, sizeof(size));
@@ -1215,6 +1267,8 @@ public:
 
 				for(u_int32_t nodeIndex : nodePath){
 					u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
+					nbNodesCheckSum += nodeName;
+					checksum_nbNodes += 1;
 					_processedNodeNames.insert(nodeName);
 
 					//if(_kminmerSize == 4){
@@ -1227,6 +1281,24 @@ public:
 					//processedNodeNames.insert(nodeName);
 				}
 
+				u_int64_t s = 0;
+				u_int64_t nbNodes = 0;
+				if(u._nodes.size() > 1 && u._startNode == u._endNode){ //Circular
+					for(size_t i=0; i<nodePath.size()-1; i++){
+						u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodePath[i]);
+						s += nodeName;
+						nbNodes += 1;
+					}
+				}
+				else{
+					for(u_int32_t nodeIndex : nodePath){
+						u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
+						s += nodeName;
+						nbNodes += 1;
+					}
+				}
+
+				checkSum += s * nbNodes;
 				//vector<u_int32_t> nodepath_sorted = nodePath;
 				//std::sort(nodepath_sorted.begin(), nodepath_sorted.end());
 				//contigs.push_back({nodePath, nodepath_sorted});
@@ -1238,8 +1310,8 @@ public:
 
 
 
-
 		}
+
 
 		/*
 		for(const Unitig& u : _graph->_cleanedLongTips){
@@ -1361,8 +1433,21 @@ public:
 		file_asmResult.close();
 		
 		cout << "Nb contigs: " << contigIndex << endl;
+		cout << "Check sum (nb nodes): " << checksum_nbNodes << endl;
+		cout << "Check sum (nodeNames): " << nbNodesCheckSum << endl;
+		cout << "Check sum global: " << checksum_global << endl;
+		cout << "Check sum global (abundance): " << checksum_abundance << endl;
+		cout << "Check sum: " << checkSum << endl;
+		//getchar();
 	}
+	
+/*
+Nb contigs: 384
+Nb nodes (checksum): 258228925
 
+Nb contigs: 236
+Nb nodes (checksum): 165166644
+*/
 	/*
 	void getSupportingReads(const vector<u_int32_t>& pathNodes, vector<u_int64_t>& supportingReads){
 

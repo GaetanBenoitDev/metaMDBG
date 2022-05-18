@@ -659,13 +659,28 @@ public:
 
 	vector<Contig> _contigs;
 	static bool ContigComparator_ByLength(const Contig &a, const Contig &b){
+
+		if(a._nodepath.size() == b._nodepath.size()){
+			for(size_t i=0; i<a._nodepath.size() && i<b._nodepath.size(); i++){
+				if(BiGraph::nodeIndex_to_nodeName(a._nodepath[i]) == BiGraph::nodeIndex_to_nodeName(b._nodepath[i])){
+					continue;
+				}
+				else{
+					return BiGraph::nodeIndex_to_nodeName(a._nodepath[i]) > BiGraph::nodeIndex_to_nodeName(b._nodepath[i]);
+				}
+			}
+		}
+
+
 		return a._nodepath.size() > b._nodepath.size();
 	}
+	
 
 	unordered_set<u_int32_t> _invalidContigIndex;
 
 	void loadContigs_min(const string& contigFilename){
 
+		_nbNodes = 0;
 		_nbContigs = 0;
 
 		cout << "Extracting kminmers: " << contigFilename << endl;
@@ -685,6 +700,7 @@ public:
 		cout << "Repeated kminmer: " << nbRepeatedKminmers << endl;
 		cout << "Repeated kminmer rate: " << (nbRepeatedKminmers / _kminmerCounts.size()) << endl;
 
+		
 		std::sort(_contigs.begin(), _contigs.end(), ContigComparator_ByLength);
 
 		for(size_t i=0; i<_contigs.size(); i++){
@@ -706,6 +722,11 @@ public:
 				//if(_contigs[j]._nodepath.size() < 100) _invalidContigIndex.insert(_contigs[j]._readIndex);
 			}
 		}
+		
+Nb contigs: 10
+Nb bps: 4345965
+Nb nodes (sum check): 2193642412277
+
 
 		_kminmerCounts.clear();
 
@@ -757,7 +778,7 @@ public:
 
 	}
 
-	
+
 	void loadContigs_min_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
 
 		vector<u_int32_t> nodepath;
@@ -836,7 +857,7 @@ public:
 
 		//cout << kminmersInfos.size() << " " << (_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) << endl;
 		if(_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) return;
-
+		double s = 0;
 		for(size_t i=0; i<kminmersInfos.size(); i++){
 			
 			const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
@@ -853,6 +874,7 @@ public:
 			//if(kminmersInfos.size() <= 1) continue;
 
 			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
+			s += nodeName;
 			//nodepath.push_back(nodeName);
 			//if(nodeName == 38376){
 
@@ -894,9 +916,22 @@ public:
 
 		}
 
+		_nbNodes += s*kminmersInfos.size();
+		/*
+		if(kminmersInfos.size() > 1 && kminmersInfos[0]._vec == kminmersInfos[kminmersInfos.size()-1]._vec){
+			cout << "lala" << endl;
+			getchar();
+			//_nbNodes += s*(kminmersInfos.size()-1);
+		}
+		else{
+			_nbNodes += s*kminmersInfos.size();
+		}
 		//_nbContigs += 1;
+		*/
 
 	}
+
+
 
 	void collectBestSupportingReads(const string& contigFilename){
 
@@ -2083,7 +2118,8 @@ public:
 
 
 
-
+	u_int64_t _nbBps;
+	u_int64_t _nbNodes;
 
 
 	void writeKminmerSequence_all(u_int32_t nodeName, const string& sequence, const gzFile& file){
@@ -2126,6 +2162,8 @@ public:
 
 	void createBaseContigs(const string& contigFilename){
 
+		_nbBps = 0;
+
 		_contigFileSupported_input = ifstream(contigFilename + ".tmp");
 
 		_hifiasmContigIndex = 0;
@@ -2141,6 +2179,12 @@ public:
 
 		_fileHifiasmAll.close();
 		_contigFileSupported_input.close();
+
+
+		cout << "Nb contigs: " << (_contigIndex) << endl;
+		cout << "Nb bps: " << _nbBps << endl;
+		cout << "Nb nodes (sum check): " << _nbNodes << endl;
+
 	}
 
 	void createBaseContigs_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
@@ -2319,9 +2363,12 @@ public:
 		contigSequence +=  '\n';
 		gzwrite(_basespaceContigFile, (const char*)&contigSequence[0], contigSequence.size());
 
+		_nbBps += contigSequence.size();
+
 		_contigIndex += 1;
 		
 		//cout << contigSequence.size() << endl;
+
 
 		if(contigSequence.size() > 100000){
 

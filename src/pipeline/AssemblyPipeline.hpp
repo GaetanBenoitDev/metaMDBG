@@ -203,10 +203,10 @@ public:
 			executeCommand(command);
 			//getchar();
 
-			command = _filename_exe + " multik -o " + _inputDir + " -t " + to_string(_nbCores);
-			if(!_truthInputFilename.empty()) command += " --itruth " + _truthInputFilename;
+			//command = _filename_exe + " multik -o " + _inputDir + " -t " + to_string(_nbCores);
+			//if(!_truthInputFilename.empty()) command += " --itruth " + _truthInputFilename;
 			//if(pass > 0) command += " -c " +  _inputDir + "/contig_data.gz";
-			executeCommand(command);
+			//executeCommand(command);
 
 			//Generate contigs
 			command = _filename_exe + " contig " + " -o " + _inputDir + " -t " + to_string(_nbCores);;
@@ -214,6 +214,7 @@ public:
 			//if(pass == 0) command += " --firstpass";
 			executeCommand(command);
 			//getchar();
+			
 
 			command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/contigs.nodepath.gz" + " -f " + _inputDir + "/unitig_data.txt";
 			executeCommand(command);
@@ -251,7 +252,33 @@ public:
 		
 			//./bin/mdbgAsmMeta bin -o ~/workspace/run/overlap_test_multik_201/pass_0 -c ~/workspace/run/overlap_test_multik_201/contigs_10.fasta.gz
 			
+/*
+Nb contigs: 10
+Nb bps: 4345953
+Nb nodes (sum check): 2193642412277
 
+
+Nb contigs: 52
+Nb bps: 4465297
+Nb nodes (sum check): 622803719633
+
+Nb contigs: 313
+Check sum (nb nodes): 18053
+Check sum (nodeNames): 186697924
+Check sum global: 19924419371624
+Check sum global (abundance): 17782.747295
+
+Nb contigs: 313
+Check sum (nb nodes): 18053
+Check sum (nodeNames): 186697924
+Check sum global: 19924419371624
+Check sum global (abundance): 17782.747295
+
+Nb contigs: 51
+Nb bps: 4462399
+Nb nodes (sum check): 622802661433
+
+*/
 			//}
 			
 			//time ./bin/mdbgAsmMeta countKmer -i ~/workspace/data/AD/shortreads/input_10.txt -c /home/gats/workspace/run/overlap_test_multik_AD/contigs.nodepath.gz.fasta.gz.fasta.gz  -o ~/workspace/run/overlap_test_multik_AD/contig_coverages.tsv

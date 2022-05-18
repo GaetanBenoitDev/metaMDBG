@@ -234,6 +234,7 @@ void Bloocoo::createMDBG (){
 		//}
 		const auto copyOptions = fs::copy_options::overwrite_existing;
 		fs::copy(_outputDir + "/read_data_init.txt", _outputDir + "/read_data.txt", copyOptions);
+		fs::copy(_outputDir + "/read_data_init.txt", _outputDir + "/read_uncorrected.txt", copyOptions); //disable if correction is enabled
 	}
 
 
@@ -286,6 +287,7 @@ static bool KmerVecComparator(const KmerVecSorterData &a, const KmerVecSorterDat
 
 
 void Bloocoo::createGfa(){
+
 	cout << "Writing gfa..." << endl;
 	//cout << "Cleaning repeats..." << endl;
 
