@@ -146,12 +146,33 @@ struct DbgEdge{
     DbgEdge normalize(){
         DbgEdge edge1 = {_from, _to};
         DbgEdge edge2 = {_to, _from};
-        if(edge1.hash() < edge2.hash()){
+
+		if(_from < _to){
+			return edge1;
+		}
+		else{
+			return edge2;
+		}
+		/*
+        DbgEdge edge1 = {_from, _to};
+        DbgEdge edge2 = {_to, _from};
+		size_t e1 = edge1.hash();
+		size_t e2 = edge2.hash();
+		if(e1 == e2){
+			if(_from < _to){
+				return edge1;
+			}
+			else{
+				return edge2;
+			}
+		}
+        else if(e1 < e2){
             return edge1;
         }
         else{
             return edge2;
         }
+		*/
     }
 
 };
@@ -253,15 +274,32 @@ struct KmerVec{
 	KmerVec normalize(bool& isReversed){
 
 		KmerVec vec_reverse = reverse();
+		
+		for(size_t i=0; i<_kmers.size(); i++){
+			if(_kmers[i] == vec_reverse._kmers[i]){
+				continue;
+			}
+			else if(_kmers[i] < vec_reverse._kmers[i]){
+				isReversed = false;
+				return *this;
+			}
+			else{
+				isReversed = true;
+				return vec_reverse;
+			}
+		}
 
-		if(h() < vec_reverse.h()){
-			isReversed = false;
-			return *this;
-		}
-		else{
-			isReversed = true;
-			return vec_reverse;
-		}
+		isReversed = true;
+		return vec_reverse;
+
+		//if(h() < vec_reverse.h()){
+		//	isReversed = false;
+		//	return *this;
+		//}
+		//else{
+		//	isReversed = true;
+		//	return vec_reverse;
+		//}
 		
 	}
 

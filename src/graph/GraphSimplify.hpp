@@ -3717,9 +3717,10 @@ Nb nodes (sum check): 232643519
                     _nodeToUnitig[nodeIndex_toReverseDirection(startNode)] = unitigIndexRC;
                     _nodeToUnitig[nodeIndex_toReverseDirection(endNode)] = unitigIndexRC;
 
+
                     
-                    _unitigs[_graph->_nextUnitigIndex] = {_graph->_nextUnitigIndex, startNode, endNode, mean, length, nbNodes, nodes, nodeIndex, sum*nbNodes};
-                    _unitigs[unitigIndexRC] = {unitigIndexRC, nodeIndex_toReverseDirection(endNode), nodeIndex_toReverseDirection(startNode), mean, length, nbNodes, nodesRC, nodeIndex, sum*nbNodes};
+                    _unitigs[_graph->_nextUnitigIndex] = {_graph->_nextUnitigIndex, startNode, endNode, median, length, nbNodes, nodes, nodeIndex, sum*nbNodes};
+                    _unitigs[unitigIndexRC] = {unitigIndexRC, nodeIndex_toReverseDirection(endNode), nodeIndex_toReverseDirection(startNode), median, length, nbNodes, nodesRC, nodeIndex, sum*nbNodes};
 
                     if(_rebuild){
                         _graph->_unitigIndexToClean.insert(_graph->_nextUnitigIndex);
@@ -6975,6 +6976,22 @@ Nb nodes (sum check): 232643519
         
         GfaParser::rewriteGfa_withoutNodes(_inputGfaFilename, outputFilename, validNodes, _isEdgeRemoved, _graphSuccessors);
     }
+
+    void saveGraph_aroundNode(const string& outputFilename, u_int32_t nodeIndex_source){
+
+        unordered_set<u_int32_t> neighbors;
+        collectNeighbors(nodeIndex_source, 20, 10000, neighbors);
+
+        unordered_set<u_int32_t> validNodes;
+        for (auto& nodeIndex : neighbors){
+            u_int32_t nodeName = _graphSuccessors->nodeIndex_to_nodeName(nodeIndex);
+            //if(_debug_groundTruthNodeNames.find(nodeName) == _debug_groundTruthNodeNames.end()) continue;
+            validNodes.insert(nodeName);
+        }
+        
+        GfaParser::rewriteGfa_withoutNodes(_inputGfaFilename, outputFilename, validNodes, _isEdgeRemoved, _graphSuccessors);
+    }
+
 
     void saveGraph2(const string& outputFilename, unordered_set<u_int32_t>& componentOnly){
 
