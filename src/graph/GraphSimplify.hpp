@@ -2230,8 +2230,10 @@ public:
 
 
                     if(keepNodes.find(nodeIndex) != keepNodes.end()) continue;
+                    if(keepNodes.find(_graph->nodeIndex_toReverseDirection(nodeIndex)) != keepNodes.end()) continue;
 
                     sw._nodeIndexRemoved.push_back(nodeIndex);
+                    sw._nodeIndexRemoved.push_back(_graph->nodeIndex_toReverseDirection(nodeIndex));
 
 
 
@@ -5222,6 +5224,7 @@ Nb nodes (sum check): 232643519
         _prevAbudanceCutoff = abundanceCutoff_min;
         float currentCutoff = 0;
         long nbBubbleRoundRemaining = 10;
+        long nbBubbleRoundRemaining_current = nbBubbleRoundRemaining;
 
         while(true){
 
@@ -5264,8 +5267,8 @@ Nb nodes (sum check): 232643519
                 
                 
                 //3526895 2681795
-                if(crushBubble && nbBubbleRoundRemaining > 0){
-                    nbBubbleRoundRemaining -= 1;
+                if(crushBubble && nbBubbleRoundRemaining_current > 0){
+                    nbBubbleRoundRemaining_current -= 1;
 
                     
                     while(true){
@@ -5509,6 +5512,7 @@ Nb nodes (sum check): 232643519
                 u_int64_t nbErrorRemoved = removeErrors_2(k, abundanceCutoff_min, currentCutoff, currentSaveState, unitigDatas, detectRoundabout, maxBubbleLength, insertBubble, saveAllState, doesSaveUnitigGraph, mdbg, minimizerSize, nbCores);
                 
                 if(nbErrorRemoved > 0){
+                    nbBubbleRoundRemaining_current = nbBubbleRoundRemaining;
                     isModification = true;
                 }
             }
