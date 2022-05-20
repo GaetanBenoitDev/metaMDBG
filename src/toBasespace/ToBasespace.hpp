@@ -704,6 +704,9 @@ public:
 		std::sort(_contigs.begin(), _contigs.end(), ContigComparator_ByLength);
 
 		for(size_t i=0; i<_contigs.size(); i++){
+			
+			if(_invalidContigIndex.find(_contigs[i]._readIndex) != _invalidContigIndex.end()) continue;
+
 			for(long j=_contigs.size()-1; j>=i+1; j--){
 			
 				if(_invalidContigIndex.find(_contigs[j]._readIndex) != _invalidContigIndex.end()) continue;
@@ -716,6 +719,7 @@ public:
 
 					cout << _contigs[j]._nodepath_sorted.size() << " " << sharedRate_1 << " " << sharedRate_2 << endl;
 					_invalidContigIndex.insert(_contigs[j]._readIndex);
+					//break;
 
 				}
 

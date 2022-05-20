@@ -816,56 +816,91 @@ public:
     }
     */
 
-    u_int64_t tip(float maxLength, bool indexingTips, SaveState2& saveState, bool lengthIsKminmerSize){
+    u_int64_t tip(float maxLength, bool indexingTips, SaveState2& saveState, bool lengthIsKminmerSize, bool collectPossibleTips){
 
 		//unordered_set<u_int32_t> writtenUnitigs;
 
 
         vector<UnitigTip> unitigTips;
 
-        if(_unitigIndexToClean.size() == 0){
+        if(collectPossibleTips){
             for(const auto& it: _unitigs){
                 const Unitig& u = it.second;
                 if(u._startNode == -1) continue;
+
                 //if(u._startNode % 2 != 0) continue;
 
-                
-                if(u._length > 50000) continue;
+                if(u._length > maxLength) continue;
 
-                if(lengthIsKminmerSize){
-                    if(u._nbNodes > maxLength) continue;
-                }
-                else{
-                    if(u._length > maxLength) continue;
-                }
-
-
-                //if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
-                //if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
-
-                //writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._startNode));
-                //writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
-                
 
                 unitigTips.push_back({u._index, u._startNode, u._length});
             }
-
         }
         else{
-            for(u_int32_t unitigIndex : _unitigIndexToClean){
-                const Unitig& u = _unitigs[unitigIndex];
-                if(u._startNode == -1) continue;
-                if(u._length > 50000) continue;
+            
+            vector<u_int32_t> removedTips;
 
-                if(lengthIsKminmerSize){
-                    if(u._nbNodes > maxLength) continue;
+            if(_unitigIndexToClean.size() == 0){
+                //for(const auto& it: _unitigs){
+                //    const Unitig& u = it.second;
+                //    if(u._startNode == -1) continue;
+                for(u_int32_t unitigIndex : _possibleTips){
+                    //if(u._startNode % 2 != 0) continue;
+
+                    
+                    const Unitig& u = _unitigs[unitigIndex];
+                    if(u._startNode == -1){
+                        removedTips.push_back(unitigIndex);
+                        continue;
+                    }
+                    if(u._length > 50000) continue;
+
+                    if(lengthIsKminmerSize){
+                        if(u._nbNodes > maxLength) continue;
+                    }
+                    else{
+                        if(u._length > maxLength) continue;
+                    }
+
+
+                    //if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
+                    //if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
+
+                    //writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._startNode));
+                    //writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
+                    
+
+                    unitigTips.push_back({u._index, u._startNode, u._length});
                 }
-                else{
-                    if(u._length > maxLength) continue;
+
+            }
+            else{
+                for(u_int32_t unitigIndex : _unitigIndexToClean){
+                    const Unitig& u = _unitigs[unitigIndex];
+
+                    if(u._startNode == -1){
+                        removedTips.push_back(unitigIndex);
+                        continue;
+                    }
+
+                    //if(u._startNode == -1) continue;
+                    if(u._length > 50000) continue;
+
+                    if(lengthIsKminmerSize){
+                        if(u._nbNodes > maxLength) continue;
+                    }
+                    else{
+                        if(u._length > maxLength) continue;
+                    }
+                    unitigTips.push_back({u._index, u._startNode, u._length});
                 }
-                unitigTips.push_back({u._index, u._startNode, u._length});
+            }
+
+            for(u_int32_t unitigIndex : removedTips){
+                _possibleTips.erase(unitigIndex);
             }
         }
+
 
 
         //std::sort(unitigTips.begin(), unitigTips.end(), UnitigTipComparator_ByLength_Reverse);
@@ -1035,7 +1070,7 @@ public:
 
 
 
-        TipFunctor functor(this, removedNodes);
+        TipFunctor functor(this, removedNodes, collectPossibleTips);
         size_t i = 0;
 
         #pragma omp parallel num_threads(_nbCores)
@@ -1087,6 +1122,8 @@ public:
         removeUnitigs(removedUnitigs);
         for(u_int32_t nodeIndexTo : removedNodes){
 
+            //_possibleTips.erase(nodeIndex_to_unitigIndex(nodeIndexTo));
+
             vector<u_int32_t> predecessors;
             getPredecessors(nodeIndexTo, 0, predecessors);
 
@@ -1121,17 +1158,40 @@ public:
         return nbRemoved;
     }
 
+    bool isTip(u_int32_t unitigIndex){
+        return isTip(_unitigs[unitigIndex]);
+    }
+
+    bool isTip(const Unitig& u){
+
+        //const Unitig& u = _unitigs[unitigIndex];
+
+        vector<u_int32_t> neighbors;
+        getSuccessors(u._endNode, 0, neighbors);
+        if(neighbors.size() > 0) return false;
+
+
+        getPredecessors(u._startNode, 0, neighbors);
+
+        if(neighbors.size() == 0) return false;
+
+        return true;
+    }
+
 	class TipFunctor {
 
 		public:
 
 		GraphSimplify* _graph;
         unordered_set<u_int32_t>& _removedNodes;
+        bool _collectPossibleTips;
 
-		TipFunctor(GraphSimplify* graph, unordered_set<u_int32_t>& removedNodes) : _graph(graph), _removedNodes(removedNodes){
-		}
+		TipFunctor(GraphSimplify* graph, unordered_set<u_int32_t>& removedNodes, bool collectPossibleTips) : _graph(graph), _removedNodes(removedNodes){
+            _collectPossibleTips = collectPossibleTips;
+        }
 
 		TipFunctor(const TipFunctor& copy) : _graph(copy._graph), _removedNodes(copy._removedNodes){
+            _collectPossibleTips = copy._collectPossibleTips;
 		}
 
 		~TipFunctor(){
@@ -1140,7 +1200,9 @@ public:
 		void operator () (u_int32_t unitigIndex) {
 
             const Unitig& unitig = _graph->_unitigs[unitigIndex];
+            if(!_graph->isTip(unitig)) return;
 
+            /*
             vector<u_int32_t> neighbors;
 
             _graph->getSuccessors(unitig._endNode, 0, neighbors);
@@ -1186,7 +1248,7 @@ public:
                     //}
                 //}
             //}
-
+            */
 
 
 
@@ -1221,7 +1283,12 @@ public:
 
             #pragma omp critical(tip)
             {
-                _removedNodes.insert(unitig._startNode);
+                if(_collectPossibleTips){
+                    _graph->_possibleTips.insert(unitig._index);
+                }
+                else{
+                    _removedNodes.insert(unitig._startNode);
+                }
             }
 
             /*
@@ -1401,6 +1468,7 @@ public:
             removedUnitigs.insert(nodeIndex_to_unitigIndex(nodeIndex));
         }
         removeUnitigs(removedUnitigs);
+
         //for(u_int32_t nodeIndex : removedNodes){
         //    _isNodeValid2.erase(nodeIndex);
         //}
@@ -3210,6 +3278,7 @@ public:
 
 
             //_nodeToUnitig = unordered_map<u_int32_t, u_int32_t>();
+            _possibleTips.clear();
             _nodeToUnitig.clear();
             _nextUnitigIndex = 0;
             _unitigs.clear();
@@ -3725,6 +3794,11 @@ Nb nodes (sum check): 232643519
                     if(_rebuild){
                         _graph->_unitigIndexToClean.insert(_graph->_nextUnitigIndex);
                         _graph->_unitigIndexToClean.insert(unitigIndexRC);
+
+                        if(_graph->isTip(_graph->_nextUnitigIndex)){
+                            _graph->_possibleTips.insert(_graph->_nextUnitigIndex);
+                            _graph->_possibleTips.insert(unitigIndexRC);
+                        }
                     }
                     
                     _graph->_nextUnitigIndex += 2;
@@ -4978,6 +5052,8 @@ Nb nodes (sum check): 232643519
     }
     */
 
+    unordered_set<u_int32_t> _possibleTips;
+
     void debug_writeGfaErrorfree(u_int32_t currentAbundance, float abundanceCutoff_min, u_int32_t nodeIndex_source, u_int64_t k, bool saveGfa, bool doesSaveState, bool doesLoadState, const vector<UnitigData>& unitigDatas, bool crushBubble, bool smallBubbleOnly, bool detectRoundabout, bool insertBubble, bool saveAllState, bool doesSaveUnitigGraph, MDBG* mdbg, size_t minimizerSize, size_t nbCores, bool useLocalAbundanceFilter, bool removeLongTips){
 
         file_debug = ofstream("/home/gats/workspace/run//debug_graph.csv");
@@ -5145,6 +5221,7 @@ Nb nodes (sum check): 232643519
         unordered_set<u_int64_t> rareReadsAll;
         _prevAbudanceCutoff = abundanceCutoff_min;
         float currentCutoff = 0;
+        long nbBubbleRoundRemaining = 10;
 
         while(true){
 
@@ -5187,7 +5264,8 @@ Nb nodes (sum check): 232643519
                 
                 
                 //3526895 2681795
-                if(crushBubble){
+                if(crushBubble && nbBubbleRoundRemaining > 0){
+                    nbBubbleRoundRemaining -= 1;
 
                     
                     while(true){
@@ -5200,6 +5278,8 @@ Nb nodes (sum check): 232643519
                         
                         
                         while(true){
+                            cout << "superbubble" << endl;
+
                             compact(true, unitigDatas);
                             //cout << "1: " << _unitigIndexToClean.size() << endl;
                             u_int64_t nbSuperbubblesRemoved = superbubble(maxBubbleLength, isBubble, currentSaveState, false, nullptr, false);
@@ -5235,6 +5315,8 @@ Nb nodes (sum check): 232643519
                         if(!isModBubble) break;
                     }
                     
+
+                    tip(50000, false, currentSaveState, false, true);
                     
                     while(true){
 
@@ -5242,7 +5324,7 @@ Nb nodes (sum check): 232643519
 
                         while(true){
                             compact(true, unitigDatas);
-                            u_int64_t nbRemoved = tip(_kminmerSize+1, false, currentSaveState, true);
+                            u_int64_t nbRemoved = tip(_kminmerSize+1, false, currentSaveState, true, false);
                             #ifdef PRINT_DEBUG_SIMPLIFICATION
                                 cout << "Nb tip removed: " << nbRemoved << endl;
                             #endif
@@ -5260,7 +5342,7 @@ Nb nodes (sum check): 232643519
 
                         while(true){
                             compact(true, unitigDatas);
-                            u_int64_t nbRemoved = tip(_kminmerSize*2, false, currentSaveState, true);
+                            u_int64_t nbRemoved = tip(_kminmerSize*2, false, currentSaveState, true, false);
                             #ifdef PRINT_DEBUG_SIMPLIFICATION
                                 cout << "Nb tip removed: " << nbRemoved << endl;
                             #endif
@@ -5278,7 +5360,7 @@ Nb nodes (sum check): 232643519
 
                         while(true){
                             compact(true, unitigDatas);
-                            u_int64_t nbRemoved = tip(50000, false, currentSaveState, false);
+                            u_int64_t nbRemoved = tip(50000, false, currentSaveState, false, false);
                             #ifdef PRINT_DEBUG_SIMPLIFICATION
                                 cout << "Nb tip removed: " << nbRemoved << endl;
                             #endif
@@ -5300,6 +5382,7 @@ Nb nodes (sum check): 232643519
                     
                     /*
                     while(true){
+                        
                         //compact(true, unitigDatas);
                         //cout << "3: " << _unitigIndexToClean.size() << endl;
 
@@ -5313,8 +5396,9 @@ Nb nodes (sum check): 232643519
                         //while(true){
                             u_int64_t nbRemoved = 0;
                             for(u_int64_t maxLength : {1000, 5000, 10000, 15000, 20000, 25000, 30000, 35000, 40000, 45000, 50000}){
+                                cout << "tip " << maxLength << endl;
                                 compact(true, unitigDatas);
-                                nbRemoved = tip(maxLength, false, currentSaveState, removeLongTips);
+                                nbRemoved = tip(maxLength, false, currentSaveState, false, false);
                                 //nbRemovedTotal += nbRemoved;
                                 if(nbRemoved > 0) break;
                             }
@@ -5334,6 +5418,7 @@ Nb nodes (sum check): 232643519
                         }
                     }
                     */
+                    
 
                     //cout << "4: " << _unitigIndexToClean.size() << endl;
                     //if(nbTipsRemoved == 0) break;
