@@ -23,6 +23,7 @@
 #include <chrono>
 #include "utils/parallel_hashmap/phmap.h"
 #include "utils/kmer/Kmer.hpp"
+//#include <omp.h>
 namespace fs = std::filesystem;
 //namespace fs = std::filesystem;
 
