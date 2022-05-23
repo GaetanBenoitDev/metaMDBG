@@ -333,7 +333,7 @@ Nb nodes (sum check): 622802661433
 		if(fs::exists(_inputDir + "/read_path_cleaned.txt")) fs::copy(_inputDir + "/read_path_cleaned.txt", dir + "/read_path_cleaned.txt");
 		//if(fs::exists(_inputDir + "/read_index.txt")) fs::copy(_inputDir + "/read_index.txt", dir + "/read_index.txt");
 		fs::copy(_inputDir + "/minimizer_graph.gfa", dir + "/minimizer_graph.gfa");
-		fs::copy(_inputDir + "/minimizer_graph_u.gfa", dir + "/minimizer_graph_u.gfa");
+		if(fs::exists(_inputDir + "/minimizer_graph_u.gfa")) fs::copy(_inputDir + "/minimizer_graph_u.gfa", dir + "/minimizer_graph_u.gfa");
 		fs::copy(_inputDir + "/minimizer_graph_u_cleaned.gfa", dir + "/minimizer_graph_u_cleaned.gfa");
 		//fs::copy(_inputDir + "/minimizer_graph_cleaned.gfa", dir + "/minimizer_graph_cleaned.gfa");
 		fs::copy(_inputDir + "/parameters.gz", dir + "/parameters.gz");
