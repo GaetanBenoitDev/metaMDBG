@@ -1618,7 +1618,6 @@ public:
         _removedUnitigs.insert(unitigIndex);
         //_unitigs[unitigIndex]._nodes;
 
-        //"reprise: reussir a erase unitigIndex, plutot que le set a -1 pour speed up global + tester racon"
     }
 
     u_int64_t superbubble(u_int64_t maxLength, vector<bool>& isBubble, SaveState2& saveState, bool useReadpathSubgraph, GraphSimplify* graphMain, bool withCycle){
@@ -3272,6 +3271,8 @@ public:
                     nodes.push_back(nodeIndex);
                     break;
                 }
+
+                _unitigs.erase(unitigIndex);
             }
             //for(u_int32_t invalidUnitigIndex : _rebuildInvalidUnitigs){
             //    Unitig& unitig = _unitigs[invalidUnitigIndex];
