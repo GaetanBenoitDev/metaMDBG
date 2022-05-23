@@ -398,7 +398,7 @@ public:
 
 		_graph->clear(0);
 		_graph->compact(false, _unitigDatas);
-		_graph->removeErrors_4(_kminmerSize, _unitigDatas);
+		//_graph->removeErrors_4(_kminmerSize, _unitigDatas);
          
 
 		//if(_kminmerSize == 8) removeUnsupportedEdges(_gfaFilename, gfa_filename_noUnsupportedEdges, _graph);
@@ -592,8 +592,7 @@ public:
 
 		vector<DbgEdge> removedEdges;
 
-        for(const auto& it: _graph->_unitigs){
-            const Unitig& unitig = it.second;
+        for(const Unitig& unitig: _graph->_unitigs){
 
 			//bool nodeName_ori;
 			u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(unitig._endNode);
@@ -1000,8 +999,7 @@ public:
 		unordered_set<u_int32_t> writtenUnitigs;
 
 		//vector<float> readpathAbudance_values;
-        for(const auto& it: _graph->_unitigs){
-            const Unitig& u = it.second;
+        for(const Unitig& u: _graph->_unitigs){
 
 
 

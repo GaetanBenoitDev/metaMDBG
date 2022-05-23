@@ -406,7 +406,7 @@ public:
 
 		_graph->clear(0);
 		_graph->compact(false, _unitigDatas);
-		_graph->removeErrors_4(_kminmerSize, _unitigDatas);
+		//_graph->removeErrors_4(_kminmerSize, _unitigDatas);
 
 		//_graph->_contigFeature = &_contigFeature;
 		//_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false, false, false, true, _mdbg, _minimizerSize, _nbCores, false, false);
@@ -646,8 +646,7 @@ public:
 
 		vector<DbgEdge> removedEdges;
 
-        for(const auto& it: _graph->_unitigs){
-            const Unitig& unitig = it.second;
+        for(const Unitig& unitig: _graph->_unitigs){
 
 			//bool nodeName_ori;
 			u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(unitig._endNode);
@@ -1822,8 +1821,7 @@ public:
 			*/
 
 
-			for(const auto& it: _graph->_unitigs){
-				const Unitig& u = it.second;
+			for(const Unitig& u: _graph->_unitigs){
 				
 				if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
 				if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
@@ -1877,8 +1875,7 @@ public:
 					processedUnitigs = 0;
 					startingUnitigs.clear();
 
-			for(const auto& it: _graph->_unitigs){
-				const Unitig& unitig = it.second;
+			for(const Unitig& unitig: _graph->_unitigs){
 				//if(unitig._nbNodes <= _kminmerSize*2) continue;
 				//if(unitig._length < 100000) continue;
 

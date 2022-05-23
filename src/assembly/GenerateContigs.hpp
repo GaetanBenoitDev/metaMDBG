@@ -315,8 +315,7 @@ public:
 
 		vector<DbgEdge> removedEdges;
 
-        for(const auto& it: _graph->_unitigs){
-            const Unitig& unitig = it.second;
+        for(const Unitig& unitig: _graph->_unitigs){
 
 			//bool nodeName_ori;
 			u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(unitig._endNode);
@@ -530,8 +529,7 @@ public:
 		unordered_set<u_int32_t> writtenUnitigs;
 
 		//vector<float> readpathAbudance_values;
-        for(const auto& it: _graph->_unitigs){
-            const Unitig& u = it.second;
+        for(const Unitig& u: _graph->_unitigs){
 
 			
 			//if(u._index == 880){
@@ -1099,8 +1097,7 @@ public:
 			//	_graph->saveGraph(_inputDir + "/minimizer_graph_contigs.gfa");
 			//}
 			
-			for(const auto& it: _graph->_unitigs){
-				const Unitig& unitig = it.second;
+			for(const Unitig& unitig: _graph->_unitigs){
 				//cout << unitig._length << " " << unitig._abundance << endl;
 				//if(unitig._index % 2 == 1) continue;
 

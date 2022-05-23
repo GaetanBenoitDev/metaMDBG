@@ -715,7 +715,7 @@ public:
 				double sharedRate_1 = nbShared / _contigs[i]._nodepath_sorted.size();
 				double sharedRate_2 = nbShared / _contigs[j]._nodepath_sorted.size();
 
-				if(sharedRate_1 > 0.33 || sharedRate_2 > 0.33){
+				if(sharedRate_1 > 0.66 || sharedRate_2 > 0.66){
 
 					cout << _contigs[j]._nodepath_sorted.size() << " " << sharedRate_1 << " " << sharedRate_2 << endl;
 					_invalidContigIndex.insert(_contigs[j]._readIndex);

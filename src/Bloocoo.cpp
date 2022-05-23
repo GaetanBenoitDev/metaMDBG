@@ -288,7 +288,7 @@ static bool KmerVecComparator(const KmerVecSorterData &a, const KmerVecSorterDat
 
 void Bloocoo::createGfa(){
 
-	cout << "Writing gfa..." << endl;
+	cout << "Writting gfa..." << endl;
 	//cout << "Cleaning repeats..." << endl;
 
 	vector<KmerVecSorterData> kmerVecs;
