@@ -1612,10 +1612,13 @@ public:
         }
 
 
+        //_unitigs.erase(unitigIndex);
         _unitigs[unitigIndex]._startNode = -1;
         _unitigs[unitigIndex]._endNode = -1;
         _removedUnitigs.insert(unitigIndex);
         //_unitigs[unitigIndex]._nodes;
+
+        //"reprise: reussir a erase unitigIndex, plutot que le set a -1 pour speed up global + tester racon"
     }
 
     u_int64_t superbubble(u_int64_t maxLength, vector<bool>& isBubble, SaveState2& saveState, bool useReadpathSubgraph, GraphSimplify* graphMain, bool withCycle){
@@ -5863,6 +5866,9 @@ Nb nodes (sum check): 232643519
         //getchar();
         if(!saveStateExist){
 
+            compact(true, unitigDatas);
+            if(doesSaveUnitigGraph && currentCutoff == 0) saveUnitigGraph(_outputDir + "/minimizer_graph_u_cleaned.gfa", mdbg, minimizerSize, nbCores, true);
+            /*
             compact(false, unitigDatas);
 
             if(currentCutoff == 0){
@@ -5881,19 +5887,6 @@ Nb nodes (sum check): 232643519
             unordered_set<u_int32_t> isNodeValid2_memo = _isNodeValid2;
             std::reverse(_bubbles.begin(), _bubbles.end());
 
-            /*
-            //vector<u_int32_t> isLongUnitigNodes;
-            for(u_int32_t nodeIndex : _isNodeValid2){
-                //if(_nodeToUnitig.find(nodeIndex) == _nodeToUnitig.end()) continue;
-
-                u_int32_t unitigIndex = nodeIndex_to_unitigIndex(nodeIndex);
-                if(_unitigs[unitigIndex]._length > 15000 && !_isBubble[nodeIndex]){
-                    //isLongUnitigNodes.push_back(nodeIndex);
-                    currentSaveState._longUnitigNodeAbundance.push_back({BiGraph::nodeIndex_to_nodeName(nodeIndex), _unitigs[unitigIndex]._abundance});
-                    //currentSaveState._longUnitigNodeAbundance[BiGraph::nodeIndex_to_nodeName(nodeIndex)] = _unitigs[unitigIndex]._abundance;
-                }
-            }
-            */
 
             
             
@@ -5995,9 +5988,10 @@ Nb nodes (sum check): 232643519
                 currentSaveState._nodeNameRemoved_tmp.erase(nodeName);
                 //currentSaveState._nodeNameRemoved.erase(std::remove(currentSaveState._nodeNameRemoved.begin(), currentSaveState._nodeNameRemoved.end(), nodeName), currentSaveState._nodeNameRemoved.end());
             }
-            
             //------------------------------ End
             }
+            
+            */
             
 
             for(u_int32_t nodeName : currentSaveState._nodeNameRemoved_tmp){
@@ -6108,6 +6102,7 @@ Nb nodes (sum check): 232643519
             currentSaveState = {0, {}, {}, {}, {}};
             //cout << "insert graph state" << currentCutoff << endl;
 
+            /*
             if(insertBubble){
                 _isNodeValid2 = isNodeValid2_memo; //!
             }
@@ -6128,34 +6123,9 @@ Nb nodes (sum check): 232643519
                     nodelala[nodeIndex] += 1;
                 }
 
-                /*
-                for(u_int32_t nodeIndex : u._nodes){
-                    if(nodelala[nodeIndex] > 1){
-                        cout << "omg" << endl;
-                        cout << u._nodes.size() << endl;
-                        cout << "--: " << BiGraph::nodeToString(u._debug_nodeIndexSource) << endl;
-                        for(u_int32_t nodeIndex : u._nodes){
-                            cout << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
-                        }
-                        //getchar();
-                    }
-                    nodeIndexSum += nodeIndex;
-                    indexedNodeIndex.insert(nodeIndex);
-                }
-                */
             }
 
             u_int64_t nodeIndexSum2 = 0;
-            /*
-            for(u_int32_t nodeIndex : _isNodeValid2){
-                nodeIndexSum2 += nodeIndex;
-                if(indexedNodeIndex.find(nodeIndex) == indexedNodeIndex.end()){
-                    cout << "OMG: " << nodeIndex << " " << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
-                    getchar();
-                }
-            }
-            */
-            //cout << "Node index sum: " << nodeIndexSum << endl;
 
             u_int64_t nodeIndexSum3 = 0;
             for(u_int32_t nodeIndex : indexedNodeIndex){
@@ -6166,69 +6136,13 @@ Nb nodes (sum check): 232643519
             cout << std::fixed << "\tAb total: " << abTotal << endl;
             cout << getChecksumGlobal_utg() << endl;
             //getchar();
-            
-
-            
-            
-            /*
-            unordered_set<u_int32_t> validNodes;
-            for (auto& nodeIndex : _isNodeValid2){
-                u_int32_t nodeName = _graphSuccessors->nodeIndex_to_nodeName(nodeIndex);
-                validNodes.insert(nodeName);
-            }
-            string outputFilename = _outputDir + "/minimizer_graph_sub.gfa";
-            GfaParser::rewriteGfa_withoutNodes(_inputGfaFilename, outputFilename, validNodes, _isEdgeRemoved, _graphSuccessors);
-                
-
-            getchar();
             */
+            
 
-            /*
-            unordered_map<u_int32_t, unordered_set<u_int32_t>> bridgingReads;
-            unordered_set<u_int32_t> processedNodeNames;
-            for(const Unitig& unitig : _unitigs){
-                if(unitig._startNode == -1) continue;
-
-                for(u_int32_t nodeIndex : unitig._nodes){
-                    u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
-                    if(processedNodeNames.find(nodeName) != processedNodeNames.end()) continue;
-
-                    processedNodeNames.insert(nodeName);
-
-                    const UnitigData& unitigData = unitigDatas[nodeName];
-
-                    for(u_int64_t readIndex : unitigData._readIndexes){
-                        bridgingReads[readIndex].insert(unitig._index);
-                    }
-                }
-            }
-
-            u_int64_t totalReads = 0;
-            u_int64_t nbBridgingReads = 0;
-            for(auto& it : bridgingReads){
-                
-                totalReads += 1;
-
-                if(it.second.size() > 1){
-                    nbBridgingReads += 1;
-                }
-
-                //cout << it.second.size() << endl;
-            }
-
-            cout << "Nb bridging reads: " << nbBridgingReads << " / " << totalReads << endl;
-            */
+        
         }
 
-        /*
-        if(_cachedGraphStates.find(currentCutoff) == _cachedGraphStates.end()){
-            //std::reverse(_bubbles.begin(), _bubbles.end());
-            cout << "Saving state: " << currentCutoff << endl;
-            compact(false);
-            _cachedGraphStates[currentCutoff] = saveState();
-            //std::reverse(_bubbles.begin(), _bubbles.end());
-        }
-        */
+
 
         file_debug.close();
     }
@@ -10668,6 +10582,7 @@ Nb nodes (sum check): 232643519
         //cout << _unitigs.size() << endl;
         for(const auto& it: _unitigs){
             const Unitig& u = it.second;
+            if(u._startNode == -1) continue;
 
 			if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
 			if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
@@ -11086,6 +11001,8 @@ Nb nodes (sum check): 232643519
 
         return unitigIndex; 
     }
+
+    
 
 };
 
