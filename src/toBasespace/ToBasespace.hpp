@@ -715,7 +715,7 @@ public:
 				double sharedRate_1 = nbShared / _contigs[i]._nodepath_sorted.size();
 				double sharedRate_2 = nbShared / _contigs[j]._nodepath_sorted.size();
 
-				if(sharedRate_1 > 0.66 || sharedRate_2 > 0.66){
+				if(sharedRate_1 > 0.33 || sharedRate_2 > 0.33){
 
 					cout << _contigs[j]._nodepath_sorted.size() << " " << sharedRate_1 << " " << sharedRate_2 << endl;
 					_invalidContigIndex.insert(_contigs[j]._readIndex);
@@ -1828,6 +1828,13 @@ public:
 				return;
 			}
 			
+			/*
+			DnaBitset* dna = sequences[0];
+			char* dnaStr = dna->to_string();
+			correctedSequence = string(dnaStr);
+			free(dnaStr);
+			return;
+			*/
 			
 			ab = abpoa_init();
 
@@ -1913,7 +1920,7 @@ public:
 				//fprintf(stdout, "\n");
 			}
 
-			float t = n_seqs * 0.25;
+			float t = n_seqs * 0.5;
 
 			correctedSequence.clear();
 
@@ -2358,6 +2365,7 @@ public:
 			cout << "Empty contig " << kminmersInfos.size() << endl;
 			return;
 		}
+
 
 		string header = ">ctg" + to_string(_contigIndex) + '\n';
 		gzwrite(_basespaceContigFile, (const char*)&header[0], header.size());

@@ -121,6 +121,7 @@ public:
     unordered_set<DbgEdge, hash_pair> _isEdgeRemoved;
     unordered_set<DbgEdge, hash_pair> _isEdgeUnsupported;
 
+
     vector<Bubble> _bubbles;
     unordered_set<u_int32_t> _isNodeInvalid_tmp;
     unordered_set<u_int32_t> _isUnitigInvalid_tmp;
@@ -149,7 +150,14 @@ public:
     u_int64_t _tip_checksum;
     u_int64_t _abcutoff_checksum;
 
-    GraphSimplify(const string& inputGfaFilename, const string& outputDir, u_int32_t nbNodes, size_t kminmerSize, int nbCores){
+	//float _minimizerSpacingMean;
+	float _kminmerLengthMean;
+	float _kminmerOverlapMean;
+
+    GraphSimplify(const string& inputGfaFilename, const string& outputDir, u_int32_t nbNodes, size_t kminmerSize, int nbCores, float kminmerLengthMean, float kminmerOverlapMean){
+
+        _kminmerLengthMean = kminmerLengthMean;
+        _kminmerOverlapMean = kminmerOverlapMean;
 
         _superbubble_checksum = 0;
         _tip_checksum = 0;
@@ -162,7 +170,7 @@ public:
         _kminmerSize = kminmerSize;
         _nbCores = nbCores;
 
-        _graphSuccessors = GfaParser::createBiGraph_lol(inputGfaFilename, true, nbNodes);
+        _graphSuccessors = GfaParser::createBiGraph_binary(inputGfaFilename, true, nbNodes, kminmerLengthMean, kminmerOverlapMean);
         _isCopy = false;
 
         //cout << "lala " << _graphSuccessors->_nodeAbundances.size() << " " << _graphSuccessors->_nodeLengths.size() << endl;
@@ -816,7 +824,7 @@ public:
     }
     */
 
-    u_int64_t tip(float maxLength, bool indexingTips, SaveState2& saveState, bool lengthIsKminmerSize, bool collectPossibleTips){
+    u_int64_t tip(float maxLength, bool indexingTips, SaveState2& saveState, bool lengthIsKminmerSize, bool collectPossibleTips, bool removeTip){
 
 		//unordered_set<u_int32_t> writtenUnitigs;
 
@@ -1069,7 +1077,7 @@ public:
 
 
 
-        TipFunctor functor(this, removedNodes, collectPossibleTips);
+        TipFunctor functor(this, removedNodes, collectPossibleTips, removeTip);
         size_t i = 0;
 
         #pragma omp parallel num_threads(_nbCores)
@@ -1119,32 +1127,48 @@ public:
             removedUnitigs.insert(nodeIndex_to_unitigIndex(GraphSimplify::nodeIndex_toReverseDirection(nodeIndex)));
         }
         removeUnitigs(removedUnitigs);
-        for(u_int32_t nodeIndexTo : removedNodes){
 
-            //_possibleTips.erase(nodeIndex_to_unitigIndex(nodeIndexTo));
+        if(!removeTip){
+            for(u_int32_t nodeIndexTo : removedNodes){
 
-            vector<u_int32_t> predecessors;
-            getPredecessors(nodeIndexTo, 0, predecessors);
+                vector<u_int32_t> predecessors;
+                getPredecessors(nodeIndexTo, 0, predecessors);
 
-            for(u_int32_t nodeIndexFrom : predecessors){
+                for(u_int32_t nodeIndexFrom : predecessors){
 
-                DbgEdge edge = {nodeIndexFrom, nodeIndexTo};
-                edge = edge.normalize();
-                _isEdgeRemoved.insert(edge);
-                saveState._isEdgeRemoved.push_back(edge);
+                    DbgEdge edge = {nodeIndexFrom, nodeIndexTo};
+                    edge = edge.normalize();
+                    _isEdgeRemoved.insert(edge);
+                    saveState._isEdgeRemoved.push_back(edge);
 
-                DbgEdge edgeRC = {GraphSimplify::nodeIndex_toReverseDirection(nodeIndexTo), GraphSimplify::nodeIndex_toReverseDirection(nodeIndexFrom)};
-                edgeRC = edgeRC.normalize();
-                _isEdgeRemoved.insert(edgeRC);
-                saveState._isEdgeRemoved.push_back(edgeRC);
+                    DbgEdge edgeRC = {GraphSimplify::nodeIndex_toReverseDirection(nodeIndexTo), GraphSimplify::nodeIndex_toReverseDirection(nodeIndexFrom)};
+                    edgeRC = edgeRC.normalize();
+                    _isEdgeRemoved.insert(edgeRC);
+                    saveState._isEdgeRemoved.push_back(edgeRC);
 
-                _tip_checksum += BiGraph::nodeIndex_to_nodeName(nodeIndexFrom) + BiGraph::nodeIndex_to_nodeName(nodeIndexTo);
+                    _tip_checksum += BiGraph::nodeIndex_to_nodeName(nodeIndexFrom) + BiGraph::nodeIndex_to_nodeName(nodeIndexTo);
 
-                //cout << nodeIndexFrom << " -> " << nodeIndexTo << endl;
-			    //_graphSuccessors->removeEdge(nodeIndexFrom, nodeIndexTo);
-			    //_graphSuccessors->removeEdge(GraphSimplify::nodeIndex_toReverseDirection(nodeIndexTo), GraphSimplify::nodeIndex_toReverseDirection(nodeIndexFrom));
+                    //cout << nodeIndexFrom << " -> " << nodeIndexTo << endl;
+                    //_graphSuccessors->removeEdge(nodeIndexFrom, nodeIndexTo);
+                    //_graphSuccessors->removeEdge(GraphSimplify::nodeIndex_toReverseDirection(nodeIndexTo), GraphSimplify::nodeIndex_toReverseDirection(nodeIndexFrom));
+                }
+
+                //_possibleTips.erase(nodeIndex_to_unitigIndex(nodeIndexTo));
+
+
+                
             }
-            
+        }
+        else{
+            for(u_int32_t nodeIndex : removedNodes){
+
+                //cout << (_isNodeValid2.find(nodeIndex) != _isNodeValid2.end()) << " " << (_isNodeValid2.find(nodeIndex_toReverseDirection(nodeIndex)) != _isNodeValid2.end()) << endl;
+                _isNodeValid2.erase(nodeIndex);
+                _isNodeValid2.erase(nodeIndex_toReverseDirection(nodeIndex));
+                saveState._nodeNameRemoved_tmp.insert(BiGraph::nodeIndex_to_nodeName(nodeIndex));
+
+
+            }
         }
         /*
         for(u_int32_t nodeIndex : removedNodes){
@@ -1184,13 +1208,16 @@ public:
 		GraphSimplify* _graph;
         unordered_set<u_int32_t>& _removedNodes;
         bool _collectPossibleTips;
+        bool _removeTip;
 
-		TipFunctor(GraphSimplify* graph, unordered_set<u_int32_t>& removedNodes, bool collectPossibleTips) : _graph(graph), _removedNodes(removedNodes){
+		TipFunctor(GraphSimplify* graph, unordered_set<u_int32_t>& removedNodes, bool collectPossibleTips, bool removeTip) : _graph(graph), _removedNodes(removedNodes){
             _collectPossibleTips = collectPossibleTips;
+            _removeTip = removeTip;
         }
 
 		TipFunctor(const TipFunctor& copy) : _graph(copy._graph), _removedNodes(copy._removedNodes){
             _collectPossibleTips = copy._collectPossibleTips;
+            _removeTip = copy._removeTip;
 		}
 
 		~TipFunctor(){
@@ -1286,7 +1313,14 @@ public:
                     _graph->_possibleTips.insert(unitig._index);
                 }
                 else{
-                    _removedNodes.insert(unitig._startNode);
+                    if(_removeTip){
+                        for(u_int32_t nodeIndex : _graph->_unitigs[unitig._index]._nodes){
+                            _removedNodes.insert(nodeIndex);
+                        }
+                    }
+                    else{
+                        _removedNodes.insert(unitig._startNode);
+                    }
                 }
             }
 
@@ -3257,6 +3291,9 @@ public:
             //std::sort(unitigIndexes.begin(), unitigIndexes.end());
 
             for(u_int32_t unitigIndex : _removedUnitigs){
+
+                //cout << unitigIndex << " " << _unitigs.size() << endl;
+                //cout << _unitigs[unitigIndex]._startNode << endl;
                 //nodes.push_back(_unitigs[unitigIndex]._startNode);
                 //cout << unitigIndex << endl;
                 //vector<u_int32_t> unitigNodes; 
@@ -3268,8 +3305,12 @@ public:
                     break;
                 }
 
+                //cout << "done" << endl;
+
                 //_unitigs.erase(unitigIndex);
             }
+
+            _removedUnitigs.clear();
             //for(u_int32_t invalidUnitigIndex : _rebuildInvalidUnitigs){
             //    Unitig& unitig = _unitigs[invalidUnitigIndex];
             //    unitig._startNode = -1;
@@ -5324,7 +5365,7 @@ Nb nodes (sum check): 232643519
                         resizeUnitigs();
                     }
 
-                    tip(50000, false, currentSaveState, false, true);
+                    tip(50000, false, currentSaveState, false, true, false);
                     
                     while(true){
 
@@ -5332,7 +5373,7 @@ Nb nodes (sum check): 232643519
 
                         while(true){
                             compact(true, unitigDatas);
-                            u_int64_t nbRemoved = tip(_kminmerSize+1, false, currentSaveState, true, false);
+                            u_int64_t nbRemoved = tip(_kminmerSize+1, false, currentSaveState, true, false, true);
                             #ifdef PRINT_DEBUG_SIMPLIFICATION
                                 cout << "Nb tip removed: " << nbRemoved << endl;
                             #endif
@@ -5350,7 +5391,7 @@ Nb nodes (sum check): 232643519
 
                         while(true){
                             compact(true, unitigDatas);
-                            u_int64_t nbRemoved = tip(_kminmerSize*2, false, currentSaveState, true, false);
+                            u_int64_t nbRemoved = tip(_kminmerSize*2, false, currentSaveState, true, false, true);
                             #ifdef PRINT_DEBUG_SIMPLIFICATION
                                 cout << "Nb tip removed: " << nbRemoved << endl;
                             #endif
@@ -5368,7 +5409,7 @@ Nb nodes (sum check): 232643519
 
                         while(true){
                             compact(true, unitigDatas);
-                            u_int64_t nbRemoved = tip(50000, false, currentSaveState, false, false);
+                            u_int64_t nbRemoved = tip(50000, false, currentSaveState, false, false, false);
                             #ifdef PRINT_DEBUG_SIMPLIFICATION
                                 cout << "Nb tip removed: " << nbRemoved << endl;
                             #endif

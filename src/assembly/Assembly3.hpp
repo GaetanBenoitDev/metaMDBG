@@ -114,6 +114,9 @@ public:
     size_t _minimizerSize;
     size_t _kminmerSize;
 	size_t _kminmerSizeFirst;
+	float _minimizerSpacingMean;
+	float _kminmerLengthMean;
+	float _kminmerOverlapMean;
 	vector<UnitigData> _unitigDatas;
 
 	string _partitionDir;
@@ -200,6 +203,9 @@ public:
 		gzread(file_parameters, (char*)&_kminmerSize, sizeof(_kminmerSize));
 		gzread(file_parameters, (char*)&_minimizerDensity, sizeof(_minimizerDensity));
 		gzread(file_parameters, (char*)&_kminmerSizeFirst, sizeof(_kminmerSizeFirst));
+		gzread(file_parameters, (char*)&_minimizerSpacingMean, sizeof(_minimizerSpacingMean));
+		gzread(file_parameters, (char*)&_kminmerLengthMean, sizeof(_kminmerLengthMean));
+		gzread(file_parameters, (char*)&_kminmerOverlapMean, sizeof(_kminmerOverlapMean));
 		gzclose(file_parameters);
 
 		//ifstream file_data(_inputDir + "/data.txt");
@@ -270,7 +276,7 @@ public:
             //gfa_filename = _inputDir + "/minimizer_graph_debug.gfa";
 		//}
 		
-		GraphSimplify* graphSimplify = new GraphSimplify(_gfaFilename, _inputDir, 0, _kminmerSize, _nbCores);
+		GraphSimplify* graphSimplify = new GraphSimplify(_gfaFilename, _inputDir, 0, _kminmerSize, _nbCores, _kminmerLengthMean, _kminmerOverlapMean);
 		_graph = graphSimplify;
 		
 

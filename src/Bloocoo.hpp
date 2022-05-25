@@ -93,9 +93,9 @@ public:
 	u_int32_t _node_id;
 	//MinimizerPairMap* _minimizerPairMap;
 
-	double _minimizerSpacingMean;
-	double _kminmerLengthMean;
-	double _kminmerOverlapMean;
+	float _minimizerSpacingMean;
+	float _kminmerLengthMean;
+	float _kminmerOverlapMean;
 
 	double _minimizerSpacing_sum;
 	double _minimizerSpacing_n;
@@ -710,7 +710,7 @@ public:
 
 
 							u_int32_t nodeName = -1;
-							DbgNode node = {nodeName, 2, 0, 0, 0, kminmerInfo._isReversed};
+							DbgNode node = {nodeName, 2};
 
 							vector<u_int64_t> minimizerSeq;
 							for(size_t i=kminmerInfo._read_pos_start; i<=kminmerInfo._read_pos_end; i++){

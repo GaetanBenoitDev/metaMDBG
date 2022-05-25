@@ -118,11 +118,6 @@ public:
                 }
 
 
-//L	1652	-	1653	+	0M
-//L	1653	-	1652	+
-
-                
-
                 
 
                 //graph->addEdge_checkDuplicate(to_id, from_id, 0, !isSuccessor);
@@ -149,7 +144,6 @@ public:
     }
 
     static BiGraph* createBiGraph_lol(const string& filename, bool indexSuccessors, u_int32_t nbNodes){
-
 
         unordered_set<DbgEdge, hash_pair> seenEdges;
 
@@ -232,7 +226,126 @@ public:
     }
 
 
-    
+    static BiGraph* createBiGraph_binary(const string& filename, bool indexSuccessors, u_int32_t nbNodes, float kminmerLengthMean, float kminmerOverlapMean){
+
+        u_int8_t isS = 0;
+        u_int8_t isL = 1;
+        u_int8_t edgePlus = 0;
+        u_int8_t edgeMinus = 1;
+
+
+        ifstream infile(filename);
+
+        if(nbNodes == 0){
+
+            while(true){
+                u_int8_t type;
+                infile.read((char*)&type, sizeof(type));
+
+                if(infile.eof())break;
+
+
+                if(type == isS){
+
+                    u_int32_t nodeName;
+                    u_int32_t abundance;
+
+                    infile.read((char*)&nodeName, sizeof(nodeName));
+                    infile.read((char*)&abundance, sizeof(abundance));
+
+                    nbNodes += 1;
+                }
+                else{
+
+                    u_int32_t nodeName1;
+                    u_int32_t nodeName2;
+                    u_int8_t ori1;
+                    u_int8_t ori2;
+
+                    infile.read((char*)&nodeName1, sizeof(nodeName1));
+                    infile.read((char*)&ori1, sizeof(ori1));
+                    infile.read((char*)&nodeName2, sizeof(nodeName2));
+                    infile.read((char*)&ori2, sizeof(ori2));
+                }
+
+            }
+            
+        }
+
+
+        //nbNodes = 5000000;
+        //cout << "to remove" << endl;
+        BiGraph* graph = new BiGraph(nbNodes);
+
+        infile.clear();
+        infile.seekg(0, std::ios::beg);
+
+        graph->_nodeAbundances.resize(graph->_nbNodes/2, 0);
+        graph->_nodeLengths.resize(graph->_nbNodes/2, 0);
+
+        while(true){
+            u_int8_t type;
+            infile.read((char*)&type, sizeof(type));
+
+            if(infile.eof())break;
+
+
+            if(type == isS){
+
+                u_int32_t nodeName;
+                u_int32_t abundance;
+
+                infile.read((char*)&nodeName, sizeof(nodeName));
+                infile.read((char*)&abundance, sizeof(abundance));
+                graph->_nodeAbundances[nodeName] = abundance;
+                graph->_nodeLengths[nodeName] = kminmerLengthMean;
+
+                nbNodes += 1;
+            }
+            else{
+
+                u_int32_t nodeName1;
+                u_int32_t nodeName2;
+                u_int8_t ori1;
+                u_int8_t ori2;
+
+                infile.read((char*)&nodeName1, sizeof(nodeName1));
+                infile.read((char*)&ori1, sizeof(ori1));
+                infile.read((char*)&nodeName2, sizeof(nodeName2));
+                infile.read((char*)&ori2, sizeof(ori2));
+
+                bool fromOrient = ori1 == edgePlus;
+                bool toOrient = ori2 == edgePlus;
+                /*
+                string& from = (*fields)[1];
+                bool fromOrient = (*fields)[2] == "+";
+                string& to = (*fields)[3];
+                bool toOrient = (*fields)[4] == "+";
+                u_int16_t overlap = std::stoull((*fields)[5]);
+
+                u_int32_t from_id = std::stoull(from);
+                u_int32_t to_id = std::stoull(to);
+                */
+                
+                if(nodeName1 == nodeName2) continue; //self loop
+
+                graph->addEdge(nodeName1, fromOrient, nodeName2, toOrient, kminmerOverlapMean);
+
+            }
+
+        }
+
+
+
+
+
+        //cout << "allo ?? : " << graph->_nbNodes << endl;
+        //cout << graph->_nodeAbundances.size() << endl;
+        GfaParser::getNodeData(filename, graph->_nodeAbundances, graph->_nodeLengths);
+        //cout << graph->_nodeAbundances.size() << endl;
+
+        return graph;
+    }
 
     /*
     UnitigGraph* createGraph(const string& filename, vector<int32_t>& node_to_unitig, vector<u_int32_t>& unitigLengths){

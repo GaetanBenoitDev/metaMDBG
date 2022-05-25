@@ -25,6 +25,7 @@
 #include "utils/kmer/Kmer.hpp"
 //#include <omp.h>
 namespace fs = std::filesystem;
+using namespace std::chrono;
 //namespace fs = std::filesystem;
 
 typedef unsigned __int128 u_int128_t;
@@ -101,7 +102,6 @@ const string ARG_EVAL = "eval";
 
 const string NB_CORES_DEFAULT = "8";
 const string FILENAME_NO_KMINMER_READS = "reads_noKminmers.bin";
-
 
 struct UnitigData{
 	u_int32_t _index;
@@ -212,11 +212,11 @@ struct MinimizerPair{
 struct DbgNode{
 	u_int32_t _index;
 	u_int32_t _abundance;
-	u_int16_t _length;
-	u_int16_t _overlapLength_start;
-	u_int16_t _overlapLength_end;
-	bool _isReversed;
-	u_int32_t _unitigNbNodes;
+	//u_int16_t _length;
+	//u_int16_t _overlapLength_start;
+	//u_int16_t _overlapLength_end;
+	//bool _isReversed;
+	//u_int32_t _unitigNbNodes;
 };
 
 

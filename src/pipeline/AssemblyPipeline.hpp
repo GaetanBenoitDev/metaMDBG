@@ -166,7 +166,7 @@ public:
 		u_int64_t pass = 0;
 		u_int32_t prevK = -1;
 
-		for(size_t k=firstK; k<42; k+=1){
+		for(size_t k=firstK; k<82; k+=1){
 
 			//cout << "Start asm: " << k << endl;
 
@@ -230,7 +230,7 @@ public:
 
 			bool generatedContigs = false;
 			//if(k == 5 || k == 10 || k == 16 || k == 21 || k == 26 || k == 31){
-			if(k == 41){//} || k == 51 || k == 61 || k == 71 || k == 81){
+			if(k == 81){//} || k == 51 || k == 61 || k == 71 || k == 81){
 
 				
 				//Generate contigs
@@ -353,12 +353,20 @@ Nb nodes (sum check): 622802661433
 
 	void writeParameters(size_t minimizerSize, size_t k, float density, size_t firstK){
 
+
+		float minimizerSpacingMean = 1 / density;
+		float kminmerLengthMean = minimizerSpacingMean * (k-1);
+		float kminmerOverlapMean = kminmerLengthMean - minimizerSpacingMean;
+
 		string filename_parameters = _inputDir + "/parameters.gz";
 		gzFile file_parameters = gzopen(filename_parameters.c_str(),"wb");
 		gzwrite(file_parameters, (const char*)&minimizerSize, sizeof(minimizerSize));
 		gzwrite(file_parameters, (const char*)&k, sizeof(k));
 		gzwrite(file_parameters, (const char*)&density, sizeof(density));
 		gzwrite(file_parameters, (const char*)&firstK, sizeof(firstK));
+		gzwrite(file_parameters, (const char*)&minimizerSpacingMean, sizeof(minimizerSpacingMean));
+		gzwrite(file_parameters, (const char*)&kminmerLengthMean, sizeof(kminmerLengthMean));
+		gzwrite(file_parameters, (const char*)&kminmerOverlapMean, sizeof(kminmerOverlapMean));
 		gzclose(file_parameters);
 	}
 

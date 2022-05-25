@@ -249,9 +249,10 @@ public:
 			if(_nodeName_to_unitigIndexes.find(nodeName) == _nodeName_to_unitigIndexes.end()) continue;
 
 			vector<u_int64_t> minimizers = vec._kmers;
-			if(it.second._isReversed){
-				std::reverse(minimizers.begin(), minimizers.end());
-			}
+			//vector<u_int64_t> minimizers = vec._kmers;
+			//if(it.second._isReversed){
+			//	std::reverse(minimizers.begin(), minimizers.end());
+			//}
 			vector<u_int64_t> rlePositions;
 			vector<u_int64_t> minimizers_pos;//(minimizers.size());
 			vector<KmerVec> kminmers; 

@@ -48,6 +48,10 @@ public:
 	float _minimizerDensity;
     size_t _minimizerSize;
     size_t _kminmerSize;
+    size_t _kminmerSizeFirst;
+	float _minimizerSpacingMean;
+	float _kminmerLengthMean;
+	float _kminmerOverlapMean;
 	vector<UnitigData> _unitigDatas;
 
 	string _partitionDir;
@@ -127,6 +131,10 @@ public:
 		gzread(file_parameters, (char*)&_minimizerSize, sizeof(_minimizerSize));
 		gzread(file_parameters, (char*)&_kminmerSize, sizeof(_kminmerSize));
 		gzread(file_parameters, (char*)&_minimizerDensity, sizeof(_minimizerDensity));
+		gzread(file_parameters, (char*)&_kminmerSizeFirst, sizeof(_kminmerSizeFirst));
+		gzread(file_parameters, (char*)&_minimizerSpacingMean, sizeof(_minimizerSpacingMean));
+		gzread(file_parameters, (char*)&_kminmerLengthMean, sizeof(_kminmerLengthMean));
+		gzread(file_parameters, (char*)&_kminmerOverlapMean, sizeof(_kminmerOverlapMean));
 		gzclose(file_parameters);
 
 		cout << endl;
@@ -164,7 +172,8 @@ public:
 				if(_nodeNameAbundances.find(it.second._index) == _nodeNameAbundances.end()) continue;
 				const NodeAb& nodeAb = _nodeNameAbundances[it.second._index];
 				it.second._abundance = nodeAb._abundance;
-				it.second._unitigNbNodes = nodeAb._nbNodes;
+				if(nodeAb._nbNodes >= _kminmerSize *2) it.second._abundance = max(it.second._abundance, (u_int32_t)2);
+				//it.second._unitigNbNodes = nodeAb._nbNodes;
 				//cout << nodeAb._abundance << " " << nodeAb._nbNodes << endl;
 			}
 			_mdbg->dump(_inputDir + "/mdbg_nodes.gz");
@@ -190,9 +199,9 @@ public:
 
 		//extractContigKminmers2(_inputDir + "/contigs.fasta.gz");
 
-		if(_truthInputFilename != ""){
-			extract_truth_kminmers();
-		}
+		//if(_truthInputFilename != ""){
+		//	extract_truth_kminmers();
+		//}
 
 
 		//file_groundTruth = ofstream(_inputDir + "/binning_results.csv");
@@ -205,7 +214,7 @@ public:
             //gfa_filename = _inputDir + "/minimizer_graph_debug.gfa";
 		//}
 		
-		GraphSimplify* graphSimplify = new GraphSimplify(_gfaFilename, _inputDir, 0, _kminmerSize, _nbCores);
+		GraphSimplify* graphSimplify = new GraphSimplify(_gfaFilename, _inputDir, 0, _kminmerSize, _nbCores, _kminmerLengthMean, _kminmerOverlapMean);
 		_graph = graphSimplify;
 		
 
@@ -237,6 +246,7 @@ public:
 		
 	}
 
+	/*
 	void indexReads_read(const vector<u_int64_t>& minimizers, const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex){//}, const vector<KmerVec>& kminmers_k3, const vector<ReadKminmer>& kminmersInfos_k3){
 
 		//vector<ReadIndexType> unitigIndexex;
@@ -466,7 +476,7 @@ public:
 		delete _minimizerParser;
 	}
 
-	
+	*/
 
 
 	bool isContigAssembled(const vector<u_int32_t>& nodePath){
@@ -513,6 +523,7 @@ public:
                 outputFileContigColor.close();
 				*/
 
+/*
 	void generateUnitigs(){
 		//if(_kminmerSize < 10) return;
 
@@ -559,23 +570,6 @@ public:
 				outputFileContigColor << unitigIndex << "," << "blue" << endl; //contigIndex
 			}
 
-			/*
-			if(u._startNode == u._endNode){
-
-				u_int32_t nodeIndex = u._endNode;
-				for(size_t i=0; i<_kminmerSize; i++){
-					
-					vector<u_int32_t> successors;
-					_graph->getSuccessors(nodeIndex, 0, successors);
-
-					nodeIndex = successors[0];
-					nodepath.push_back(nodeIndex);
-
-				}
-
-			}
-			else{
-			*/
 
 				if(u._nbNodes < _kminmerSize) continue;
 				
@@ -633,88 +627,13 @@ public:
 			gzwrite(outputContigFile_min, (const char*)&nodepath[0], size * sizeof(u_int32_t));
 		}
 		
-		/*
-		cout << "Nb cleaned long tips: " << _graph->_cleanedLongTips.size() << endl;
-		for(const Unitig& u : _graph->_cleanedLongTips){
-
-
-
-			if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
-			if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
-
-			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._startNode));
-			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
-
-			for(u_int32_t nodeIndex : u._nodes){
-				u_int32_t unitigIndex = _graph->debug_nodeName_toSelectedUnitigIndex(BiGraph::nodeIndex_to_nodeName(nodeIndex));
-				outputFileContigColor << unitigIndex << "," << "blue" << endl; //contigIndex
-			}
-
-			//if(isContigAssembled(u._nodes)) continue;
-
-			if(u._nodes.size() <= _kminmerSize) continue;
-
-			if(u._nbNodes < _kminmerSize*2){
-
-				double abundanceSum = 0;
-				double abundanceN = 0;
-
-				float minAbundance = std::numeric_limits<float>::max();
-
-				vector<u_int32_t> successors;
-				_graph->getSuccessors_unitig(u._index, 0, successors);
-				vector<u_int32_t> predecessors;
-				_graph->getPredecessors_unitig(u._index, 0, predecessors);
-
-				for(u_int32_t unitigIndex : successors){
-					abundanceSum += _graph->_unitigs[unitigIndex]._abundance * _graph->_unitigs[unitigIndex]._nbNodes;
-					abundanceN += _graph->_unitigs[unitigIndex]._nbNodes;
-					//if(_graph->_unitigs[unitigIndex]._abundance < minAbundance){
-					//	minAbundance = _graph->_unitigs[unitigIndex]._abundance;
-					//}
-				}
-				for(u_int32_t unitigIndex : predecessors){
-					abundanceSum += _graph->_unitigs[unitigIndex]._abundance * _graph->_unitigs[unitigIndex]._nbNodes;
-					abundanceN += _graph->_unitigs[unitigIndex]._nbNodes;
-					//if(_graph->_unitigs[unitigIndex]._abundance < minAbundance){
-					//	minAbundance = _graph->_unitigs[unitigIndex]._abundance;
-					//}
-				}
-
-				if(abundanceN > 0){
-					double mean = abundanceSum / abundanceN;
-					if(u._abundance < mean*0.35){
-						continue;
-					}
-				}
-				//if(u._abundance < minAbundance){
-				//	continue;
-				//}
-			}
-
-			for(u_int32_t nodeIndex : u._nodes){
-				u_int32_t unitigIndex = _graph->debug_nodeName_toSelectedUnitigIndex(BiGraph::nodeIndex_to_nodeName(nodeIndex));
-				outputFileContigColor << unitigIndex << "," << "green" << endl; //contigIndex
-			}
-
-			u_int64_t size = u._nodes.size();
-			gzwrite(outputContigFile_min, (const char*)&size, sizeof(size));
-			gzwrite(outputContigFile_min, (const char*)&u._nodes[0], size * sizeof(u_int32_t));
-
-			//for(u_int32_t nodeIndex : u._nodes){
-			//	u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
-			//	_processedNodeNames.insert(nodeName);
-			//}
-
-			//contigIndex += 1;
-		}
-		*/
+	
 
 
 		outputFileContigColor.close();
 		gzclose(outputContigFile_min);
 	}
-
+*/
 	/*
 
 	
