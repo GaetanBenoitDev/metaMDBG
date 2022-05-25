@@ -20,6 +20,9 @@ public:
 	string _truthInputFilename;
 	int _nbCores;
 
+	size_t _firstK;
+	size_t _lastK;
+
 	string _inputFilenameComplete;
 
 	AssemblyPipeline(): Tool (){
@@ -149,13 +152,23 @@ public:
     void execute_pipeline(){
 		//float density = 0.005;
 		//u_int16_t minimizerSize = 21;
-		size_t firstK = 4;
+
+		_firstK = 4;
+
+		u_int64_t meanReadLength = computeMeanReadLength(_inputFilename);
+		_lastK = meanReadLength*_minimizerDensity*1.5; //*0.95
+
+		cout << "Mean read length: " << meanReadLength << endl;
+		cout << "Min k: " << _firstK << endl;
+		cout << "Max k: " << _lastK << endl;
+		cout << endl;
+
 
 		string command = "";
 
 		ofstream fileSmallContigs(_inputDir + "/small_contigs.bin");
 
-		writeParameters(_minimizerSize, firstK, _minimizerDensity, firstK);
+		writeParameters(_minimizerSize, _firstK, _minimizerDensity, _firstK, _firstK, _lastK);
 		//createInputFile(false);
 
 		//Read selection
@@ -166,12 +179,11 @@ public:
 		u_int64_t pass = 0;
 		u_int32_t prevK = -1;
 
-		for(size_t k=firstK; k<82; k+=1){
+		for(size_t k=_firstK; k<_lastK; k+=5){
 
 			//cout << "Start asm: " << k << endl;
 
 
-			writeParameters(_minimizerSize, k, _minimizerDensity, firstK);
 			//if(pass > 0) createInputFile(true);
 
 			//if(pass <= 0){
@@ -193,92 +205,11 @@ public:
 			//if(pass == 0) command += " --firstpass";
 			//executeCommand(command);
 
-			if(pass == 0){
-				command = _filename_exe + " graph -i " + _inputFilename + " -o " + _inputDir + " -t " + to_string(_nbCores);
-			}
-			else{
-				command = _filename_exe + " graph -i " + _inputDir + "/read_data.txt.corrected.txt " + " -o " + _inputDir + " -t " + to_string(_nbCores);	
-			}
-			if(pass == 0) command += " --firstpass";
-			executeCommand(command);
-			//getchar();
+			executePass(k, prevK, pass);
 
-			//command = _filename_exe + " multik -o " + _inputDir + " -t " + to_string(_nbCores);
-			//if(!_truthInputFilename.empty()) command += " --itruth " + _truthInputFilename;
-			//if(pass > 0) command += " -c " +  _inputDir + "/contig_data.gz";
-			//executeCommand(command);
-
-			//Generate contigs
-			command = _filename_exe + " contig " + " -o " + _inputDir + " -t " + to_string(_nbCores);;
-			if(!_truthInputFilename.empty()) command += " --itruth " + _truthInputFilename;
-			//if(pass == 0) command += " --firstpass";
-			executeCommand(command);
-			//getchar();
-			
-
-			command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/contigs.nodepath.gz" + " -f " + _inputDir + "/unitig_data.txt";
-			executeCommand(command);
-
-			//getchar();
-
-
-			/*
-			command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/unitigs.nodepath.gz" + " -f " + _inputDir + "/unitig_data.txt";
-			executeCommand(command);
-			*/
-
-
-			bool generatedContigs = false;
-			//if(k == 5 || k == 10 || k == 16 || k == 21 || k == 26 || k == 31){
-			if(k == 81){//} || k == 51 || k == 61 || k == 71 || k == 81){
-
-				
-				//Generate contigs
-				command = _filename_exe + " contig " + " -o " + _inputDir + " --final " + " -t " + to_string(_nbCores);
-				if(!_truthInputFilename.empty()) command += " --itruth " + _truthInputFilename;
-				//if(pass == 0) command += " --firstpass";
-				executeCommand(command);
-
-				command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/contigs.nodepath.gz" + " -f " + _inputDir + "/contig_data.txt";
-				executeCommand(command);
-				
-
-				command = _filename_exe + " toBasespace " + " -o " + _inputDir + " -i " + _inputFilename + " -c " + _inputDir + "/contig_data.txt " + " -f " + _inputDir + "/contigs_" + to_string(k) + ".fasta.gz " + " --fasta"  + " -t " + to_string(_nbCores);
-				if(pass == 0) command += " --firstpass";
-				executeCommand(command);
-
-				generatedContigs = true;
-			}	
 		
 			//./bin/mdbgAsmMeta bin -o ~/workspace/run/overlap_test_multik_201/pass_0 -c ~/workspace/run/overlap_test_multik_201/contigs_10.fasta.gz
-			
-/*
-Nb contigs: 10
-Nb bps: 4345953
-Nb nodes (sum check): 2193642412277
 
-
-Nb contigs: 52
-Nb bps: 4465297
-Nb nodes (sum check): 622803719633
-
-Nb contigs: 313
-Check sum (nb nodes): 18053
-Check sum (nodeNames): 186697924
-Check sum global: 19924419371624
-Check sum global (abundance): 17782.747295
-
-Nb contigs: 313
-Check sum (nb nodes): 18053
-Check sum (nodeNames): 186697924
-Check sum global: 19924419371624
-Check sum global (abundance): 17782.747295
-
-Nb contigs: 51
-Nb bps: 4462399
-Nb nodes (sum check): 622802661433
-
-*/
 			//}
 			
 			//time ./bin/mdbgAsmMeta countKmer -i ~/workspace/data/AD/shortreads/input_10.txt -c /home/gats/workspace/run/overlap_test_multik_AD/contigs.nodepath.gz.fasta.gz.fasta.gz  -o ~/workspace/run/overlap_test_multik_AD/contig_coverages.tsv
@@ -296,7 +227,7 @@ Nb nodes (sum check): 622802661433
 			executeCommand(command);
 			*/
 
-			savePassData(k);
+
 
 			prevK = k;
 			//getchar();
@@ -312,7 +243,85 @@ Nb nodes (sum check): 622802661433
 			//if(k > 30) getchar();
 		}
 
+
+		executePass(_lastK, prevK, pass);
+		cout << "pass done" << endl;
+
     }
+
+	void executePass(size_t k, size_t prevK, size_t pass){
+
+		bool isFinalPass = k == _lastK;
+
+		writeParameters(_minimizerSize, k, _minimizerDensity, _firstK, prevK, _lastK);
+
+		string command = "";
+
+		if(pass == 0){
+			command = _filename_exe + " graph -i " + _inputFilename + " -o " + _inputDir + " -t " + to_string(_nbCores);
+		}
+		else{
+			command = _filename_exe + " graph -i " + _inputDir + "/read_data.txt.corrected.txt " + " -o " + _inputDir + " -t " + to_string(_nbCores);	
+		}
+		if(pass == 0) command += " --firstpass";
+		executeCommand(command);
+		//getchar();
+
+		//command = _filename_exe + " multik -o " + _inputDir + " -t " + to_string(_nbCores);
+		//if(!_truthInputFilename.empty()) command += " --itruth " + _truthInputFilename;
+		//if(pass > 0) command += " -c " +  _inputDir + "/contig_data.gz";
+		//executeCommand(command);
+
+		//Generate contigs
+
+
+		//getchar();
+		//getchar();
+
+
+		/*
+		command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/unitigs.nodepath.gz" + " -f " + _inputDir + "/unitig_data.txt";
+		executeCommand(command);
+		*/
+
+
+		//bool generatedContigs = false;
+		//if(k == 5 || k == 10 || k == 16 || k == 21 || k == 26 || k == 31){
+		if(isFinalPass){
+
+			
+			//Generate contigs
+			command = _filename_exe + " contig " + " -o " + _inputDir + " --final " + " -t " + to_string(_nbCores);
+			if(!_truthInputFilename.empty()) command += " --itruth " + _truthInputFilename;
+			//if(pass == 0) command += " --firstpass";
+			executeCommand(command);
+
+			command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/contigs.nodepath.gz" + " -f " + _inputDir + "/contig_data.txt";
+			executeCommand(command);
+			
+
+			command = _filename_exe + " toBasespace " + " -o " + _inputDir + " -i " + _inputFilename + " -c " + _inputDir + "/contig_data.txt " + " -f " + _inputDir + "/contigs_" + to_string(k) + ".fasta.gz " + " --fasta"  + " -t " + to_string(_nbCores);
+			if(pass == 0) command += " --firstpass";
+			executeCommand(command);
+
+			//generatedContigs = true;
+		}
+		else{
+
+			command = _filename_exe + " contig " + " -o " + _inputDir + " -t " + to_string(_nbCores);;
+			if(!_truthInputFilename.empty()) command += " --itruth " + _truthInputFilename;
+			//if(pass == 0) command += " --firstpass";
+			executeCommand(command);
+			//getchar();
+			
+
+			command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/contigs.nodepath.gz" + " -f " + _inputDir + "/unitig_data.txt";
+			executeCommand(command);
+
+		}	
+			
+		savePassData(k);
+	}
 
 	void savePassData(u_int64_t k){
 
@@ -351,7 +360,7 @@ Nb nodes (sum check): 622802661433
 		}
 	}
 
-	void writeParameters(size_t minimizerSize, size_t k, float density, size_t firstK){
+	void writeParameters(size_t minimizerSize, size_t k, float density, size_t firstK, size_t prevK, size_t lastK){
 
 
 		float minimizerSpacingMean = 1 / density;
@@ -367,6 +376,8 @@ Nb nodes (sum check): 622802661433
 		gzwrite(file_parameters, (const char*)&minimizerSpacingMean, sizeof(minimizerSpacingMean));
 		gzwrite(file_parameters, (const char*)&kminmerLengthMean, sizeof(kminmerLengthMean));
 		gzwrite(file_parameters, (const char*)&kminmerOverlapMean, sizeof(kminmerOverlapMean));
+		gzwrite(file_parameters, (const char*)&prevK, sizeof(prevK));
+		gzwrite(file_parameters, (const char*)&lastK, sizeof(lastK));
 		gzclose(file_parameters);
 	}
 
@@ -411,6 +422,27 @@ Nb nodes (sum check): 622802661433
 		inputFile.close();
 
 		return inputFilename;
+	}
+
+	u_int64_t _readLengthSum;
+	u_int64_t _readLengthN;
+
+	u_int64_t computeMeanReadLength(const string& filename){
+
+		_readLengthSum = 0;
+		_readLengthN = 0;
+
+		auto fp = std::bind(&AssemblyPipeline::computeMeanReadLength_read, this, std::placeholders::_1);
+		ReadParser readParser(filename, false, false);
+		readParser._maxReads = 10000;
+		readParser.parse(fp);
+
+		return _readLengthSum / _readLengthN;
+	}
+	
+	void computeMeanReadLength_read(const Read& read){
+		_readLengthSum += read._seq.size();
+		_readLengthN += 1;
 	}
 
 };	

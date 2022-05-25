@@ -133,6 +133,8 @@ public:
     size_t _minimizerSize;
     size_t _kminmerSize;
 	size_t _kminmerSizeFirst;
+    size_t _kminmerSizePrev;
+    size_t _kminmerSizeLast;
 	float _minimizerSpacingMean;
 	float _kminmerLengthMean;
 	float _kminmerOverlapMean;
@@ -342,6 +344,8 @@ public:
 		gzread(file_parameters, (char*)&_minimizerSpacingMean, sizeof(_minimizerSpacingMean));
 		gzread(file_parameters, (char*)&_kminmerLengthMean, sizeof(_kminmerLengthMean));
 		gzread(file_parameters, (char*)&_kminmerOverlapMean, sizeof(_kminmerOverlapMean));
+		gzread(file_parameters, (char*)&_kminmerSizePrev, sizeof(_kminmerSizePrev));
+		gzread(file_parameters, (char*)&_kminmerSizeLast, sizeof(_kminmerSizeLast));
 		gzclose(file_parameters);
 
 		cout << endl;

@@ -3,7 +3,7 @@
 
 #python3 ../scripts/pipeline_laptop.py ../../../data/simulation/datasets/datasets/simul_complete_2/datasets/input.txt lala ../../../run/missing_contigs ../../../run/missing_contigs/binning 21 7
 
-import os, sys, argparse
+import os, sys, argparse, glob
 
 
 mdbgFilename = "/home/gats/workspace/tools/MdbgAssembler/build/bin/mdbgAsmMeta"
@@ -17,8 +17,8 @@ def main(argv):
     parser.add_argument("ilong", help="input HiFi")
     parser.add_argument("ishort", help="input short reads")
     parser.add_argument("asmDir", help="dir for assembly files")
-    parser.add_argument("binDir", help="output dir for bins")
-    parser.add_argument("kminmerLength", help="kminmer length")
+    #parser.add_argument("binDir", help="output dir for bins")
+    #parser.add_argument("kminmerLength", help="kminmer length")
     parser.add_argument("t", help="nb threads")
     #parser.add_argument("drep", help="path to drep script")
     
@@ -27,18 +27,24 @@ def main(argv):
     inputFilenameShort = args.ishort
     nbCores = args.t
     asmDir = args.asmDir
-    binDir = args.binDir
+    binDir = asmDir + "/binning/"
 
-    contigsFilename = asmDir + "/contigs_" + args.kminmerLength + ".fasta.gz"
+
+    
     binRegex = binDir + "/bins_" #/bin_*.fasta" + "\""
     drepDir = binDir + "/drep"
-    kmerCoverageFilename = asmDir + "/kmerCoverages_k" + args.kminmerLength + ".tsv"
+    kmerCoverageFilename = asmDir + "/kmerCoverages.tsv"
 
-    command = mdbgFilename + " asm " + inputFilenameLong + " " + asmDir + " -t " + str(nbCores) + " -l 13"# -d 0.003"
+    command = mdbgFilename + " asm " + inputFilenameLong + " " + asmDir + " -t " + str(nbCores) + " -l 13 -d 0.005"# -d 0.003"
     execute_command(command)
 
     #command = mdbgFilename + " countKmer -o " + kmerCoverageFilename + " -i " + inputFilenameShort + " -c " + contigsFilename + " -k 61 -t " + str(nbCores)
     #execute_command(command)
+
+    contigsFilename = ""
+    for filename in glob.glob(asmDir + "/contigs_*.fasta.gz"):
+        contigsFilename = filename
+        break
 
     command = mdbgFilename + " bin " + contigsFilename + " " + asmDir + " " + binDir # + " -a " + kmerCoverageFilename
     execute_command(command)

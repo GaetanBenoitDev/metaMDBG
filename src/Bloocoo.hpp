@@ -55,6 +55,7 @@ public:
     size_t _minimizerSize;
     size_t _kminmerSize;
     size_t _kminmerSizeFirst;
+    size_t _kminmerSizePrev;
 	string _filename_noKminmerReads;
 	ofstream _file_noKminmerReads;
 	int _nbCores;
@@ -320,7 +321,7 @@ public:
 			vector<u_int64_t> minimizers_pos;//(minimizers.size());
 			vector<KmerVec> kminmers; 
 			vector<ReadKminmer> kminmersInfo;
-			MDBG::getKminmers(_minimizerSize, _kminmerSize-1, minimizerSeq, minimizers_pos, kminmers, kminmersInfo, rlePositions, 0, false);
+			MDBG::getKminmers(_minimizerSize, _graph._kminmerSizePrev, minimizerSeq, minimizers_pos, kminmers, kminmersInfo, rlePositions, 0, false);
 
 
 			u_int32_t minAbundance = -1;

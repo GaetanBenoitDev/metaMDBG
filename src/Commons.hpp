@@ -1983,8 +1983,10 @@ public:
 	float _density;
 	vector<string> _filenames;
 	u_int64_t _nbDatasets;
+	u_int64_t _maxReads;
 
 	ReadParser(const string& inputFilename, bool isFile, bool isBitset){
+		_maxReads = 0;
 		_inputFilename = inputFilename;
 		_isFile = isFile;
 		_isBitset = isBitset;
@@ -2000,6 +2002,7 @@ public:
 
 
 	ReadParser(const string& inputFilename, bool isFile, size_t l, size_t k, float density){
+		_maxReads = 0;
 		_inputFilename = inputFilename;
 		_isFile = isFile;
 		_l = l;
@@ -2106,6 +2109,8 @@ public:
 
 					fun({readIndex, string(seq->name.s), string(seq->seq.s)});
 					readIndex += 1;
+
+					if(_maxReads > 0 && readIndex > _maxReads) break;
 					/*
 					sequenceBuffer.push_back({readIndex, string(seq->name.s), string(seq->seq.s)});
 					readIndex += 1;

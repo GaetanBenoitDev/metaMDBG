@@ -62,6 +62,7 @@ void Bloocoo::parseArgs(int argc, char* argv[]){
 	gzread(file_parameters, (char*)&_minimizerSpacingMean, sizeof(_minimizerSpacingMean));
 	gzread(file_parameters, (char*)&_kminmerLengthMean, sizeof(_kminmerLengthMean));
 	gzread(file_parameters, (char*)&_kminmerOverlapMean, sizeof(_kminmerOverlapMean));
+	gzread(file_parameters, (char*)&_kminmerSizePrev, sizeof(_kminmerSizePrev));
 	gzclose(file_parameters);
 
 
@@ -159,7 +160,7 @@ void Bloocoo::createMDBG (){
 
 	if(!_isFirstPass){
 		
-		_mdbgInit = new MDBG(_kminmerSize-1);
+		_mdbgInit = new MDBG(_kminmerSizePrev);
 		_mdbgInit->load(_outputDir + "/mdbg_nodes.gz");
 
 		_readFile = ofstream(_outputDir + "/read_data.txt");
