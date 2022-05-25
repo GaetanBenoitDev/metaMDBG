@@ -44,9 +44,9 @@ public:
 		//(ARG_INPUT_FILENAME, "", cxxopts::value<string>())
 		//(ARG_OUTPUT_DIR, "", cxxopts::value<string>())
 		(ARG_INPUT_FILENAME_TRUTH, "", cxxopts::value<string>()->default_value(""))
-		(ARG_MINIMIZER_LENGTH, "", cxxopts::value<int>()->default_value("21"))
+		(ARG_MINIMIZER_LENGTH, "", cxxopts::value<int>()->default_value("13"))
 		(ARG_MINIMIZER_DENSITY, "", cxxopts::value<float>()->default_value("0.005"))
-		(ARG_NB_CORES, "", cxxopts::value<int>()->default_value("8"));
+		(ARG_NB_CORES, "", cxxopts::value<int>()->default_value("4"));
 		//(ARG_KMINMER_LENGTH, "", cxxopts::value<int>()->default_value("3"))
 		//("k,kminmerSize", "File name", cxxopts::value<std::string>())
 		//("v,verbose", "Verbose output", cxxopts::value<bool>()->default_value("false"))
