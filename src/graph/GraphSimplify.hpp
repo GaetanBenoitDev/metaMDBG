@@ -5373,7 +5373,7 @@ Nb nodes (sum check): 232643519
 
                         while(true){
                             compact(true, unitigDatas);
-                            u_int64_t nbRemoved = tip(_kminmerSize+1, false, currentSaveState, true, false, true);
+                            u_int64_t nbRemoved = tip(_kminmerSize+1, false, currentSaveState, true, false, false);
                             #ifdef PRINT_DEBUG_SIMPLIFICATION
                                 cout << "Nb tip removed: " << nbRemoved << endl;
                             #endif
@@ -5391,7 +5391,7 @@ Nb nodes (sum check): 232643519
 
                         while(true){
                             compact(true, unitigDatas);
-                            u_int64_t nbRemoved = tip(_kminmerSize*2, false, currentSaveState, true, false, true);
+                            u_int64_t nbRemoved = tip(_kminmerSize*2, false, currentSaveState, true, false, false);
                             #ifdef PRINT_DEBUG_SIMPLIFICATION
                                 cout << "Nb tip removed: " << nbRemoved << endl;
                             #endif
