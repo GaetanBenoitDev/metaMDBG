@@ -494,6 +494,77 @@ class Utils{
 
 public:
 
+	static void toReverseComplement(string& seq) {
+
+		//string seq_rc;
+
+		//seq_rc.clear();
+		//seq_rc.reserve(seq.size());
+
+		size_t size = seq.size();
+
+		std::reverse(seq.begin(), seq.end());
+		for (std::size_t i = 0; i < size; ++i){
+			
+			switch (seq[i]){
+			case 'A':
+				seq[i] = 'T';
+				break;    
+			case 'C':
+				seq[i] = 'G';
+				break;
+			case 'G':
+				seq[i] = 'C';
+				break;
+			case 'T':
+				seq[i] = 'A';
+				break;
+			//default:
+			//	seq[i] = seq[i];
+			//	break;
+			}
+		}
+
+		/*
+		for (int32_t i = seq.size() - 1; i >= 0; --i) {
+			switch (seq[i]) {
+				case 'A':
+					seq_rc += 'T';
+					break;
+				case 'T':
+					seq_rc += 'A';
+					break;
+				case 'C':
+					seq_rc += 'G';
+					break;
+				case 'G':
+					seq_rc += 'C';
+					break;
+				default:
+					seq_rc += seq[i];
+					break;
+			}
+		}
+
+		//reverse_quality_.clear();
+		//reverse_quality_.reserve(quality_.size());
+
+		//for (int32_t i = quality_.size() - 1; i >= 0; --i) {
+		//	reverse_quality_ += quality_[i];
+		//}
+		*/
+	}
+
+	static void executeCommand(const string& command){
+		cout << command << endl;
+
+		int ret = system(command.c_str());
+		if(ret != 0){
+			cerr << "Command failed: " << ret << endl;
+			exit(ret);
+		}
+	}
+
 	static double compute_first_quartile(vector<u_int64_t> scores){
 		size_t size = scores.size();
 
@@ -2814,5 +2885,8 @@ public:
     virtual void parseArgs (int argc, char* argv[]) = 0;
     virtual void execute () = 0;
 };
+
+
+
 
 #endif

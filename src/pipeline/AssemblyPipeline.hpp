@@ -173,7 +173,7 @@ public:
 
 		//Read selection
 		command = _filename_exe + " readSelection -i " + _inputFilename + " -o " + _inputDir + " -f " + _inputDir + "/read_data_init.txt" + " -t " + to_string(_nbCores);
-		executeCommand(command);
+		Utils::executeCommand(command);
 		
 
 		u_int64_t pass = 0;
@@ -264,7 +264,7 @@ public:
 			command = _filename_exe + " graph -i " + _inputDir + "/read_data.txt.corrected.txt " + " -o " + _inputDir + " -t " + to_string(_nbCores);	
 		}
 		if(pass == 0) command += " --firstpass";
-		executeCommand(command);
+		Utils::executeCommand(command);
 		//getchar();
 
 		//command = _filename_exe + " multik -o " + _inputDir + " -t " + to_string(_nbCores);
@@ -294,15 +294,15 @@ public:
 			command = _filename_exe + " contig " + " -o " + _inputDir + " --final " + " -t " + to_string(_nbCores);
 			if(!_truthInputFilename.empty()) command += " --itruth " + _truthInputFilename;
 			//if(pass == 0) command += " --firstpass";
-			executeCommand(command);
+			Utils::executeCommand(command);
 
 			command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/contigs.nodepath.gz" + " -f " + _inputDir + "/contig_data.txt";
-			executeCommand(command);
+			Utils::executeCommand(command);
 			
 
 			command = _filename_exe + " toBasespace " + " -o " + _inputDir + " -i " + _inputFilename + " -c " + _inputDir + "/contig_data.txt " + " -f " + _inputDir + "/contigs_" + to_string(k) + ".fasta.gz " + " --fasta"  + " -t " + to_string(_nbCores);
 			if(pass == 0) command += " --firstpass";
-			executeCommand(command);
+			Utils::executeCommand(command);
 
 			//generatedContigs = true;
 		}
@@ -311,12 +311,12 @@ public:
 			command = _filename_exe + " contig " + " -o " + _inputDir + " -t " + to_string(_nbCores);;
 			if(!_truthInputFilename.empty()) command += " --itruth " + _truthInputFilename;
 			//if(pass == 0) command += " --firstpass";
-			executeCommand(command);
+			Utils::executeCommand(command);
 			//getchar();
 			
 
 			command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/contigs.nodepath.gz" + " -f " + _inputDir + "/unitig_data.txt";
-			executeCommand(command);
+			Utils::executeCommand(command);
 
 		}	
 			
@@ -350,15 +350,7 @@ public:
 		//fs::copy(_inputDir + "/mdbg_nodes_init.gz", dir + "/mdbg_nodes_init.gz", copyOptions);
 	}
 
-	void executeCommand(const string& command){
-		cout << command << endl;
 
-		int ret = system(command.c_str());
-		if(ret != 0){
-			cerr << "Command failed: " << ret << endl;
-			exit(ret);
-		}
-	}
 
 	void writeParameters(size_t minimizerSize, size_t k, float density, size_t firstK, size_t prevK, size_t lastK){
 
