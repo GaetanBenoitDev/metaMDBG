@@ -1,15 +1,15 @@
 
 /*
 - ToBasespace: générer un assemblage grossier
-- parallelisation
-- stockage des windows via leur CIGAR et une seuqence de reference (verifier la taille des cigar sur données réelles)
 - utiliser les scores de quality 
+- Consensus: mettre la fenetre original du contig en plus de toute les sequence de la window ?
 - quand un read a été process, on peut erase son entrée dans _alignments ?
 - window sequence a selectionner en priorité: 
 	- la distance est une mauvaise metrique car on ne sait pas si la sequence de reference est erroné ou non
 	- un mapping tres long sur un contig a plus de valeur qu'un mapping court (on est plus sûr que ce read appartient au contig)+
 - si "no sequence fo window": utiliser la fenetre original du contig
 - Dnabitset: enlever le u_int32_t length qui sert plus
+- version finale: remove le minimap2 align filename
 */
 
 #ifndef MDBG_METAG_CONTIGPOLISHER
@@ -36,7 +36,7 @@ public:
 	string _outputFilename_mapping;
 
 	abpoa_para_t *abpt;
-	/*
+	
 	struct ContigRead{
 		u_int32_t _contigIndex;
 		u_int64_t _readIndex;
@@ -60,7 +60,7 @@ public:
 			return p.hash();
 		}
 	};
-	*/
+	
 
 
 	ContigPolisher(): Tool (){
@@ -169,12 +169,15 @@ public:
 	unordered_map<u_int64_t, Alignment> _alignments;
 	vector<string> _contigSequences;
 	vector<vector<vector<DnaBitset*>>> _contigWindowSequences;
-	//unordered_map<ContigRead, u_int32_t, ContigRead_hash> _alignmentCounts;
+	unordered_map<ContigRead, u_int32_t, ContigRead_hash> _alignmentCounts;
 
 
 
 
 	void indexContigName(){
+		
+		cout << "Indexing contig names" << endl;
+
 		auto fp = std::bind(&ContigPolisher::indexContigName_read, this, std::placeholders::_1);
 		ReadParser readParser(_inputFilename_contigs, true, false);
 		readParser.parse(fp);
@@ -198,6 +201,7 @@ public:
 
 	void indexReadName(){
 
+		cout << "Indexing read names" << endl;
 		auto fp = std::bind(&ContigPolisher::indexReadName_read, this, std::placeholders::_1);
 		ReadParser readParser(_inputFilename_reads, false, false);
 		readParser.parse(fp);
@@ -249,10 +253,11 @@ public:
 
 			u_int64_t nbMatches = stoull((*fields)[9]);
 			u_int64_t alignLength = stoull((*fields)[10]);
-        	u_int64_t query_length = stoull((*fields)[1]);
+        	u_int64_t queryLength = stoull((*fields)[1]);
 
 			bool strand = (*fields)[4] == "-";
-			float score = (double) nbMatches / (double) query_length;
+			float score = (double) nbMatches / (double) queryLength;
+			float score2 = (double) nbMatches / (double) alignLength;
 
 			u_int32_t contigIndex = _contigName_to_contigIndex[contigName];
 			u_int64_t readIndex = _readName_to_readIndex[readName];
@@ -269,11 +274,33 @@ public:
 			else{
 				_alignments[readIndex] = align;
 			}
-			//_alignmentCounts[{_contigName_to_contigIndex[contigName], _readName_to_readIndex[readName]}] += 1;
+			
+			/*
+			_alignmentCounts[{_contigName_to_contigIndex[contigName], _readName_to_readIndex[readName]}] += 1;
 
-			//if(_alignmentCounts[{_contigName_to_contigIndex[contigName], _readName_to_readIndex[readName]}] > 1){
-			//	cout << "multi map: " << contigName << " " << readName << " " << score << endl;
-			//}
+			if(_alignmentCounts[{_contigName_to_contigIndex[contigName], _readName_to_readIndex[readName]}] > 1){
+				//cout << "multi map: " << contigName << " " << readName << " " << score << endl;
+			}
+
+			if(readName == "_92"){
+				cout << contigName << " " << readName << " " << nbMatches << " " << alignLength << " " << contigStart << " " << contigEnd << " " << score << " " << score2<< endl;
+			}
+			if(readName == "_284"){
+				cout << contigName << " " << readName << " " << nbMatches << " " << alignLength << " " << contigStart << " " << contigEnd << " " << score  << " " << score2<< endl;
+			}
+			if(readName == "_293"){
+				cout << contigName << " " << readName << " " << nbMatches << " " << alignLength << " " << contigStart << " " << contigEnd << " " << score  << " " << score2<< endl;
+			}
+			if(readName == "_308"){
+				cout << contigName << " " << readName << " " << nbMatches << " " << alignLength << " " << contigStart << " " << contigEnd << " " << score  << " " << score2<< endl;
+			}
+			if(readName == "_503"){
+				cout << contigName << " " << readName << " " << nbMatches << " " << alignLength << " " << contigStart << " " << contigEnd << " " << score  << " " << score2<< endl;
+			}
+			if(readName == "_876"){
+				cout << contigName << " " << readName << " " << nbMatches << " " << alignLength << " " << contigStart << " " << contigEnd << " " << score  << " " << score2<< endl;
+			}
+			*/
 			//cout << readName << " " << contigName << " " << contigStart << " " << contigEnd << " " << readStart << " " << readEnd << " " << score << " " << strand << endl;
 			//for(string field : (*fields)){
 			//	cout << field << " ";
@@ -522,6 +549,11 @@ public:
 				}
 
 				if(!interrupt){
+
+					//u_int64_t largestAligmenet = 0;
+					//u_int64_t largestAligmenetIndex = 0;
+
+					
 					size_t largerWindowIndex = 0;
 					u_int64_t largerDistanceWindow = 0;
 
@@ -544,6 +576,8 @@ public:
 						delete dnaSeq;
 						windowSequences[largerWindowIndex] = new DnaBitset(windowSequence);
 					}
+					
+
 				} 
 
 
@@ -605,10 +639,10 @@ public:
 						continue;
 					}
 
-					u_int64_t wStart = w*_windowLength;
-					u_int64_t wEnd = min(_contigSequences[contigIndex].size(), wStart+_windowLength);
-					string contigOriginalSequence = _contigSequences[contigIndex].substr(wStart, wEnd-wStart);
-					sequences.insert(sequences.begin(), new DnaBitset(contigOriginalSequence));
+					//u_int64_t wStart = w*_windowLength;
+					//u_int64_t wEnd = min(_contigSequences[contigIndex].size(), wStart+_windowLength);
+					//string contigOriginalSequence = _contigSequences[contigIndex].substr(wStart, wEnd-wStart);
+					//sequences.insert(sequences.begin(), new DnaBitset(contigOriginalSequence));
 				
 					//vector<u_int32_t> windowLengths;
 					//for(size_t i=0; i<sequences.size(); i++){
