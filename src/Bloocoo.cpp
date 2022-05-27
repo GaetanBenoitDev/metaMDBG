@@ -341,7 +341,7 @@ void Bloocoo::createGfa(){
 	}
 	
 	
-
+	//"reprise: générer des contigs sans correction"
 
 	//cout << kmerVecs.size() << endl;
 	//cout << kmerVecs[0]._kmerVec._kmers.size() << endl;

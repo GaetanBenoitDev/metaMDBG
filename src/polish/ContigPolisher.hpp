@@ -826,6 +826,7 @@ public:
 
 			string contigSequence = "";
 			for(size_t w=0; w<correctedWindows.size(); w++){
+				if(correctedWindows[w] == nullptr) continue;
 				char* seq = correctedWindows[w]->to_string();
 				contigSequence += string(seq);
 				free(seq);
