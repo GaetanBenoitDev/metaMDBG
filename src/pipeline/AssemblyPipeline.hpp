@@ -156,7 +156,7 @@ public:
 		_firstK = 4;
 
 		u_int64_t meanReadLength = computeMeanReadLength(_inputFilename);
-		_lastK = meanReadLength*_minimizerDensity*1.5; //*0.95
+		_lastK = meanReadLength*_minimizerDensity*0.95; //*0.95
 
 		cout << "Mean read length: " << meanReadLength << endl;
 		cout << "Min k: " << _firstK << endl;
@@ -179,7 +179,7 @@ public:
 		u_int64_t pass = 0;
 		u_int32_t prevK = -1;
 
-		for(size_t k=_firstK; k<_lastK; k+=5){
+		for(size_t k=_firstK; k<_lastK; k+=1){
 
 			//cout << "Start asm: " << k << endl;
 
