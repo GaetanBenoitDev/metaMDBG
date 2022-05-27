@@ -116,7 +116,7 @@ public:
 		}
 
 		_outputFilename_contigs = p.string() + "_corrected.fasta.gz";
-		_outputFilename_mapping= p.string() + "_tmp_mapping__.paf";
+		_outputFilename_mapping = p.string() + "_tmp_mapping__.paf";
 
 
 	}
@@ -168,7 +168,7 @@ public:
 	unordered_map<string, u_int64_t> _readName_to_readIndex;
 	unordered_map<u_int64_t, Alignment> _alignments;
 	vector<string> _contigSequences;
-	vector<vector<vector<DnaBitset*>>> _contigWindowSequences;
+	vector<vector<vector<DnaBitset2*>>> _contigWindowSequences;
 	unordered_map<ContigRead, u_int32_t, ContigRead_hash> _alignmentCounts;
 
 
@@ -319,7 +319,7 @@ public:
 		_contigSequences.push_back(read._seq);
 
 		size_t nbWindows = ceil((double)read._seq.size() / (double)_windowLength);
-		vector<vector<DnaBitset*>> windows(nbWindows);
+		vector<vector<DnaBitset2*>> windows(nbWindows);
 		//cout << "Nb windows: " << nbWindows << endl;
 
 		_contigWindowSequences.push_back(windows);
@@ -347,7 +347,7 @@ public:
 		unordered_map<string, u_int64_t>& _readName_to_readIndex;
 		unordered_map<u_int64_t, Alignment>& _alignments;
 		vector<string>& _contigSequences;
-		vector<vector<vector<DnaBitset*>>>& _contigWindowSequences;
+		vector<vector<vector<DnaBitset2*>>>& _contigWindowSequences;
 		size_t _windowLength;
 
 		collectWindowSequencesFunctor(ContigPolisher& contigPolisher) : _contigPolisher(contigPolisher), _contigName_to_contigIndex(contigPolisher._contigName_to_contigIndex), _readName_to_readIndex(contigPolisher._readName_to_readIndex), _alignments(contigPolisher._alignments), _contigSequences(contigPolisher._contigSequences), _contigWindowSequences(contigPolisher._contigWindowSequences), _windowLength(contigPolisher._windowLength){
@@ -512,11 +512,11 @@ public:
 			{
 				
 				size_t contigWindowIndex = contigWindowStart / _windowLength;
-				vector<DnaBitset*>& windowSequences = _contigWindowSequences[al._contigIndex][contigWindowIndex];
+				vector<DnaBitset2*>& windowSequences = _contigWindowSequences[al._contigIndex][contigWindowIndex];
 				
 				bool interrupt = false;
 				if(windowSequences.size() < 20){
-					windowSequences.push_back(new DnaBitset(windowSequence));
+					windowSequences.push_back(new DnaBitset2(windowSequence));
 
 					/*
 					if(windowSequences.size() > 1){
@@ -559,7 +559,7 @@ public:
 
 					for(size_t i=0; i<windowSequences.size(); i++){
 
-						DnaBitset* dnaSeq = windowSequences[i];
+						DnaBitset2* dnaSeq = windowSequences[i];
 						u_int64_t distance = abs(((long)dnaSeq->m_len) - ((long)_windowLength));
 
 						if(distance > largerDistanceWindow){
@@ -572,9 +572,9 @@ public:
 					u_int64_t distance = abs(((long)windowSequence.size()) - ((long)_windowLength));
 
 					if(distance < largerDistanceWindow){
-						DnaBitset* dnaSeq = windowSequences[largerWindowIndex];
+						DnaBitset2* dnaSeq = windowSequences[largerWindowIndex];
 						delete dnaSeq;
-						windowSequences[largerWindowIndex] = new DnaBitset(windowSequence);
+						windowSequences[largerWindowIndex] = new DnaBitset2(windowSequence);
 					}
 					
 
@@ -624,7 +624,7 @@ public:
 
 		for(size_t contigIndex=0; contigIndex < _contigWindowSequences.size(); contigIndex++){
 
-			vector<DnaBitset*> correctedWindows(_contigWindowSequences[contigIndex].size());
+			vector<DnaBitset2*> correctedWindows(_contigWindowSequences[contigIndex].size());
 		
 			#pragma omp parallel num_threads(_nbCores)
 			{
@@ -633,7 +633,7 @@ public:
 				#pragma omp for
 				for(size_t w=0; w<_contigWindowSequences[contigIndex].size(); w++){
 
-					vector<DnaBitset*>& sequences = _contigWindowSequences[contigIndex][w];
+					const vector<DnaBitset2*>& sequences = _contigWindowSequences[contigIndex][w];
 					if(sequences.size() == 0){
 						cout << "No sequences for window" << endl;
 						continue;
@@ -642,7 +642,7 @@ public:
 					//u_int64_t wStart = w*_windowLength;
 					//u_int64_t wEnd = min(_contigSequences[contigIndex].size(), wStart+_windowLength);
 					//string contigOriginalSequence = _contigSequences[contigIndex].substr(wStart, wEnd-wStart);
-					//sequences.insert(sequences.begin(), new DnaBitset(contigOriginalSequence));
+					//sequences.insert(sequences.begin(), new DnaBitset2(contigOriginalSequence));
 				
 					//vector<u_int32_t> windowLengths;
 					//for(size_t i=0; i<sequences.size(); i++){
@@ -663,8 +663,8 @@ public:
 					/*
 					vector<string> seqSorted;
 					for(size_t i=1; i<sequences.size(); i++){
-						DnaBitset* dna = sequences[i];
-						//const DnaBitset* dna = variant._sequence; //sequenceCopies[s._sequenceIndex];
+						DnaBitset2* dna = sequences[i];
+						//const DnaBitset2* dna = variant._sequence; //sequenceCopies[s._sequenceIndex];
 						char* dnaStr = dna->to_string();
 						seqSorted.push_back(string(dnaStr));
 						free(dnaStr);
@@ -673,8 +673,8 @@ public:
 
 					std::sort(seqSorted.begin(), seqSorted.end());
 
-					DnaBitset* dnaModel = sequences[0];
-					//const DnaBitset* dna = variant._sequence; //sequenceCopies[s._sequenceIndex];
+					DnaBitset2* dnaModel = sequences[0];
+					//const DnaBitset2* dna = variant._sequence; //sequenceCopies[s._sequenceIndex];
 					char* dnaStrModel = dnaModel->to_string();
 					seqSorted.insert(seqSorted.begin(), string(dnaStrModel));
 					free(dnaStrModel);
@@ -691,8 +691,8 @@ public:
 					for(size_t i=0; i<sequences.size(); i++){ 
 
 						//size_t i = order[ii];
-						DnaBitset* dna = sequences[i];
-						//const DnaBitset* dna = variant._sequence; //sequenceCopies[s._sequenceIndex];
+						DnaBitset2* dna = sequences[i];
+						//const DnaBitset2* dna = variant._sequence; //sequenceCopies[s._sequenceIndex];
 						char* dnaStr = dna->to_string();
 						//cout << dnaStr << endl;
 
@@ -742,6 +742,8 @@ public:
 					}
 
 
+					for (int i = 0; i < n_seqs; ++i) free(bseqs[i]); free(bseqs); free(seq_lens);
+					abpoa_free(ab);
 
 
 
@@ -817,7 +819,7 @@ public:
 					//if(correctedSequence.size() < _windowLength-20){
 					//	cout << correctedSequence.size() << " " << sequences.size() << " " << contigOriginalSequence.size() << endl;
 					//}
-					correctedWindows[w] = new DnaBitset(correctedSequence);
+					correctedWindows[w] = new DnaBitset2(correctedSequence);
 				}
 			}
 
@@ -827,6 +829,7 @@ public:
 				char* seq = correctedWindows[w]->to_string();
 				contigSequence += string(seq);
 				free(seq);
+				delete correctedWindows[w];
 			}
 
 			string header = ">ctg" + to_string(contigIndex) + '\n';
