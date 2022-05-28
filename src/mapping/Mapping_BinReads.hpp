@@ -114,7 +114,7 @@ public:
 
     void execute (){
 		extract_truth_kminmers();
-		//binReads();
+		binReads();
 	}
 
 
