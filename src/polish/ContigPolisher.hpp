@@ -1,14 +1,14 @@
 
 /*
+- attention ne pas outupt empty contig
 - ToBasespace: générer un assemblage grossier
-- utiliser les scores de quality 
-- Consensus: mettre la fenetre original du contig en plus de toute les sequence de la window ?
+- tester les scores de qualité ?
 - quand un read a été process, on peut erase son entrée dans _alignments ?
 - window sequence a selectionner en priorité: 
 	- la distance est une mauvaise metrique car on ne sait pas si la sequence de reference est erroné ou non
 	- un mapping tres long sur un contig a plus de valeur qu'un mapping court (on est plus sûr que ce read appartient au contig)+
-- si "no sequence fo window": utiliser la fenetre original du contig
-- Dnabitset: enlever le u_int32_t length qui sert plus
+- si "no sequencer fo window": utiliser la fenetre original du contig ?
+- minimap2 output: écrire un petit programme pour compresser les résultats d'alignements on the fly
 - version finale: remove le minimap2 align filename
 */
 
@@ -17,11 +17,52 @@
 
 #include "../Commons.hpp"
 #include "../utils/edlib.h"
-//#include "../utils/spoa/include/spoa/spoa.hpp"
+#include "../utils/spoa/include/spoa/spoa.hpp"
 #include "../utils/DnaBitset.hpp"
 #include "../utils/abPOA2/include/abpoa.h"
 
 
+/*
+extern unsigned char nt4_table;
+unsigned char nt4_table2[256] = {
+       0, 1, 2, 3,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
+       4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
+       4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+       4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
+       4, 0, 4, 1,  4, 4, 4, 2,  4, 4, 4, 4,  4, 4, 4, 4, 
+       4, 4, 4, 4,  3, 3, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
+       4, 0, 4, 1,  4, 4, 4, 2,  4, 4, 4, 4,  4, 4, 4, 4, 
+       4, 4, 4, 4,  3, 3, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
+       4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
+       4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
+       4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
+       4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
+       4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
+       4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
+       4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
+       4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4
+};
+
+// 65,97=>A, 67,99=>C, 71,103=>G, 84,85,116,117=>T, else=>N
+const char nt256_table2[256] = {
+       'A', 'C', 'G', 'T',  'N', '-', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
+       'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', '-',  'N', 'N', 'N', 'N',
+       'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
+       'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
+       'N', 'A', 'N', 'C',  'N', 'N', 'N', 'G',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
+       'N', 'N', 'N', 'N',  'T', 'T', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
+       'N', 'A', 'N', 'C',  'N', 'N', 'N', 'G',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
+       'N', 'N', 'N', 'N',  'T', 'T', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
+       'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
+       'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
+       'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
+       'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
+       'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
+       'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
+       'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
+       'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N'
+};
+*/
 
 class ContigPolisher : public Tool{
     
@@ -124,6 +165,7 @@ public:
 
 
     void execute (){
+
 
 		//mapReads();
 		indexContigName();
@@ -350,10 +392,12 @@ public:
 		vector<vector<vector<DnaBitset2*>>>& _contigWindowSequences;
 		size_t _windowLength;
 
+
 		collectWindowSequencesFunctor(ContigPolisher& contigPolisher) : _contigPolisher(contigPolisher), _contigName_to_contigIndex(contigPolisher._contigName_to_contigIndex), _readName_to_readIndex(contigPolisher._readName_to_readIndex), _alignments(contigPolisher._alignments), _contigSequences(contigPolisher._contigSequences), _contigWindowSequences(contigPolisher._contigWindowSequences), _windowLength(contigPolisher._windowLength){
 		}
 
 		collectWindowSequencesFunctor(const collectWindowSequencesFunctor& copy) : _contigPolisher(copy._contigPolisher), _contigName_to_contigIndex(copy._contigName_to_contigIndex), _readName_to_readIndex(copy._readName_to_readIndex), _alignments(copy._alignments), _contigSequences(copy._contigSequences), _contigWindowSequences(copy._contigWindowSequences), _windowLength(copy._windowLength){
+			
 		}
 
 		~collectWindowSequencesFunctor(){
@@ -626,23 +670,39 @@ public:
 
 			vector<DnaBitset2*> correctedWindows(_contigWindowSequences[contigIndex].size());
 		
+
 			#pragma omp parallel num_threads(_nbCores)
 			{
 
+				std::unique_ptr<spoa::AlignmentEngine> alignmentEngine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kNW, 3, -5, -4);
 				
 				#pragma omp for
 				for(size_t w=0; w<_contigWindowSequences[contigIndex].size(); w++){
 
-					const vector<DnaBitset2*>& sequences = _contigWindowSequences[contigIndex][w];
-					if(sequences.size() == 0){
-						cout << "No sequences for window" << endl;
+					vector<DnaBitset2*>& sequences = _contigWindowSequences[contigIndex][w];
+					
+					
+					u_int64_t wStart = w*_windowLength;
+					u_int64_t wEnd = min(_contigSequences[contigIndex].size(), wStart+_windowLength);
+					string contigOriginalSequence = _contigSequences[contigIndex].substr(wStart, wEnd-wStart);
+
+					//cout << contigOriginalSequence << endl;
+					//getchar();
+					if(sequences.size() < 2){
+							
+						
+						correctedWindows[w] = new DnaBitset2(contigOriginalSequence);
+						//cout << "No sequences for window" << endl;
 						continue;
 					}
+					
+					std::sort(sequences.begin(), sequences.end(), []
+					(DnaBitset2* first, DnaBitset2* second){
+						return first->m_len > second->m_len;
+					});
 
-					//u_int64_t wStart = w*_windowLength;
-					//u_int64_t wEnd = min(_contigSequences[contigIndex].size(), wStart+_windowLength);
-					//string contigOriginalSequence = _contigSequences[contigIndex].substr(wStart, wEnd-wStart);
 					//sequences.insert(sequences.begin(), new DnaBitset2(contigOriginalSequence));
+
 				
 					//vector<u_int32_t> windowLengths;
 					//for(size_t i=0; i<sequences.size(); i++){
@@ -651,7 +711,7 @@ public:
 					//cout << Utils::compute_median(windowLengths) << endl;
 
 
-					abpoa_t *ab = abpoa_init();
+					//abpoa_t *ab = abpoa_init();
 
 					//vector<size_t> order;
 					//for(size_t i=0; i<sequences.size(); i++){
@@ -680,12 +740,14 @@ public:
 					free(dnaStrModel);
 					*/
 
+					/*
 					//cout << "1" << endl;
 					int n_seqs = sequences.size();
 					int *seq_lens = (int*)malloc(sizeof(int) * n_seqs);
 					uint8_t **bseqs = (uint8_t**)malloc(sizeof(uint8_t*) * n_seqs);
 					
-					//cout << "-----" << endl;
+					cout << "-----" << endl;
+					cout << w << endl;
 					//cout << contigOriginalSequence << endl;
 
 					for(size_t i=0; i<sequences.size(); i++){ 
@@ -725,17 +787,6 @@ public:
 					string correctedSequence = "";
 
 					for (size_t i = 0; i < abc->n_cons; ++i) {
-						/*
-						//fprintf(stdout, ">Consensus_sequence");
-						if (abc->n_cons > 1) {
-							fprintf(stdout, "_%d ", i+1);
-							for (j = 0; j < abc->clu_n_seq[i]; ++j) { // output read ids for each cluster/group
-								fprintf(stdout, "%d", abc->clu_read_ids[i][j]);
-								if (j != abc->clu_n_seq[i]-1) fprintf(stdout, ",");
-							}
-						}
-						fprintf(stdout, "\n");
-						*/
 						for (size_t j = 0; j < abc->cons_len[i]; ++j){
 							correctedSequence += nt256_table2[abc->cons_base[i][j]];
 						}
@@ -744,15 +795,82 @@ public:
 
 					for (int i = 0; i < n_seqs; ++i) free(bseqs[i]); free(bseqs); free(seq_lens);
 					abpoa_free(ab);
+					*/
 
 
 
 
+					spoa::Graph graph{};
+
+					graph.AddAlignment(
+						spoa::Alignment(),
+						contigOriginalSequence.c_str(), contigOriginalSequence.size()
+						//qualities_.front().first, qualities_.front().second);
+					);
+
+					for(size_t i=0; i<sequences.size(); i++){ 
+
+						//size_t i = order[ii];
+						DnaBitset2* dna = sequences[i];
+						//const DnaBitset2* dna = variant._sequence; //sequenceCopies[s._sequenceIndex];
+						char* dnaStr = dna->to_string();
+
+						//cout << dnaStr << endl;
 
 
 
+						/*
+						std::vector<uint32_t> rank;
+						rank.reserve(sequences.size());
+						for (uint32_t i = 0; i < sequences_.size(); ++i) {
+							rank.emplace_back(i);
+						}
 
+						std::sort(rank.begin() + 1, rank.end(), [&](uint32_t lhs, uint32_t rhs) {
+							return positions_[lhs].first < positions_[rhs].first; });
+						*/
 
+						//uint32_t offset = 0.01 * sequences[0].size();
+						//for (uint32_t i = 1; i < sequences.size(); ++i) {
+							//uint32_t i = rank[j];
+
+							/*
+							spoa::Alignment alignment;
+							if (positions_[i].first < offset && positions_[i].second >
+								sequences_.front().second - offset) {
+								alignment = alignment_engine->Align(
+									sequences_[i].first, sequences_[i].second,
+									graph);
+							} else {
+								std::vector<const spoa::Graph::Node*> mapping;
+								auto subgraph = graph.Subgraph(
+									positions_[i].first,
+									positions_[i].second,
+									&mapping);
+								alignment = alignment_engine->Align(
+									sequences_[i].first, sequences_[i].second,
+									subgraph);
+								subgraph.UpdateAlignment(mapping, &alignment);
+							}
+							*/
+
+							auto alignment = alignmentEngine->Align(dnaStr, dna->m_len, graph);
+
+							//fprintf(stdout, "%s\n", std::string(sequences_[i].first, sequences_[i].second).c_str());
+							//if (qualities_[i].first == nullptr) {
+								graph.AddAlignment(
+									alignment,
+									dnaStr, strlen(dnaStr));
+							//} else {
+							//    graph.AddAlignment(
+							//        alignment,
+							//        sequences_[i].first, sequences_[i].second,
+							//        qualities_[i].first, qualities_[i].second);
+							//}
+							
+							free(dnaStr);
+						//}
+					}
 
 
 
@@ -819,6 +937,34 @@ public:
 					//if(correctedSequence.size() < _windowLength-20){
 					//	cout << correctedSequence.size() << " " << sequences.size() << " " << contigOriginalSequence.size() << endl;
 					//}
+
+
+    				std::vector<uint32_t> coverages;
+    				string correctedSequence = graph.GenerateConsensus(&coverages);
+
+					uint32_t average_coverage = (sequences.size()) / 2;
+
+					int32_t begin = 0, end = correctedSequence.size() - 1;
+					for (; begin < static_cast<int32_t>(correctedSequence.size()); ++begin) {
+						if (coverages[begin] >= average_coverage) {
+							break;
+						}
+					}
+					for (; end >= 0; --end) {
+						if (coverages[end] >= average_coverage) {
+							break;
+						}
+					}
+
+					if (begin >= end) {
+						//fprintf(stderr, "[racon::Window::generate_consensus] warning: "
+						//	"contig %lu might be chimeric in window %u!\n", id_, rank_);
+					} else {
+						correctedSequence = correctedSequence.substr(begin, end - begin + 1);
+					}
+
+					//cout << correctedSequence << endl;
+					//getchar();
 					correctedWindows[w] = new DnaBitset2(correctedSequence);
 				}
 			}

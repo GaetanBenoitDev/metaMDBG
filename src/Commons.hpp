@@ -483,6 +483,7 @@ struct KminmerList{
 	u_int64_t _readIndex;
 	vector<u_int64_t> _readMinimizers;
 	vector<ReadKminmerComplete> _kminmersInfo;
+	Read _read;
 	//vector<KmerVec> _kminmers;
 	//vector<ReadKminmer> _kminmersInfo;
 };
