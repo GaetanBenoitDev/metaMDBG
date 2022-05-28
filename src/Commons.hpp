@@ -2184,7 +2184,12 @@ public:
 
 				while (kseq_read(seq) >= 0){
 
-					fun({readIndex, string(seq->name.s), string(seq->seq.s), string(seq->qual.s)});
+					if(seq->qual.l == 0){
+						fun({readIndex, string(seq->name.s), string(seq->seq.s)});
+					}
+					else{
+						fun({readIndex, string(seq->name.s), string(seq->seq.s), string(seq->qual.s)});
+					}
 					readIndex += 1;
 
 					if(_maxReads > 0 && readIndex > _maxReads) break;
