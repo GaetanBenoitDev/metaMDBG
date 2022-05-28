@@ -102,7 +102,10 @@ public:
 		}
 	};
 	
-
+	struct Window{
+		DnaBitset2* _sequence;
+		string _quality;
+	};
 
 	ContigPolisher(): Tool (){
 
@@ -210,7 +213,7 @@ public:
 	unordered_map<string, u_int64_t> _readName_to_readIndex;
 	unordered_map<u_int64_t, Alignment> _alignments;
 	vector<string> _contigSequences;
-	vector<vector<vector<DnaBitset2*>>> _contigWindowSequences;
+	vector<vector<vector<Window>>> _contigWindowSequences;
 	unordered_map<ContigRead, u_int32_t, ContigRead_hash> _alignmentCounts;
 
 
@@ -361,7 +364,7 @@ public:
 		_contigSequences.push_back(read._seq);
 
 		size_t nbWindows = ceil((double)read._seq.size() / (double)_windowLength);
-		vector<vector<DnaBitset2*>> windows(nbWindows);
+		vector<vector<Window>> windows(nbWindows);
 		//cout << "Nb windows: " << nbWindows << endl;
 
 		_contigWindowSequences.push_back(windows);
@@ -377,10 +380,10 @@ public:
 
 
 		ReadParserParallel readParser(_inputFilename_reads, false, false, _nbCores);
-		readParser.parse(collectWindowSequencesFunctor(*this));
+		readParser.parse(CollectWindowSequencesFunctor(*this));
 	}
 	
-	class collectWindowSequencesFunctor {
+	class CollectWindowSequencesFunctor {
 
 		public:
 
@@ -389,23 +392,24 @@ public:
 		unordered_map<string, u_int64_t>& _readName_to_readIndex;
 		unordered_map<u_int64_t, Alignment>& _alignments;
 		vector<string>& _contigSequences;
-		vector<vector<vector<DnaBitset2*>>>& _contigWindowSequences;
+		vector<vector<vector<Window>>>& _contigWindowSequences;
 		size_t _windowLength;
 
 
-		collectWindowSequencesFunctor(ContigPolisher& contigPolisher) : _contigPolisher(contigPolisher), _contigName_to_contigIndex(contigPolisher._contigName_to_contigIndex), _readName_to_readIndex(contigPolisher._readName_to_readIndex), _alignments(contigPolisher._alignments), _contigSequences(contigPolisher._contigSequences), _contigWindowSequences(contigPolisher._contigWindowSequences), _windowLength(contigPolisher._windowLength){
+		CollectWindowSequencesFunctor(ContigPolisher& contigPolisher) : _contigPolisher(contigPolisher), _contigName_to_contigIndex(contigPolisher._contigName_to_contigIndex), _readName_to_readIndex(contigPolisher._readName_to_readIndex), _alignments(contigPolisher._alignments), _contigSequences(contigPolisher._contigSequences), _contigWindowSequences(contigPolisher._contigWindowSequences), _windowLength(contigPolisher._windowLength){
 		}
 
-		collectWindowSequencesFunctor(const collectWindowSequencesFunctor& copy) : _contigPolisher(copy._contigPolisher), _contigName_to_contigIndex(copy._contigName_to_contigIndex), _readName_to_readIndex(copy._readName_to_readIndex), _alignments(copy._alignments), _contigSequences(copy._contigSequences), _contigWindowSequences(copy._contigWindowSequences), _windowLength(copy._windowLength){
+		CollectWindowSequencesFunctor(const CollectWindowSequencesFunctor& copy) : _contigPolisher(copy._contigPolisher), _contigName_to_contigIndex(copy._contigName_to_contigIndex), _readName_to_readIndex(copy._readName_to_readIndex), _alignments(copy._alignments), _contigSequences(copy._contigSequences), _contigWindowSequences(copy._contigWindowSequences), _windowLength(copy._windowLength){
 			
 		}
 
-		~collectWindowSequencesFunctor(){
+		~CollectWindowSequencesFunctor(){
 		}
 
 		void operator () (const Read& read) {
 
 			u_int64_t readIndex = read._index;
+			cout << "lala" << endl;
 			if(readIndex % 100000 == 0) cout << readIndex << endl;
 
 			if(_alignments.find(read._index) == _alignments.end()) return;
@@ -414,6 +418,7 @@ public:
 			u_int64_t contigIndex = al._contigIndex;
 
 			string readSeq = read._seq;
+			string qualSeq = read._qual;
 			string readSequence = readSeq.substr(al._readStart, al._readEnd-al._readStart);
 			string contigSequence = _contigSequences[contigIndex].substr(al._contigStart, al._contigEnd-al._contigStart);
 
@@ -421,6 +426,7 @@ public:
 			if(al._strand){
 				Utils::toReverseComplement(readSequence);
 				Utils::toReverseComplement(readSeq);
+				std::reverse(qualSeq.begin(), qualSeq.end());
 			}
 			
 
@@ -447,13 +453,13 @@ public:
 
 			edlibFreeAlignResult(result);
 			
-			find_breaking_points_from_cigar(_windowLength, al, readSeq.size(), cigar, readSeq);
+			find_breaking_points_from_cigar(_windowLength, al, readSeq.size(), cigar, readSeq, qualSeq);
 			free(cigar);
 
 			//getchar();
 		}
 
-		void find_breaking_points_from_cigar(uint32_t window_length, const Alignment& al, u_int64_t readLength, char* cigar_, const string& readSequence)
+		void find_breaking_points_from_cigar(uint32_t window_length, const Alignment& al, u_int64_t readLength, char* cigar_, const string& readSequence, const string& qualSequence)
 		{
 			vector<std::pair<uint32_t, uint32_t>> breaking_points_;
 			u_int64_t t_begin_ = al._contigStart;
@@ -541,7 +547,7 @@ public:
 
 				//if(readWindowEnd-readWindowStart < _windowLength) continue; //window sides
 				//string windowSequence = 
-				indexWindow(al, contigWindowStart, contigWindowEnd, readSequence.substr(readWindowStart, readWindowEnd-readWindowStart));
+				indexWindow(al, contigWindowStart, contigWindowEnd, readSequence.substr(readWindowStart, readWindowEnd-readWindowStart), qualSequence.substr(readWindowStart, readWindowEnd-readWindowStart));
 			}
 			
 
@@ -550,17 +556,22 @@ public:
 			//}
 		}
 
-		void indexWindow(const Alignment& al, size_t contigWindowStart, size_t contigWindowEnd, const string& windowSequence){
+		void indexWindow(const Alignment& al, size_t contigWindowStart, size_t contigWindowEnd, const string& windowSequence, const string& windowQualities){
 
 			#pragma omp critical(indexWindow)
 			{
 				
 				size_t contigWindowIndex = contigWindowStart / _windowLength;
-				vector<DnaBitset2*>& windowSequences = _contigWindowSequences[al._contigIndex][contigWindowIndex];
+				vector<Window>& windows = _contigWindowSequences[al._contigIndex][contigWindowIndex];
 				
 				bool interrupt = false;
-				if(windowSequences.size() < 20){
-					windowSequences.push_back(new DnaBitset2(windowSequence));
+				if(windows.size() < 20){
+
+					//if(contigWindowIndex == 0){
+						cout << windowSequence << endl;
+						cout << windowQualities << endl;
+					//}
+					windows.push_back({new DnaBitset2(windowSequence), windowQualities});
 
 					/*
 					if(windowSequences.size() > 1){
@@ -601,10 +612,10 @@ public:
 					size_t largerWindowIndex = 0;
 					u_int64_t largerDistanceWindow = 0;
 
-					for(size_t i=0; i<windowSequences.size(); i++){
+					for(size_t i=0; i<windows.size(); i++){
 
-						DnaBitset2* dnaSeq = windowSequences[i];
-						u_int64_t distance = abs(((long)dnaSeq->m_len) - ((long)_windowLength));
+						const Window& window = windows[i];
+						u_int64_t distance = abs(((long)window._sequence->m_len) - ((long)_windowLength));
 
 						if(distance > largerDistanceWindow){
 							largerDistanceWindow = distance;
@@ -616,9 +627,9 @@ public:
 					u_int64_t distance = abs(((long)windowSequence.size()) - ((long)_windowLength));
 
 					if(distance < largerDistanceWindow){
-						DnaBitset2* dnaSeq = windowSequences[largerWindowIndex];
-						delete dnaSeq;
-						windowSequences[largerWindowIndex] = new DnaBitset2(windowSequence);
+						Window& window = windows[largerWindowIndex];
+						delete window._sequence;
+						windows[largerWindowIndex] = {new DnaBitset2(windowSequence), windowQualities};
 					}
 					
 
@@ -679,7 +690,7 @@ public:
 				#pragma omp for
 				for(size_t w=0; w<_contigWindowSequences[contigIndex].size(); w++){
 
-					vector<DnaBitset2*>& sequences = _contigWindowSequences[contigIndex][w];
+					vector<Window>& sequences = _contigWindowSequences[contigIndex][w];
 					
 					
 					u_int64_t wStart = w*_windowLength;
@@ -697,8 +708,8 @@ public:
 					}
 					
 					std::sort(sequences.begin(), sequences.end(), []
-					(DnaBitset2* first, DnaBitset2* second){
-						return first->m_len > second->m_len;
+					(Window& first, Window& second){
+						return first._sequence->m_len > second._sequence->m_len;
 					});
 
 					//sequences.insert(sequences.begin(), new DnaBitset2(contigOriginalSequence));
@@ -811,9 +822,9 @@ public:
 					for(size_t i=0; i<sequences.size(); i++){ 
 
 						//size_t i = order[ii];
-						DnaBitset2* dna = sequences[i];
+						const Window& window = sequences[i];
 						//const DnaBitset2* dna = variant._sequence; //sequenceCopies[s._sequenceIndex];
-						char* dnaStr = dna->to_string();
+						char* dnaStr = window._sequence->to_string();
 
 						//cout << dnaStr << endl;
 
@@ -854,18 +865,18 @@ public:
 							}
 							*/
 
-							auto alignment = alignmentEngine->Align(dnaStr, dna->m_len, graph);
+							auto alignment = alignmentEngine->Align(dnaStr, window._sequence->m_len, graph);
 
 							//fprintf(stdout, "%s\n", std::string(sequences_[i].first, sequences_[i].second).c_str());
 							//if (qualities_[i].first == nullptr) {
-								graph.AddAlignment(
-									alignment,
-									dnaStr, strlen(dnaStr));
+							//	graph.AddAlignment(
+							//		alignment,
+							//		dnaStr, strlen(dnaStr));
 							//} else {
-							//    graph.AddAlignment(
-							//        alignment,
-							//        sequences_[i].first, sequences_[i].second,
-							//        qualities_[i].first, qualities_[i].second);
+							    graph.AddAlignment(
+							        alignment,
+							        dnaStr, strlen(dnaStr),
+							        window._quality.c_str(), window._quality.size());
 							//}
 							
 							free(dnaStr);

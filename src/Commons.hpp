@@ -48,6 +48,7 @@ struct Read{
 	u_int64_t _index;
 	string _header;
 	string _seq;
+	string _qual;
 };
 
 
@@ -2018,7 +2019,11 @@ public:
 						readIndex += 1;
 						isEOF = result < 0;
 
-						read = {readIndex, string(seq->name.s), string(seq->seq.s)};
+						//cout << "allo" << endl;
+						read = {readIndex, string(seq->name.s), string(seq->seq.s), string(seq->qual.s)};
+						//cout << seq->name.s << endl;
+						//cout << read._seq << endl;
+						//cout << read._qual << endl;
 						//cout << seq->name.s << endl;
 						//cout << "1" << endl;
 

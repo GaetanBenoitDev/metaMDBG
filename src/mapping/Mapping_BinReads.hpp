@@ -202,7 +202,7 @@ public:
 		gzwrite(referenceFile, (const char*)&seq[0], seq.size());
 		gzclose(referenceFile);
 		
-		string binFilename = _outputDir + "/reads_" + to_string(_binIndex) + ".fasta"; 
+		string binFilename = _outputDir + "/reads_" + to_string(_binIndex) + ".fastq"; 
 		_binFiles[_binIndex] = ofstream(binFilename);
 
 		string inputFilename = _outputDir + "/input_reads_" + to_string(_binIndex) + ".txt"; 
@@ -258,8 +258,10 @@ public:
 				//cout << "lala: " << binIndex << endl;
 				ofstream& file = _binFiles[binIndex];
 				//cout << file.is_open() << " " << read._header << endl;
-				file << ">" << read._header << endl;
+				file << "@" << read._header << endl;
 				file << read._seq << endl;
+				file << "+" << endl;
+				file << read._qual << endl;
 
 				//file.flush();
 			}
