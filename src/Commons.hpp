@@ -2019,8 +2019,14 @@ public:
 						readIndex += 1;
 						isEOF = result < 0;
 
+						if(seq->qual.l == 0){
+							read = {readIndex, string(seq->name.s), string(seq->seq.s)};
+						}
+						else{
+							read = {readIndex, string(seq->name.s), string(seq->seq.s), string(seq->qual.s)};
+						}
+
 						//cout << "allo" << endl;
-						read = {readIndex, string(seq->name.s), string(seq->seq.s), string(seq->qual.s)};
 						//cout << seq->name.s << endl;
 						//cout << read._seq << endl;
 						//cout << read._qual << endl;

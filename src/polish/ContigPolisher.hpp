@@ -105,6 +105,8 @@ public:
 	struct Window{
 		DnaBitset2* _sequence;
 		string _quality;
+		u_int32_t _posStart;
+		u_int32_t _posEnd;
 	};
 
 	ContigPolisher(): Tool (){
@@ -409,7 +411,7 @@ public:
 		void operator () (const Read& read) {
 
 			u_int64_t readIndex = read._index;
-			cout << "lala" << endl;
+			
 			if(readIndex % 100000 == 0) cout << readIndex << endl;
 
 			if(_alignments.find(read._index) == _alignments.end()) return;
@@ -503,7 +505,7 @@ public:
 						if (t_ptr == window_ends[w]) {
 							if (found_first_match) {
 								breaking_points_.emplace_back(first_match);
-								//breaking_points_.emplace_back(last_match);
+								breaking_points_.emplace_back(last_match);
 							}
 							found_first_match = false;
 							++w;
@@ -523,7 +525,7 @@ public:
 						if (t_ptr == window_ends[w]) {
 							if (found_first_match) {
 								breaking_points_.emplace_back(first_match);
-								//breaking_points_.emplace_back(last_match);
+								breaking_points_.emplace_back(last_match);
 							}
 							found_first_match = false;
 							++w;
@@ -535,8 +537,65 @@ public:
 				}
 			}
 
-			if(breaking_points_.size() > 0) breaking_points_.emplace_back(last_match);
-			
+			//if(breaking_points_.size() > 0) breaking_points_.emplace_back(last_match);
+				
+			for (uint32_t j = 0; j < breaking_points_.size(); j += 2) {
+				if (breaking_points_[j + 1].second - breaking_points_[j].second < 0.02 * _windowLength) {
+					continue;
+				}
+
+				/*
+				if (!sequence->quality().empty() ||
+					!sequence->reverse_quality().empty()) {
+
+					const auto& quality = overlaps[i]->strand() ?
+						sequence->reverse_quality() : sequence->quality();
+					double average_quality = 0;
+					for (uint32_t k = breaking_points[j].second; k < breaking_points[j + 1].second; ++k) {
+						average_quality += static_cast<uint32_t>(quality[k]) - 33;
+					}
+					average_quality /= breaking_points[j + 1].second - breaking_points[j].second;
+
+					if (average_quality < quality_threshold_) {
+						//continue;
+					}
+				}
+				*/
+
+				//uint64_t window_id = id_to_first_window_id[overlaps[i]->t_id()] +
+				uint64_t window_id = breaking_points_[j].first / _windowLength;
+				uint32_t window_start = (breaking_points_[j].first / _windowLength) *
+					_windowLength;
+
+				//const char* data = overlaps[i]->strand() ?
+				//	&(sequence->reverse_complement()[breaking_points[j].second]) :
+				//	&(sequence->data()[breaking_points[j].second]);
+				const char* data = &readSequence[breaking_points_[j].second];
+				uint32_t data_length = breaking_points_[j + 1].second -
+					breaking_points_[j].second;
+
+				string sequence = string(data, data_length);
+
+                u_int32_t posStart = breaking_points_[j].first - window_start;
+                u_int32_t posEnd =  breaking_points_[j + 1].first - window_start - 1;
+
+				indexWindow(al, window_id, posStart, posEnd, sequence, "");
+
+				//cout << window_id << " " << posStart << " " << posEnd << endl;
+				//cout << sequence << endl;
+				//getchar();
+				/*
+				const char* quality = overlaps[i]->strand() ?
+					(sequence->reverse_quality().empty() ?
+						nullptr : &(sequence->reverse_quality()[breaking_points[j].second]))
+					:
+					(sequence->quality().empty() ?
+						nullptr : &(sequence->quality()[breaking_points[j].second]));
+				uint32_t quality_length = quality == nullptr ? 0 : data_length;
+				*/
+			}
+
+			/*
 			for(size_t i=0; i<breaking_points_.size()-1; i++){
 				u_int64_t contigWindowStart = breaking_points_[i].first;
 				u_int64_t contigWindowEnd = breaking_points_[i+1].first;
@@ -547,8 +606,15 @@ public:
 
 				//if(readWindowEnd-readWindowStart < _windowLength) continue; //window sides
 				//string windowSequence = 
-				indexWindow(al, contigWindowStart, contigWindowEnd, readSequence.substr(readWindowStart, readWindowEnd-readWindowStart), qualSequence.substr(readWindowStart, readWindowEnd-readWindowStart));
+
+				string qualSeq = "";
+				if(qualSequence.size() > 0){
+					qualSeq = qualSequence.substr(readWindowStart, readWindowEnd-readWindowStart);
+				}
+
+				indexWindow(al, readWindowStart, readWindowEnd, contigWindowStart, contigWindowEnd, readSequence.substr(readWindowStart, readWindowEnd-readWindowStart), qualSeq);
 			}
+			*/
 			
 
 			//for(const auto& breakPoint : breaking_points_){
@@ -556,22 +622,33 @@ public:
 			//}
 		}
 
-		void indexWindow(const Alignment& al, size_t contigWindowStart, size_t contigWindowEnd, const string& windowSequence, const string& windowQualities){
+		//void indexWindow(const Alignment& al, size_t readWindowStart, size_t readWindowEnd, size_t contigWindowStart, size_t contigWindowEnd, const string& windowSequence, const string& windowQualities){
+		void indexWindow(const Alignment& al, u_int64_t windowIndex, u_int32_t posStart, u_int32_t posEnd, const string& windowSequence, const string& windowQualities){
 
 			#pragma omp critical(indexWindow)
 			{
 				
-				size_t contigWindowIndex = contigWindowStart / _windowLength;
-				vector<Window>& windows = _contigWindowSequences[al._contigIndex][contigWindowIndex];
+				//size_t contigWindowIndex = contigWindowStart / _windowLength;
+				vector<Window>& windows = _contigWindowSequences[al._contigIndex][windowIndex];
+				
+				/*
+				if(contigWindowIndex == 0){
+					//cout << contigWindowStart << endl;
+					cout << windowSequence << endl;
+					//cout << windows.size() << endl;
+					cout << readWindowStart << " " << readWindowEnd << endl;
+					getchar();
+					//cout << windowQualities << endl;
+				}
+				*/
 				
 				bool interrupt = false;
 				if(windows.size() < 20){
 
-					//if(contigWindowIndex == 0){
-						cout << windowSequence << endl;
-						cout << windowQualities << endl;
-					//}
-					windows.push_back({new DnaBitset2(windowSequence), windowQualities});
+
+					windows.push_back({new DnaBitset2(windowSequence), windowQualities, posStart, posEnd});
+
+
 
 					/*
 					if(windowSequences.size() > 1){
@@ -808,16 +885,33 @@ public:
 					abpoa_free(ab);
 					*/
 
+					/*
+					std::vector<uint32_t> rank;
+					rank.reserve(sequences.size());
+					for (uint32_t i = 0; i < sequences_.size(); ++i) {
+						rank.emplace_back(i);
+					}
+					*/
 
+					std::sort(sequences.begin(), sequences.end(), [&](const Window& lhs, const Window& rhs) {
+						return lhs._posStart < rhs._posStart; });
 
+					//cout << sequences.size() << endl;
 
 					spoa::Graph graph{};
 
+					string backboneQuality = "";
+					for(size_t i=0; i<contigOriginalSequence.size(); i++){
+						backboneQuality += '!';
+					}
+
 					graph.AddAlignment(
 						spoa::Alignment(),
-						contigOriginalSequence.c_str(), contigOriginalSequence.size()
-						//qualities_.front().first, qualities_.front().second);
+						contigOriginalSequence.c_str(), contigOriginalSequence.size(),
+						backboneQuality.c_str(), backboneQuality.size()
 					);
+
+    				u_int32_t offset = 0.01 * contigOriginalSequence.size();
 
 					for(size_t i=0; i<sequences.size(); i++){ 
 
@@ -845,39 +939,40 @@ public:
 						//for (uint32_t i = 1; i < sequences.size(); ++i) {
 							//uint32_t i = rank[j];
 
-							/*
+							
 							spoa::Alignment alignment;
-							if (positions_[i].first < offset && positions_[i].second >
-								sequences_.front().second - offset) {
-								alignment = alignment_engine->Align(
-									sequences_[i].first, sequences_[i].second,
+							if (window._posStart < offset && window._posEnd > contigOriginalSequence.size() - offset) {
+								alignment = alignmentEngine->Align(
+									dnaStr, strlen(dnaStr),
 									graph);
 							} else {
 								std::vector<const spoa::Graph::Node*> mapping;
 								auto subgraph = graph.Subgraph(
-									positions_[i].first,
-									positions_[i].second,
+									window._posStart,
+									window._posEnd,
 									&mapping);
-								alignment = alignment_engine->Align(
-									sequences_[i].first, sequences_[i].second,
+								alignment = alignmentEngine->Align(
+									dnaStr, strlen(dnaStr),
 									subgraph);
 								subgraph.UpdateAlignment(mapping, &alignment);
 							}
-							*/
+							
 
-							auto alignment = alignmentEngine->Align(dnaStr, window._sequence->m_len, graph);
+							//auto alignment = alignmentEngine->Align(dnaStr, window._sequence->m_len, graph);
 
+							//cout << dnaStr << endl;
+							//getchar();
 							//fprintf(stdout, "%s\n", std::string(sequences_[i].first, sequences_[i].second).c_str());
-							//if (qualities_[i].first == nullptr) {
-							//	graph.AddAlignment(
-							//		alignment,
-							//		dnaStr, strlen(dnaStr));
-							//} else {
+							if (window._quality.size() == 0) {
+								graph.AddAlignment(
+									alignment,
+									dnaStr, strlen(dnaStr));
+							} else {
 							    graph.AddAlignment(
 							        alignment,
 							        dnaStr, strlen(dnaStr),
 							        window._quality.c_str(), window._quality.size());
-							//}
+							}
 							
 							free(dnaStr);
 						//}
