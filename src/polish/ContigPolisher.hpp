@@ -10,6 +10,7 @@
 - si "no sequencer fo window": utiliser la fenetre original du contig ?
 - minimap2 output: écrire un petit programme pour compresser les résultats d'alignements on the fly
 - version finale: remove le minimap2 align filename
+- voir comment racon handle multimap
 */
 
 #ifndef MDBG_METAG_CONTIGPOLISHER
@@ -680,6 +681,7 @@ public:
 					interrupt = true;
 				}
 
+				
 				if(!interrupt){
 
 					//u_int64_t largestAligmenet = 0;
@@ -706,7 +708,7 @@ public:
 					if(distance < largerDistanceWindow){
 						Window& window = windows[largerWindowIndex];
 						delete window._sequence;
-						windows[largerWindowIndex] = {new DnaBitset2(windowSequence), windowQualities};
+						windows[largerWindowIndex] = {new DnaBitset2(windowSequence), windowQualities, posStart, posEnd};
 					}
 					
 
@@ -769,11 +771,12 @@ public:
 
 					vector<Window>& sequences = _contigWindowSequences[contigIndex][w];
 					
-					
 					u_int64_t wStart = w*_windowLength;
 					u_int64_t wEnd = min(_contigSequences[contigIndex].size(), wStart+_windowLength);
 					string contigOriginalSequence = _contigSequences[contigIndex].substr(wStart, wEnd-wStart);
 
+					//cout << w << ": " << (sequences.size()+1) << endl;
+					//continue;
 					//cout << contigOriginalSequence << endl;
 					//getchar();
 					if(sequences.size() < 2){
