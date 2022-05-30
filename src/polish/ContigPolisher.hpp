@@ -210,11 +210,12 @@ public:
 		u_int64_t _contigStart;
 		u_int64_t _contigEnd;
 		float _score;
+		u_int64_t _length;
 	};
 
 	unordered_map<string, u_int32_t> _contigName_to_contigIndex;
 	unordered_map<string, u_int64_t> _readName_to_readIndex;
-	unordered_map<u_int64_t, Alignment> _alignments;
+	unordered_map<u_int64_t, vector<Alignment>> _alignments;
 	vector<string> _contigSequences;
 	vector<vector<vector<Window>>> _contigWindowSequences;
 	unordered_map<ContigRead, u_int32_t, ContigRead_hash> _alignmentCounts;
@@ -309,10 +310,14 @@ public:
 
 			u_int32_t contigIndex = _contigName_to_contigIndex[contigName];
 			u_int64_t readIndex = _readName_to_readIndex[readName];
-			Alignment align = {contigIndex, readIndex, strand, readStart, readEnd, contigStart, contigEnd, score};
+			u_int64_t length = std::max(readEnd - readStart, contigEnd - contigStart);
+
+			Alignment align = {contigIndex, readIndex, strand, readStart, readEnd, contigStart, contigEnd, score, length};
 
 			//ContigRead alignKey = {_contigName_to_contigIndex[contigName], _readName_to_readIndex[readName]};
 
+			_alignments[readIndex].push_back(align);
+			/*
 			if(_alignments.find(readIndex) != _alignments.end()){
 				const Alignment& existingAlignment = _alignments[readIndex];
 				if(align._score > existingAlignment._score){
@@ -322,6 +327,7 @@ public:
 			else{
 				_alignments[readIndex] = align;
 			}
+			*/
 			
 			/*
 			_alignmentCounts[{_contigName_to_contigIndex[contigName], _readName_to_readIndex[readName]}] += 1;
@@ -355,6 +361,49 @@ public:
 			//}
 			//cout << endl;
         }
+
+		for(auto& it : _alignments){
+
+			auto& als = it.second;
+			vector<u_int64_t> removedIndex;
+
+			if(als.size() == 1) continue;
+			
+			for(size_t i=0; i<als.size(); i++){
+				if(std::find(removedIndex.begin(), removedIndex.end(), i) != removedIndex.end()) continue;
+
+				for(size_t j=i+1; j<als.size(); j++){
+
+					//if(als[i]._contigIndex != als[j]._contigIndex) continue;
+
+					if(std::find(removedIndex.begin(), removedIndex.end(), j) != removedIndex.end()) continue;
+
+					if(als[i]._length > als[j]._length){
+						removedIndex.push_back(j);
+						//alsFiltered.push_back(als[i]);
+					}
+					else{
+						removedIndex.push_back(i);
+						//alsFiltered.push_back(als[j]);
+					}
+					
+					//if(als[i]._contigIndex == 0 && als[i]._readIndex == 705){
+					//	cout << endl;
+					//	cout << i << " " << als[i]._contigIndex << " " << als[i]._readIndex << " " << als[i]._length << endl;
+					//	cout << j << " " << als[j]._contigIndex << " " << als[j]._readIndex << " " << als[j]._length << endl;
+					//	//getchar();
+					//}
+				}
+			}
+			
+			vector<Alignment> alsFiltered;
+			for(size_t i=0; i<als.size(); i++){
+				if(std::find(removedIndex.begin(), removedIndex.end(), i) != removedIndex.end()) continue;
+				alsFiltered.push_back(als[i]);
+			}
+
+			als = alsFiltered;
+		}
 	}
 
 	void loadContigs(){
@@ -393,7 +442,7 @@ public:
 		ContigPolisher& _contigPolisher;
 		unordered_map<string, u_int32_t>& _contigName_to_contigIndex;
 		unordered_map<string, u_int64_t>& _readName_to_readIndex;
-		unordered_map<u_int64_t, Alignment>& _alignments;
+		unordered_map<u_int64_t, vector<Alignment>>& _alignments;
 		vector<string>& _contigSequences;
 		vector<vector<vector<Window>>>& _contigWindowSequences;
 		size_t _windowLength;
@@ -417,49 +466,54 @@ public:
 
 			if(_alignments.find(read._index) == _alignments.end()) return;
 
-			const Alignment& al = _alignments[read._index];
-			u_int64_t contigIndex = al._contigIndex;
+			const vector<Alignment>& als = _alignments[read._index];
 
-			string readSeq = read._seq;
-			string qualSeq = read._qual;
-			string readSequence = readSeq.substr(al._readStart, al._readEnd-al._readStart);
-			string contigSequence = _contigSequences[contigIndex].substr(al._contigStart, al._contigEnd-al._contigStart);
+			for(const Alignment& al : als){
+				u_int64_t contigIndex = al._contigIndex;
+
+				string readSeq = read._seq;
+				string qualSeq = read._qual;
+				string readSequence = readSeq.substr(al._readStart, al._readEnd-al._readStart);
+				string contigSequence = _contigSequences[contigIndex].substr(al._contigStart, al._contigEnd-al._contigStart);
 
 
-			if(al._strand){
-				Utils::toReverseComplement(readSequence);
-				Utils::toReverseComplement(readSeq);
-				std::reverse(qualSeq.begin(), qualSeq.end());
+				if(al._strand){
+					Utils::toReverseComplement(readSequence);
+					Utils::toReverseComplement(readSeq);
+					std::reverse(qualSeq.begin(), qualSeq.end());
+				}
+				
+
+				//cout << readSequence << endl;
+				//cout << contigSequence << endl;
+
+				//cout << contigSequence.size() << " "<< readSequence.size() << endl;
+				static EdlibAlignConfig config = edlibNewAlignConfig(-1, EDLIB_MODE_NW, EDLIB_TASK_PATH, NULL, 0);
+
+
+				EdlibAlignResult result = edlibAlign(readSequence.c_str(), readSequence.size(), contigSequence.c_str(), contigSequence.size(), config);
+
+
+				char* cigar;
+
+				if (result.status == EDLIB_STATUS_OK) {
+					cigar = edlibAlignmentToCigar(result.alignment, result.alignmentLength, EDLIB_CIGAR_STANDARD);
+				} else {
+					cout << "Invalid edlib results" << endl;
+					exit(1);
+				}
+
+				//cout << cigar << endl;
+
+				edlibFreeAlignResult(result);
+				
+				find_breaking_points_from_cigar(_windowLength, al, readSeq.size(), cigar, readSeq, qualSeq);
+				free(cigar);
+
+				//getchar();
+
 			}
-			
 
-			//cout << readSequence << endl;
-			//cout << contigSequence << endl;
-
-			//cout << contigSequence.size() << " "<< readSequence.size() << endl;
-			static EdlibAlignConfig config = edlibNewAlignConfig(-1, EDLIB_MODE_NW, EDLIB_TASK_PATH, NULL, 0);
-
-
-			EdlibAlignResult result = edlibAlign(readSequence.c_str(), readSequence.size(), contigSequence.c_str(), contigSequence.size(), config);
-
-
-			char* cigar;
-
-			if (result.status == EDLIB_STATUS_OK) {
-				cigar = edlibAlignmentToCigar(result.alignment, result.alignmentLength, EDLIB_CIGAR_STANDARD);
-			} else {
-				cout << "Invalid edlib results" << endl;
-				exit(1);
-			}
-
-			//cout << cigar << endl;
-
-			edlibFreeAlignResult(result);
-			
-			find_breaking_points_from_cigar(_windowLength, al, readSeq.size(), cigar, readSeq, qualSeq);
-			free(cigar);
-
-			//getchar();
 		}
 
 		void find_breaking_points_from_cigar(uint32_t window_length, const Alignment& al, u_int64_t readLength, char* cigar_, const string& readSequence, const string& qualSequence)
@@ -585,7 +639,10 @@ public:
 					quality = string(&qualSequence[breaking_points_[j].second], data_length);
 				}
 
-				if(window_id == 0){
+				if(al._contigIndex == 0 && window_id == 161){
+					
+					//cout << al._contigIndex << " " << al._readIndex << endl;
+					//cout << (breaking_points_[j + 1].second - breaking_points_[j].second) << " " << (0.02 * _windowLength) << endl;
 					//cout << sequence << endl;
 					//cout << quality << endl;
 					//getchar();
@@ -655,7 +712,7 @@ public:
 				*/
 				
 				bool interrupt = false;
-				if(windows.size() < 20){
+				if(windows.size() < 19){
 
 
 					windows.push_back({new DnaBitset2(windowSequence), windowQualities, posStart, posEnd});
@@ -753,6 +810,8 @@ public:
 
 
 	void performCorrection(){
+		
+		u_int64_t checksum = 0;
 
 		cout << "Perform correction" << endl;
 
@@ -769,6 +828,7 @@ public:
 
 		for(size_t contigIndex=0; contigIndex < _contigWindowSequences.size(); contigIndex++){
 
+			u_int64_t nbCorrectedWindows = 0;
 			vector<DnaBitset2*> correctedWindows(_contigWindowSequences[contigIndex].size());
 		
 
@@ -786,6 +846,7 @@ public:
 					u_int64_t wEnd = min(_contigSequences[contigIndex].size(), wStart+_windowLength);
 					string contigOriginalSequence = _contigSequences[contigIndex].substr(wStart, wEnd-wStart);
 
+					checksum += sequences.size()+1;
 					//cout << w << ": " << (sequences.size()+1) << endl;
 					//continue;
 					//cout << contigOriginalSequence << endl;
@@ -798,10 +859,13 @@ public:
 						continue;
 					}
 					
-					std::sort(sequences.begin(), sequences.end(), []
-					(Window& first, Window& second){
-						return first._sequence->m_len > second._sequence->m_len;
-					});
+					#pragma omp atomic
+					nbCorrectedWindows += 1;
+
+					//std::sort(sequences.begin(), sequences.end(), []
+					//(Window& first, Window& second){
+					//	return first._sequence->m_len > second._sequence->m_len;
+					//});
 
 					//sequences.insert(sequences.begin(), new DnaBitset2(contigOriginalSequence));
 
@@ -1092,6 +1156,8 @@ public:
 				}
 			}
 
+			if(nbCorrectedWindows == 0) continue;
+
 
 			string contigSequence = "";
 			for(size_t w=0; w<correctedWindows.size(); w++){
@@ -1102,6 +1168,8 @@ public:
 				delete correctedWindows[w];
 			}
 
+			//cout << contigSequence.size() << " " << nbCorrectedWindows << endl;
+			
 			string header = ">ctg" + to_string(contigIndex) + '\n';
 			gzwrite(outputContigFile, (const char*)&header[0], header.size());
 			contigSequence +=  '\n';
@@ -1109,6 +1177,7 @@ public:
 			//cout << contigSequence.size() << endl;
 		}
 
+		cout << "Checksum: " << checksum << endl;
 		gzclose(outputContigFile);
 	}
 
