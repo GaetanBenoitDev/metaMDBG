@@ -157,7 +157,8 @@ public:
 
 		u_int64_t meanReadLength = computeMeanReadLength(_inputFilename);
 		_lastK = meanReadLength*_minimizerDensity*0.95; //*0.95
-
+		//_lastK = 41;
+		
 		cout << "Mean read length: " << meanReadLength << endl;
 		cout << "Min k: " << _firstK << endl;
 		cout << "Max k: " << _lastK << endl;
@@ -304,6 +305,8 @@ public:
 			if(pass == 0) command += " --firstpass";
 			Utils::executeCommand(command);
 
+			command = _filename_exe + " polish " + _inputDir + "/contigs_" + to_string(k) + ".fasta.gz " + _inputFilename + " -t 15";
+			Utils::executeCommand(command);
 			//generatedContigs = true;
 		}
 		else{

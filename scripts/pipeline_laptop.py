@@ -42,7 +42,7 @@ def main(argv):
     #execute_command(command)
 
     contigsFilename = ""
-    for filename in glob.glob(asmDir + "/contigs_*.fasta.gz"):
+    for filename in glob.glob(asmDir + "/contigs_*_corrected.fasta.gz"):
         contigsFilename = filename
         break
 

@@ -7,6 +7,7 @@
 - window sequence a selectionner en priorité: 
 	- la distance est une mauvaise metrique car on ne sait pas si la sequence de reference est erroné ou non
 	- un mapping tres long sur un contig a plus de valeur qu'un mapping court (on est plus sûr que ce read appartient au contig)+
+	- NEW: on peut garder la window avec la quality la plus haute
 - si "no sequencer fo window": utiliser la fenetre original du contig ?
 - minimap2 output: écrire un petit programme pour compresser les résultats d'alignements on the fly
 - version finale: remove le minimap2 align filename
@@ -173,7 +174,7 @@ public:
     void execute (){
 
 
-		//mapReads();
+		mapReads();
 		indexContigName();
 		indexReadName();
 		parseAlignments();
