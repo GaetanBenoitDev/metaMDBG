@@ -580,7 +580,18 @@ public:
                 u_int32_t posStart = breaking_points_[j].first - window_start;
                 u_int32_t posEnd =  breaking_points_[j + 1].first - window_start - 1;
 
-				indexWindow(al, window_id, posStart, posEnd, sequence, "");
+				string quality = "";
+				if(qualSequence.size() > 0){
+					quality = string(&qualSequence[breaking_points_[j].second], data_length);
+				}
+
+				if(window_id == 0){
+					//cout << sequence << endl;
+					//cout << quality << endl;
+					//getchar();
+				}
+
+				indexWindow(al, window_id, posStart, posEnd, sequence, quality);
 
 				//cout << window_id << " " << posStart << " " << posEnd << endl;
 				//cout << sequence << endl;
@@ -960,7 +971,10 @@ public:
 								subgraph.UpdateAlignment(mapping, &alignment);
 							}
 							
-
+							//cout << dnaStr << endl;
+							//cout << window._quality << endl;
+							//cout << window._posStart << " " << window._posEnd << endl;
+							//getchar();
 							//auto alignment = alignmentEngine->Align(dnaStr, window._sequence->m_len, graph);
 
 							//cout << dnaStr << endl;

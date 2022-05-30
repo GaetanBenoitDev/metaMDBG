@@ -163,7 +163,7 @@ void Bloocoo::createMDBG (){
 		_mdbgInit = new MDBG(_kminmerSizePrev);
 		_mdbgInit->load(_outputDir + "/mdbg_nodes.gz");
 
-		_readFile = ofstream(_outputDir + "/read_data.txt");
+		//_readFile = ofstream(_outputDir + "/read_data.txt");
 
 
 	}
@@ -197,7 +197,8 @@ void Bloocoo::createMDBG (){
 	}
 
 	if(!_isFirstPass){
-		const string& filename_uncorrectedReads = _outputDir + "/read_uncorrected.txt";
+		//const string& filename_uncorrectedReads = _outputDir + "/read_uncorrected.txt";
+		const string& filename_uncorrectedReads = _outputDir + "/read_data.txt";
 
 		cout << "Filling bloom filter" << endl;
 		//KminmerParserParallel parser(filename_uncorrectedReads, _minimizerSize, _kminmerSize, false, _nbCores);
@@ -220,10 +221,10 @@ void Bloocoo::createMDBG (){
 	
 	if(!_isFirstPass){
 		delete _mdbgInit;
-		_readFile.close();
+		//_readFile.close();
 		
 		const auto copyOptions = fs::copy_options::overwrite_existing;
-		fs::copy(_outputDir + "/read_uncorrected.txt", _outputDir + "/read_data.txt", copyOptions);
+		//fs::copy(_outputDir + "/read_uncorrected.txt", _outputDir + "/read_data.txt", copyOptions);
 	}
 
 
@@ -235,7 +236,7 @@ void Bloocoo::createMDBG (){
 		//}
 		const auto copyOptions = fs::copy_options::overwrite_existing;
 		fs::copy(_outputDir + "/read_data_init.txt", _outputDir + "/read_data.txt", copyOptions);
-		fs::copy(_outputDir + "/read_data_init.txt", _outputDir + "/read_uncorrected.txt", copyOptions); //disable if correction is enabled
+		//fs::copy(_outputDir + "/read_data_init.txt", _outputDir + "/read_uncorrected.txt", copyOptions); //disable if correction is enabled
 	}
 
 
