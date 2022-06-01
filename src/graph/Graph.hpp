@@ -56,7 +56,8 @@ struct GraphNode {
 
 struct AdjNode {
     u_int32_t _index;
-    u_int16_t _overlap;
+    //u_int16_t _overlap;
+    bool _isRemoved;
 };
 
 
@@ -745,6 +746,7 @@ public:
         //}
     }
 
+    /*
     u_int16_t getOverlap(u_int32_t nodeIndex_from, u_int32_t nodeIndex_to){
         if(nodeIndex_from == nodeIndex_to) return 0;
         for(AdjNode& node : _nodes[nodeIndex_from]){
@@ -767,6 +769,7 @@ public:
 
         return 0;
     }
+    */
     /*
     u_int16_t getOverlap_prev(u_int32_t nodeIndex_from, u_int32_t nodeIndex_to){
         for(AdjNode& node : _nodes[nodeIndex_from]){
@@ -804,7 +807,7 @@ public:
         u_int32_t nodeIndex_from = nodeName_to_nodeIndex(from, fromOrient);
         u_int32_t nodeIndex_to = nodeName_to_nodeIndex(to, toOrient);
 
-        _nodes[nodeIndex_from].push_back({nodeIndex_to, overlap});//getAdjListNode(nodeIndex_to, weight, _nodes[nodeIndex_from]);
+        _nodes[nodeIndex_from].push_back({nodeIndex_to, false});//getAdjListNode(nodeIndex_to, weight, _nodes[nodeIndex_from]);
         _nbEdges += 1;
 
         return true;
@@ -816,7 +819,7 @@ public:
         //u_int32_t nodeIndex_to = nodeName_to_nodeIndex(to, toOrient);
         u_int16_t overlap = 200;
 
-        _nodes[nodeIndex_from].push_back({nodeIndex_to, overlap});//getAdjListNode(nodeIndex_to, weight, _nodes[nodeIndex_from]);
+        _nodes[nodeIndex_from].push_back({nodeIndex_to, false});//getAdjListNode(nodeIndex_to, weight, _nodes[nodeIndex_from]);
         _nbEdges += 1;
 
         return true;
@@ -837,6 +840,16 @@ public:
         return true;
     }
 
+    void clearEdgeRemoved(){
+        for(size_t i=0; i<_nodes.size(); i++){
+            vector<AdjNode>& successors = _nodes[i];
+            for(AdjNode& node : successors){
+                node._isRemoved = false;
+            }
+        }
+    }
+
+    /*
     bool removeEdge(u_int32_t from, bool fromOrient, u_int32_t to, bool toOrient){
 
         u_int32_t nodeIndex_from = nodeName_to_nodeIndex(from, fromOrient);
@@ -854,22 +867,27 @@ public:
     
         return false;
     }
+    */
 
     bool removeEdge(u_int32_t nodeIndex_from, u_int32_t nodeIndex_to){
 
         vector<AdjNode>& successors = _nodes[nodeIndex_from];
 
-        // Traversing through the first vector list
-        // and removing the second element from it
+        bool found = false;
         for (size_t i=0; i < successors.size(); i++) {
             if (successors[i]._index == nodeIndex_to) {
-                successors.erase(successors.begin() + i);
+                //if(successors[i]._isRemoved) continue;
+                successors[i]._isRemoved = true;
+                //cout << "Removed: " <<  i << " " << successors[i]._isRemoved << " " << BiGraph::nodeIndex_to_nodeName(nodeIndex_from) << " " << BiGraph::nodeIndex_to_nodeName(nodeIndex_to) << endl;
+                found = true;
+                
+                //successors.erase(successors.begin() + i);
                 _nbEdges -= 1;
-                return true;
+                //return true; //On ne breakp as car les aplindrome genere chhacun 2 edge avec la meme source -> dest
             }
         }
     
-        return false;
+        return found;
     }
 
     bool edgeExists(u_int32_t nodeIndex_from, u_int32_t nodeIndex_to){

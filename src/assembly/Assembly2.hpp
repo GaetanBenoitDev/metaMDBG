@@ -369,7 +369,7 @@ public:
 		_gfaFilename = _inputDir + "/minimizer_graph.gfa";
 		string gfa_filename_noUnsupportedEdges = _inputDir + "/minimizer_graph_noUnsupportedEdges.gfa";
 		//string gfa_filename_unitigs = _inputDir + "/minimizer_graph_unitigs.gfa";
-		string mdbg_filename = _inputDir + "/mdbg_nodes.gz";
+		string mdbg_filename = _inputDir + "/kminmerData_min.txt";
 
 
 		if(_truthInputFilename != ""){
@@ -1252,7 +1252,8 @@ public:
 						for(long i=0; i<contigNodeNames.size(); i++){
 							u_int32_t nodeName = contigNodeNames[i];
 							u_int32_t nodeIndex = BiGraph::nodeName_to_nodeIndex(nodeName, true);
-							if(_graph->_isNodeValid2.find(nodeIndex) == _graph->_isNodeValid2.end()) continue;
+							//if(_graph->_isNodeValid2.find(nodeIndex) == _graph->_isNodeValid2.end()) continue;
+							if(_graph->_isNodeRemoved[nodeIndex]) continue;
 
 							//validUnitigs.push_back(_graph->nodeIndex_to_unitigIndex(nodeIndex));
 							break;
@@ -1262,7 +1263,8 @@ public:
 						for(long i=contigNodeNames.size()-1; i>=0; i--){
 							u_int32_t nodeName = contigNodeNames[i];
 							u_int32_t nodeIndex = BiGraph::nodeName_to_nodeIndex(nodeName, true);
-							if(_graph->_isNodeValid2.find(nodeIndex) == _graph->_isNodeValid2.end()) continue;
+							//if(_graph->_isNodeValid2.find(nodeIndex) == _graph->_isNodeValid2.end()) continue;
+							if(_graph->_isNodeRemoved[nodeIndex]) continue;
 
 							//validUnitigs.push_back(_graph->nodeIndex_to_unitigIndex(nodeIndex));
 							break;
@@ -1790,7 +1792,7 @@ public:
 		
 		for(float cutoff : allCutoffs){
 
-			_graph->loadState2(cutoff, -1, _unitigDatas);
+			//_graph->loadState2(cutoff, -1, _unitigDatas);
 
 
 			_contigIndex_to_componentIndex.clear();

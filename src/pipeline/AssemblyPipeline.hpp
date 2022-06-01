@@ -297,7 +297,7 @@ public:
 			//if(pass == 0) command += " --firstpass";
 			Utils::executeCommand(command);
 
-			command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/contigs.nodepath.gz" + " -f " + _inputDir + "/contig_data.txt";
+			command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/contigs.nodepath" + " -f " + _inputDir + "/contig_data.txt";
 			Utils::executeCommand(command);
 			
 
@@ -318,7 +318,7 @@ public:
 			//getchar();
 			
 
-			command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/contigs.nodepath.gz" + " -f " + _inputDir + "/unitig_data.txt";
+			command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/contigs.nodepath" + " -f " + _inputDir + "/unitig_data.txt";
 			Utils::executeCommand(command);
 
 		}	
@@ -339,17 +339,21 @@ public:
 		//const auto copyOptions = fs::copy_options::overwrite_existing;
 		//fs::copy(_inputDir + "/read_data.txt", dir + "/read_data.txt");
 
-		if(fs::exists(_inputDir + "/nodeName_to_unitigIndex.bin")) fs::copy(_inputDir + "/nodeName_to_unitigIndex.bin", dir + "/nodeName_to_unitigIndex.bin");
-		if(fs::exists(_inputDir + "/groundtruth_position.csv")) fs::copy(_inputDir + "/groundtruth_position.csv", dir + "/groundtruth_position.csv");
-		if(fs::exists(_inputDir + "/read_path.txt")) fs::copy(_inputDir + "/read_path.txt", dir + "/read_path.txt");
-		if(fs::exists(_inputDir + "/read_path_cleaned.txt")) fs::copy(_inputDir + "/read_path_cleaned.txt", dir + "/read_path_cleaned.txt");
+
 		//if(fs::exists(_inputDir + "/read_index.txt")) fs::copy(_inputDir + "/read_index.txt", dir + "/read_index.txt");
-		fs::copy(_inputDir + "/minimizer_graph.gfa", dir + "/minimizer_graph.gfa");
 		if(fs::exists(_inputDir + "/minimizer_graph_u.gfa")) fs::copy(_inputDir + "/minimizer_graph_u.gfa", dir + "/minimizer_graph_u.gfa");
 		fs::copy(_inputDir + "/minimizer_graph_u_cleaned.gfa", dir + "/minimizer_graph_u_cleaned.gfa");
 		//fs::copy(_inputDir + "/minimizer_graph_cleaned.gfa", dir + "/minimizer_graph_cleaned.gfa");
 		fs::copy(_inputDir + "/parameters.gz", dir + "/parameters.gz");
-		fs::copy(_inputDir + "/mdbg_nodes.gz", dir + "/mdbg_nodes.gz");
+
+		if(k == _firstK || k == _lastK){
+			fs::copy(_inputDir + "/minimizer_graph.gfa", dir + "/minimizer_graph.gfa");
+			fs::copy(_inputDir + "/kminmerData_min.txt", dir + "/kminmerData_min.txt");
+			if(fs::exists(_inputDir + "/nodeName_to_unitigIndex.bin")) fs::copy(_inputDir + "/nodeName_to_unitigIndex.bin", dir + "/nodeName_to_unitigIndex.bin");
+			if(fs::exists(_inputDir + "/groundtruth_position.csv")) fs::copy(_inputDir + "/groundtruth_position.csv", dir + "/groundtruth_position.csv");
+			if(fs::exists(_inputDir + "/read_path.txt")) fs::copy(_inputDir + "/read_path.txt", dir + "/read_path.txt");
+			if(fs::exists(_inputDir + "/read_path_cleaned.txt")) fs::copy(_inputDir + "/read_path_cleaned.txt", dir + "/read_path_cleaned.txt");
+		}
 		//fs::copy(_inputDir + "/mdbg_nodes_init.gz", dir + "/mdbg_nodes_init.gz", copyOptions);
 	}
 

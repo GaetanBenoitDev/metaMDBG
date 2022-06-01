@@ -1046,6 +1046,7 @@ public:
 
 	}
 	
+	/*
 	void dump(const string& filename){
 		gzFile file = gzopen(filename.c_str(),"wb");
 
@@ -1058,22 +1059,83 @@ public:
 			//cout << sizeof(DbgNode) << endl;
 			gzwrite(file, (const char*)&node, sizeof(DbgNode));
 
-			/*
-			if(lala){
-				lala = false;
-				for(size_t i=0; i<vec._kmers.size(); i++){
-					cout << vec._kmers[i] << endl;
-				}
-				cout << node._index << endl;
-				cout << node._abundance << endl;
-				cout << node._length << endl;
-			}*/
+
 
 		}
 
 		gzclose(file);
 	}
+	*/
 
+	void dump(const string& filename){
+
+		ofstream kminmerFile = ofstream(filename);
+
+		for(auto& it : _dbg_nodes){
+			KmerVec vec = it.first;
+
+			//it.second._index = _nodeName_to_deterministicNodeName[it.second._index];
+			
+			//KmerVecSorterData& d = kmerVecs[i];
+			u_int32_t nodeName = it.second._index;
+			u_int32_t abundance = it.second._abundance;
+
+			//bool isReversed;
+			//d._kmerVec.normalize(isReversed);
+
+			//vector<u_int64_t> minimizerSeq = d._kmerVec.normalize()._kmers;
+
+			vector<u_int64_t> minimizerSeq = vec._kmers;
+			//if(kminmerInfo._isReversed){
+			//	std::reverse(minimizerSeq.begin(), minimizerSeq.end());
+			//}
+
+			u_int16_t size = minimizerSeq.size();
+			//_kminmerFile.write((const char*)&size, sizeof(size));
+			kminmerFile.write((const char*)&minimizerSeq[0], size*sizeof(uint64_t));
+
+			kminmerFile.write((const char*)&nodeName, sizeof(nodeName));
+			kminmerFile.write((const char*)&abundance, sizeof(abundance));
+		}
+
+		kminmerFile.close();
+
+	}
+
+	void load(const string& filename){
+
+		ifstream kminmerFile(filename);
+
+		while (true) {
+
+			u_int16_t size = _k;
+			//kminmerFile.read((char*)&size, sizeof(size));
+
+
+			vector<u_int64_t> minimizerSeq;
+			minimizerSeq.resize(size);
+			kminmerFile.read((char*)&minimizerSeq[0], size*sizeof(u_int64_t));
+
+			if(kminmerFile.eof())break;
+
+			u_int32_t nodeName;
+			u_int32_t abundance;
+			//bool isReversed = false;
+
+			kminmerFile.read((char*)&nodeName, sizeof(nodeName));
+			kminmerFile.read((char*)&abundance, sizeof(abundance));
+
+
+			KmerVec vec;
+			vec._kmers = minimizerSeq;
+
+			_dbg_nodes[vec] = {nodeName, abundance};
+		}
+
+		kminmerFile.close();
+	}
+	
+	/*
 	void load(const string& filename){
 
 		//cout << _k << endl;
@@ -1098,31 +1160,14 @@ public:
 
 			//cout << node._index << endl;
 			_dbg_nodes[vec] = node;
-			/*
-			if(_node_id == 0){
-				for(size_t i=0; i<vec._kmers.size(); i++){
-					cout << vec._kmers[i] << endl;
-				}
-				cout << node._index << endl;
-				cout << node._abundance << endl;
-				cout << node._length << endl;
-			}*/
+
 
 			_node_id += 1;
 		}
-		/*
-		for(auto it : _dbg_nodes){
-			const KmerVec& vec = it.first;
-			const DbgNode& node = it.second;
-
-			gzwrite(file, (const char*)&vec._kmers[0], _k * sizeof(u_int64_t));
-			//cout << sizeof(DbgNode) << endl;
-			gzwrite(file, (const char*)&node, sizeof(DbgNode));
-		}
-		*/
 
 		gzclose(file);
 	}
+	*/
 
 
 

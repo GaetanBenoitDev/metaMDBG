@@ -612,6 +612,7 @@ public:
 
 					const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
 					const KmerVec& vec = kminmerInfo._vec;
+					//if(vec.isPalindrome()) continue;
 
 					float kminmerAbundance = -1;
 					if(!_isFirstPass){

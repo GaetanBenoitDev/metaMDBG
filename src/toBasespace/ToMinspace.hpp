@@ -130,13 +130,13 @@ public:
 
 		cout << "Loading mdbg" << endl;
 		string mdbg_filename = _inputDir + "/mdbg_nodes.gz";
-		_mdbg = new MDBG(_kminmerSize);
-		_mdbg->load(mdbg_filename);
-		cout << "MDBG nodes: " << _mdbg->_dbg_nodes.size() << endl;
+		//_mdbg = new MDBG(_kminmerSize);
+		//_mdbg->load(mdbg_filename);
+		//cout << "MDBG nodes: " << _mdbg->_dbg_nodes.size() << endl;
 
 		extractKminmerSequences();
 		//cout << "delete mdbg a remetre !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << endl;
-		delete _mdbg;
+		//delete _mdbg;
 
 		createMinimizerContigs();
 
@@ -148,7 +148,7 @@ public:
 	void loadContigs(){
 
 		cout << "Loading contigs" << endl;
-		gzFile contigFile = gzopen(_filename_inputContigs.c_str(),"rb");
+		ifstream contigFile(_filename_inputContigs);
 		u_int64_t nbContigs = 0;
 		
 		while(true){
@@ -156,17 +156,17 @@ public:
 			vector<u_int32_t> nodePath;
 			//vector<u_int64_t> supportingReads;
 			u_int64_t size;
-			gzread(contigFile, (char*)&size, sizeof(size));
+			contigFile.read((char*)&size, sizeof(size));
 			
 
-			if(gzeof(contigFile)) break;
+			if(contigFile.eof()) break;
 
 			//u_int8_t isCircular;
 			//gzread(contigFile, (char*)&isCircular, sizeof(isCircular));
 
 			nodePath.resize(size);
 			//supportingReads.resize(size);
-			gzread(contigFile, (char*)&nodePath[0], size * sizeof(u_int32_t));
+			contigFile.read((char*)&nodePath[0], size * sizeof(u_int32_t));
 			//gzread(contigFile, (char*)&supportingReads[0], size * sizeof(u_int64_t));
 
 			//for(u_int32_t nodeIndex : nodePath){
@@ -204,7 +204,7 @@ public:
 			//cout << nodePath.size() << endl;
 		}
 
-		gzclose(contigFile);
+		contigFile.close();
 
 		cout << _nodeName_entire.size() << " " << _nodeName_left.size() << " " << _nodeName_right.size() << endl;
 		cout << "Nb contigs: " << nbContigs << endl;
@@ -373,9 +373,11 @@ public:
 			u_int32_t length;
 			u_int32_t lengthStart;
 			u_int32_t lengthEnd;
+			u_int32_t abundance;
 			//bool isReversed = false;
 
 			kminmerFile.read((char*)&nodeName, sizeof(nodeName));
+			kminmerFile.read((char*)&abundance, sizeof(abundance));
 			//kminmerFile.read((char*)&length, sizeof(length));
 			//kminmerFile.read((char*)&lengthStart, sizeof(lengthStart));
 			//kminmerFile.read((char*)&lengthEnd, sizeof(lengthEnd));
@@ -388,6 +390,7 @@ public:
 			//lengthEnd = 1;
 			//cout << size << " " << nodeName << endl;
 
+			//cout << nodeName << endl;
 			auto found = _nodeName_entire.find(nodeName);
 			if(found != _nodeName_entire.end() && !found->second._loaded){
 
@@ -503,7 +506,7 @@ public:
 		cout << "Creating mContigs" << endl;
 		cout << endl;
 
-		string mdbg_filename =  _inputDir + "/mdbg_nodes_init.gz";
+		string mdbg_filename =  _inputDir + "/kminmerData_min_init.txt";
 		MDBG* mdbg = new MDBG(firstK);
 		mdbg->load(mdbg_filename);
 
@@ -515,7 +518,8 @@ public:
 
 
 
-		gzFile contigFile = gzopen(_filename_inputContigs.c_str(), "rb");
+		//gzFile contigFile = gzopen(_filename_inputContigs.c_str(), "rb");
+		ifstream contigFile(_filename_inputContigs);
 
 		u_int64_t contig_index = 0;
 
@@ -525,10 +529,10 @@ public:
 			vector<u_int32_t> nodePath;
 			//vector<u_int64_t> supportingReads;
 			u_int64_t size;
-			gzread(contigFile, (char*)&size, sizeof(size));
+			contigFile.read((char*)&size, sizeof(size));
 			
 
-			if(gzeof(contigFile)) break;
+			if(contigFile.eof()) break;
 
 
 			//u_int8_t isCircular;
@@ -536,7 +540,7 @@ public:
 
 			nodePath.resize(size);
 			//supportingReads.resize(size);
-			gzread(contigFile, (char*)&nodePath[0], size * sizeof(u_int32_t));
+			contigFile.read((char*)&nodePath[0], size * sizeof(u_int32_t));
 			//gzread(contigFile, (char*)&supportingReads[0], size * sizeof(u_int64_t));
 
 
@@ -815,7 +819,7 @@ public:
 
 
 		//cout << nbFailed << " " << contig_index << endl;
-		gzclose(contigFile);
+		contigFile.close();
 		outputFile.close();
 		//gzclose(outputContigFile);
 		//testCsv.close();

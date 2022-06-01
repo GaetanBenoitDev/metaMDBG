@@ -162,21 +162,25 @@ public:
 
 		loadGraph();
 		//generateUnitigs();
-		generateContigs2(_inputDir + "/contigs.nodepath.gz", _inputDir + "/contigs.fasta.gz");
+		generateContigs2(_inputDir + "/contigs.nodepath");
 
 		
 		//if(_kminmerSize == 4){
 			_mdbg = new MDBG(_kminmerSize);
-			_mdbg->load(_inputDir + "/mdbg_nodes.gz");
+			_mdbg->load(_inputDir + "/kminmerData_min.txt");
 			for(auto& it : _mdbg->_dbg_nodes){
 				if(_nodeNameAbundances.find(it.second._index) == _nodeNameAbundances.end()) continue;
 				const NodeAb& nodeAb = _nodeNameAbundances[it.second._index];
 				it.second._abundance = nodeAb._abundance;
-				if(nodeAb._nbNodes >= _kminmerSize *2) it.second._abundance = max(it.second._abundance, (u_int32_t)2);
+
+				//"reprise: essayer d'enelever pas ça pas sur que c'est correct en fait"
+				if(nodeAb._nbNodes > _kminmerSize) it.second._abundance = max(it.second._abundance, (u_int32_t)2);
+
+				//"generate contig finale: besoin de l'ancien systeme de cleaning avec prise en comtpe du coverage"
 				//it.second._unitigNbNodes = nodeAb._nbNodes;
 				//cout << nodeAb._abundance << " " << nodeAb._nbNodes << endl;
 			}
-			_mdbg->dump(_inputDir + "/mdbg_nodes.gz");
+			_mdbg->dump(_inputDir + "/kminmerData_min.txt");
 		//}
 
 	}
@@ -486,7 +490,7 @@ public:
 
 		for(u_int32_t nodeIndex : nodePath){
 			u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
-			if(_processedNodeNames.find(nodeName) != _processedNodeNames.end()){
+			if(_processedNodeNames[nodeName]){
 				return true;
 				//distinctContigIndex.insert(processedNodeNames[nodeName]);
 			}
@@ -875,29 +879,31 @@ public:
 		u_int32_t _nbNodes;
 	};
 
-	unordered_set<u_int32_t> _processedNodeNames;
+	vector<bool> _processedNodeNames;
 	unordered_map<u_int32_t, NodeAb> _nodeNameAbundances;
 
-	void generateContigs2(const string& outputFilename, const string& outputFilename_fasta){
+	void generateContigs2(const string& outputFilename){
 
-		u_int64_t nbNodesCheckSum = 0;
-		string clusterDir = _inputDir + "/" + "binGreedy";
-		fs::path path(clusterDir);
-		if(!fs::exists (path)){
-			fs::create_directory(path);
-		} 
+		_processedNodeNames = vector<bool>(_graph->_isNodeRemoved.size()/2, false);
+		//u_int64_t nbNodesCheckSum = 0;
+		//string clusterDir = _inputDir + "/" + "binGreedy";
+		//fs::path path(clusterDir);
+		//if(!fs::exists (path)){
+		//	fs::create_directory(path);
+		//} 
 
-		string filename_binStats = clusterDir + "/binStats.txt";
-		ofstream file_binStats(filename_binStats);
+		//string filename_binStats = clusterDir + "/binStats.txt";
+		//ofstream file_binStats(filename_binStats);
 
-		ofstream fileHifiasmAll(_inputDir + "/binning_results_hifiasm.csv");
-		fileHifiasmAll << "Name,Colour" << endl;
+		//ofstream fileHifiasmAll(_inputDir + "/binning_results_hifiasm.csv");
+		//fileHifiasmAll << "Name,Colour" << endl;
 
-		gzFile outputContigFile_min = gzopen(outputFilename.c_str(),"wb");
+		//gzFile outputContigFile_min = gzopen(outputFilename.c_str(),"wb");
 		//gzFile outputContigFile_fasta = gzopen(outputFilename_fasta.c_str(),"wb");
 
-		ofstream file_asmResult = ofstream(_inputDir + "/binning_results.csv");
-		file_asmResult << "Name,Colour" << endl;
+		ofstream outputContigFile(outputFilename);
+		//ofstream file_asmResult = ofstream(_inputDir + "/binning_results.csv");
+		//file_asmResult << "Name,Colour" << endl;
 
 		//Assembly assembly(_unitigDatas, _contigFeature);
 
@@ -912,7 +918,7 @@ public:
 		u_int64_t __loadState2_index = 0;
 
 
-
+		
 		vector<float> allCutoffs;
 
 		for(const SaveState2& saveState : _graph->_cachedGraphStates){
@@ -929,7 +935,7 @@ public:
 		//file_debug << "Name,Colour" << endl;
 
         //auto t1 = std::chrono::high_resolution_clock::now();
-
+		
         _graph->clear(0);
 
         for(const SaveState2& saveState : _graph->_cachedGraphStates){
@@ -939,12 +945,16 @@ public:
 
                 u_int32_t nodeIndex1 = BiGraph::nodeName_to_nodeIndex(nodeName, true);
                 u_int32_t nodeIndex2 = BiGraph::nodeName_to_nodeIndex(nodeName, false);
-                _graph->_isNodeValid2.erase(nodeIndex1);
-                _graph->_isNodeValid2.erase(nodeIndex2);
+				_graph->_isNodeRemoved[nodeIndex1] = true;
+				_graph->_isNodeRemoved[nodeIndex2] = true;
+                //_graph->_isNodeValid2.erase(nodeIndex1);
+                //_graph->_isNodeValid2.erase(nodeIndex2);
             }
 
             for(const DbgEdge& dbgEdge : saveState._isEdgeRemoved){
-                _graph->_isEdgeRemoved.insert(dbgEdge);
+				_graph->_graphSuccessors->removeEdge(dbgEdge._from, dbgEdge._to);
+				_graph->_graphSuccessors->removeEdge(GraphSimplify::nodeIndex_toReverseDirection(dbgEdge._to), GraphSimplify::nodeIndex_toReverseDirection(dbgEdge._from));
+                //_graph->_isEdgeRemoved.insert(dbgEdge);
             }
         }
 
@@ -977,20 +987,12 @@ public:
 
 					u_int32_t nodeIndex1 = BiGraph::nodeName_to_nodeIndex(nodeName, true);
 					u_int32_t nodeIndex2 = BiGraph::nodeName_to_nodeIndex(nodeName, false);
-					_graph->_isNodeValid2.insert(nodeIndex1);
-					_graph->_isNodeValid2.insert(nodeIndex2);
+					_graph->_isNodeRemoved[nodeIndex1] = false;
+					_graph->_isNodeRemoved[nodeIndex2] = false;
+					//_graph->_isNodeValid2.insert(nodeIndex1);
+					//_graph->_isNodeValid2.insert(nodeIndex2);
 				}
 
-				/*
-				for(const u_int32_t nodeName : saveState._isBubble){
-
-					u_int32_t nodeIndex1 = BiGraph::nodeName_to_nodeIndex(nodeName, true);
-					u_int32_t nodeIndex2 = BiGraph::nodeName_to_nodeIndex(nodeName, false);
-
-					_isBubble[nodeIndex1] = true;
-					_isBubble[nodeIndex2] = true;
-				}
-				*/
 
 				for(const DbgEdge& dbgEdge : isEdgeRemoved){
 					_graph->_isEdgeRemoved.erase(dbgEdge);
@@ -1015,34 +1017,36 @@ public:
 			//if(cutoff == 102.862){
 			//	_graph->saveGraph(_inputDir + "/minimizer_graph_contigs.gfa");
 			//}
-			
-			for(const Unitig& unitig: _graph->_unitigs){
+
+			for(const Unitig& u: _graph->_unitigs){
 				//cout << unitig._length << " " << unitig._abundance << endl;
 				//if(unitig._index % 2 == 1) continue;
 
-				if(unitig._abundance < _minUnitigAbundance) continue;
-				if(isContigAssembled(unitig._nodes)) continue;
+				if(u._abundance < _minUnitigAbundance) continue;
+				if(isContigAssembled(u._nodes)) continue;
 				//if(unitig._nbNodes < _kminmerSize*2) continue;
 				//if(cutoff == 0 && unitig._length < 10000) continue;
 				//if(cutoff == 0) continue;
 
 				//startingUnitigs.push_back({unitig._length, unitig._abundance, unitig._startNode});
-				startingUnitigs.push_back({unitig._index, unitig._nodes});
-			}
+				//startingUnitigs.push_back({unitig._index, unitig._nodes});
+			//}
 
 			
 			//cout << "Cutoff: " << unitigLength_cutoff_min << "-" << unitigLength_cutoff_max << " " << cutoff << endl;
 				
-			std::sort(startingUnitigs.begin(), startingUnitigs.end(), ContigComparator_ByLength2);
+			//std::sort(startingUnitigs.begin(), startingUnitigs.end(), ContigComparator_ByLength2);
 			
-			for(const Contig& unitigLength : startingUnitigs){
-			//for(const auto& it: _graph->_unitigs){
-				const Unitig& u = _graph->_unitigs[unitigLength._readIndex];
+			
+
+				//for(const Contig& unitigLength : startingUnitigs){
+				//for(const Unitig& u: _graph->_unitigs){
+				//const Unitig& u = _graph->_unitigs[unitigLength._readIndex];
 				//vector<u_int32_t> nodePath = 
 				//u_int32_t source_nodeIndex = unitigLength._startNodeIndex;
 				//const Unitig& u = _graph->nodeIndex_to_unitig(source_nodeIndex);
-				if(u._abundance < _minUnitigAbundance) continue;
-				if(isContigAssembled(u._nodes)) continue;
+				//if(u._abundance < _minUnitigAbundance) continue;
+				//if(isContigAssembled(u._nodes)) continue;
 				//if(u._index % 2 == 1) continue;
 
 				//cout << "Cutoff: " << unitigLength_cutoff_min << "-" << unitigLength_cutoff_max << " " << cutoff << " " << processedUnitigs << " " << startingUnitigs.size() << "     " << unitig._length << endl;
@@ -1178,17 +1182,20 @@ public:
 				//if(nodePath.size() <= 0) continue;
 
 				u_int64_t size = nodePath.size();
-				gzwrite(outputContigFile_min, (const char*)&size, sizeof(size));
-				gzwrite(outputContigFile_min, (const char*)&nodePath[0], size * sizeof(u_int32_t));
+
+				//gzwrite(outputContigFile_min, (const char*)&size, sizeof(size));
+				//gzwrite(outputContigFile_min, (const char*)&nodePath[0], size * sizeof(u_int32_t));
+				outputContigFile.write((const char*)&size, sizeof(size));
+				outputContigFile.write((const char*)&nodePath[0], size * sizeof(u_int32_t));
 
 				for(u_int32_t nodeIndex : nodePath){
 					u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
-					nbNodesCheckSum += nodeName;
-					checksum_nbNodes += 1;
-					_processedNodeNames.insert(nodeName);
+					//nbNodesCheckSum += nodeName;
+					//checksum_nbNodes += 1;
+					_processedNodeNames[nodeName] = true;
 
 					//if(_kminmerSize == 4){
-						_nodeNameAbundances[nodeName] = {_graph->getNodeUnitigAbundance(nodeIndex), _graph->nodeIndex_to_unitig(nodeIndex)._nbNodes};
+					_nodeNameAbundances[nodeName] = {_graph->getNodeUnitigAbundance(nodeIndex), _graph->nodeIndex_to_unitig(nodeIndex)._nbNodes};
 					//}
 
 					//if(nodeName == 289994){
@@ -1197,6 +1204,7 @@ public:
 					//processedNodeNames.insert(nodeName);
 				}
 
+				/*
 				u_int64_t s = 0;
 				u_int64_t nbNodes = 0;
 				if(u._nodes.size() > 1 && u._startNode == u._endNode){ //Circular
@@ -1213,8 +1221,9 @@ public:
 						nbNodes += 1;
 					}
 				}
+				*/
 
-				checkSum += s * nbNodes;
+				//checkSum += s * nbNodes;
 				//vector<u_int32_t> nodepath_sorted = nodePath;
 				//std::sort(nodepath_sorted.begin(), nodepath_sorted.end());
 				//contigs.push_back({nodePath, nodepath_sorted});
@@ -1340,20 +1349,21 @@ public:
 		}
 		*/
 
-		gzclose(outputContigFile_min);
+		outputContigFile.close();
+		//gzclose(outputContigFile_min);
 		//gzclose(outputContigFile_fasta);
-		fileHifiasmAll.close();
+		//fileHifiasmAll.close();
 		//file_contigToNode.close();
 
 		//extractContigKminmers(outputFilename_fasta);
-		file_asmResult.close();
+		//file_asmResult.close();
 		
-		cout << "Nb contigs: " << contigIndex << endl;
-		cout << "Check sum (nb nodes): " << checksum_nbNodes << endl;
-		cout << "Check sum (nodeNames): " << nbNodesCheckSum << endl;
-		cout << "Check sum global: " << checksum_global << endl;
-		cout << "Check sum global (abundance): " << checksum_abundance << endl;
-		cout << "Check sum: " << checkSum << endl;
+		//cout << "Nb contigs: " << contigIndex << endl;
+		//cout << "Check sum (nb nodes): " << checksum_nbNodes << endl;
+		//cout << "Check sum (nodeNames): " << nbNodesCheckSum << endl;
+		//cout << "Check sum global: " << checksum_global << endl;
+		//cout << "Check sum global (abundance): " << checksum_abundance << endl;
+		//cout << "Check sum: " << checkSum << endl;
 		//getchar();
 	}
 	

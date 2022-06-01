@@ -12,6 +12,9 @@
 - minimap2 output: écrire un petit programme pour compresser les résultats d'alignements on the fly
 - version finale: remove le minimap2 align filename
 - voir comment racon handle multimap
+
+"reprise: ajouter les dernieres filtres de qualité de racon (easy) et refaire des test, aussi potentiellement 20 copies est pas l'optimum, essayer entre 20 et 25, tester correction k=5, revoir comment calculer superbubble lineairement"
+- Blocoo creat graph: load les edge apres que les nodes du graphe soit tous indexé, comme ça on peut delete mdbg_init (abundance calculation) avant d'indexé les edges
 */
 
 #ifndef MDBG_METAG_CONTIGPOLISHER
@@ -713,7 +716,7 @@ public:
 				*/
 				
 				bool interrupt = false;
-				if(windows.size() < 19){
+				if(windows.size() < 20){
 
 
 					windows.push_back({new DnaBitset2(windowSequence), windowQualities, posStart, posEnd});
