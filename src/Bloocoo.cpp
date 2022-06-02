@@ -722,7 +722,7 @@ void Bloocoo::indexEdge(const KmerVec& vec, u_int32_t nodeName){
 	});
 	*/
 
-	
+	/*
 	KmerVec edge1 = vec.prefix().normalize();
 	KmerVec edge2 = vec.suffix().normalize();
 
@@ -745,7 +745,7 @@ void Bloocoo::indexEdge(const KmerVec& vec, u_int32_t nodeName){
 		nodes.push_back({nodeName, vec});
 		ctor(edge2, nodes); 
 	});
-	
+	*/
 
 	
 	_mdbgEdges2.lazy_emplace_l(prefix, 

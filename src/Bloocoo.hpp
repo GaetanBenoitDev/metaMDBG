@@ -90,9 +90,8 @@ public:
 	MDBG* _mdbg;
 	//MDBG* _mdbgInit;
 	KminmerAbundanceMap _kminmerAbundances;
-	MdbgEdgeMap _mdbgEdges;
+	//MdbgEdgeMap _mdbgEdges;
 	MdbgEdgeMap2 _mdbgEdges2;
-	MdbgEdgeMap2 _mdbgEdgesSuffix;
 	MDBG* _mdbgNoFilter;
 	bool _parsingContigs;
 	u_int32_t _node_id;
