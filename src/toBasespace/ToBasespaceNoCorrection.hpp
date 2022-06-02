@@ -126,7 +126,7 @@ public:
 		cout << "Loading mdbg" << endl;
 		string mdbg_filename = _inputDir + "/mdbg_nodes_init.gz";
 		_mdbg = new MDBG(_kminmerSize);
-		_mdbg->load(mdbg_filename);
+		_mdbg->load(mdbg_filename, false);
 		cout << "MDBG nodes: " << _mdbg->_dbg_nodes.size() << endl;
 
 		//cout << _inputFilenameContig_fasta << endl;

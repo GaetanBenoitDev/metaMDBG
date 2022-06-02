@@ -261,7 +261,7 @@ struct KmerVec{
 	}
 
 	KmerVec normalize(){
-
+		/*
 		KmerVec vec_reverse = reverse();
 
 		if(h() < vec_reverse.h()){
@@ -270,6 +270,9 @@ struct KmerVec{
 		else{
 			return vec_reverse;
 		}
+		*/
+		bool dummy;
+		return normalize(dummy);
 		
 	}
 
@@ -452,10 +455,22 @@ struct Overlap {
     u_int16_t _nbMinimizers;
 };
 
+struct KminmerEdge2{
+	u_int32_t _nodeName;
+	u_int64_t _minimizer;
+	bool _isReversed;
+	bool _isPrefix;
+};
+
+struct KminmerEdge{
+	u_int32_t _nodeName;
+	KmerVec _vec;
+};
 
 //typedef phmap::parallel_flat_hash_set<KmerVec, phmap::priv::hash_default_hash<KmerVec>, phmap::priv::hash_default_eq<KmerVec>, std::allocator<KmerVec>, 4, std::mutex> KmerVecSet;
 typedef phmap::parallel_flat_hash_map<KmerVec, DbgNode, phmap::priv::hash_default_hash<KmerVec>, phmap::priv::hash_default_eq<KmerVec>, std::allocator<std::pair<KmerVec, DbgNode>>, 4, std::mutex> MdbgNodeMap;
-typedef phmap::parallel_flat_hash_map<KmerVec, vector<KmerVec>, phmap::priv::hash_default_hash<KmerVec>, phmap::priv::hash_default_eq<KmerVec>, std::allocator<std::pair<KmerVec, vector<KmerVec>>>, 4, std::mutex> MdbgEdgeMap;
+typedef phmap::parallel_flat_hash_map<KmerVec, vector<KminmerEdge>, phmap::priv::hash_default_hash<KmerVec>, phmap::priv::hash_default_eq<KmerVec>, std::allocator<std::pair<KmerVec, vector<KminmerEdge>>>, 4, std::mutex> MdbgEdgeMap;
+typedef phmap::parallel_flat_hash_map<KmerVec, vector<KminmerEdge2>, phmap::priv::hash_default_hash<KmerVec>, phmap::priv::hash_default_eq<KmerVec>, std::allocator<std::pair<KmerVec, vector<KminmerEdge2>>>, 4, std::mutex> MdbgEdgeMap2;
 
 
 //unordered_map<KmerVec, DbgNode> _dbg_nodes;
@@ -1102,7 +1117,7 @@ public:
 
 	}
 
-	void load(const string& filename){
+	void load(const string& filename, bool removeUniqueKminmer){
 
 		ifstream kminmerFile(filename);
 
@@ -1126,6 +1141,7 @@ public:
 			kminmerFile.read((char*)&abundance, sizeof(abundance));
 
 
+			if(removeUniqueKminmer && abundance == 1) continue;
 			KmerVec vec;
 			vec._kmers = minimizerSeq;
 

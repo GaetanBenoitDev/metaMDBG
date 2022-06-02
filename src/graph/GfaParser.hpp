@@ -233,8 +233,10 @@ public:
         u_int8_t edgePlus = 0;
         u_int8_t edgeMinus = 1;
 
-
+        
         ifstream infile(filename);
+        /*
+
 
         if(nbNodes == 0){
 
@@ -271,38 +273,39 @@ public:
             }
             
         }
+        */
 
+        infile.clear();
+        infile.seekg(0, std::ios::beg);
 
+        infile.read((char*)&nbNodes, sizeof(nbNodes));
         //nbNodes = 5000000;
         //cout << "to remove" << endl;
         BiGraph* graph = new BiGraph(nbNodes);
 
-        infile.clear();
-        infile.seekg(0, std::ios::beg);
 
         graph->_nodeAbundances.resize(graph->_nbNodes/2, 0);
         graph->_nodeLengths.resize(graph->_nbNodes/2, 0);
 
         while(true){
-            u_int8_t type;
-            infile.read((char*)&type, sizeof(type));
-
-            if(infile.eof())break;
+            //u_int8_t type;
+            //infile.read((char*)&type, sizeof(type));
 
 
-            if(type == isS){
 
-                u_int32_t nodeName;
-                u_int32_t abundance;
+            //if(type == isS){
 
-                infile.read((char*)&nodeName, sizeof(nodeName));
-                infile.read((char*)&abundance, sizeof(abundance));
-                graph->_nodeAbundances[nodeName] = abundance;
-                graph->_nodeLengths[nodeName] = kminmerLengthMean;
+            //    u_int32_t nodeName;
+            //    u_int32_t abundance;
 
-                nbNodes += 1;
-            }
-            else{
+            //    infile.read((char*)&nodeName, sizeof(nodeName));
+            //    infile.read((char*)&abundance, sizeof(abundance));
+                //graph->_nodeAbundances[nodeName] = abundance;
+                //graph->_nodeLengths[nodeName] = kminmerLengthMean;
+
+            //    nbNodes += 1;
+            //}
+            //else{
 
                 u_int32_t nodeName1;
                 u_int32_t nodeName2;
@@ -310,6 +313,9 @@ public:
                 u_int8_t ori2;
 
                 infile.read((char*)&nodeName1, sizeof(nodeName1));
+
+                if(infile.eof())break;
+
                 infile.read((char*)&ori1, sizeof(ori1));
                 infile.read((char*)&nodeName2, sizeof(nodeName2));
                 infile.read((char*)&ori2, sizeof(ori2));
@@ -331,7 +337,7 @@ public:
 
                 graph->addEdge(nodeName1, fromOrient, nodeName2, toOrient, kminmerOverlapMean);
 
-            }
+            //}
 
         }
 
@@ -341,7 +347,7 @@ public:
 
         //cout << "allo ?? : " << graph->_nbNodes << endl;
         //cout << graph->_nodeAbundances.size() << endl;
-        GfaParser::getNodeData(filename, graph->_nodeAbundances, graph->_nodeLengths);
+        //GfaParser::getNodeData(filename, graph->_nodeAbundances, graph->_nodeLengths);
         //cout << graph->_nodeAbundances.size() << endl;
 
         return graph;

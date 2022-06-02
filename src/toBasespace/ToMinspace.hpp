@@ -131,7 +131,7 @@ public:
 		cout << "Loading mdbg" << endl;
 		string mdbg_filename = _inputDir + "/mdbg_nodes.gz";
 		//_mdbg = new MDBG(_kminmerSize);
-		//_mdbg->load(mdbg_filename);
+		//_mdbg->load(mdbg_filename, false);
 		//cout << "MDBG nodes: " << _mdbg->_dbg_nodes.size() << endl;
 
 		extractKminmerSequences();
@@ -508,7 +508,7 @@ public:
 
 		string mdbg_filename =  _inputDir + "/kminmerData_min_init.txt";
 		MDBG* mdbg = new MDBG(firstK);
-		mdbg->load(mdbg_filename);
+		mdbg->load(mdbg_filename, false);
 
 		//ofstream testCsv(_inputDir + "/minimizerContigsDebug.csv");
 		//testCsv << "Name,Colour" << endl;

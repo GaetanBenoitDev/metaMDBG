@@ -26,7 +26,7 @@
 
 
 
-
+typedef phmap::parallel_flat_hash_map<KmerVec, u_int32_t> KminmerAbundanceMap;
 
 
 
@@ -88,7 +88,11 @@ public:
 	//vector<u_int32_t> _evaluation_readToDataset;
 	bool _parseReads;
 	MDBG* _mdbg;
-	MDBG* _mdbgInit;
+	//MDBG* _mdbgInit;
+	KminmerAbundanceMap _kminmerAbundances;
+	MdbgEdgeMap _mdbgEdges;
+	MdbgEdgeMap2 _mdbgEdges2;
+	MdbgEdgeMap2 _mdbgEdgesSuffix;
 	MDBG* _mdbgNoFilter;
 	bool _parsingContigs;
 	u_int32_t _node_id;
@@ -102,6 +106,8 @@ public:
 	double _minimizerSpacing_n;
 	double _kminmerLength_sum;
 	double _kminmerLength_n;
+	u_int64_t _nbEdges;
+	ofstream _outputFileGfa;
 
     Bloocoo ();
     void execute ();
@@ -122,6 +128,11 @@ public:
 	void parseContigs();
 	float computeKmerVecAbundance(const vector<u_int64_t>& minimizers, bool isContig);
 	void computeContigAbundance();
+	void indexEdge(const KmerVec& vec, u_int32_t nodeName);
+	void computeEdge(const KmerVec& vec, u_int32_t id);
+	void dumpEdge(u_int32_t nodeNameFrom, u_int8_t nodeNameFromOri, u_int32_t nodeNameTo, u_int8_t nodeNameToOri);
+	void indexEdges();
+	void computeEdges();
 	//void createMDBG_collectKminmers_minspace_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex);
 
 	//void createSimilarityGraph(GraphInfo* graphInfo);
@@ -258,7 +269,7 @@ public:
 		ofstream& _readFile;
 		unordered_set<KmerVec>& _kminmerExist;
 		MDBG* _mdbg;
-		MDBG* _mdbgInit;
+		KminmerAbundanceMap& _kminmerAbundances;
 		ofstream& _kminmerFile;
 		double _minimizerSpacingMean;
 		double _kminmerLengthMean;
@@ -269,11 +280,11 @@ public:
 		BloomCacheCoherent<u_int64_t>* _bloomFilter;
 		bool _extractingContigs;
 
-		IndexKminmerFunctor(Bloocoo& graph, bool extractingContigs) : _graph(graph), _readFile(graph._readFile), _kminmerExist(graph._kminmerExist), _kminmerFile(graph._kminmerFile){
+		IndexKminmerFunctor(Bloocoo& graph, bool extractingContigs) : _graph(graph), _readFile(graph._readFile), _kminmerExist(graph._kminmerExist), _kminmerAbundances(graph._kminmerAbundances), _kminmerFile(graph._kminmerFile){
 			_isFirstPass = graph._isFirstPass;
 			_parsingContigs = graph._parsingContigs;
 			_mdbg = graph._mdbg;
-			_mdbgInit = graph._mdbgInit;
+			//_mdbgInit = graph._mdbgInit;
 			_minimizerSpacingMean = graph._minimizerSpacingMean;
 			_kminmerLengthMean = graph._kminmerLengthMean;
 			_kminmerOverlapMean = graph._kminmerOverlapMean;
@@ -284,11 +295,11 @@ public:
 			_extractingContigs = extractingContigs;
 		}
 
-		IndexKminmerFunctor(const IndexKminmerFunctor& copy) : _graph(copy._graph), _readFile(copy._readFile), _kminmerExist(copy._kminmerExist), _kminmerFile(copy._kminmerFile){
+		IndexKminmerFunctor(const IndexKminmerFunctor& copy) : _graph(copy._graph), _readFile(copy._readFile), _kminmerExist(copy._kminmerExist), _kminmerAbundances(copy._kminmerAbundances), _kminmerFile(copy._kminmerFile){
 			_isFirstPass = copy._isFirstPass;
 			_parsingContigs = copy._parsingContigs;
 			_mdbg = copy._mdbg;
-			_mdbgInit = copy._mdbgInit;
+			//_mdbgInit = copy._mdbgInit;
 			_minimizerSpacingMean = copy._minimizerSpacingMean;
 			_kminmerLengthMean = copy._kminmerLengthMean;
 			_kminmerOverlapMean = copy._kminmerOverlapMean;
@@ -331,9 +342,9 @@ public:
 			//cout << kminmers.size() << endl;
 			for(const KmerVec& vec : kminmers){
 				//cout << (_mdbgInit->_dbg_nodes.find(vec) != _mdbgInit->_dbg_nodes.end()) << endl;
-				if(_mdbgInit->_dbg_nodes.find(vec) != _mdbgInit->_dbg_nodes.end()){
+				if(_kminmerAbundances.find(vec) != _kminmerAbundances.end()){
 
-					u_int32_t abundance = _mdbgInit->_dbg_nodes[vec]._abundance;
+					u_int32_t abundance = _kminmerAbundances[vec];
 
 					//if(nodeName == 17430) cout << abundance << endl;
 
@@ -675,7 +686,7 @@ public:
 							isNewKey = true;
 							//_dbg_nodes[vec] = node;
 
-
+							/*
 							KmerVec edge1 = vec.prefix().normalize();
 							KmerVec edge2 = vec.suffix().normalize();
 
@@ -698,6 +709,7 @@ public:
 								nodes.push_back(vec);
 								ctor(edge2, nodes); 
 							});
+							*/
 
 							//_dbg_edges[vec.prefix().normalize()].push_back(vec);
 							//_dbg_edges[vec.suffix().normalize()].push_back(vec);

@@ -167,11 +167,11 @@ public:
 		
 		//if(_kminmerSize == 4){
 			_mdbg = new MDBG(_kminmerSize);
-			_mdbg->load(_inputDir + "/kminmerData_min.txt");
+			_mdbg->load(_inputDir + "/kminmerData_min.txt", false);
 			for(auto& it : _mdbg->_dbg_nodes){
 				if(_nodeNameAbundances.find(it.second._index) == _nodeNameAbundances.end()) continue;
 				const NodeAb& nodeAb = _nodeNameAbundances[it.second._index];
-				it.second._abundance = nodeAb._abundance;
+				it.second._abundance = ceil(nodeAb._abundance);
 
 				//"reprise: essayer d'enelever pas ça pas sur que c'est correct en fait"
 				if(nodeAb._nbNodes > _kminmerSize) it.second._abundance = max(it.second._abundance, (u_int32_t)2);
@@ -221,6 +221,35 @@ public:
 		GraphSimplify* graphSimplify = new GraphSimplify(_gfaFilename, _inputDir, 0, _kminmerSize, _nbCores, _kminmerLengthMean, _kminmerOverlapMean);
 		_graph = graphSimplify;
 		
+
+		ifstream kminmerFile(_inputDir + "/kminmerData_min.txt");
+
+		while (true) {
+
+			vector<u_int64_t> minimizerSeq;
+			minimizerSeq.resize(_kminmerSize);
+			kminmerFile.read((char*)&minimizerSeq[0], minimizerSeq.size()*sizeof(u_int64_t));
+
+			if(kminmerFile.eof())break;
+
+			u_int32_t nodeName;
+			u_int32_t abundance;
+			//bool isReversed = false;
+
+			kminmerFile.read((char*)&nodeName, sizeof(nodeName));
+			kminmerFile.read((char*)&abundance, sizeof(abundance));
+
+
+			//if(abundance == 1) continue;
+			//KmerVec vec;
+			//vec._kmers = minimizerSeq;
+
+			_graph->_graphSuccessors->_nodeAbundances[nodeName] = abundance;
+			_graph->_graphSuccessors->_nodeLengths[nodeName] = _kminmerLengthMean;
+			//_kminmerAbundances[vec] = abundance;
+		}
+
+		kminmerFile.close();
 
 		//_graph->clear(0);
 		//_graph->compact(false, _unitigDatas);

@@ -95,7 +95,7 @@ public:
 
 		//cout << _gfaFilename << endl;
 		_mdbg = new MDBG(_kminmerSize);
-		_mdbg->load(mdbg_filename);
+		_mdbg->load(mdbg_filename, false);
 		cout << "Nb nodes: " <<  _mdbg->_dbg_nodes.size() << endl;
 
 		indexNodeNames();

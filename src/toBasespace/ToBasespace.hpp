@@ -268,7 +268,7 @@ public:
 		cout << "Loading mdbg" << endl;
 		string mdbg_filename = _inputDir + "/kminmerData_min_init.txt";
 		_mdbg = new MDBG(_kminmerSize);
-		_mdbg->load(mdbg_filename);
+		_mdbg->load(mdbg_filename, false);
 		cout << "MDBG nodes: " << _mdbg->_dbg_nodes.size() << endl;
 
 		if(_truthInputFilename != ""){

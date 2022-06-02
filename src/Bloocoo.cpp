@@ -160,10 +160,35 @@ void Bloocoo::createMDBG (){
 
 	if(!_isFirstPass){
 		
-		_mdbgInit = new MDBG(_kminmerSizePrev);
-		_mdbgInit->load(_outputDir + "/kminmerData_min.txt");
+		//_mdbgInit = new MDBG(_kminmerSizePrev);
+		
+		ifstream kminmerFile(_outputDir + "/kminmerData_min.txt");
 
-		//_readFile = ofstream(_outputDir + "/read_data.txt");
+		while (true) {
+
+			vector<u_int64_t> minimizerSeq;
+			minimizerSeq.resize(_kminmerSizePrev);
+			kminmerFile.read((char*)&minimizerSeq[0], minimizerSeq.size()*sizeof(u_int64_t));
+
+			if(kminmerFile.eof())break;
+
+			u_int32_t nodeName;
+			u_int32_t abundance;
+			//bool isReversed = false;
+
+			kminmerFile.read((char*)&nodeName, sizeof(nodeName));
+			kminmerFile.read((char*)&abundance, sizeof(abundance));
+
+
+			if(abundance == 1) continue;
+			KmerVec vec;
+			vec._kmers = minimizerSeq;
+
+			_kminmerAbundances[vec] = abundance;
+		}
+
+		kminmerFile.close();
+		
 
 
 	}
@@ -224,7 +249,8 @@ void Bloocoo::createMDBG (){
 	
 	
 	if(!_isFirstPass){
-		delete _mdbgInit;
+		_kminmerAbundances.clear();
+		//delete _mdbgInit;
 		//_readFile.close();
 		
 		const auto copyOptions = fs::copy_options::overwrite_existing;
@@ -294,7 +320,20 @@ static bool KmerVecComparator(const KmerVecSorterData &a, const KmerVecSorterDat
 
 void Bloocoo::createGfa(){
 
-	cout << "Writting gfa..." << endl;
+	u_int32_t nbNodes = _mdbg->_dbg_nodes.size();
+	cout << "Dumping mdbg nodes" << endl;
+	_mdbg->dump(_outputDir + "/kminmerData_min.txt");
+
+	if(_isFirstPass){
+		const auto copyOptions = fs::copy_options::overwrite_existing;
+		fs::copy(_outputDir + "/kminmerData_min.txt", _outputDir + "/kminmerData_min_init.txt", copyOptions);
+		//_mdbg->dump(_outputDir + "/mdbg_nodes_init.gz");
+	}
+
+	//cout << "A RMETTRE" << endl;
+	delete _mdbg;
+
+
 	//cout << "Cleaning repeats..." << endl;
 
 	/*
@@ -391,14 +430,14 @@ void Bloocoo::createGfa(){
 	//delete mdbg_repeatFree;
 	//cout << _dbg_edges.size() << endl;
 
-	u_int64_t nbEdges = 0;
+	_nbEdges = 0;
 
-	string gfa_filename = _outputDir + "/minimizer_graph.gfa";
-	string gfa_filename_debug = _outputDir + "/minimizer_graph_debug.gfa";
-	ofstream output_file_gfa(gfa_filename);
-	ofstream output_file_gfa_debug(gfa_filename_debug);
+	_outputFileGfa.open(_outputDir + "/minimizer_graph.gfa");
+	ofstream output_file_gfa_debug(_outputDir + "/minimizer_graph_debug.gfa");
 
-	auto start = high_resolution_clock::now();
+	
+	_outputFileGfa.write((const char*)&nbNodes, sizeof(nbNodes));
+	//auto start = high_resolution_clock::now();
 
 	/*
 	for(const auto& vec_id : _mdbg->_dbg_nodes){
@@ -478,217 +517,50 @@ void Bloocoo::createGfa(){
 		}
 	}
 	*/
+
+
+
 	
-	vector<KmerVec> keys;
-	for(const auto& it : _mdbg->_dbg_nodes){
-		keys.push_back(it.first);
-	}
-
-	u_int8_t isS = 0;
-	u_int8_t isL = 1;
-	u_int8_t edgePlus = 0;
-	u_int8_t edgeMinus = 1;
-
-	#pragma omp parallel num_threads(_nbCores)
-	{
-
-		#pragma omp for
-		for(size_t i=0; i<keys.size(); i++){
-			KmerVec vec = keys[i];
-			KmerVec vec_rev = vec.reverse();
-			u_int32_t id = _mdbg->_dbg_nodes[vec]._index;
-			//u_int32_t id = vec_id.second._index;
+	//vector<KmerVec> keys;
+	//for(const auto& it : _mdbg->_dbg_nodes){
+	//	keys.push_back(it.first);
+	//}
 
 
-			#pragma omp critical(gfa)
-			{
-				//output_file_gfa << "S" << "\t" << id << "\t" << "*" << "\t" << "LN:i:" << _kminmerLengthMean << "\t" << "dp:i:" << _mdbg->_dbg_nodes[vec]._abundance << endl;
-				//output_file_gfa << "S" << "\t" << id << "\t" << "*" << "\t" << "LN:i:" << _kminmerLengthMean << "\t" << "dp:i:" << _mdbg->_dbg_nodes[vec]._abundance << endl;
-			
-				output_file_gfa.write((const char*)&isS, sizeof(isS));
-				output_file_gfa.write((const char*)&id, sizeof(id));
-				output_file_gfa.write((const char*)&_mdbg->_dbg_nodes[vec]._abundance, sizeof(_mdbg->_dbg_nodes[vec]._abundance));
-			}
-			
-			//cout << mdbg->_dbg_edges[vec.prefix().normalize()].size() << endl;
-			for(KmerVec& v : _mdbg->_dbg_edges[vec.prefix().normalize()]){
-				if(v==vec) continue;
-				KmerVec v_rev = v.reverse();
-				u_int32_t id2 = _mdbg->_dbg_nodes[v]._index;
+	cout << "Indexing edges" << endl;
 
-				if (vec.suffix() == v.prefix()) {
-					
-					#pragma omp critical(gfa)
-					{
-					nbEdges += 1;
-					//u_int16_t overlapLength =  _mdbg->_dbg_nodes[v]._length - _mdbg->_dbg_nodes[v]._overlapLength_end; //   min(_mdbg->_dbg_nodes[v]._overlapLength_end, _mdbg->_dbg_nodes[vec]._overlapLength_end);
-					
-					output_file_gfa.write((const char*)&isL, sizeof(isL));
-					output_file_gfa.write((const char*)&id, sizeof(id));
-					output_file_gfa.write((const char*)&edgePlus, sizeof(edgePlus));
-					output_file_gfa.write((const char*)&id2, sizeof(id2));
-					output_file_gfa.write((const char*)&edgePlus, sizeof(edgePlus));
+	indexEdges();
+	
+	cout << "Computing edges" << endl;
 
-					//output_file_gfa_debug << "L" << "\t" << id << "\t" << "+" << "\t" << id2 << "\t" << "+" << "\t" << _kminmerOverlapMean << "M" << endl;
-					//vec_add_edge("+", "+");
-					}
-				}
-				if (vec.suffix() == v_rev.prefix()) {
-					
-					#pragma omp critical(gfa)
-					{
-					nbEdges += 1;
-					//u_int16_t overlapLength = _mdbg->_dbg_nodes[v]._length - _mdbg->_dbg_nodes[v]._overlapLength_start; //min(_mdbg->_dbg_nodes[v]._overlapLength_end, _mdbg->_dbg_nodes[vec]._overlapLength_end);
-					//output_file_gfa_debug << "L" << "\t" << id << "\t" << "+" << "\t" << id2 << "\t" << "-" << "\t" << _kminmerOverlapMean << "M" << endl;
+	computeEdges();
 
-					
-					output_file_gfa.write((const char*)&isL, sizeof(isL));
-					output_file_gfa.write((const char*)&id, sizeof(id));
-					output_file_gfa.write((const char*)&edgePlus, sizeof(edgePlus));
-					output_file_gfa.write((const char*)&id2, sizeof(id2));
-					output_file_gfa.write((const char*)&edgeMinus, sizeof(edgeMinus));
 
-					//vec_add_edge("+", "-");
-					}
-				}
-				if (vec_rev.suffix() == v.prefix()) {
-					
-					#pragma omp critical(gfa)
-					{
-					nbEdges += 1;
 
-					
-					output_file_gfa.write((const char*)&isL, sizeof(isL));
-					output_file_gfa.write((const char*)&id, sizeof(id));
-					output_file_gfa.write((const char*)&edgeMinus, sizeof(edgeMinus));
-					output_file_gfa.write((const char*)&id2, sizeof(id2));
-					output_file_gfa.write((const char*)&edgePlus, sizeof(edgePlus));
-					//u_int16_t overlapLength = _mdbg->_dbg_nodes[v]._length - _mdbg->_dbg_nodes[v]._overlapLength_end; //min(_mdbg->_dbg_nodes[v]._overlapLength_start, _mdbg->_dbg_nodes[vec]._overlapLength_start);
-					//output_file_gfa_debug << "L" << "\t" << id << "\t" << "-" << "\t" << id2 << "\t" << "+" << "\t" << _kminmerOverlapMean << "M" << endl;
-					//vec_add_edge("-", "+");
-					}
-				}
-				if (vec_rev.suffix() == v_rev.prefix()) {
-					
-					#pragma omp critical(gfa)
-					{
-					nbEdges += 1;
+	//#pragma omp parallel num_threads(_nbCores)
+	//{
 
-					
-					output_file_gfa.write((const char*)&isL, sizeof(isL));
-					output_file_gfa.write((const char*)&id, sizeof(id));
-					output_file_gfa.write((const char*)&edgeMinus, sizeof(edgeMinus));
-					output_file_gfa.write((const char*)&id2, sizeof(id2));
-					output_file_gfa.write((const char*)&edgeMinus, sizeof(edgeMinus));
+		//#pragma omp for
+		//for(size_t i=0; i<keys.size(); i++){
 
-					//u_int16_t overlapLength = _mdbg->_dbg_nodes[v]._length - _mdbg->_dbg_nodes[v]._overlapLength_start;; //min(_mdbg->_dbg_nodes[v]._overlapLength_start, _mdbg->_dbg_nodes[vec]._overlapLength_start);
-					//output_file_gfa_debug << "L" << "\t" << id << "\t" << "-" << "\t" << id2 << "\t" << "-" << "\t" << _kminmerOverlapMean << "M" << endl;
-					//vec_add_edge("-", "-");
-					}
-				}
-
-			}
-			for(KmerVec& v : _mdbg->_dbg_edges[vec.suffix().normalize()]){
-				if(v==vec) continue;
-				KmerVec v_rev = v.reverse();
-				u_int32_t id2 = _mdbg->_dbg_nodes[v]._index;
-
-				if (vec.suffix() == v.prefix()) {
-					
-					#pragma omp critical(gfa)
-					{
-					nbEdges += 1;
-
-					
-					output_file_gfa.write((const char*)&isL, sizeof(isL));
-					output_file_gfa.write((const char*)&id, sizeof(id));
-					output_file_gfa.write((const char*)&edgePlus, sizeof(edgePlus));
-					output_file_gfa.write((const char*)&id2, sizeof(id2));
-					output_file_gfa.write((const char*)&edgePlus, sizeof(edgePlus));
-					//u_int16_t overlapLength = _mdbg->_dbg_nodes[v]._length - _mdbg->_dbg_nodes[v]._overlapLength_end; //min(_mdbg->_dbg_nodes[v]._overlapLength_end, _mdbg->_dbg_nodes[vec]._overlapLength_end);
-					//cout << overlapLength << " " << _mdbg->_dbg_nodes[v]._length<< endl;
-					//output_file_gfa_debug << "L" << "\t" << id << "\t" << "+" << "\t" << id2 << "\t" << "+" << "\t" << _kminmerOverlapMean << "M" << endl;
-					//vec_add_edge("+", "+");
-					}
-				}
-				if (vec.suffix() == v_rev.prefix()) {
-					
-					#pragma omp critical(gfa)
-					{
-					nbEdges += 1;
-
-					
-					output_file_gfa.write((const char*)&isL, sizeof(isL));
-					output_file_gfa.write((const char*)&id, sizeof(id));
-					output_file_gfa.write((const char*)&edgePlus, sizeof(edgePlus));
-					output_file_gfa.write((const char*)&id2, sizeof(id2));
-					output_file_gfa.write((const char*)&edgeMinus, sizeof(edgeMinus));
-					//u_int16_t overlapLength = _mdbg->_dbg_nodes[v]._length - _mdbg->_dbg_nodes[v]._overlapLength_start; //min(_mdbg->_dbg_nodes[v]._overlapLength_end, _mdbg->_dbg_nodes[vec]._overlapLength_end);
-					//cout << overlapLength << " " << _mdbg->_dbg_nodes[v]._length<< endl;
-					//output_file_gfa_debug << "L" << "\t" << id << "\t" << "+" << "\t" << id2 << "\t" << "-" << "\t" << _kminmerOverlapMean << "M" << endl;
-					//vec_add_edge("+", "-");
-					}
-				}
-				if (vec_rev.suffix() == v.prefix()) {
-					
-					#pragma omp critical(gfa)
-					{
-					nbEdges += 1;
-
-					
-					output_file_gfa.write((const char*)&isL, sizeof(isL));
-					output_file_gfa.write((const char*)&id, sizeof(id));
-					output_file_gfa.write((const char*)&edgeMinus, sizeof(edgeMinus));
-					output_file_gfa.write((const char*)&id2, sizeof(id2));
-					output_file_gfa.write((const char*)&edgePlus, sizeof(edgePlus));
-					//u_int16_t overlapLength = _mdbg->_dbg_nodes[v]._length - _mdbg->_dbg_nodes[v]._overlapLength_end; //min(_mdbg->_dbg_nodes[v]._overlapLength_start, _mdbg->_dbg_nodes[vec]._overlapLength_start);
-					//cout << overlapLength << " " << _mdbg->_dbg_nodes[v]._length << endl;
-					//output_file_gfa_debug << "L" << "\t" << id << "\t" << "-" << "\t" << id2 << "\t" << "+" << "\t" << _kminmerOverlapMean << "M" << endl;
-					//vec_add_edge("-", "+");
-					}
-				}
-				if (vec_rev.suffix() == v_rev.prefix()) {
-					
-					#pragma omp critical(gfa)
-					{
-					nbEdges += 1;
-
-					
-					output_file_gfa.write((const char*)&isL, sizeof(isL));
-					output_file_gfa.write((const char*)&id, sizeof(id));
-					output_file_gfa.write((const char*)&edgeMinus, sizeof(edgeMinus));
-					output_file_gfa.write((const char*)&id2, sizeof(id2));
-					output_file_gfa.write((const char*)&edgeMinus, sizeof(edgeMinus));
-					//u_int16_t overlapLength = _mdbg->_dbg_nodes[v]._length - _mdbg->_dbg_nodes[v]._overlapLength_start; //min(_mdbg->_dbg_nodes[v]._overlapLength_start, _mdbg->_dbg_nodes[vec]._overlapLength_start);
-					//cout << overlapLength << " " << _mdbg->_dbg_nodes[v]._length<< endl;
-					//output_file_gfa_debug << "L" << "\t" << id << "\t" << "-" << "\t" << id2 << "\t" << "-" << "\t" << _kminmerOverlapMean << "M" << endl;
-					//vec_add_edge("-", "-");
-					}
-				}
-			}
 			//foo(element->first, element->second);
-		}
+		//}
 		
 		//for(KmerVec& v : _dbg_edges_prefix[vec.suffix().normalize()]){
 		//	output_file_gfa << "L" << "\t" << vec_id.second << "\t" << "+" << "\t" << _dbg_nodes[v] << "\t" << "+" << "\t" << "0M" << endl;
 		//}
-	}
+	//}
 
-	auto stop = high_resolution_clock::now();
-	cout << "Duration: " << duration_cast<seconds>(stop - start).count() << endl;
+	//auto stop = high_resolution_clock::now();
+	//cout << "Duration: " << duration_cast<seconds>(stop - start).count() << endl;
 
-	output_file_gfa.close();
+	_outputFileGfa.close();
 	output_file_gfa_debug.close();
-	cout << "Nb nodes: " << _mdbg->_dbg_nodes.size() << endl;
-	cout << "Nb edges: " << nbEdges << endl;
+	
+	cout << "Nb nodes: " << nbNodes  << endl;
+	cout << "Nb edges: " << _nbEdges << endl;
 
-	_mdbg->dump(_outputDir + "/kminmerData_min.txt");
 
-	if(_isFirstPass){
-		const auto copyOptions = fs::copy_options::overwrite_existing;
-		fs::copy(_outputDir + "/kminmerData_min.txt", _outputDir + "/kminmerData_min_init.txt", copyOptions);
-		//_mdbg->dump(_outputDir + "/mdbg_nodes_init.gz");
-	}
 	
 	//_mdbgNoFilter->dump(_outputDir + "/mdbg_nodes_noFilter.gz");
 	//_mdbg->dump(_outputDir + "/mdbg_nodes.gz");
@@ -699,4 +571,381 @@ void Bloocoo::createGfa(){
 
 }
 
+void Bloocoo::indexEdges(){
+
+	ifstream kminmerFile(_outputDir + "/kminmerData_min.txt");
+
+	#pragma omp parallel num_threads(_nbCores)
+	{
+
+		bool isEOF = false;
+		KmerVec vec;
+		u_int32_t nodeName;
+
+		while (true) {
+
+			#pragma omp critical(indexEdge)
+			{
+
+				vector<u_int64_t> minimizerSeq;
+				minimizerSeq.resize(_kminmerSize);
+				kminmerFile.read((char*)&minimizerSeq[0], minimizerSeq.size()*sizeof(u_int64_t));
+
+				isEOF = kminmerFile.eof();
+
+				
+				u_int32_t abundance;
+
+				if(!isEOF){
+					kminmerFile.read((char*)&nodeName, sizeof(nodeName));
+					kminmerFile.read((char*)&abundance, sizeof(abundance));
+					vec._kmers = minimizerSeq;
+				}
+
+				//cout << nodeName << endl;
+			}
+
+			if(isEOF) break;
+			
+			indexEdge(vec, nodeName);
+
+		}
+	}
+
+	kminmerFile.close();
+}
+
+void Bloocoo::indexEdge(const KmerVec& vec, u_int32_t nodeName){
+
+	
+	bool needprint = false;
+
+	bool isReversedPrefix;
+	bool isReversedSuffix;
+	KmerVec prefix = vec.prefix().normalize(isReversedPrefix);
+	KmerVec suffix = vec.suffix().normalize(isReversedSuffix);
+	u_int64_t prefix_minimizer = vec._kmers[vec._kmers.size()-1];
+	u_int64_t suffix_minimizer = vec._kmers[0];
+	
+	/*
+	//5759311437506739 24292623053282490 90668338080075164 46010529315713468
+	if(std::find(vec._kmers.begin(), vec._kmers.end(), 5759311437506739) != vec._kmers.end() && std::find(vec._kmers.begin(), vec._kmers.end(), 24292623053282490) != vec._kmers.end() && std::find(vec._kmers.begin(), vec._kmers.end(), 90668338080075164) != vec._kmers.end()){
+		cout << "--------------" << endl;
+		cout << isReversedPrefix << endl;
+		for(u_int64_t m : vec._kmers){
+			cout << m << " ";
+		}
+		cout << endl;
+
+		cout << prefix_minimizer << endl;
+		needprint = true;
+
+		getchar();
+	}
+	*/
+	
+
+	  
+
+	/*
+	cout << "--------------" << endl;
+	cout << isReversedPrefix << endl;
+	for(u_int64_t m : vec._kmers){
+		cout << m << " ";
+	}
+	cout << endl;
+
+	for(u_int64_t m : prefix._kmers){
+		cout << m << " ";
+	}
+	cout << endl;
+
+	cout << prefix_minimizer << endl;
+
+	KmerVec vecNew = prefix;
+	if(isReversedPrefix){
+		vecNew = vecNew.reverse();
+	}
+	vecNew._kmers.push_back(prefix_minimizer);
+	for(u_int64_t m : vecNew._kmers){
+		cout << m << " ";
+	}
+	cout << endl;
+	getchar();
+	*/
+	/*
+	cout << "--------------" << endl;
+	cout << isReversedSuffix << endl;
+	for(u_int64_t m : vec._kmers){
+		cout << m << " ";
+	}
+	cout << endl;
+
+	for(u_int64_t m : suffix._kmers){
+		cout << m << " ";
+	}
+	cout << endl;
+
+	cout << suffix_minimizer << endl;
+
+	KmerVec vecNew = suffix;
+	if(isReversedSuffix){
+		vecNew = vecNew.reverse();
+	}
+	vecNew._kmers.insert(vecNew._kmers.begin(), suffix_minimizer);
+	for(u_int64_t m : vecNew._kmers){
+		cout << m << " ";
+	}
+	cout << endl;
+	getchar();
+	*/
+
+	/*
+	_mdbgEdgesNew.lazy_emplace_l(prefix, 
+	[&prefix_minimizer, &nodeName, &isReversedPrefix](MdbgEdgeMap2::value_type& v) { // key exist
+		v.second.push_back({nodeName, prefix_minimizer, isReversedPrefix, true});
+	},           
+	[&prefix, &prefix_minimizer, &nodeName, &isReversedPrefix](const MdbgEdgeMap2::constructor& ctor) { // key inserted
+		vector<KminmerEdge2> nodes;
+		nodes.push_back({nodeName, prefix_minimizer, isReversedPrefix, true});
+		ctor(prefix, nodes); 
+	});
+
+	_mdbgEdgesNew.lazy_emplace_l(suffix, 
+	[&suffix_minimizer, &nodeName, &isReversedSuffix](MdbgEdgeMap2::value_type& v) { // key exist
+		v.second.push_back({nodeName, suffix_minimizer, isReversedSuffix, false});
+	},           
+	[&suffix, &suffix_minimizer, &nodeName, &isReversedSuffix](const MdbgEdgeMap2::constructor& ctor) { // key inserted
+		vector<KminmerEdge2> nodes;
+		nodes.push_back({nodeName, suffix_minimizer, isReversedSuffix, false});
+		ctor(suffix, nodes); 
+	});
+	*/
+
+	
+	KmerVec edge1 = vec.prefix().normalize();
+	KmerVec edge2 = vec.suffix().normalize();
+
+	_mdbgEdges.lazy_emplace_l(edge1, 
+	[&vec, &nodeName](MdbgEdgeMap::value_type& v) { // key exist
+		v.second.push_back({nodeName, vec});
+	},           
+	[&edge1, &vec, &nodeName](const MdbgEdgeMap::constructor& ctor) { // key inserted
+		vector<KminmerEdge> nodes;
+		nodes.push_back({nodeName, vec});
+		ctor(edge1, nodes); 
+	});
+
+	_mdbgEdges.lazy_emplace_l(edge2, 
+	[&vec, &nodeName](MdbgEdgeMap::value_type& v) { // key exist
+		v.second.push_back({nodeName, vec});
+	},           
+	[&edge2, &vec, &nodeName](const MdbgEdgeMap::constructor& ctor) { // key inserted
+		vector<KminmerEdge> nodes;
+		nodes.push_back({nodeName, vec});
+		ctor(edge2, nodes); 
+	});
+	
+
+	
+	_mdbgEdges2.lazy_emplace_l(prefix, 
+	[&prefix_minimizer, &nodeName, &isReversedPrefix](MdbgEdgeMap2::value_type& v) { // key exist
+		v.second.push_back({nodeName, prefix_minimizer, isReversedPrefix, true});
+	},           
+	[&prefix, &prefix_minimizer, &nodeName, &isReversedPrefix](const MdbgEdgeMap2::constructor& ctor) { // key inserted
+		vector<KminmerEdge2> nodes;
+		nodes.push_back({nodeName, prefix_minimizer, isReversedPrefix, true});
+		ctor(prefix, nodes); 
+	});
+
+	_mdbgEdges2.lazy_emplace_l(suffix, 
+	[&suffix_minimizer, &nodeName, &isReversedSuffix](MdbgEdgeMap2::value_type& v) { // key exist
+		v.second.push_back({nodeName, suffix_minimizer, isReversedSuffix, false});
+	},           
+	[&suffix, &suffix_minimizer, &nodeName, &isReversedSuffix](const MdbgEdgeMap2::constructor& ctor) { // key inserted
+		vector<KminmerEdge2> nodes;
+		nodes.push_back({nodeName, suffix_minimizer, isReversedSuffix, false});
+		ctor(suffix, nodes); 
+	});
+	
+	//cout << _mdbgEdges.size() << endl;
+}
+
+void Bloocoo::computeEdges(){
+	
+	ifstream kminmerFile(_outputDir + "/kminmerData_min.txt");
+
+	#pragma omp parallel num_threads(_nbCores)
+	{
+
+		bool isEOF = false;
+		KmerVec vec;
+		u_int32_t nodeName;
+
+		while (true) {
+
+			#pragma omp critical(indexEdge)
+			{
+
+				vector<u_int64_t> minimizerSeq;
+				minimizerSeq.resize(_kminmerSize);
+				kminmerFile.read((char*)&minimizerSeq[0], minimizerSeq.size()*sizeof(u_int64_t));
+
+				isEOF = kminmerFile.eof();
+
+				
+				u_int32_t abundance;
+
+				if(!isEOF){
+					kminmerFile.read((char*)&nodeName, sizeof(nodeName));
+					kminmerFile.read((char*)&abundance, sizeof(abundance));
+					vec._kmers = minimizerSeq;
+				}
+
+			}
+
+			if(isEOF) break;
+			
+			computeEdge(vec, nodeName);
+
+		}
+	}
+
+	kminmerFile.close();
+}
+
+void Bloocoo::computeEdge(const KmerVec& vec, u_int32_t id){
+
+
+	static u_int8_t isS = 0;
+	static u_int8_t isL = 1;
+	static u_int8_t edgePlus = 0;
+	static u_int8_t edgeMinus = 1;
+
+	//KmerVec vec = keys[i];
+	KmerVec vec_rev = vec.reverse();
+
+	const KmerVec prefix = vec.prefix().normalize();
+
+
+	for(KminmerEdge2& edge : _mdbgEdges2[prefix]){
+
+			
+		//KmerVec v = edge._vec;
+		
+		KmerVec v = prefix;
+		if(edge._isReversed){
+			v = v.reverse();
+			//std::reverse(v._kmers.begin(), v._kmers.end());
+		}
+		//v._kmers.push_back(edge._minimizer);
+		
+		
+		if(edge._isPrefix){
+			v._kmers.push_back(edge._minimizer);
+		}
+		else{
+			v._kmers.insert(v._kmers.begin(), edge._minimizer);
+		}
+		
+		//v = v.normalize();
+
+		/*
+		if(_mdbg->_dbg_nodes.find(v) == _mdbg->_dbg_nodes.end()){
+
+			for(u_int64_t m : v._kmers){
+				cout << m << " ";
+			}
+			cout << endl;
+			for(u_int64_t m : prefix._kmers){
+				cout << m << " ";
+			}
+			cout << endl;
+			
+			cout << "prefix" << endl;
+			getchar();
+		}
+		*/
+		
+
+		if(v==vec) continue;
+
+		KmerVec v_rev = v.reverse();
+		u_int32_t id2 = edge._nodeName;
+
+		if (vec.suffix() == v.prefix()) {
+			dumpEdge(id, edgePlus, id2, edgePlus);
+		}
+		if (vec.suffix() == v_rev.prefix()) {
+			dumpEdge(id, edgePlus, id2, edgeMinus);
+		}
+		if (vec_rev.suffix() == v.prefix()) {
+			dumpEdge(id, edgeMinus, id2, edgePlus);
+		}
+		if (vec_rev.suffix() == v_rev.prefix()) {
+			dumpEdge(id, edgeMinus, id2, edgeMinus);
+		}
+
+	}
+
+	
+	KmerVec suffix = vec.suffix().normalize();
+	for(KminmerEdge2& edge : _mdbgEdges2[suffix]){
+		
+		//KmerVec v = edge._vec;
+
+		
+		KmerVec v = suffix;
+		if(edge._isReversed){
+			v = v.reverse();
+		}
+		if(edge._isPrefix){
+			v._kmers.push_back(edge._minimizer);
+		}
+		else{
+			v._kmers.insert(v._kmers.begin(), edge._minimizer);
+		}
+		//v = v.normalize();
+		//v._kmers.insert(v._kmers.begin(), edge._minimizer);
+
+		/*
+		if(_mdbg->_dbg_nodes.find(v) == _mdbg->_dbg_nodes.end()){
+			cout << "suffix" << endl;
+			getchar();
+		}
+		*/
+		
+
+		if(v==vec) continue;
+
+		KmerVec v_rev = v.reverse();
+		u_int32_t id2 = edge._nodeName;
+
+		if (vec.suffix() == v.prefix()) {
+			dumpEdge(id, edgePlus, id2, edgePlus);
+		}
+		if (vec.suffix() == v_rev.prefix()) {
+			dumpEdge(id, edgePlus, id2, edgeMinus);
+		}
+		if (vec_rev.suffix() == v.prefix()) {
+			dumpEdge(id, edgeMinus, id2, edgePlus);
+		}
+		if (vec_rev.suffix() == v_rev.prefix()) {
+			dumpEdge(id, edgeMinus, id2, edgeMinus);
+		}
+	}
+
+}
+
+void Bloocoo::dumpEdge(u_int32_t nodeNameFrom, u_int8_t nodeNameFromOri, u_int32_t nodeNameTo, u_int8_t nodeNameToOri){
+	
+	#pragma omp critical(gfa)
+	{
+		_nbEdges += 1;
+		_outputFileGfa.write((const char*)&nodeNameFrom, sizeof(nodeNameFrom));
+		_outputFileGfa.write((const char*)&nodeNameFromOri, sizeof(nodeNameFromOri));
+		_outputFileGfa.write((const char*)&nodeNameTo, sizeof(nodeNameTo));
+		_outputFileGfa.write((const char*)&nodeNameToOri, sizeof(nodeNameToOri));
+	}
+}
 

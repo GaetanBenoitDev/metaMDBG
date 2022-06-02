@@ -380,14 +380,14 @@ public:
 			fs::path p(path);
 			cout << path << endl;
 			cout << p.parent_path().string() + "/mdbg_nodes_init.gz" << endl;
-			_mdbgInit->load(p.parent_path().string() + "/mdbg_nodes_init.gz");
+			_mdbgInit->load(p.parent_path().string() + "/mdbg_nodes_init.gz", false);
 			extract_truth_kminmers();
 		}
 
 		
 		cout << _gfaFilename << endl;
 		_mdbg = new MDBG(_kminmerSize);
-		_mdbg->load(mdbg_filename);
+		_mdbg->load(mdbg_filename, false);
 		cout << "Nb nodes: " <<  _mdbg->_dbg_nodes.size() << endl;
 
 		extractContigKminmers2();
