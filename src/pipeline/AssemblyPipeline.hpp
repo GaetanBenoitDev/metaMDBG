@@ -19,6 +19,7 @@ public:
 	string _filename_exe;
 	string _truthInputFilename;
 	int _nbCores;
+	bool _useBloomFilter;
 
 	size_t _firstK;
 	size_t _lastK;
@@ -46,7 +47,8 @@ public:
 		(ARG_INPUT_FILENAME_TRUTH, "", cxxopts::value<string>()->default_value(""))
 		(ARG_MINIMIZER_LENGTH, "", cxxopts::value<int>()->default_value("13"))
 		(ARG_MINIMIZER_DENSITY, "", cxxopts::value<float>()->default_value("0.005"))
-		(ARG_NB_CORES, "", cxxopts::value<int>()->default_value("4"));
+		(ARG_NB_CORES, "", cxxopts::value<int>()->default_value("4"))
+		(ARG_BLOOM_FILTER, "", cxxopts::value<bool>()->default_value("false"));
 		//(ARG_KMINMER_LENGTH, "", cxxopts::value<int>()->default_value("3"))
 		//("k,kminmerSize", "File name", cxxopts::value<std::string>())
 		//("v,verbose", "Verbose output", cxxopts::value<bool>()->default_value("false"))
@@ -88,6 +90,7 @@ public:
 			_nbCores = result[ARG_NB_CORES].as<int>();
 			_minimizerSize = result[ARG_MINIMIZER_LENGTH].as<int>(); //getInput()->getInt(STR_MINIM_SIZE);
 			_minimizerDensity = result[ARG_MINIMIZER_DENSITY].as<float>(); //getInput()->getDouble(STR_DENSITY);
+			_useBloomFilter = result[ARG_BLOOM_FILTER].as<bool>();
 
 		}
 		catch (const std::exception& e){
@@ -260,6 +263,9 @@ public:
 
 		if(pass == 0){
 			command = _filename_exe + " graph -i " + _inputFilename + " -o " + _inputDir + " -t " + to_string(_nbCores);
+			if(_useBloomFilter){
+				command += " --bf";
+			}
 		}
 		else{
 			command = _filename_exe + " graph -i " + _inputDir + "/read_data.txt.corrected.txt " + " -o " + _inputDir + " -t " + to_string(_nbCores);	

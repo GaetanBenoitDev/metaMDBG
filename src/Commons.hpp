@@ -100,6 +100,7 @@ const string ARG_FIRST_PASS = "firstpass";
 const string ARG_FASTA = "fasta";
 const string ARG_NB_CORES = "t";
 const string ARG_EVAL = "eval";
+const string ARG_BLOOM_FILTER = "bf";
 
 const string NB_CORES_DEFAULT = "8";
 const string FILENAME_NO_KMINMER_READS = "reads_noKminmers.bin";

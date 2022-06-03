@@ -59,6 +59,8 @@ public:
 	string _filename_noKminmerReads;
 	ofstream _file_noKminmerReads;
 	int _nbCores;
+	bool _useBloomFilter;
+
 	BloomCacheCoherent<u_int64_t>* _bloomFilter;
     //IBank* _inputBank;
 
@@ -88,6 +90,7 @@ public:
 	//vector<u_int32_t> _evaluation_readToDataset;
 	bool _parseReads;
 	MDBG* _mdbg;
+	MDBG* _mdbgSaved;
 	//MDBG* _mdbgInit;
 	KminmerAbundanceMap _kminmerAbundances;
 	//MdbgEdgeMap _mdbgEdges;
@@ -633,6 +636,22 @@ public:
 						}
 					}
 
+
+					bool exist = true;
+
+					if(_graph._useBloomFilter){
+
+						exist = false;
+
+						if(_bloomFilter->contains(vec.h())){
+							exist = true;
+						}
+						else{
+							exist = false;
+							_bloomFilter->insert(vec.h());
+						}
+					}
+
 					/*
 					bool exist = false;
 					#pragma omp critical
@@ -664,7 +683,6 @@ public:
 					}
 					*/
 					
-					bool exist = true;
 					//cout << _bloomFilter->contains(vec.h()) << endl;
 					//if(_kminmerExist.find(vec) != _kminmerExist.end() || _parsingContigs ){ //|| !_isFirstPass
 					//if(_bloomFilter->contains(vec.h())){
@@ -724,7 +742,7 @@ public:
 
 							u_int32_t nodeName = -1;
 							DbgNode node = {nodeName, 2};
-
+							/*
 							vector<u_int64_t> minimizerSeq;
 							for(size_t i=kminmerInfo._read_pos_start; i<=kminmerInfo._read_pos_end; i++){
 								minimizerSeq.push_back(readMinimizers[i]);
@@ -732,6 +750,7 @@ public:
 							if(kminmerInfo._isReversed){
 								std::reverse(minimizerSeq.begin(), minimizerSeq.end());
 							}
+							*/
 
 							
 							//#pragma omp critical
@@ -749,7 +768,12 @@ public:
 							//}
 
 							if(_isFirstPass){
-								node._abundance = 1;
+								if(_graph._useBloomFilter){
+									node._abundance = 2;
+								}
+								else{
+									node._abundance = 1;
+								}
 							}
 							else{
 
@@ -978,6 +1002,158 @@ public:
 		}
 	};
 	
+
+
+	class FilterKminmerFunctor {
+
+		public:
+
+		Bloocoo& _graph;
+		bool _isFirstPass;
+		bool _parsingContigs;
+		ofstream& _readFile;
+		unordered_set<KmerVec>& _kminmerExist;
+		MDBG* _mdbg;
+		KminmerAbundanceMap& _kminmerAbundances;
+		ofstream& _kminmerFile;
+		double _minimizerSpacingMean;
+		double _kminmerLengthMean;
+		double _kminmerOverlapMean;
+		size_t _minimizerSize;
+		size_t _kminmerSize;
+		size_t _kminmerSizeFirst;
+		BloomCacheCoherent<u_int64_t>* _bloomFilter;
+
+		FilterKminmerFunctor(Bloocoo& graph) : _graph(graph), _readFile(graph._readFile), _kminmerExist(graph._kminmerExist), _kminmerAbundances(graph._kminmerAbundances), _kminmerFile(graph._kminmerFile){
+			_isFirstPass = graph._isFirstPass;
+			_parsingContigs = graph._parsingContigs;
+			_mdbg = graph._mdbg;
+			//_mdbgInit = graph._mdbgInit;
+			_minimizerSpacingMean = graph._minimizerSpacingMean;
+			_kminmerLengthMean = graph._kminmerLengthMean;
+			_kminmerOverlapMean = graph._kminmerOverlapMean;
+			_minimizerSize = graph._minimizerSize;
+			_kminmerSize = graph._kminmerSize;
+			_kminmerSizeFirst = graph._kminmerSizeFirst;
+			_bloomFilter = graph._bloomFilter;
+		}
+
+		FilterKminmerFunctor(const FilterKminmerFunctor& copy) : _graph(copy._graph), _readFile(copy._readFile), _kminmerExist(copy._kminmerExist), _kminmerAbundances(copy._kminmerAbundances), _kminmerFile(copy._kminmerFile){
+			_isFirstPass = copy._isFirstPass;
+			_parsingContigs = copy._parsingContigs;
+			_mdbg = copy._mdbg;
+			//_mdbgInit = copy._mdbgInit;
+			_minimizerSpacingMean = copy._minimizerSpacingMean;
+			_kminmerLengthMean = copy._kminmerLengthMean;
+			_kminmerOverlapMean = copy._kminmerOverlapMean;
+			_minimizerSize = copy._minimizerSize;
+			_kminmerSize = copy._kminmerSize;
+			_kminmerSizeFirst = copy._kminmerSizeFirst;
+			_bloomFilter = copy._bloomFilter;
+		}
+
+		~FilterKminmerFunctor(){
+			//delete _minimizerParser;
+		}
+
+	
+
+		void operator () (const KminmerList& kminmerList) {
+
+			u_int64_t readIndex = kminmerList._readIndex;
+			const vector<u_int64_t>& readMinimizers = kminmerList._readMinimizers;
+			//const vector<KmerVec>& kminmers = kminmerList._kminmers;
+			const vector<ReadKminmerComplete>& kminmersInfos = kminmerList._kminmersInfo;
+
+
+			vector<u_int32_t> abundances;
+			for(size_t i=0; i<kminmersInfos.size(); i++){
+				
+				const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
+				const KmerVec& vec = kminmerInfo._vec;
+
+				if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
+					abundances.push_back(1);
+				}
+				else{
+					abundances.push_back(_mdbg->_dbg_nodes[vec]._abundance);
+				}
+			}
+
+			u_int32_t median = Utils::compute_median(abundances);
+			double cutoff = median * 0.1f;
+
+			/*
+			#pragma omp critical
+			{
+				cout << "-----" << endl;
+				for(u_int32_t ab : abundances){
+					cout << ab << " ";
+				}
+				cout << endl;
+				cout << cutoff << endl;
+			}
+			*/
+
+			
+			if(cutoff > 1) return;
+
+			//cout << readIndex << " " << kminmersInfos.size() << endl;
+			for(size_t i=0; i<kminmersInfos.size(); i++){
+				
+				const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
+				const KmerVec& vec = kminmerInfo._vec;
+
+				if(_mdbg->_dbg_nodes.find(vec) != _mdbg->_dbg_nodes.end()) continue;
+
+				
+				bool isNewKey = false;
+
+				_graph._mdbgSaved->_dbg_nodes.lazy_emplace_l(vec, 
+				[this](MdbgNodeMap::value_type& v) { // key exist
+					//if(_isFirstPass){
+					//	v.second._abundance += 1;
+					//}
+				},           
+				[&vec, this, &kminmerInfo, &readMinimizers, &readIndex, &isNewKey](const MdbgNodeMap::constructor& ctor) { // key inserted
+					
+					
+					isNewKey = true;
+
+					u_int32_t nodeName = -1;
+					DbgNode node = {nodeName, 2};
+
+					node._abundance = 1;
+
+					ctor(vec, node); 
+
+					//cout << "jinsere" << endl;
+				}); // construct value_type in place when key not present
+
+				if(isNewKey){
+
+					u_int32_t nodeName;
+
+					#pragma omp critical
+					{
+						nodeName = _graph._node_id;
+						_graph._node_id += 1;
+
+						//cout << "Indexed: " << nodeName << endl;
+					}
+
+					auto set_value = [&nodeName](MdbgNodeMap::value_type& v) { v.second._index = nodeName; };
+					_graph._mdbgSaved->_dbg_nodes.modify_if(vec, set_value);
+				}
+				
+			}
+
+			//getchar();
+
+		}
+		
+
+	};
 
 };	
 

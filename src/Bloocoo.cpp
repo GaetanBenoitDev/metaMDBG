@@ -19,7 +19,8 @@ void Bloocoo::parseArgs(int argc, char* argv[]){
 	(ARG_OUTPUT_DIR, "", cxxopts::value<string>())
 	(ARG_FIRST_PASS, "", cxxopts::value<bool>()->default_value("false"))
 	(ARG_INPUT_FILENAME_CONTIG, "", cxxopts::value<string>()->default_value(""))
-		(ARG_NB_CORES, "", cxxopts::value<int>()->default_value(NB_CORES_DEFAULT));
+	(ARG_NB_CORES, "", cxxopts::value<int>()->default_value(NB_CORES_DEFAULT))
+	(ARG_BLOOM_FILTER, "", cxxopts::value<bool>()->default_value("false"));
 	//(ARG_KMINMER_LENGTH, "", cxxopts::value<int>()->default_value("3"))
 	//(ARG_MINIMIZER_LENGTH, "", cxxopts::value<int>()->default_value("21"))
 	//(ARG_MINIMIZER_DENSITY, "", cxxopts::value<float>()->default_value("0.005"));
@@ -43,6 +44,7 @@ void Bloocoo::parseArgs(int argc, char* argv[]){
 		_filename_inputContigs = result[ARG_INPUT_FILENAME_CONTIG].as<string>();
 		_isFirstPass = result[ARG_FIRST_PASS].as<bool>();
 		_nbCores = result[ARG_NB_CORES].as<int>();
+		_useBloomFilter = result[ARG_BLOOM_FILTER].as<bool>();
 
     }
     catch (const std::exception& e){
@@ -117,9 +119,9 @@ void Bloocoo::execute (){
 
 void Bloocoo::createMDBG (){
 
-	
-	//_bloomFilter = new BloomCacheCoherent<u_int64_t>(16000000000ull);
-	//_bloomFilter = new BloomCacheCoherent<u_int64_t>(16000000000ull);
+	if(_useBloomFilter){
+		_bloomFilter = new BloomCacheCoherent<u_int64_t>(16000000000ull);
+	}
 
 	_fileSmallContigs = ofstream(_outputDir + "/small_contigs.bin", std::ios_base::app);
 	/*
@@ -155,6 +157,7 @@ void Bloocoo::createMDBG (){
 	//_kminmerExist.clear();
 	_mdbg = new MDBG(_kminmerSize);
 	_mdbgNoFilter = new MDBG(_kminmerSize);
+	_mdbgSaved = new MDBG(_kminmerSize);
 
 	string inputFilename = _inputFilename;
 
@@ -221,6 +224,27 @@ void Bloocoo::createMDBG (){
 		parser2.parse(IndexKminmerFunctor(*this, false));
 		//auto fp = std::bind(&Bloocoo::createMDBG_collectKminmers_minspace_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 		//parser.parseMinspace(fp);
+
+		if(_useBloomFilter){
+			delete _bloomFilter;
+				
+			KminmerParserParallel parser2(inputFilename_min, _minimizerSize, _kminmerSize, usePos, _nbCores);
+			parser2.parse(FilterKminmerFunctor(*this));
+
+
+			for(auto& it : _mdbgSaved->_dbg_nodes){
+				KmerVec vec = it.first;
+
+				u_int32_t nodeName = it.second._index;
+				u_int32_t abundance = it.second._abundance;
+
+				_mdbg->_dbg_nodes[vec] = {nodeName, abundance};
+			}
+
+			delete _mdbgSaved;
+		}
+
+
 	}
 
 	if(!_isFirstPass){
@@ -249,7 +273,7 @@ void Bloocoo::createMDBG (){
 	
 	
 	if(!_isFirstPass){
-		_kminmerAbundances.clear();
+		_kminmerAbundances.clear();  
 		//delete _mdbgInit;
 		//_readFile.close();
 		
