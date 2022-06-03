@@ -648,7 +648,7 @@ public:
 
 	void removeUnsupportedEdges(const string& gfaFilename, const string& gfa_filename_noUnsupportedEdges, GraphSimplify* graph){
 
-		
+		/*
 		KminmerParser parser(_filename_readMinimizers, _minimizerSize, _kminmerSize, true);
 		//auto fp = std::bind(&Assembly::indexReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5);
 		auto fp = std::bind(&Assembly2::indexReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
@@ -704,7 +704,7 @@ public:
 		
 		cout << "Nb unsupported edges: " << graph->_isEdgeUnsupported.size() << endl;
 
-
+		*/
 	}
 
 

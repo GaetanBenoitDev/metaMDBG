@@ -816,7 +816,7 @@ public:
         
     }
 
-    static void rewriteGfa_withoutNodes(const string& filename, const string& outputFilename, const unordered_set<u_int32_t>& nodes, const unordered_set<DbgEdge, hash_pair>& edges, BiGraph* graph){
+    static void rewriteGfa_withoutNodes(const string& filename, const string& outputFilename, const unordered_set<u_int32_t>& nodes, BiGraph* graph){
 
         
         cout << filename << endl;
@@ -855,7 +855,8 @@ public:
                 u_int32_t nodeIndex_from = graph->nodeName_to_nodeIndex(from, from_orient);
                 u_int32_t nodeIndex_to = graph->nodeName_to_nodeIndex(to, to_orient);
                 
-                if(!graph->edgeExists(nodeIndex_from, nodeIndex_to)) continue;
+                if(graph->isEdgeRemoved(nodeIndex_from, nodeIndex_to)) continue;
+                //if(!graph->edgeExists(nodeIndex_from, nodeIndex_to)) continue;
                 //DbgEdge edge = {nodeIndex_from, nodeIndex_to};
                 //edge = edge.normalize();
                 //if(edges.find(edge) != edges.end()) continue;

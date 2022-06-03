@@ -981,8 +981,8 @@ public:
             }
 
             for(const DbgEdge& dbgEdge : saveState._isEdgeRemoved){
-				_graph->_graphSuccessors->removeEdge(dbgEdge._from, dbgEdge._to);
-				_graph->_graphSuccessors->removeEdge(GraphSimplify::nodeIndex_toReverseDirection(dbgEdge._to), GraphSimplify::nodeIndex_toReverseDirection(dbgEdge._from));
+				_graph->_graphSuccessors->setEdgeRemoved(dbgEdge._from, dbgEdge._to, true);
+				_graph->_graphSuccessors->setEdgeRemoved(GraphSimplify::nodeIndex_toReverseDirection(dbgEdge._to), GraphSimplify::nodeIndex_toReverseDirection(dbgEdge._from), true);
                 //_graph->_isEdgeRemoved.insert(dbgEdge);
             }
         }
@@ -1024,7 +1024,9 @@ public:
 
 
 				for(const DbgEdge& dbgEdge : isEdgeRemoved){
-					_graph->_isEdgeRemoved.erase(dbgEdge);
+					_graph->_graphSuccessors->setEdgeRemoved(dbgEdge._from, dbgEdge._to, false);
+					_graph->_graphSuccessors->setEdgeRemoved(GraphSimplify::nodeIndex_toReverseDirection(dbgEdge._to), GraphSimplify::nodeIndex_toReverseDirection(dbgEdge._from), false);
+					//_graph->_isEdgeRemoved.erase(dbgEdge);
 				}
 				//cout << _graph->_isEdgeRemoved.size() << endl;
 				//cout << _graph->_isEdgeRemoved.size() << endl;

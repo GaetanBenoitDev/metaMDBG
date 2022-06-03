@@ -119,8 +119,8 @@ public:
     //unordered_set<u_int32_t> _isNodeValid2;
     //unordered_set<u_int32_t> _isNodeValid2_cache;
     vector<bool> _isBubble;
-    unordered_set<DbgEdge, hash_pair> _isEdgeRemoved;
-    unordered_set<DbgEdge, hash_pair> _isEdgeUnsupported;
+    //unordered_set<DbgEdge, hash_pair> _isEdgeRemoved;
+    //unordered_set<DbgEdge, hash_pair> _isEdgeUnsupported;
 
 
     vector<Bubble> _bubbles;
@@ -375,10 +375,10 @@ public:
         
         //_isBubble = vector<bool>(_graphSuccessors->_nbNodes, false);
         _isNodeRemoved = vector<bool>(_graphSuccessors->_nbNodes, false);
-        _isEdgeRemoved.clear();
+        //_isEdgeRemoved.clear();
         _bubbles.clear();
-        _complexAreas_source.clear();
-        _complexAreas_sink.clear();
+        //_complexAreas_source.clear();
+        //_complexAreas_sink.clear();
         
         //_isEdgeRemoved = _isEdgeUnsupported;
         //cout << _isEdgeRemoved.size() << endl;
@@ -1096,22 +1096,22 @@ public:
                 for(u_int32_t nodeIndexFrom : predecessors){
 
                     
-                    DbgEdge edge = {nodeIndexFrom, nodeIndexTo};
-                    edge = edge.normalize();
+                    //DbgEdge edge = {nodeIndexFrom, nodeIndexTo};
+                    //edge = edge.normalize();
                     //_isEdgeRemoved.insert(edge);
-                    saveState._isEdgeRemoved.push_back(edge);
+                    saveState._isEdgeRemoved.push_back({nodeIndexFrom, nodeIndexTo});
 
-                    DbgEdge edgeRC = {GraphSimplify::nodeIndex_toReverseDirection(nodeIndexTo), GraphSimplify::nodeIndex_toReverseDirection(nodeIndexFrom)};
-                    edgeRC = edgeRC.normalize();
+                    //DbgEdge edgeRC = {GraphSimplify::nodeIndex_toReverseDirection(nodeIndexTo), GraphSimplify::nodeIndex_toReverseDirection(nodeIndexFrom)};
+                    //edgeRC = edgeRC.normalize();
                     //_isEdgeRemoved.insert(edgeRC);
-                    saveState._isEdgeRemoved.push_back(edgeRC);
+                    //saveState._isEdgeRemoved.push_back(edgeRC);
 
                     _tip_checksum += BiGraph::nodeIndex_to_nodeName(nodeIndexFrom) + BiGraph::nodeIndex_to_nodeName(nodeIndexTo);
                     
 
                     //cout << nodeIndexFrom << " -> " << nodeIndexTo << endl;
-                    _graphSuccessors->removeEdge(nodeIndexFrom, nodeIndexTo);
-                    _graphSuccessors->removeEdge(GraphSimplify::nodeIndex_toReverseDirection(nodeIndexTo), GraphSimplify::nodeIndex_toReverseDirection(nodeIndexFrom));
+                    _graphSuccessors->setEdgeRemoved(nodeIndexFrom, nodeIndexTo, true);
+                    _graphSuccessors->setEdgeRemoved(GraphSimplify::nodeIndex_toReverseDirection(nodeIndexTo), GraphSimplify::nodeIndex_toReverseDirection(nodeIndexFrom), true);
                 }
 
                 //_possibleTips.erase(nodeIndex_to_unitigIndex(nodeIndexTo));
@@ -1430,13 +1430,13 @@ public:
         for(u_int32_t nodeIndexTo : removedNodes){
 
             
-            DbgEdge edge = {nodeIndexTo, nodeIndexTo};
-            edge = edge.normalize();
+            //DbgEdge edge = {nodeIndexTo, nodeIndexTo};
+            //edge = edge.normalize();
             //_isEdgeRemoved.insert(edge);
-            saveState._isEdgeRemoved.push_back(edge);
+            saveState._isEdgeRemoved.push_back({nodeIndexTo, nodeIndexTo});
             
-            _graphSuccessors->removeEdge(nodeIndexTo, nodeIndexTo);
-            _graphSuccessors->removeEdge(GraphSimplify::nodeIndex_toReverseDirection(nodeIndexTo), GraphSimplify::nodeIndex_toReverseDirection(nodeIndexTo));
+            _graphSuccessors->setEdgeRemoved(nodeIndexTo, nodeIndexTo, true);
+            _graphSuccessors->setEdgeRemoved(GraphSimplify::nodeIndex_toReverseDirection(nodeIndexTo), GraphSimplify::nodeIndex_toReverseDirection(nodeIndexTo), true);
             /*
             vector<u_int32_t> predecessors;
             getPredecessors(nodeIndexTo, 0, predecessors);
@@ -4861,7 +4861,7 @@ public:
         getSuccessors_unitig(unitigIndex, successors);
         return successors.size();
     }*/
-
+    /*
     bool isEdgeRemoved(u_int32_t nodeIndex_from, u_int32_t nodeIndex_to){
 
         //DbgEdge edgeName = {BiGraph::nodeIndex_to_nodeName(nodeIndex_from), BiGraph::nodeIndex_to_nodeName(nodeIndex_to)};
@@ -4872,6 +4872,7 @@ public:
 		edge = edge.normalize();
         return _isEdgeRemoved.find(edge) != _isEdgeRemoved.end();
     }
+    */
 
 
     void getUnitigNodes_list(const vector<u_int32_t>& unitigs, unordered_set<u_int32_t>& nodeIndexes){
@@ -7038,7 +7039,7 @@ public:
             validNodes.insert(nodeName);
         }
         
-        GfaParser::rewriteGfa_withoutNodes(_inputGfaFilename, outputFilename, validNodes, _isEdgeRemoved, _graphSuccessors);
+        GfaParser::rewriteGfa_withoutNodes(_inputGfaFilename, outputFilename, validNodes, _graphSuccessors);
     }
 
     void saveGraph_aroundNode(const string& outputFilename, u_int32_t nodeIndex_source){
@@ -7053,7 +7054,7 @@ public:
             validNodes.insert(nodeName);
         }
         
-        GfaParser::rewriteGfa_withoutNodes(_inputGfaFilename, outputFilename, validNodes, _isEdgeRemoved, _graphSuccessors);
+        GfaParser::rewriteGfa_withoutNodes(_inputGfaFilename, outputFilename, validNodes, _graphSuccessors);
     }
 
 
@@ -7696,7 +7697,7 @@ public:
             validNodes.insert(nodeName);
         }
 
-        GfaParser::rewriteGfa_withoutNodes(_inputGfaFilename, _inputGfaFilename + "_component.gfa", validNodes, _isEdgeRemoved, _graphSuccessors);
+        GfaParser::rewriteGfa_withoutNodes(_inputGfaFilename, _inputGfaFilename + "_component.gfa", validNodes, _graphSuccessors);
 		//exit(1);
     }
     

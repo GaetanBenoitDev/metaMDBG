@@ -869,7 +869,7 @@ public:
     }
     */
 
-    bool removeEdge(u_int32_t nodeIndex_from, u_int32_t nodeIndex_to){
+    bool setEdgeRemoved(u_int32_t nodeIndex_from, u_int32_t nodeIndex_to, bool isRemoved){
 
         vector<AdjNode>& successors = _nodes[nodeIndex_from];
 
@@ -877,7 +877,7 @@ public:
         for (size_t i=0; i < successors.size(); i++) {
             if (successors[i]._index == nodeIndex_to) {
                 //if(successors[i]._isRemoved) continue;
-                successors[i]._isRemoved = true;
+                successors[i]._isRemoved = isRemoved;
                 //cout << "Removed: " <<  i << " " << successors[i]._isRemoved << " " << BiGraph::nodeIndex_to_nodeName(nodeIndex_from) << " " << BiGraph::nodeIndex_to_nodeName(nodeIndex_to) << endl;
                 found = true;
                 
@@ -888,6 +888,19 @@ public:
         }
     
         return found;
+    }
+
+    bool isEdgeRemoved(u_int32_t nodeIndex_from, u_int32_t nodeIndex_to){
+
+        vector<AdjNode>& successors = _nodes[nodeIndex_from];
+
+        for (size_t i=0; i < successors.size(); i++) {
+            if (successors[i]._index == nodeIndex_to) {
+                if(successors[i]._isRemoved) return true;
+            }
+        }
+    
+        return false;
     }
 
     bool edgeExists(u_int32_t nodeIndex_from, u_int32_t nodeIndex_to){
