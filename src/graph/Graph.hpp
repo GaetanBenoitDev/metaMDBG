@@ -699,6 +699,12 @@ int main()
 }
 */
 
+struct NodeData{
+    u_int32_t _abundance;
+    u_int32_t _length;
+    u_int32_t _quality;
+};
+
 class BiGraph{
 
 
@@ -725,8 +731,8 @@ public:
     vector<u_int32_t> distance;
     vector<u_int32_t> prev;
 
-    vector<u_int32_t> _nodeAbundances;
-    vector<u_int32_t> _nodeLengths;
+    vector<NodeData> _nodeDatas;
+    //vector<u_int32_t> _nodeLengths;
     
     BiGraph(u_int32_t nbNodes){
         _nbNodes = nbNodes * 2;

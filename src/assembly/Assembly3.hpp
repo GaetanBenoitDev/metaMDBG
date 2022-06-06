@@ -466,6 +466,7 @@ public:
 		kminmerFile.close();
 	}
 
+	/*
 	void indexReads_read(const vector<u_int64_t>& minimizers, const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex){//}, const vector<KmerVec>& kminmers_k3, const vector<ReadKminmer>& kminmersInfos_k3){
 
 		//cout << readIndex << " " << kminmers.size() << endl;
@@ -505,7 +506,7 @@ public:
 
 
 	}
-
+	*/
 	/*
 	void indexReads_contig(const vector<u_int64_t>& minimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){//}, const vector<KmerVec>& kminmers_k3, const vector<ReadKminmer>& kminmersInfos_k3){
 
@@ -539,6 +540,7 @@ public:
 	}
 	*/
 
+	/*
 	bool _indexingContigs;
 
 	void removeUnsupportedEdges(const string& gfaFilename, const string& gfa_filename_noUnsupportedEdges, GraphSimplify* graph){
@@ -562,7 +564,7 @@ public:
 		//	auto fpContig = std::bind(&Assembly3::indexReads_contig, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
 		//	parserContig.parse(fpContig);
 		//}
-		/*
+		
 		for(u_int32_t nodeIndex : _graph->_isNodeValid2){
 			u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
 
@@ -643,9 +645,10 @@ public:
 		cout << "nb edges: " << graph->_graphSuccessors->_nbEdges << endl;
 		
 		cout << "Nb unsupported edges: " << graph->_isEdgeUnsupported.size() << endl;
-		*/
+		
 
 	}
+	*/
 
 
 
@@ -767,7 +770,7 @@ public:
 		//_graph->loadState2(0, -1, _unitigDatas);
 
 		
-		KminmerParser parser(_filename_readMinimizers, _minimizerSize, _kminmerSize, false);
+		KminmerParser parser(_filename_readMinimizers, _minimizerSize, _kminmerSize, false, true);
 		auto fp = std::bind(&Assembly3::partitionReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
 		parser.parse(fp);
 
@@ -902,7 +905,7 @@ public:
 		//parser.parse(fp);
 	
 
-		KminmerParserParallel readParser(_filename_readMinimizers, _minimizerSize, _kminmerSize, false, _nbCores);
+		KminmerParserParallel readParser(_filename_readMinimizers, _minimizerSize, _kminmerSize, false, true, _nbCores);
 		readParser.parse(ReadCorrectionFunctor(*this));
 
 

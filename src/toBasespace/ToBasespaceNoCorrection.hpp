@@ -124,7 +124,7 @@ public:
     void execute (){
 		
 		cout << "Loading mdbg" << endl;
-		string mdbg_filename = _inputDir + "/mdbg_nodes_init.gz";
+		string mdbg_filename = _inputDir + "/kminmerData_min_init.txt";
 		_mdbg = new MDBG(_kminmerSize);
 		_mdbg->load(mdbg_filename, false);
 		cout << "MDBG nodes: " << _mdbg->_dbg_nodes.size() << endl;
@@ -194,9 +194,10 @@ public:
 
 	void loadContigs_min(const string& contigFilename){
 
+		_nbContigs = 0;
 		
 		cout << "Extracting kminmers: " << contigFilename << endl;
-		KminmerParser parser(contigFilename, _minimizerSize, _kminmerSize, false);
+		KminmerParser parser(contigFilename, _minimizerSize, _kminmerSize, false, false);
 		auto fp = std::bind(&ToBasespaceNoCorrection::loadContigs_min_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 		parser.parseMinspace(fp);
 
@@ -246,7 +247,7 @@ public:
  		cout << "Nb contigs (no duplicate): " << (_nbContigs-_invalidContigIndex.size()) << endl;
 
 		cout << "Extracting kminmers: " << contigFilename << endl;
-		KminmerParser parser2(contigFilename, _minimizerSize, _kminmerSize, false);
+		KminmerParser parser2(contigFilename, _minimizerSize, _kminmerSize, false, false);
 		auto fp2 = std::bind(&ToBasespaceNoCorrection::loadContigs_min_read2, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 		parser2.parseMinspace(fp2);
 
@@ -490,7 +491,7 @@ public:
 			_contigFile_bitset = ofstream(contigFilename + ".bitset");
 		}
 
-		KminmerParser parser(contigFilename, _minimizerSize, _kminmerSize, false);
+		KminmerParser parser(contigFilename, _minimizerSize, _kminmerSize, false, false);
 		auto fp = std::bind(&ToBasespaceNoCorrection::createBaseContigs_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 		parser.parseMinspace(fp);
 

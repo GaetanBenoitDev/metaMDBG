@@ -415,7 +415,39 @@ public:
 		GraphSimplify* graphSimplify = new GraphSimplify(_gfaFilename, _inputDir, 0, _kminmerSize, _nbCores, _kminmerLengthMean, _kminmerOverlapMean);
 		_graph = graphSimplify;
 		
+		ifstream kminmerFile(_inputDir + "/kminmerData_min.txt");
+        _graph->_graphSuccessors->_nodeDatas.resize(_graph->_graphSuccessors->_nbNodes/2, {0, 0, 0});
 
+		while (true) {
+
+			vector<u_int64_t> minimizerSeq;
+			minimizerSeq.resize(_kminmerSize);
+			kminmerFile.read((char*)&minimizerSeq[0], minimizerSeq.size()*sizeof(u_int64_t));
+
+			if(kminmerFile.eof())break;
+
+			u_int32_t nodeName;
+			u_int32_t abundance;
+			u_int32_t quality;
+			//bool isReversed = false;
+
+			kminmerFile.read((char*)&nodeName, sizeof(nodeName));
+			kminmerFile.read((char*)&abundance, sizeof(abundance));
+			kminmerFile.read((char*)&quality, sizeof(quality));
+
+
+			//if(abundance == 1) continue;
+			//KmerVec vec;
+			//vec._kmers = minimizerSeq;
+
+			_graph->_graphSuccessors->_nodeDatas[nodeName] = {abundance, (u_int32_t)_kminmerLengthMean, quality};
+			//_graph->_graphSuccessors->_nodeLengths[nodeName] = _kminmerLengthMean;
+			//_kminmerAbundances[vec] = abundance;
+		}
+
+		kminmerFile.close();
+
+		
 		_graph->clear(0);
 		_graph->compact(false, _unitigDatas);
 		//_graph->removeErrors_4(_kminmerSize, _unitigDatas);

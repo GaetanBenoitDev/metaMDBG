@@ -257,10 +257,10 @@ public:
 			lengthTotal += contig._sequence.size();
 		}
 
-		if(lengthTotal < 20000) return false;
+		if(lengthTotal < 200000) return false;
 
 		//cout << "Bin: " << binIndex << endl;
-
+		
 		const string& filename = _outputDir_binning + "/bin_" + to_string(binIndex) + ".fasta";
 		ofstream file = ofstream(filename);
 

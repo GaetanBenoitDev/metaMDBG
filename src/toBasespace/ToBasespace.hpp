@@ -634,7 +634,7 @@ public:
 
 	void indexReads(){
 
-		KminmerParser parser(_inputDir + "/read_data_init.txt", _minimizerSize, _kminmerSize, false);
+		KminmerParser parser(_inputDir + "/read_data_init.txt", _minimizerSize, _kminmerSize, false, true);
 		auto fp = std::bind(&ToBasespace::indexReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
 		parser.parse(fp);
 	}
@@ -684,7 +684,7 @@ public:
 		_nbContigs = 0;
 
 		cout << "Extracting kminmers: " << contigFilename << endl;
-		KminmerParser parser(contigFilename, _minimizerSize, _kminmerSize, false);
+		KminmerParser parser(contigFilename, _minimizerSize, _kminmerSize, false, false);
 		auto fp = std::bind(&ToBasespace::loadContigs_min_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 		parser.parseMinspace(fp);
 
@@ -735,7 +735,7 @@ public:
  		cout << "Nb contigs (no duplicate): " << (_nbContigs-_invalidContigIndex.size()) << endl;
 
 		cout << "Extracting kminmers: " << contigFilename << endl;
-		KminmerParser parser2(contigFilename, _minimizerSize, _kminmerSize, false);
+		KminmerParser parser2(contigFilename, _minimizerSize, _kminmerSize, false, false);
 		auto fp2 = std::bind(&ToBasespace::loadContigs_min_read2, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 		parser2.parseMinspace(fp2);
 
@@ -939,7 +939,7 @@ public:
 		_contigFileSupported = ofstream(contigFilename + ".tmp");
 
 		cout << "Collecting best supporting reads" << endl;
-		KminmerParser parser(contigFilename, _minimizerSize, _kminmerSize, false);
+		KminmerParser parser(contigFilename, _minimizerSize, _kminmerSize, false, false);
 		auto fp = std::bind(&ToBasespace::collectBestSupportingReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 		parser.parseMinspace(fp);
 
@@ -2181,7 +2181,7 @@ public:
 		cout << "Creating basespace contigs: " << contigFilename << endl;
 
 
-		KminmerParser parser(contigFilename, _minimizerSize, _kminmerSize, false);
+		KminmerParser parser(contigFilename, _minimizerSize, _kminmerSize, false, false);
 		auto fp = std::bind(&ToBasespace::createBaseContigs_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 		parser.parseMinspace(fp);
 

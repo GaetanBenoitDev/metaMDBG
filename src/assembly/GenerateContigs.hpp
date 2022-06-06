@@ -196,7 +196,7 @@ public:
 
 
 		
-		cout << _gfaFilename << endl;
+		//cout << _gfaFilename << endl;
 		//_mdbg = new MDBG(_kminmerSize);
 		//_mdbg->load(mdbg_filename);
 		//cout << "Nb nodes: " <<  _mdbg->_dbg_nodes.size() << endl;
@@ -223,6 +223,7 @@ public:
 		
 
 		ifstream kminmerFile(_inputDir + "/kminmerData_min.txt");
+        _graph->_graphSuccessors->_nodeDatas.resize(_graph->_graphSuccessors->_nbNodes/2, {0, 0, 0});
 
 		while (true) {
 
@@ -230,22 +231,28 @@ public:
 			minimizerSeq.resize(_kminmerSize);
 			kminmerFile.read((char*)&minimizerSeq[0], minimizerSeq.size()*sizeof(u_int64_t));
 
-			if(kminmerFile.eof())break;
+			if(kminmerFile.eof()) break;
 
 			u_int32_t nodeName;
 			u_int32_t abundance;
+			u_int32_t quality;
 			//bool isReversed = false;
 
 			kminmerFile.read((char*)&nodeName, sizeof(nodeName));
 			kminmerFile.read((char*)&abundance, sizeof(abundance));
+			kminmerFile.read((char*)&quality, sizeof(quality));
 
-
+			//cout << nodeName << " " << abundance << " " << quality << endl;
+			//if(quality == 0){
+			//	cout << quality << endl;
+			//	getchar();
+			//}
 			//if(abundance == 1) continue;
 			//KmerVec vec;
 			//vec._kmers = minimizerSeq;
 
-			_graph->_graphSuccessors->_nodeAbundances[nodeName] = abundance;
-			_graph->_graphSuccessors->_nodeLengths[nodeName] = _kminmerLengthMean;
+			_graph->_graphSuccessors->_nodeDatas[nodeName] = {abundance, (u_int32_t)_kminmerLengthMean, quality};
+			//_graph->_graphSuccessors->_nodeLengths[nodeName] = _kminmerLengthMean;
 			//_kminmerAbundances[vec] = abundance;
 		}
 
@@ -914,7 +921,7 @@ public:
 	void generateContigs2(const string& outputFilename){
 
 		_processedNodeNames = vector<bool>(_graph->_isNodeRemoved.size()/2, false);
-		//u_int64_t nbNodesCheckSum = 0;
+		u_int64_t nbNodesCheckSum = 0;
 		//string clusterDir = _inputDir + "/" + "binGreedy";
 		//fs::path path(clusterDir);
 		//if(!fs::exists (path)){
@@ -1221,8 +1228,8 @@ public:
 
 				for(u_int32_t nodeIndex : nodePath){
 					u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
-					//nbNodesCheckSum += nodeName;
-					//checksum_nbNodes += 1;
+					if(u._startNode != u._endNode) nbNodesCheckSum += nodeName;
+					checksum_nbNodes += 1;
 					_processedNodeNames[nodeName] = true;
 
 					//if(_kminmerSize == 4){
@@ -1389,12 +1396,12 @@ public:
 		//extractContigKminmers(outputFilename_fasta);
 		//file_asmResult.close();
 		
-		//cout << "Nb contigs: " << contigIndex << endl;
-		//cout << "Check sum (nb nodes): " << checksum_nbNodes << endl;
-		//cout << "Check sum (nodeNames): " << nbNodesCheckSum << endl;
-		//cout << "Check sum global: " << checksum_global << endl;
-		//cout << "Check sum global (abundance): " << checksum_abundance << endl;
-		//cout << "Check sum: " << checkSum << endl;
+		cout << "Nb contigs: " << contigIndex << endl;
+		cout << "Check sum (nb nodes): " << checksum_nbNodes << endl;
+		cout << "Check sum (nodeNames): " << nbNodesCheckSum << endl;
+		cout << "Check sum global: " << checksum_global << endl;
+		cout << "Check sum global (abundance): " << checksum_abundance << endl;
+		cout << "Check sum: " << checkSum << endl;
 		//getchar();
 	}
 	

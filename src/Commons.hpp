@@ -214,6 +214,7 @@ struct MinimizerPair{
 struct DbgNode{
 	u_int32_t _index;
 	u_int32_t _abundance;
+	u_int32_t _quality;
 	//u_int16_t _length;
 	//u_int16_t _overlapLength_start;
 	//u_int16_t _overlapLength_end;
@@ -358,6 +359,7 @@ struct ReadKminmerComplete{
 	u_int32_t _seq_length_start;
 	u_int32_t _seq_length_end;
 	u_int32_t _length;
+	u_int8_t _quality;
 };
 
 struct ReadNodeName{
@@ -1095,7 +1097,12 @@ public:
 			//KmerVecSorterData& d = kmerVecs[i];
 			u_int32_t nodeName = it.second._index;
 			u_int32_t abundance = it.second._abundance;
+			u_int32_t quality = it.second._quality;
 
+			if(quality==0){
+				cout << "omg " << nodeName << endl;
+				getchar();
+			}
 			//bool isReversed;
 			//d._kmerVec.normalize(isReversed);
 
@@ -1112,6 +1119,7 @@ public:
 
 			kminmerFile.write((const char*)&nodeName, sizeof(nodeName));
 			kminmerFile.write((const char*)&abundance, sizeof(abundance));
+			kminmerFile.write((const char*)&quality, sizeof(quality));
 		}
 
 		kminmerFile.close();
@@ -1136,17 +1144,19 @@ public:
 
 			u_int32_t nodeName;
 			u_int32_t abundance;
+			u_int32_t quality;
 			//bool isReversed = false;
 
 			kminmerFile.read((char*)&nodeName, sizeof(nodeName));
 			kminmerFile.read((char*)&abundance, sizeof(abundance));
+			kminmerFile.read((char*)&quality, sizeof(quality));
 
 
-			if(removeUniqueKminmer && abundance == 1) continue;
+			//if(removeUniqueKminmer && abundance == 1) continue;
 			KmerVec vec;
 			vec._kmers = minimizerSeq;
 
-			_dbg_nodes[vec] = {nodeName, abundance};
+			_dbg_nodes[vec] = {nodeName, abundance, quality};
 		}
 
 		kminmerFile.close();
@@ -1746,7 +1756,7 @@ public:
 
 	}
 
-	static void getKminmers_complete(const size_t k, const vector<u_int64_t>& minimizers, const vector<u_int64_t>& minimizersPos, vector<ReadKminmerComplete>& kminmers, int readIndex){
+	static void getKminmers_complete(const size_t k, const vector<u_int64_t>& minimizers, const vector<u_int64_t>& minimizersPos, vector<ReadKminmerComplete>& kminmers, int readIndex, const vector<u_int8_t>& minimizerQualities){
 
         kminmers.clear();
 		if(minimizers.size() < k) return;
@@ -1932,7 +1942,14 @@ public:
 						seq_length_end = read_pos_end - pos_last_minimizer; 
 					}
 
-					kminmers.push_back({vec, isReversed, read_pos_start, read_pos_end, seq_length_start, seq_length_end, length});
+					u_int8_t minQuality = -1;
+					for(size_t i=indexFirstMinimizer; i<=indexLastMinimizer; i++){
+						if(minimizerQualities[i] < minQuality){
+							minQuality = minimizerQualities[i];
+						}
+					}
+
+					kminmers.push_back({vec, isReversed, read_pos_start, read_pos_end, seq_length_start, seq_length_end, length, minQuality});
 					break;
 				}
 
@@ -2464,17 +2481,19 @@ public:
 	size_t _l;
 	size_t _k;
 	bool _usePos;
+	bool _hasQuality;
 
 	unordered_set<u_int64_t> _isReadProcessed;
 
 	KminmerParser(){
 	}
 
-	KminmerParser(const string& inputFilename, size_t l, size_t k, bool usePos){
+	KminmerParser(const string& inputFilename, size_t l, size_t k, bool usePos, bool hasQuality){
 		_inputFilename = inputFilename;
 		_l = l;
 		_k = k;
 		_usePos = usePos;
+		_hasQuality = hasQuality;
 	}
 
 	void parse(const std::function<void(vector<u_int64_t>, vector<KmerVec>, vector<ReadKminmer>, u_int64_t)>& fun){
@@ -2489,6 +2508,7 @@ public:
 			u_int32_t size;
 			vector<u_int64_t> minimizers;
 			vector<u_int16_t> minimizersPosOffsets; 
+			vector<u_int8_t> minimizerQualities;
 			
 			file_readData.read((char*)&size, sizeof(size));
 
@@ -2496,8 +2516,11 @@ public:
 
 			minimizers.resize(size);
 			minimizersPosOffsets.resize(size);
+			minimizerQualities.resize(size, 0);
+
 			file_readData.read((char*)&minimizers[0], size*sizeof(u_int64_t));
 			if(_usePos) file_readData.read((char*)&minimizersPosOffsets[0], size*sizeof(u_int16_t));
+			if(_hasQuality) file_readData.read((char*)&minimizerQualities[0], size*sizeof(u_int8_t));
 
 			//if(_isReadProcessed.size() > 0 && _isReadProcessed.find(readIndex) != _isReadProcessed.end()){
 			//	readIndex += 1;
@@ -2545,6 +2568,7 @@ public:
 			u_int32_t size;
 			vector<u_int64_t> minimizers;
 			vector<u_int16_t> minimizersPosOffsets; 
+			vector<u_int8_t> minimizerQualities;
 			
 			file_readData.read((char*)&size, sizeof(size));
 
@@ -2552,12 +2576,13 @@ public:
 
 			minimizers.resize(size);
 			minimizersPosOffsets.resize(size);
+			minimizerQualities.resize(size, 0);
 
 			file_readData.read((char*)&minimizers[0], size*sizeof(u_int64_t));
 			if(_usePos){
 				file_readData.read((char*)&minimizersPosOffsets[0], size*sizeof(u_int16_t));
 			}
-
+			if(_hasQuality) file_readData.read((char*)&minimizerQualities[0], size*sizeof(u_int8_t));
 			
 			//cout << "----" << endl;
 			vector<u_int64_t> minimizersPos; 
@@ -2573,7 +2598,7 @@ public:
 
 
 			vector<ReadKminmerComplete> kminmersInfo;
-			MDBG::getKminmers_complete(_k, minimizers, minimizersPos, kminmersInfo, readIndex);
+			MDBG::getKminmers_complete(_k, minimizers, minimizersPos, kminmersInfo, readIndex, minimizerQualities);
 
 			fun(minimizers, kminmersInfo, readIndex);
 
@@ -2734,13 +2759,14 @@ public:
 	size_t _k;
 	bool _usePos;
 	int _nbCores;
+	bool _hasQuality;
 
 	unordered_set<u_int64_t> _isReadProcessed;
 
 	KminmerParserParallel(){
 	}
 
-	KminmerParserParallel(const string& inputFilename, size_t l, size_t k, bool usePos, int nbCores){
+	KminmerParserParallel(const string& inputFilename, size_t l, size_t k, bool usePos,bool hasQuality, int nbCores){
 
 		if(!fs::exists(inputFilename)){
 			cout << "File not found: " << inputFilename << endl;
@@ -2751,6 +2777,7 @@ public:
 		_l = l;
 		_k = k;
 		_usePos = usePos;
+		_hasQuality = hasQuality;
 		_nbCores = nbCores;
 	}
 
@@ -2769,6 +2796,7 @@ public:
 			Functor functorSub(functor);
 			vector<u_int64_t> minimizers;
 			vector<u_int16_t> minimizersPosOffsets; 
+			vector<u_int8_t> minimizerQualities; 
 			u_int32_t size;
 			KminmerList kminmerList;
 			//KminmerList kminmer;
@@ -2790,8 +2818,10 @@ public:
 					if(!isEOF){
 						minimizers.resize(size);
 						minimizersPosOffsets.resize(size);
+						minimizerQualities.resize(size, -1);
 						file_readData.read((char*)&minimizers[0], size*sizeof(u_int64_t));
-						if(_usePos) file_readData.read((char*)&minimizersPosOffsets[0], size*sizeof(u_int16_t));
+						//if(_usePos) file_readData.read((char*)&minimizersPosOffsets[0], size*sizeof(u_int16_t));
+						if(_hasQuality) file_readData.read((char*)&minimizerQualities[0], size*sizeof(u_int8_t));
 					}
 
 				}
@@ -2807,6 +2837,7 @@ public:
 
 				if(isEOF) break;
 
+				
 				vector<u_int64_t> minimizersPos; 
 				if(size > 0){
 					u_int64_t pos = minimizersPosOffsets[0];
@@ -2817,13 +2848,14 @@ public:
 						//cout << minimizersPosOffsets[i] << " " << pos << endl;
 					}
 				}
+				
 
 				//vector<KmerVec> kminmers; 
 				//vector<ReadKminmer> kminmersInfo;
 				vector<u_int64_t> rlePositions;
 				vector<ReadKminmerComplete> kminmersInfo;
 				//MDBG::getKminmers(_l, _k, minimizers, minimizersPos, kminmers, kminmersInfo, rlePositions, 0, false);
-				MDBG::getKminmers_complete(_k, minimizers, minimizersPos, kminmersInfo, readIndex);
+				MDBG::getKminmers_complete(_k, minimizers, minimizersPos, kminmersInfo, readIndex, minimizerQualities);
 				
 				//fun(minimizers, kminmers, kminmersInfo, readIndex);
 				kminmerList._readMinimizers = minimizers;

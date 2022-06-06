@@ -97,7 +97,7 @@ int main (int argc, char* argv[])
                 Assembly3().run (argc, args);
     		}
     		else if(programName == "toBasespace"){
-                ToBasespace().run (argc, args);
+                ToBasespaceNoCorrection().run (argc, args);
     		}
     		else if(programName == "polish"){
                 ContigPolisher().run (argc, args);

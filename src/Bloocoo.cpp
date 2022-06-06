@@ -177,10 +177,12 @@ void Bloocoo::createMDBG (){
 
 			u_int32_t nodeName;
 			u_int32_t abundance;
+			u_int32_t quality;
 			//bool isReversed = false;
 
 			kminmerFile.read((char*)&nodeName, sizeof(nodeName));
 			kminmerFile.read((char*)&abundance, sizeof(abundance));
+			kminmerFile.read((char*)&quality, sizeof(quality));
 
 
 			if(abundance == 1) continue;
@@ -220,7 +222,7 @@ void Bloocoo::createMDBG (){
 		//getchar();
 		
 		cout << "Building mdbg" << endl;
-		KminmerParserParallel parser2(inputFilename_min, _minimizerSize, _kminmerSize, usePos, _nbCores);
+		KminmerParserParallel parser2(inputFilename_min, _minimizerSize, _kminmerSize, usePos, true, _nbCores);
 		parser2.parse(IndexKminmerFunctor(*this, false));
 		//auto fp = std::bind(&Bloocoo::createMDBG_collectKminmers_minspace_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 		//parser.parseMinspace(fp);
@@ -228,7 +230,7 @@ void Bloocoo::createMDBG (){
 		if(_useBloomFilter){
 			delete _bloomFilter;
 				
-			KminmerParserParallel parser2(inputFilename_min, _minimizerSize, _kminmerSize, usePos, _nbCores);
+			KminmerParserParallel parser2(inputFilename_min, _minimizerSize, _kminmerSize, usePos, true, _nbCores);
 			parser2.parse(FilterKminmerFunctor(*this));
 
 
@@ -237,8 +239,9 @@ void Bloocoo::createMDBG (){
 
 				u_int32_t nodeName = it.second._index;
 				u_int32_t abundance = it.second._abundance;
+				u_int32_t quality = it.second._quality;
 
-				_mdbg->_dbg_nodes[vec] = {nodeName, abundance};
+				_mdbg->_dbg_nodes[vec] = {nodeName, abundance, quality};
 			}
 
 			delete _mdbgSaved;
@@ -256,13 +259,13 @@ void Bloocoo::createMDBG (){
 		//parser.parse(FillBloomFilter(*this));
 
 		cout << "Building mdbg" << endl;
-		KminmerParserParallel parser2(filename_uncorrectedReads, _minimizerSize, _kminmerSize, false, _nbCores);
+		KminmerParserParallel parser2(filename_uncorrectedReads, _minimizerSize, _kminmerSize, false, true, _nbCores);
 		parser2.parse(IndexKminmerFunctor(*this, false));
 
 		_parsingContigs = true;
 		const string& filename_contigs = _outputDir + "/unitig_data.txt";
 
-		KminmerParserParallel parser3(filename_contigs, _minimizerSize, _kminmerSize, false, _nbCores);
+		KminmerParserParallel parser3(filename_contigs, _minimizerSize, _kminmerSize, false, false, _nbCores);
 		parser3.parse(IndexKminmerFunctor(*this, true));
 		
 	}
@@ -619,10 +622,12 @@ void Bloocoo::indexEdges(){
 
 				
 				u_int32_t abundance;
+				u_int32_t quality;
 
 				if(!isEOF){
 					kminmerFile.read((char*)&nodeName, sizeof(nodeName));
 					kminmerFile.read((char*)&abundance, sizeof(abundance));
+					kminmerFile.read((char*)&quality, sizeof(quality));
 					vec._kmers = minimizerSeq;
 				}
 
@@ -819,10 +824,12 @@ void Bloocoo::computeEdges(){
 
 				
 				u_int32_t abundance;
+				u_int32_t quality;
 
 				if(!isEOF){
 					kminmerFile.read((char*)&nodeName, sizeof(nodeName));
 					kminmerFile.read((char*)&abundance, sizeof(abundance));
+					kminmerFile.read((char*)&quality, sizeof(quality));
 					vec._kmers = minimizerSeq;
 				}
 

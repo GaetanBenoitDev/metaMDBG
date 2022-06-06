@@ -30,6 +30,7 @@ public:
     struct ReadWriter{
         u_int64_t _readIndex;
         vector<u_int64_t> _minimizers;
+		vector<u_int8_t> _minimizerQualities;
         //u_int32_t _prevNodeIndex;
     };
 
@@ -148,12 +149,12 @@ public:
 
     
 
-	void writeRead(const Read& read, const vector<u_int64_t>& minimizers){
+	void writeRead(const Read& read, const vector<u_int64_t>& minimizers, const vector<u_int8_t>& minimizerQualities){
 
 		//#pragma omp critical(dataupdate)
 		#pragma omp critical
 		{
-			_readWriterQueue.push({read._index, minimizers});
+			_readWriterQueue.push({read._index, minimizers, minimizerQualities});
 
 
 			while(!_readWriterQueue.empty()){
@@ -162,10 +163,19 @@ public:
 
 				if(readWriter._readIndex == _nextReadIndexWriter){
 
+					/*
+					for(auto qual : minimizerQualities){
+						if(qual > 100){
+							cout << qual << endl;
+							getchar();
+						}
+					}
+					*/
 					//cout << "Writing read: " << _nextReadIndexWriter << endl;
 					u_int32_t size = readWriter._minimizers.size();
 					_file_readData.write((const char*)&size, sizeof(size));
 					_file_readData.write((const char*)&readWriter._minimizers[0], size*sizeof(u_int64_t));
+					_file_readData.write((const char*)&readWriter._minimizerQualities[0], size*sizeof(u_int8_t));
 
 					_readWriterQueue.pop();
 					_nextReadIndexWriter += 1;
@@ -267,6 +277,7 @@ public:
 
 			//cout << "----" << endl;
 			
+			/*
 			vector<u_int16_t> minimizerPosOffset;
 
 			if(minimizers.size() > 0){
@@ -281,8 +292,59 @@ public:
 					//cout << pos << " " << posOffset << endl;
 				}
 			}
-	
-			_readSelection.writeRead(read, minimizers);
+			*/
+
+			//cout << read._qual << endl;
+			vector<u_int8_t> minimizerQualities;
+			if(read._qual.empty()){
+				for(u_int64_t pos : minimizers_pos){
+					minimizerQualities.push_back(0);
+				}
+			}
+			else{
+
+				for(u_int64_t pos : minimizers_pos){
+
+					//cout << pos << endl;
+					//double averageQuals_sum = 0;
+					//double averageQuals_n = 0;
+					u_int8_t minQuality = -1;
+
+					//cout << read._qual.size() << pos+_readSelection._minimizerSize << endl;
+					for(size_t i=rlePositions[pos]; i<rlePositions[pos+_readSelection._minimizerSize]; i++){
+						//cout << i << " " << read._qual.size() << endl;
+						u_int8_t quality = static_cast<u_int8_t>(read._qual[i]) - 33;
+						//averageQuals_sum += quality;
+						//averageQuals_n += 1;
+						//cout << read._qual[i] << " " << to_string(quality) << endl;
+						if(quality < minQuality){
+							minQuality = quality;
+						}
+						//cout << quality << endl;
+						//getchar();
+					}
+
+					//u_int8_t meanQuality = averageQuals_sum / averageQuals_n;
+					minimizerQualities.push_back(minQuality);
+				}
+
+				//getchar();
+			}
+
+			/*
+			if(read._index == 32){
+				for(size_t i=0; i<read._qual.size(); i++){
+					u_int8_t quality = static_cast<u_int8_t>(read._qual[i]) - 33;
+					cout << to_string(quality) << " ";
+				}
+				cout << endl;
+				//cout << minimizers.size() << endl;
+				//cout << read._qual << endl;
+				getchar();
+			}
+			*/
+
+			_readSelection.writeRead(read, minimizers, minimizerQualities);
 		
 		}
 

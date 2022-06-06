@@ -46,6 +46,8 @@ public:
 	unordered_map<u_int32_t, KminmerSequenceLeftRight> _nodeName_right;
 	unordered_map<u_int32_t, KminmerSequenceLeftRight> _nodeName_left;
 
+	u_int64_t _checksum;
+
 	//unordered_map<u_int32_t, vector<u_int64_t>> _debugMinimizers;
 	//unordered_map<u_int32_t, bool> _debugMinimizers_isReversed;
 	//unordered_map<u_int32_t, bool> _debugMinimizers;
@@ -374,10 +376,12 @@ public:
 			u_int32_t lengthStart;
 			u_int32_t lengthEnd;
 			u_int32_t abundance;
+			u_int32_t quality;
 			//bool isReversed = false;
 
 			kminmerFile.read((char*)&nodeName, sizeof(nodeName));
 			kminmerFile.read((char*)&abundance, sizeof(abundance));
+			kminmerFile.read((char*)&quality, sizeof(quality));
 			//kminmerFile.read((char*)&length, sizeof(length));
 			//kminmerFile.read((char*)&lengthStart, sizeof(lengthStart));
 			//kminmerFile.read((char*)&lengthEnd, sizeof(lengthEnd));
@@ -500,6 +504,7 @@ public:
 
 	void createMinimizerContigs(){
 
+		_checksum = 0;
 		size_t firstK = _kminmerSizeFirst;
 
 		cout << endl;
@@ -549,6 +554,9 @@ public:
 			for(size_t i=0; i<nodePath.size(); i++){
 				
 				u_int32_t nodeIndex = nodePath[i];
+
+				_checksum += BiGraph::nodeIndex_to_nodeName(nodeIndex);
+
 				bool orientation;
 				u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex, orientation);
 				//u_int64_t readIndex = supportingReads[i];
@@ -821,6 +829,8 @@ public:
 		//cout << nbFailed << " " << contig_index << endl;
 		contigFile.close();
 		outputFile.close();
+
+		cout << "Checksum: " << _checksum << endl;
 		//gzclose(outputContigFile);
 		//testCsv.close();
 

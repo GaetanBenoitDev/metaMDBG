@@ -216,10 +216,10 @@ public:
         delete fields_optional;
 
         //cout << "allo ?? : " << graph->_nbNodes << endl;
-        graph->_nodeAbundances.resize(graph->_nbNodes/2, 0);
-        graph->_nodeLengths.resize(graph->_nbNodes/2, 0);
+        //graph->_nodeAbundances.resize(graph->_nbNodes/2, 0);
+        //graph->_nodeLengths.resize(graph->_nbNodes/2, 0);
         //cout << graph->_nodeAbundances.size() << endl;
-        GfaParser::getNodeData(filename, graph->_nodeAbundances, graph->_nodeLengths);
+        //GfaParser::getNodeData(filename, graph->_nodeAbundances, graph->_nodeLengths);
         //cout << graph->_nodeAbundances.size() << endl;
 
         return graph;
@@ -284,8 +284,7 @@ public:
         BiGraph* graph = new BiGraph(nbNodes);
 
 
-        graph->_nodeAbundances.resize(graph->_nbNodes/2, 0);
-        graph->_nodeLengths.resize(graph->_nbNodes/2, 0);
+
 
         while(true){
             //u_int8_t type;

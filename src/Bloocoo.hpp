@@ -692,7 +692,8 @@ public:
 						bool isNewKey = false;
 
 						_mdbg->_dbg_nodes.lazy_emplace_l(vec, 
-						[this](MdbgNodeMap::value_type& v) { // key exist
+						[this, &kminmerInfo](MdbgNodeMap::value_type& v) { // key exist
+							v.second._quality += kminmerInfo._quality;
 							if(_isFirstPass){
 								v.second._abundance += 1;
 							}
@@ -824,6 +825,9 @@ public:
 								node._abundance = kminmerAbundance; //getAbundance(readMinimizers, kminmerInfo);
 								//cout << minAbundance << endl;
 							}
+
+							node._quality = 0;
+							node._quality += kminmerInfo._quality;
 
 							ctor(vec, node); 
 
@@ -1067,6 +1071,7 @@ public:
 
 
 			vector<u_int32_t> abundances;
+			//vector<u_int32_t> qualities;
 			for(size_t i=0; i<kminmersInfos.size(); i++){
 				
 				const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
@@ -1078,6 +1083,8 @@ public:
 				else{
 					abundances.push_back(_mdbg->_dbg_nodes[vec]._abundance);
 				}
+
+				//qualities.push_back(kminmerInfo._quality);
 			}
 
 			u_int32_t median = Utils::compute_median(abundances);
@@ -1086,14 +1093,20 @@ public:
 			/*
 			#pragma omp critical
 			{
-				cout << "-----" << endl;
+				cout << "----- " << readIndex << endl;
 				for(u_int32_t ab : abundances){
 					cout << ab << " ";
 				}
 				cout << endl;
+				for(u_int8_t qual : qualities){
+					cout << to_string(qual) << " ";
+				}
+				cout << endl;
 				cout << cutoff << endl;
+				getchar();
 			}
 			*/
+			
 
 			
 			if(cutoff > 1) return;
@@ -1124,6 +1137,8 @@ public:
 					DbgNode node = {nodeName, 2};
 
 					node._abundance = 1;
+					node._quality = kminmerInfo._quality;
+					//node._quality += kminmerInfo._quality;
 
 					ctor(vec, node); 
 

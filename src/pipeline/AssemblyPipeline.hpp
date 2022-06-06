@@ -303,16 +303,21 @@ public:
 			//if(pass == 0) command += " --firstpass";
 			Utils::executeCommand(command);
 
+			//getchar();
+
 			command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/contigs.nodepath" + " -f " + _inputDir + "/contig_data.txt";
 			Utils::executeCommand(command);
 			
+
+			//getchar();
 
 			command = _filename_exe + " toBasespace " + " -o " + _inputDir + " -i " + _inputFilename + " -c " + _inputDir + "/contig_data.txt " + " -f " + _inputDir + "/contigs_" + to_string(k) + ".fasta.gz " + " --fasta"  + " -t " + to_string(_nbCores);
 			if(pass == 0) command += " --firstpass";
 			Utils::executeCommand(command);
 
-			command = _filename_exe + " polish " + _inputDir + "/contigs_" + to_string(k) + ".fasta.gz " + _inputFilename + " -t 15";
-			Utils::executeCommand(command);
+			//getchar();
+			//command = _filename_exe + " polish " + _inputDir + "/contigs_" + to_string(k) + ".fasta.gz " + _inputFilename + " -t 15";
+			//Utils::executeCommand(command);
 			//generatedContigs = true;
 		}
 		else{
