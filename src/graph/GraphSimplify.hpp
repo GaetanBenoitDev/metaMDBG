@@ -1680,7 +1680,7 @@ public:
                 //writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
                 
 
-                unitigTips.push_back({u._index, u._quality, u._length});
+                unitigTips.push_back({u._index, u._startNode, u._length});
             }
 
         }

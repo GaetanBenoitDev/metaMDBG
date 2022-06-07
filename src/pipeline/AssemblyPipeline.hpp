@@ -159,7 +159,7 @@ public:
 		_firstK = 4;
 
 		u_int64_t meanReadLength = computeMeanReadLength(_inputFilename);
-		_lastK = meanReadLength*_minimizerDensity*0.95; //*0.95
+		_lastK = meanReadLength*_minimizerDensity*1.2f; //*0.95
 		//_lastK = 41;
 		
 		cout << "Mean read length: " << meanReadLength << endl;

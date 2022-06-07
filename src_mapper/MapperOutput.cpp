@@ -103,9 +103,17 @@ public:
 int main (int argc, char* argv[])
 {
 
+	//"/home/gats/workspace/run/overlap_test_AD/contigs_43_corrected.fasta.gz", "/home/gats/workspace/data/AD/HiFi/input.txt"
+	string contigFilename = string(argv[1]);
+	string readFilename = string(argv[2]);
+	string outputFilename = string(argv[3]);
+	cout << contigFilename << endl;
+	cout << readFilename << endl;
+	cout << outputFilename << endl;
 
+	ofstream outputFile(outputFilename);
 	vector<string>* fields = new vector<string>();
-	MappingIndex mappingIndex("/home/gats/workspace/run/overlap_test_AD/contigs_43_corrected.fasta.gz", "/home/gats/workspace/data/AD/HiFi/input.txt");
+	MappingIndex mappingIndex(contigFilename, readFilename);
 
     string lineInput;
 	while (getline(cin,lineInput)) {
@@ -120,8 +128,8 @@ int main (int argc, char* argv[])
 		const string& readName = (*fields)[0];
 		const string& contigName = (*fields)[5];
 
-		u_int64_t readStart = stoull((*fields)[2]);
-		u_int64_t readEnd = stoull((*fields)[3]);
+		u_int32_t readStart = stoull((*fields)[2]);
+		u_int32_t readEnd = stoull((*fields)[3]);
 		u_int64_t contigStart = stoull((*fields)[7]);
 		u_int64_t contigEnd = stoull((*fields)[8]);
 
@@ -130,18 +138,27 @@ int main (int argc, char* argv[])
 		u_int64_t queryLength = stoull((*fields)[1]);
 
 		bool strand = (*fields)[4] == "-";
-		float score = (double) nbMatches / (double) queryLength;
-		float score2 = (double) nbMatches / (double) alignLength;
+		//float score = (double) nbMatches / (double) queryLength;
+		//float score2 = (double) nbMatches / (double) alignLength;
 
 		u_int32_t contigIndex = mappingIndex._contigName_to_contigIndex[contigName];
 		u_int64_t readIndex = mappingIndex._readName_to_readIndex[readName];
-		u_int64_t length = std::max(readEnd - readStart, contigEnd - contigStart);
+		//u_int64_t length = std::max(readEnd - readStart, contigEnd - contigStart);
 
-		cout << contigIndex << " " << readIndex << endl;
+		//cout << contigIndex << " " << readIndex << endl;
 
+		outputFile.write((const char*)&contigIndex, sizeof(contigIndex));
+		outputFile.write((const char*)&contigStart, sizeof(contigStart));
+		outputFile.write((const char*)&contigEnd, sizeof(contigEnd));
+		outputFile.write((const char*)&readIndex, sizeof(readIndex));
+		outputFile.write((const char*)&readStart, sizeof(readStart));
+		outputFile.write((const char*)&readEnd, sizeof(readEnd));
+		outputFile.write((const char*)&strand, sizeof(strand));
 		//Alignment align = {contigIndex, readIndex, strand, readStart, readEnd, contigStart, contigEnd, score, length};
 
 	}
+
+	outputFile.close();
 
     return EXIT_SUCCESS;
 }

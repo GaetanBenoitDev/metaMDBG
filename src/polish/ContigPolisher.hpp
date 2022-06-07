@@ -13,6 +13,7 @@
 - version finale: remove le minimap2 align filename
 - voir comment racon handle multimap
 - minimap2 read name: lors d'une premiere passe sur les reads, ecrire tous les headers (minimap2 name) dans un fichier
+- vu que le polisher est standalone, ne pas changer le nom des header des contigs (les load en memoire t restituer dans le fichier output)
 
 "reprise: ajouter les dernieres filtres de qualité de racon (easy) et refaire des test, aussi potentiellement 20 copies est pas l'optimum, essayer entre 20 et 25, tester correction k=5, revoir comment calculer superbubble lineairement"
 - Blocoo creat graph: load les edge apres que les nodes du graphe soit tous indexé, comme ça on peut delete mdbg_init (abundance calculation) avant d'indexé les edges
@@ -79,11 +80,13 @@ public:
 	int _nbCores;
 	size_t _windowLength;
 	size_t _maxWindowCopies;
+	string _mapperOutputExeFilename;
 	
 	string _outputFilename_contigs;
 	string _outputFilename_mapping;
+	u_int64_t _maxMemory;
 
-	abpoa_para_t *abpt;
+	//abpoa_para_t *abpt;
 	
 	struct ContigRead{
 		u_int32_t _contigIndex;
@@ -124,6 +127,14 @@ public:
 	void parseArgs(int argc, char* argv[]){
 
 
+		string filenameExe = argv[0];
+		//cout << filenameExe << endl;
+
+		fs::path pa(filenameExe);
+		_mapperOutputExeFilename = pa.parent_path().string() + "/mapper";
+		//cout << _mapperOutputExeFilename << endl;
+		//exit(1);
+
 		cxxopts::Options options("ToBasespace", "");
 		options.add_options()
 		("contigs", "", cxxopts::value<string>())
@@ -152,7 +163,7 @@ public:
 			_inputFilename_contigs = result["contigs"].as<string>();
 			_nbCores = result[ARG_NB_CORES].as<int>();
 			_windowLength = 500;
-			_maxWindowCopies = 21;
+			_maxWindowCopies = 21; //21;
 			
 		}
 		catch (const std::exception& e){
@@ -171,33 +182,115 @@ public:
 
 		_outputFilename_contigs = p.string() + "_corrected.fasta.gz";
 		_outputFilename_mapping = p.string() + "_tmp_mapping__.paf";
-
+		_windowByteSize = _maxWindowCopies * 2 * _windowLength;
+		_maxMemory = 8000000000ull;
 
 	}
 
 
+	u_int64_t _currentContigSize;
+	u_int64_t _windowByteSize;
+	//unordered_set<u_int32_t> _validContigIndexes;
+	gzFile _outputContigFile;
 
     void execute (){
 
 
-		u_int64_t windowByteSize = _maxWindowCopies * 2 * _windowLength;
+		_outputContigFile = gzopen(_outputFilename_contigs.c_str(),"wb");
 
-		mapReads();
-		indexContigName();
-		indexReadName();
+		/*
+		abpt = abpoa_init_para();
+		abpt->out_msa = 0; // generate Row-Column multiple sequence alignment(RC-MSA), set 0 to disable
+		abpt->out_cons = 1; // generate consensus sequence, set 0 to disable
+		abpt->w = 6, abpt->k = 9; abpt->min_w = 10; // minimizer-based seeding and partition
+		abpt->progressive_poa = 1;
+		abpt->max_n_cons = 1;
 
-
+		abpoa_post_set_para(abpt);
+		*/
 		
+		mapReads();
+		//indexContigName();
+		//indexReadName();
+
+
+		u_int64_t totalByteSize = 0;
+
+		u_int64_t contigIndex = 0;
+		gzFile fp;
+		kseq_t *seq;
+		int slen = 0, qlen = 0;
+		fp = gzopen(_inputFilename_contigs.c_str(), "r");
+		seq = kseq_init(fp);
+
+		while (kseq_read(seq) >= 0){
+
+			totalByteSize += loadContig(contigIndex, string(seq->seq.s));
+			//cout << totalByteSize << " " << _windowByteSize << endl;
+			if(totalByteSize >= _maxMemory){
+				processPass();
+				clearPass();
+				totalByteSize = 0;
+			}
+
+			contigIndex += 1;
+		}
+			
+		processPass();
+
+		kseq_destroy(seq);
+		gzclose(fp);
+		gzclose(_outputContigFile);
+
+	}
+
+	u_int64_t loadContig(u_int64_t contigIndex, const string& seq){
+
+		//_validContigIndexes.insert(contigIndex);
+
+		u_int64_t totalByteSize = 0;
+
+		_contigSequences[contigIndex] = seq;
+
+		//cout << "load contig: " << contigIndex << " " << seq.size() << endl;
+		size_t nbWindows = ceil((double)seq.size() / (double)_windowLength);
+		vector<vector<Window>> windows(nbWindows);
+		//cout << "Nb windows: " << nbWindows << endl;
+
+		_contigWindowSequences[contigIndex] = windows;
+
+		//cout << nbWindows << " " << nbWindows * _windowByteSize << endl;
+		return nbWindows * _windowByteSize;
+	}
+	
+	void processPass(){
+		if(_contigSequences.size() == 0) return;
+		cout << "Process pass: " << _contigSequences.size() << endl;
 		parseAlignments();
 
-		_contigName_to_contigIndex.clear();
-		_readName_to_readIndex.clear();
+		//_contigName_to_contigIndex.clear();
+		//_readName_to_readIndex.clear();
 
-		loadContigs();
+		//loadContigs();
 		collectWindowSequences();
 		performCorrection();
 		//if(fs::exists(_outputFilename_mapping)) fs::remove(_outputFilename_mapping);
 	}
+
+
+	void clearPass(){
+		_contigSequences.clear();
+		//_validContigIndexes.clear();
+		_contigWindowSequences.clear();
+		_alignments.clear();
+	}
+	/*
+	void loadContigs(){
+		auto fp = std::bind(&ContigPolisher::loadContigs_read, this, std::placeholders::_1);
+		ReadParser readParser(_inputFilename_contigs, true, false);
+		readParser.parse(fp);
+	}
+	*/
 
 	void mapReads(){
 		
@@ -208,33 +301,40 @@ public:
 			readFilenames += filename + " ";
 		}
 
-		string command = "minimap2 -t " + to_string(_nbCores) + " -x map-hifi " + _inputFilename_contigs + " " + readFilenames + " > " + _outputFilename_mapping;
+		string command = "minimap2 -t " + to_string(_nbCores) + " -x map-hifi " + _inputFilename_contigs + " " + readFilenames;
+		command += " | " + _mapperOutputExeFilename + " " + _inputFilename_contigs + " " + _inputFilename_reads + " " + _outputFilename_mapping;
 		Utils::executeCommand(command);
 
+		//minimap2 -x map-hifi ~/workspace/run/overlap_test_201/contigs_47.fasta.gz ~/workspace/data/overlap_test/genome_201_50x/simulatedReads_0.fastq.gz | ./bin/mapper ~/workspace/run/overlap_test_201/contigs_47.fasta.gz ~/workspace/data/overlap_test/genome_201_50x/input.txt ~/workspace/run/overlap_test_201/align.bin
 	}
 
 	struct Alignment{
 		u_int32_t _contigIndex;
 		u_int64_t _readIndex;
 		bool _strand;
-		u_int64_t _readStart;
-		u_int64_t _readEnd;
+		u_int32_t _readStart;
+		u_int32_t _readEnd;
 		u_int64_t _contigStart;
 		u_int64_t _contigEnd;
-		float _score;
-		u_int64_t _length;
+		//float _score;
+		//u_int64_t _length;
+		
+		u_int64_t length(){
+			return std::max((u_int64_t)(_readEnd - _readStart), (u_int64_t)(_contigEnd - _contigStart));
+		}
+		
 	};
 
-	unordered_map<string, u_int32_t> _contigName_to_contigIndex;
-	unordered_map<string, u_int64_t> _readName_to_readIndex;
+	//unordered_map<string, u_int32_t> _contigName_to_contigIndex;
+	//unordered_map<string, u_int64_t> _readName_to_readIndex;
 	unordered_map<u_int64_t, vector<Alignment>> _alignments;
-	vector<string> _contigSequences;
-	vector<vector<vector<Window>>> _contigWindowSequences;
+	unordered_map<u_int32_t, string> _contigSequences;
+	unordered_map<u_int32_t, vector<vector<Window>>> _contigWindowSequences;
 	unordered_map<ContigRead, u_int32_t, ContigRead_hash> _alignmentCounts;
+	//u_int64_t _correctedContigIndex;
 
 
-
-
+	/*
 	void indexContigName(){
 		
 		cout << "Indexing contig names" << endl;
@@ -286,10 +386,11 @@ public:
 		//cout << minimap_name << endl;
 		_readName_to_readIndex[minimap_name] = read._index;
 	}
+	*/
 
 	void parseAlignments(){
 
-		cout << "Indexing read alignements" << endl;
+		cout << "\tIndexing read alignements" << endl;
 
         ifstream infile(_outputFilename_mapping);
 
@@ -297,18 +398,19 @@ public:
         vector<string>* fields = new vector<string>();
         //vector<string>* fields_optional = new vector<string>();
 
+		while(true){
+        	/*
+			//while (std::getline(infile, line)){
 
-        while (std::getline(infile, line)){
-
-            GfaParser::tokenize(line, fields, '\t');
+            //GfaParser::tokenize(line, fields, '\t');
 
 			//cout << line << endl;
 
 			const string& readName = (*fields)[0];
 			const string& contigName = (*fields)[5];
 
-			u_int64_t readStart = stoull((*fields)[2]);
-			u_int64_t readEnd = stoull((*fields)[3]);
+			u_int32_t readStart = stoull((*fields)[2]);
+			u_int32_t readEnd = stoull((*fields)[3]);
 			u_int64_t contigStart = stoull((*fields)[7]);
 			u_int64_t contigEnd = stoull((*fields)[8]);
 
@@ -322,9 +424,33 @@ public:
 
 			u_int32_t contigIndex = _contigName_to_contigIndex[contigName];
 			u_int64_t readIndex = _readName_to_readIndex[readName];
-			u_int64_t length = std::max(readEnd - readStart, contigEnd - contigStart);
+			*/
 
-			Alignment align = {contigIndex, readIndex, strand, readStart, readEnd, contigStart, contigEnd, score, length};
+			u_int32_t contigIndex;
+			u_int64_t readIndex;
+			u_int32_t readStart;
+			u_int32_t readEnd;
+			u_int64_t contigStart;
+			u_int64_t contigEnd;
+			bool strand;
+
+			//u_int64_t nbMatches;
+			//u_int64_t alignLength;
+			//u_int64_t queryLength;
+
+
+			infile.read((char*)&contigIndex, sizeof(contigIndex));
+			if(infile.eof()) break;
+			infile.read((char*)&contigStart, sizeof(contigStart));
+			infile.read((char*)&contigEnd, sizeof(contigEnd));
+			infile.read((char*)&readIndex, sizeof(readIndex));
+			infile.read((char*)&readStart, sizeof(readStart));
+			infile.read((char*)&readEnd, sizeof(readEnd));
+			infile.read((char*)&strand, sizeof(strand));
+
+			if(_contigSequences.find(contigIndex) == _contigSequences.end()) continue;
+
+			Alignment align = {contigIndex, readIndex, strand, readStart, readEnd, contigStart, contigEnd};
 
 			//ContigRead alignKey = {_contigName_to_contigIndex[contigName], _readName_to_readIndex[readName]};
 
@@ -390,7 +516,7 @@ public:
 
 					if(std::find(removedIndex.begin(), removedIndex.end(), j) != removedIndex.end()) continue;
 
-					if(als[i]._length > als[j]._length){
+					if(als[i].length() > als[j].length()){
 						removedIndex.push_back(j);
 						//alsFiltered.push_back(als[i]);
 					}
@@ -418,25 +544,11 @@ public:
 		}
 	}
 
-	void loadContigs(){
-		auto fp = std::bind(&ContigPolisher::loadContigs_read, this, std::placeholders::_1);
-		ReadParser readParser(_inputFilename_contigs, true, false);
-		readParser.parse(fp);
-	}
-	
-	void loadContigs_read(const Read& read){
-		_contigSequences.push_back(read._seq);
 
-		size_t nbWindows = ceil((double)read._seq.size() / (double)_windowLength);
-		vector<vector<Window>> windows(nbWindows);
-		//cout << "Nb windows: " << nbWindows << endl;
-
-		_contigWindowSequences.push_back(windows);
-	}
 
 	void collectWindowSequences(){
 		
-		cout << "Collecting window sequences" << endl;
+		cout << "\tCollecting window sequences" << endl;
 
 		//auto fp = std::bind(&ContigPolisher::collectWindowCopies_read, this, std::placeholders::_1);
 		//ReadParser readParser(_inputFilename_reads, false, false);
@@ -452,18 +564,18 @@ public:
 		public:
 
 		ContigPolisher& _contigPolisher;
-		unordered_map<string, u_int32_t>& _contigName_to_contigIndex;
-		unordered_map<string, u_int64_t>& _readName_to_readIndex;
+		//unordered_map<string, u_int32_t>& _contigName_to_contigIndex;
+		//unordered_map<string, u_int64_t>& _readName_to_readIndex;
 		unordered_map<u_int64_t, vector<Alignment>>& _alignments;
-		vector<string>& _contigSequences;
-		vector<vector<vector<Window>>>& _contigWindowSequences;
+		unordered_map<u_int32_t, string>& _contigSequences;
+		unordered_map<u_int32_t, vector<vector<Window>>>& _contigWindowSequences;
 		size_t _windowLength;
 
 
-		CollectWindowSequencesFunctor(ContigPolisher& contigPolisher) : _contigPolisher(contigPolisher), _contigName_to_contigIndex(contigPolisher._contigName_to_contigIndex), _readName_to_readIndex(contigPolisher._readName_to_readIndex), _alignments(contigPolisher._alignments), _contigSequences(contigPolisher._contigSequences), _contigWindowSequences(contigPolisher._contigWindowSequences), _windowLength(contigPolisher._windowLength){
+		CollectWindowSequencesFunctor(ContigPolisher& contigPolisher) : _contigPolisher(contigPolisher), _alignments(contigPolisher._alignments), _contigSequences(contigPolisher._contigSequences), _contigWindowSequences(contigPolisher._contigWindowSequences), _windowLength(contigPolisher._windowLength){
 		}
 
-		CollectWindowSequencesFunctor(const CollectWindowSequencesFunctor& copy) : _contigPolisher(copy._contigPolisher), _contigName_to_contigIndex(copy._contigName_to_contigIndex), _readName_to_readIndex(copy._readName_to_readIndex), _alignments(copy._alignments), _contigSequences(copy._contigSequences), _contigWindowSequences(copy._contigWindowSequences), _windowLength(copy._windowLength){
+		CollectWindowSequencesFunctor(const CollectWindowSequencesFunctor& copy) : _contigPolisher(copy._contigPolisher), _alignments(copy._alignments), _contigSequences(copy._contigSequences), _contigWindowSequences(copy._contigWindowSequences), _windowLength(copy._windowLength){
 			
 		}
 
@@ -474,7 +586,7 @@ public:
 
 			u_int64_t readIndex = read._index;
 			
-			if(readIndex % 100000 == 0) cout << readIndex << endl;
+			if(readIndex % 100000 == 0) cout << "\t" << readIndex << endl;
 
 			if(_alignments.find(read._index) == _alignments.end()) return;
 
@@ -483,6 +595,7 @@ public:
 			for(const Alignment& al : als){
 				u_int64_t contigIndex = al._contigIndex;
 
+				//cout << read._seq.size() << " " << read._qual.size() << " " << _contigSequences[contigIndex].size() << " " << al._readStart << " " << al._readEnd << " " << al._contigStart << " " << al._contigEnd << endl;
 				string readSeq = read._seq;
 				string qualSeq = read._qual;
 				string readSequence = readSeq.substr(al._readStart, al._readEnd-al._readStart);
@@ -825,23 +938,21 @@ public:
 		
 		u_int64_t checksum = 0;
 
-		cout << "Perform correction" << endl;
+		cout << "\tPerform correction" << endl;
 
-		gzFile outputContigFile = gzopen(_outputFilename_contigs.c_str(),"wb");;
 
-		abpt = abpoa_init_para();
-		abpt->out_msa = 0; // generate Row-Column multiple sequence alignment(RC-MSA), set 0 to disable
-		abpt->out_cons = 1; // generate consensus sequence, set 0 to disable
-		abpt->w = 6, abpt->k = 9; abpt->min_w = 10; // minimizer-based seeding and partition
-		abpt->progressive_poa = 1;
-		abpt->max_n_cons = 1;
+		vector<u_int32_t> contigIndexes;
+		for(const auto& it : _contigWindowSequences){
+			contigIndexes.push_back(it.first);
+		}
+		std::sort(contigIndexes.begin(), contigIndexes.end());
 
-		abpoa_post_set_para(abpt);
+		for(u_int32_t contigIndex : contigIndexes){
 
-		for(size_t contigIndex=0; contigIndex < _contigWindowSequences.size(); contigIndex++){
 
+			vector<vector<Window>>& windows = _contigWindowSequences[contigIndex];
 			u_int64_t nbCorrectedWindows = 0;
-			vector<DnaBitset2*> correctedWindows(_contigWindowSequences[contigIndex].size());
+			vector<DnaBitset2*> correctedWindows(windows.size());
 		
 
 			#pragma omp parallel num_threads(_nbCores)
@@ -850,9 +961,9 @@ public:
 				std::unique_ptr<spoa::AlignmentEngine> alignmentEngine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kNW, 3, -5, -4);
 				
 				#pragma omp for
-				for(size_t w=0; w<_contigWindowSequences[contigIndex].size(); w++){
+				for(size_t w=0; w<windows.size(); w++){
 
-					vector<Window>& sequences = _contigWindowSequences[contigIndex][w];
+					vector<Window>& sequences = windows[w];
 					
 					u_int64_t wStart = w*_windowLength;
 					u_int64_t wEnd = min(_contigSequences[contigIndex].size(), wStart+_windowLength);
@@ -983,6 +1094,7 @@ public:
 					}
 					*/
 
+
 					std::sort(sequences.begin(), sequences.end(), [&](const Window& lhs, const Window& rhs) {
 						return lhs._posStart < rhs._posStart; });
 
@@ -1003,6 +1115,7 @@ public:
 
     				u_int32_t offset = 0.01 * contigOriginalSequence.size();
 
+
 					for(size_t i=0; i<sequences.size(); i++){ 
 
 						//size_t i = order[ii];
@@ -1010,7 +1123,6 @@ public:
 						//const DnaBitset2* dna = variant._sequence; //sequenceCopies[s._sequenceIndex];
 						char* dnaStr = window._sequence->to_string();
 
-						//cout << dnaStr << endl;
 
 
 
@@ -1068,6 +1180,7 @@ public:
 							}
 							
 							free(dnaStr);
+							delete window._sequence;
 						//}
 					}
 
@@ -1183,14 +1296,13 @@ public:
 			//cout << contigSequence.size() << " " << nbCorrectedWindows << endl;
 			
 			string header = ">ctg" + to_string(contigIndex) + '\n';
-			gzwrite(outputContigFile, (const char*)&header[0], header.size());
+			gzwrite(_outputContigFile, (const char*)&header[0], header.size());
 			contigSequence +=  '\n';
-			gzwrite(outputContigFile, (const char*)&contigSequence[0], contigSequence.size());
+			gzwrite(_outputContigFile, (const char*)&contigSequence[0], contigSequence.size());
 			//cout << contigSequence.size() << endl;
 		}
 
 		cout << "Checksum: " << checksum << endl;
-		gzclose(outputContigFile);
 	}
 
 };	
