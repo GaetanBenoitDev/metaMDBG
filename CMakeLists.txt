@@ -34,6 +34,11 @@ file (GLOB_RECURSE  ProjectFiles  ${PROGRAM_SOURCE_DIR}/*)
 add_executable(${PROJECT_NAME} ${ProjectFiles})
 #target_link_libraries(${PROJECT_NAME})
 
+set (PROGRAM_SOURCE_DIR_MAPPER ${PROJECT_SOURCE_DIR}/src_mapper)
+include_directories (${PROGRAM_SOURCE_DIR_MAPPER})
+file (GLOB_RECURSE  ProjectFilesMapper  ${PROGRAM_SOURCE_DIR_MAPPER}/*)
+add_executable(mapper ${ProjectFilesMapper})
+
 
 if (NOT TARGET spoa)
   add_subdirectory(src/utils/spoa EXCLUDE_FROM_ALL)
@@ -46,4 +51,5 @@ endif ()
 target_link_libraries(${PROJECT_NAME} abpoa)
 
 target_link_libraries(${PROJECT_NAME} ZLIB::ZLIB)
+target_link_libraries(mapper ZLIB::ZLIB)
 

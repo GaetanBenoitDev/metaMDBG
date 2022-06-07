@@ -12,6 +12,7 @@
 - minimap2 output: écrire un petit programme pour compresser les résultats d'alignements on the fly
 - version finale: remove le minimap2 align filename
 - voir comment racon handle multimap
+- minimap2 read name: lors d'une premiere passe sur les reads, ecrire tous les headers (minimap2 name) dans un fichier
 
 "reprise: ajouter les dernieres filtres de qualité de racon (easy) et refaire des test, aussi potentiellement 20 copies est pas l'optimum, essayer entre 20 et 25, tester correction k=5, revoir comment calculer superbubble lineairement"
 - Blocoo creat graph: load les edge apres que les nodes du graphe soit tous indexé, comme ça on peut delete mdbg_init (abundance calculation) avant d'indexé les edges
@@ -77,6 +78,7 @@ public:
 	string _inputFilename_contigs;
 	int _nbCores;
 	size_t _windowLength;
+	size_t _maxWindowCopies;
 	
 	string _outputFilename_contigs;
 	string _outputFilename_mapping;
@@ -150,6 +152,7 @@ public:
 			_inputFilename_contigs = result["contigs"].as<string>();
 			_nbCores = result[ARG_NB_CORES].as<int>();
 			_windowLength = 500;
+			_maxWindowCopies = 21;
 			
 		}
 		catch (const std::exception& e){
@@ -177,9 +180,14 @@ public:
     void execute (){
 
 
+		u_int64_t windowByteSize = _maxWindowCopies * 2 * _windowLength;
+
 		mapReads();
 		indexContigName();
 		indexReadName();
+
+
+		
 		parseAlignments();
 
 		_contigName_to_contigIndex.clear();
@@ -716,7 +724,7 @@ public:
 				*/
 				
 				bool interrupt = false;
-				if(windows.size() < 20){
+				if(windows.size() < (_contigPolisher._maxWindowCopies-1)){
 
 
 					windows.push_back({new DnaBitset2(windowSequence), windowQualities, posStart, posEnd});

@@ -2175,11 +2175,11 @@ public:
                 float maxAbundance = 0;
                 u_int32_t maxV = -1;
                 for(u_int32_t v : successors){
-                    if(_unitigs[v]._quality == maxAbundance){
+                    if(_unitigs[v]._abundance == maxAbundance){
                         maxAbNodes.push_back(v);
                     }
-                    else if(_unitigs[v]._quality > maxAbundance){
-                        maxAbundance = _unitigs[v]._quality;
+                    else if(_unitigs[v]._abundance > maxAbundance){
+                        maxAbundance = _unitigs[v]._abundance;
                         maxAbNodes.clear();
                         maxAbNodes.push_back(v);
                         //maxV = v;
@@ -2192,15 +2192,16 @@ public:
                 }
                 else{
 
-                    cout << "----" << endl;
-                    cout << "equal: " << _unitigs[unitigIndex]._quality << " " << _unitigs[unitigIndex]._abundance << endl;
+                    
+                    //cout << "----" << endl;
+                    //cout << "equal: " << _unitigs[unitigIndex]._quality << " " << _unitigs[unitigIndex]._abundance << endl;
                     vector<BubbleSide> bubbleSides;
                     for(u_int32_t unitigIndex : maxAbNodes){
 
-                        cout << "\t-" << endl;
+                        //cout << "\t-" << endl;
                         u_int64_t sum = 0;
                         for(u_int32_t nodeIndex : _unitigs[unitigIndex]._nodes){
-                            cout << "\t" << nodeIndex << ": " << _graph->_graphSuccessors->_nodeDatas[BiGraph::nodeIndex_to_nodeName(nodeIndex)]._quality << endl;
+                            //cout << "\t" << nodeIndex << ": " << _graph->_graphSuccessors->_nodeDatas[BiGraph::nodeIndex_to_nodeName(nodeIndex)]._quality << endl;
                             sum += nodeIndex;
                         }
                         bubbleSides.push_back({unitigIndex, _unitigs[unitigIndex]._nbNodes, sum});
@@ -2212,8 +2213,8 @@ public:
 
                     unitigIndex = bubbleSides[0]._unitigIndex;
 
-                    cout << _unitigs[unitigIndex]._nbNodes;
-                    getchar();
+                    //cout << _unitigs[unitigIndex]._nbNodes;
+                    //getchar();
                 }
                 
                 //unitigIndex = maxV;
@@ -3034,7 +3035,7 @@ public:
                     vector<u_int32_t> unitigNodes; 
 
                     //remove bubble
-                    if(utg_2._quality > utg_3._quality){
+                    if(utg_2._abundance > utg_3._abundance){
                         _graph->getUnitigNodes(utg_3, unitigNodes);
 
                         //_isVisited[utg_3._startNode] = true;
@@ -3042,7 +3043,7 @@ public:
                         //_isVisited[nodeIndex_toReverseDirection(utg_3._startNode)] = true;
                         //_isVisited[nodeIndex_toReverseDirection(utg_3._endNode)] = true;
                     }
-                    else if(utg_2._quality < utg_3._quality){
+                    else if(utg_2._abundance < utg_3._abundance){
                         _graph->getUnitigNodes(utg_2, unitigNodes);
 
 

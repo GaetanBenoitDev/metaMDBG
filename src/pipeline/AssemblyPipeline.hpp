@@ -316,8 +316,8 @@ public:
 			Utils::executeCommand(command);
 
 			//getchar();
-			//command = _filename_exe + " polish " + _inputDir + "/contigs_" + to_string(k) + ".fasta.gz " + _inputFilename + " -t 15";
-			//Utils::executeCommand(command);
+			command = _filename_exe + " polish " + _inputDir + "/contigs_" + to_string(k) + ".fasta.gz " + _inputFilename + " -t " + to_string(_nbCores);
+			Utils::executeCommand(command);
 			//generatedContigs = true;
 		}
 		else{
