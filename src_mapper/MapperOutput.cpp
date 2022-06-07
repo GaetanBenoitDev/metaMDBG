@@ -103,6 +103,8 @@ public:
 int main (int argc, char* argv[])
 {
 
+	double errorThreshold = 0.3;
+
 	//"/home/gats/workspace/run/overlap_test_AD/contigs_43_corrected.fasta.gz", "/home/gats/workspace/data/AD/HiFi/input.txt"
 	string contigFilename = string(argv[1]);
 	string readFilename = string(argv[2]);
@@ -145,6 +147,13 @@ int main (int argc, char* argv[])
 		u_int64_t readIndex = mappingIndex._readName_to_readIndex[readName];
 		//u_int64_t length = std::max(readEnd - readStart, contigEnd - contigStart);
 
+
+		double length = max((double)(contigEnd - contigStart), (double)(readEnd - readStart));
+		double error = 1 - min((double)(contigEnd - contigStart), (double)(readEnd - readStart)) / length;
+
+		if(error > errorThreshold) continue;
+		//cout << error << endl;
+		//getchar();
 		//cout << contigIndex << " " << readIndex << endl;
 
 		outputFile.write((const char*)&contigIndex, sizeof(contigIndex));

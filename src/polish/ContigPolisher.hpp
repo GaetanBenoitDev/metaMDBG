@@ -14,6 +14,7 @@
 - voir comment racon handle multimap
 - minimap2 read name: lors d'une premiere passe sur les reads, ecrire tous les headers (minimap2 name) dans un fichier
 - vu que le polisher est standalone, ne pas changer le nom des header des contigs (les load en memoire t restituer dans le fichier output)
+- mettre minimap2 dans le process de contig subsampling (donc écrire un chunk de contig dans un fichier séparer, puis refaire le minimap2 a cahque pass etc)
 
 "reprise: ajouter les dernieres filtres de qualité de racon (easy) et refaire des test, aussi potentiellement 20 copies est pas l'optimum, essayer entre 20 et 25, tester correction k=5, revoir comment calculer superbubble lineairement"
 - Blocoo creat graph: load les edge apres que les nodes du graphe soit tous indexé, comme ça on peut delete mdbg_init (abundance calculation) avant d'indexé les edges
@@ -85,6 +86,7 @@ public:
 	string _outputFilename_contigs;
 	string _outputFilename_mapping;
 	u_int64_t _maxMemory;
+	double _qualityThreshold;
 
 	//abpoa_para_t *abpt;
 	
@@ -164,7 +166,7 @@ public:
 			_nbCores = result[ARG_NB_CORES].as<int>();
 			_windowLength = 500;
 			_maxWindowCopies = 21; //21;
-			
+			_qualityThreshold = 10.0;
 		}
 		catch (const std::exception& e){
 			std::cout << options.help() << std::endl;
@@ -450,6 +452,7 @@ public:
 
 			if(_contigSequences.find(contigIndex) == _contigSequences.end()) continue;
 
+
 			Alignment align = {contigIndex, readIndex, strand, readStart, readEnd, contigStart, contigEnd};
 
 			//ContigRead alignKey = {_contigName_to_contigIndex[contigName], _readName_to_readIndex[readName]};
@@ -508,6 +511,7 @@ public:
 			if(als.size() == 1) continue;
 			
 			for(size_t i=0; i<als.size(); i++){
+				
 				if(std::find(removedIndex.begin(), removedIndex.end(), i) != removedIndex.end()) continue;
 
 				for(size_t j=i+1; j<als.size(); j++){
@@ -525,6 +529,7 @@ public:
 						//alsFiltered.push_back(als[j]);
 					}
 					
+	
 					//if(als[i]._contigIndex == 0 && als[i]._readIndex == 705){
 					//	cout << endl;
 					//	cout << i << " " << als[i]._contigIndex << " " << als[i]._readIndex << " " << als[i]._length << endl;
@@ -724,23 +729,21 @@ public:
 					continue;
 				}
 
-				/*
-				if (!sequence->quality().empty() ||
-					!sequence->reverse_quality().empty()) {
+				
+				if (qualSequence.size() > 0) {
 
-					const auto& quality = overlaps[i]->strand() ?
-						sequence->reverse_quality() : sequence->quality();
+					//const auto& quality = overlaps[i]->strand() ? sequence->reverse_quality() : sequence->quality();
 					double average_quality = 0;
-					for (uint32_t k = breaking_points[j].second; k < breaking_points[j + 1].second; ++k) {
-						average_quality += static_cast<uint32_t>(quality[k]) - 33;
+					for (uint32_t k = breaking_points_[j].second; k < breaking_points_[j + 1].second; ++k) {
+						average_quality += static_cast<uint32_t>(qualSequence[k]) - 33;
 					}
-					average_quality /= breaking_points[j + 1].second - breaking_points[j].second;
+					average_quality /= breaking_points_[j + 1].second - breaking_points_[j].second;
 
-					if (average_quality < quality_threshold_) {
-						//continue;
+					if (average_quality < _contigPolisher._qualityThreshold) {
+						continue;
 					}
 				}
-				*/
+				
 
 				//uint64_t window_id = id_to_first_window_id[overlaps[i]->t_id()] +
 				uint64_t window_id = breaking_points_[j].first / _windowLength;
