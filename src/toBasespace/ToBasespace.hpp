@@ -255,8 +255,8 @@ public:
 		
 
 		abpt = abpoa_init_para();
-		abpt->out_msa = 1; // generate Row-Column multiple sequence alignment(RC-MSA), set 0 to disable
-		abpt->out_cons = 0; // generate consensus sequence, set 0 to disable
+		abpt->out_msa = 0; // generate Row-Column multiple sequence alignment(RC-MSA), set 0 to disable
+		abpt->out_cons = 1; // generate consensus sequence, set 0 to disable
 		abpt->w = 6, abpt->k = 9; abpt->min_w = 10; // minimizer-based seeding and partition
 		abpt->progressive_poa = 1;
 		abpt->max_n_cons = 2;
@@ -1894,6 +1894,14 @@ public:
 
 			
 			abpoa_cons_t *abc = ab->abc;
+
+			correctedSequence.clear();
+
+			for (size_t j = 0; j < abc->cons_len[0]; ++j){
+				correctedSequence += nt256_table2[abc->cons_base[0][j]];
+			}
+
+			/*
 			vector<vector<u_int32_t>> counts(abc->msa_len, vector<u_int32_t>(4, 0));
 
 			for (int i = 0; i < abc->n_seq; ++i) {
@@ -1945,7 +1953,8 @@ public:
 					}
 				}
 			}
-
+			*/
+		
 			for (int i = 0; i < n_seqs; ++i) free(bseqs[i]); free(bseqs); free(seq_lens);
 			abpoa_free(ab);
 			
