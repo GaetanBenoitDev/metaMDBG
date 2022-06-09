@@ -285,8 +285,8 @@ public:
 		//_mdbgInit->load(mdbg_filename);
 		//cout << "MDBG nodes: " << _mdbgInit->_dbg_nodes.size() << endl;
 
-		string inputFilenameContigSmall = _inputDir + "/small_contigs.bin";
 
+		appendSmallContigs();
 		loadContigs_min(_inputFilenameContig);
 		//loadContigs_min(inputFilenameContigSmall);
 		collectBestSupportingReads(_inputFilenameContig);
@@ -531,6 +531,29 @@ public:
 		}
 		
 
+	}
+
+	
+	ofstream _fileContigsAppend;
+
+	void appendSmallContigs(){
+		cout << "Append small contigs" << endl;
+
+		_fileContigsAppend = ofstream(_inputFilenameContig, std::ios_base::app);
+
+		KminmerParser parser(_inputDir + "/small_contigs.bin", _minimizerSize, _kminmerSize, false, false);
+		auto fp = std::bind(&ToBasespace::appendSmallContigs_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+		parser.parseMinspace(fp);
+
+		_fileContigsAppend.close();
+
+	}
+
+	void appendSmallContigs_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
+		
+		u_int32_t contigSize = readMinimizers.size();
+		_fileContigsAppend.write((const char*)&contigSize, sizeof(contigSize));
+		_fileContigsAppend.write((const char*)&readMinimizers[0], contigSize*sizeof(u_int64_t));
 	}
 
 	/*

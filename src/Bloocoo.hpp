@@ -329,12 +329,16 @@ public:
 				std::reverse(minimizerSeq.begin(), minimizerSeq.end());
 			}
 
+			return getAbundance(minimizerSeq);
+		}
+		
+		float getAbundance(const vector<u_int64_t>& readMinimizers){
 
 			vector<u_int64_t> rlePositions;
 			vector<u_int64_t> minimizers_pos;//(minimizers.size());
 			vector<KmerVec> kminmers; 
 			vector<ReadKminmer> kminmersInfo;
-			MDBG::getKminmers(_minimizerSize, _graph._kminmerSizePrev, minimizerSeq, minimizers_pos, kminmers, kminmersInfo, rlePositions, 0, false);
+			MDBG::getKminmers(_minimizerSize, _graph._kminmerSizePrev, readMinimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, 0, false);
 
 
 			u_int32_t minAbundance = -1;
@@ -367,7 +371,7 @@ public:
 
 			return minAbundance;
 		}
-		
+
 		/*
 		struct SumN{
 			double _sum;
@@ -456,13 +460,24 @@ public:
 		void operator () (const KminmerList& kminmerList) {
 
 
-
 			u_int64_t readIndex = kminmerList._readIndex;
 			const vector<u_int64_t>& readMinimizers = kminmerList._readMinimizers;
 			//const vector<KmerVec>& kminmers = kminmerList._kminmers;
 			const vector<ReadKminmerComplete>& kminmersInfos = kminmerList._kminmersInfo;
 
-			
+
+			if(_extractingContigs && _kminmerSize > 40 && kminmersInfos.size() == 0 && getAbundance(readMinimizers) > 1){
+
+				#pragma omp critical
+				{
+					u_int32_t contigSize = readMinimizers.size();
+					_graph._fileSmallContigs.write((const char*)&contigSize, sizeof(contigSize));
+					_graph._fileSmallContigs.write((const char*)&readMinimizers[0], contigSize*sizeof(u_int64_t));
+					//cout << "small contig" << endl;
+					//getchar();
+				}
+			}
+
 			/*
 			double abundanceCutoff = 0;
 			if(!_isFirstPass){

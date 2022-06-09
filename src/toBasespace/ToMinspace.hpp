@@ -141,6 +141,7 @@ public:
 		//delete _mdbg;
 
 		createMinimizerContigs();
+		//dereplicateContigs();
 
 		cout << endl << "Contig filename: " << _filename_output << endl;
 	}
@@ -511,15 +512,14 @@ public:
 		cout << "Creating mContigs" << endl;
 		cout << endl;
 
-		string mdbg_filename =  _inputDir + "/kminmerData_min_init.txt";
-		MDBG* mdbg = new MDBG(firstK);
-		mdbg->load(mdbg_filename, false);
+		_mdbg = new MDBG(firstK);
+		_mdbg->load(_inputDir + "/kminmerData_min_init.txt", false);
 
 		//ofstream testCsv(_inputDir + "/minimizerContigsDebug.csv");
 		//testCsv << "Name,Colour" << endl;
 
 		//gzFile outputContigFile = gzopen(_filename_outputContigs.c_str(),"wb");
-		ofstream outputFile(_filename_output, std::ios::binary);
+		ofstream outputFile(_filename_output);
 
 
 
@@ -779,7 +779,7 @@ public:
 				//	cout << vec._kmers[0] << " " << vec._kmers[1] << " " << vec._kmers[2] << endl;
 				//}
 
-				if(mdbg->_dbg_nodes.find(vec) == mdbg->_dbg_nodes.end()){
+				if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
 					//if(i==2){ nbFailed += 1; }
 					cout << "Not good: " << i << endl;
 					//cout << vec._kmers[0] << " " << vec._kmers[1] << " " << vec._kmers[2] << " " << vec._kmers[3] << endl;
@@ -797,7 +797,7 @@ public:
 					continue;	
 				}
 
-				u_int32_t nodeName = mdbg->_dbg_nodes[vec]._index;
+				u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
 				//cout << nodeName << endl;
 				//cout << vec._kmers[0] << " " << vec._kmers[1] << " " << vec._kmers[2] << "     " << nodeName << endl;
 				//cout << nodeName << endl;
@@ -829,7 +829,7 @@ public:
 		//cout << nbFailed << " " << contig_index << endl;
 		contigFile.close();
 		outputFile.close();
-
+		
 		cout << "Checksum: " << _checksum << endl;
 		//gzclose(outputContigFile);
 		//testCsv.close();
@@ -839,6 +839,177 @@ public:
 
 	}
 
+
+	/*
+	struct Contig{
+		u_int64_t _readIndex;
+		vector<u_int32_t> _nodepath;
+		vector<u_int32_t> _nodepath_sorted;
+	};
+
+	vector<Contig> _contigs;
+	unordered_map<u_int32_t, u_int32_t> _kminmerCounts;
+	static bool ContigComparator_ByLength(const Contig &a, const Contig &b){
+
+		if(a._nodepath.size() == b._nodepath.size()){
+			for(size_t i=0; i<a._nodepath.size() && i<b._nodepath.size(); i++){
+				if(BiGraph::nodeIndex_to_nodeName(a._nodepath[i]) == BiGraph::nodeIndex_to_nodeName(b._nodepath[i])){
+					continue;
+				}
+				else{
+					return BiGraph::nodeIndex_to_nodeName(a._nodepath[i]) > BiGraph::nodeIndex_to_nodeName(b._nodepath[i]);
+				}
+			}
+		}
+
+
+		return a._nodepath.size() > b._nodepath.size();
+	}
+	
+	unordered_set<u_int32_t> _invalidContigIndex;
+	u_int64_t _nbContigs;
+	ofstream _outputFileDerep;
+
+
+	void dereplicateContigs(){
+
+		cout << "Dereplicating contigs" << endl;
+
+
+		_outputFileDerep.open(_filename_output); 
+		_nbContigs = 0;
+
+		KminmerParser parser(_filename_output + ".tmp", _minimizerSize, _kminmerSizeFirst, false, false);
+		auto fp = std::bind(&ToMinspace::loadContigs_min_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+		parser.parseMinspace(fp);
+
+		cout << "Nb contigs: " << _nbContigs << endl;
+
+		double nbRepeatedKminmers = 0;
+		for(auto& it : _kminmerCounts){
+			if(it.second > 1){
+				nbRepeatedKminmers += 1;
+			}
+		}
+		cout << "Nb kminmer: " << _kminmerCounts.size() << endl;
+		cout << "Repeated kminmer: " << nbRepeatedKminmers << endl;
+		cout << "Repeated kminmer rate: " << (nbRepeatedKminmers / _kminmerCounts.size()) << endl;
+
+		
+		std::sort(_contigs.begin(), _contigs.end(), ContigComparator_ByLength);
+
+		for(size_t i=0; i<_contigs.size(); i++){
+			
+			if(_invalidContigIndex.find(_contigs[i]._readIndex) != _invalidContigIndex.end()) continue;
+
+			for(long j=_contigs.size()-1; j>=i+1; j--){
+			
+				if(_invalidContigIndex.find(_contigs[j]._readIndex) != _invalidContigIndex.end()) continue;
+
+				double nbShared = Utils::computeSharedElements(_contigs[i]._nodepath_sorted, _contigs[j]._nodepath_sorted);
+				double sharedRate_1 = nbShared / _contigs[i]._nodepath_sorted.size();
+				double sharedRate_2 = nbShared / _contigs[j]._nodepath_sorted.size();
+
+				if(sharedRate_1 > 0.9 || sharedRate_2 > 0.9){
+
+					cout << _contigs[j]._nodepath_sorted.size() << " " << sharedRate_1 << " " << sharedRate_2 << endl;
+					_invalidContigIndex.insert(_contigs[j]._readIndex);
+					//break;
+
+				}
+
+				//if(_contigs[j]._nodepath.size() < 100) _invalidContigIndex.insert(_contigs[j]._readIndex);
+			}
+		}
+		
+
+
+		_kminmerCounts.clear();
+
+		cout << _nbContigs << " " << _invalidContigIndex.size() << endl;
+ 		cout << "Nb contigs (no duplicate): " << (_nbContigs-_invalidContigIndex.size()) << endl;
+
+		KminmerParser parser2(_filename_output + ".tmp", _minimizerSize, _kminmerSizeFirst, false, false);
+		auto fp2 = std::bind(&ToMinspace::loadContigs_min_read2, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+		parser2.parseMinspace(fp2);
+
+		nbRepeatedKminmers = 0;
+		for(auto& it : _kminmerCounts){
+			if(it.second > 1){
+				nbRepeatedKminmers += 1;
+			}
+		}
+		cout << "Nb kminmer: " << _kminmerCounts.size() << endl;
+		cout << "Repeated kminmer: " << nbRepeatedKminmers << endl;
+		cout << "Repeated kminmer rate: " << (nbRepeatedKminmers / _kminmerCounts.size()) << endl;
+
+		_contigs.clear();
+		_outputFileDerep.close();
+	}
+
+
+
+
+
+	void loadContigs_min_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
+
+		vector<u_int32_t> nodepath;
+		
+		for(size_t i=0; i<kminmersInfos.size(); i++){
+			
+			const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
+
+			KmerVec vec = kminmerInfo._vec;
+			
+			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
+				cout << "Not found kminmer" << endl;
+				//getchar();
+				continue;
+			}
+
+
+			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
+			nodepath.push_back(nodeName);
+			
+			_kminmerCounts[nodeName] += 1;
+
+		}
+
+		_nbContigs += 1;
+
+		vector<u_int32_t> nodepath_sorted = nodepath;
+		std::sort(nodepath_sorted.begin(), nodepath_sorted.end());
+		_contigs.push_back({readIndex, nodepath, nodepath_sorted});
+
+	}
+
+	void loadContigs_min_read2(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
+
+		if(_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) return;
+		
+		u_int32_t contigSize = readMinimizers.size();
+		//cout << "Write: " << contigSize << endl;
+		//getchar();
+		_outputFileDerep.write((const char*)&contigSize, sizeof(contigSize));
+		_outputFileDerep.write((const char*)&readMinimizers[0], contigSize*sizeof(u_int64_t));
+
+		for(size_t i=0; i<kminmersInfos.size(); i++){
+			
+			const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
+
+			KmerVec vec = kminmerInfo._vec;
+			
+			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
+				continue;
+			}
+
+			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
+			
+			_kminmerCounts[nodeName] += 1;
+
+		}
+	}
+	*/
 
 };	
 

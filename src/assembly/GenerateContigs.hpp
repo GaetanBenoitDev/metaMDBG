@@ -157,8 +157,8 @@ public:
 	unordered_map<u_int64_t, vector<u_int32_t>> _debug_readPath;
     vector<bool> _isBubble;
 
-
 	void execute (){
+
 
 		loadGraph();
 		//generateUnitigs();
@@ -920,6 +920,8 @@ public:
 
 	void generateContigs2(const string& outputFilename){
 
+
+
 		_processedNodeNames = vector<bool>(_graph->_isNodeRemoved.size()/2, false);
 		u_int64_t nbNodesCheckSum = 0;
 		//string clusterDir = _inputDir + "/" + "binGreedy";
@@ -1180,7 +1182,15 @@ public:
 					}
 				}
 				
-				if(nodePath.size() <= 1) continue;
+				/*
+				if(nodePath.size() <= 1){
+					if(u._abundance == 1 || _kminmerSize < 10) continue;
+					u_int64_t size = nodePath.size();
+					fileSmallContigs.write((const char*)&size, sizeof(size));
+					fileSmallContigs.write((const char*)&nodePath[0], size * sizeof(u_int32_t));
+					continue;
+				}
+				*/
 
 				/*
 				if(isCircular){
@@ -1403,6 +1413,7 @@ public:
 		cout << "Check sum global (abundance): " << checksum_abundance << endl;
 		cout << "Check sum: " << checkSum << endl;
 		//getchar();
+
 	}
 	
 /*

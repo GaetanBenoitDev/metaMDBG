@@ -332,6 +332,7 @@ public:
 			command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/contigs.nodepath" + " -f " + _inputDir + "/unitig_data.txt";
 			Utils::executeCommand(command);
 
+			//getchar();
 		}	
 			
 		savePassData(k);
