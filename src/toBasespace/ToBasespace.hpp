@@ -1721,7 +1721,7 @@ public:
 						#pragma omp critical
 						{
 
-							if(readSequence._variants.size() < 19){
+							if(readSequence._variants.size() < 20){
 								readSequence._variants.push({result.editDistance, new DnaBitset(sequence)});
 							}
 							else{
