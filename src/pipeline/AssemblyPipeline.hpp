@@ -171,7 +171,8 @@ public:
 		string command = "";
 
 		ofstream fileSmallContigs(_inputDir + "/small_contigs.bin");
-
+		fileSmallContigs.close();
+		
 		writeParameters(_minimizerSize, _firstK, _minimizerDensity, _firstK, _firstK, _lastK);
 		//createInputFile(false);
 

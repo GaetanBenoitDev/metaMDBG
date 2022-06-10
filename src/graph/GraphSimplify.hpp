@@ -1091,7 +1091,7 @@ public:
         if(!removeTip){
             for(u_int32_t nodeIndexTo : removedNodes){
 
-                cout << "Removed: " << BiGraph::nodeIndex_to_nodeName(nodeIndexTo) << endl;
+                //cout << "Removed: " << BiGraph::nodeIndex_to_nodeName(nodeIndexTo) << endl;
 
                 vector<u_int32_t> predecessors;
                 getPredecessors(nodeIndexTo, 0, predecessors);
