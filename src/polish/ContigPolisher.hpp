@@ -82,6 +82,7 @@ public:
 	size_t _windowLength;
 	size_t _maxWindowCopies;
 	string _mapperOutputExeFilename;
+	bool _useQual;
 	
 	string _outputFilename_contigs;
 	string _outputFilename_mapping;
@@ -128,7 +129,7 @@ public:
 
 	void parseArgs(int argc, char* argv[]){
 
-
+		string ARG_USE_QUAL = "qual";
 		string filenameExe = argv[0];
 		//cout << filenameExe << endl;
 
@@ -141,6 +142,7 @@ public:
 		options.add_options()
 		("contigs", "", cxxopts::value<string>())
 		("reads", "", cxxopts::value<string>())
+		(ARG_USE_QUAL, "", cxxopts::value<bool>()->default_value("false"))
 		(ARG_NB_CORES, "", cxxopts::value<int>()->default_value("4"));
 
 		options.parse_positional({"contigs", "reads"});
@@ -164,6 +166,7 @@ public:
 			_inputFilename_reads = result["reads"].as<string>();
 			_inputFilename_contigs = result["contigs"].as<string>();
 			_nbCores = result[ARG_NB_CORES].as<int>();
+			_useQual = result[ARG_USE_QUAL].as<bool>();
 			_windowLength = 500;
 			_maxWindowCopies = 21; //21;
 			_qualityThreshold = 10.0;
@@ -176,6 +179,7 @@ public:
 
 		cout << "Contigs: " << _inputFilename_contigs << endl;
 		cout << "Reads: " << _inputFilename_reads << endl;
+		cout << "Use quality: " << _useQual << endl;
 
 		fs::path p(_inputFilename_contigs);
 		while(p.has_extension()){
@@ -184,9 +188,14 @@ public:
 
 		_outputFilename_contigs = p.string() + "_corrected.fasta.gz";
 		_outputFilename_mapping = p.string() + "_tmp_mapping__.paf";
-		_windowByteSize = _maxWindowCopies * 2 * _windowLength;
 		_maxMemory = 8000000000ull;
 
+		if(_useQual){
+			_windowByteSize = _maxWindowCopies  * ((_windowLength/4) + _windowLength);
+		}
+		else{
+			_windowByteSize = _maxWindowCopies  * (_windowLength/4);
+		}
 	}
 
 
@@ -763,18 +772,18 @@ public:
                 u_int32_t posEnd =  breaking_points_[j + 1].first - window_start - 1;
 
 				string quality = "";
-				if(qualSequence.size() > 0){
+				if(_contigPolisher._useQual && qualSequence.size() > 0){
 					quality = string(&qualSequence[breaking_points_[j].second], data_length);
 				}
 
-				if(al._contigIndex == 0 && window_id == 161){
+				//if(al._contigIndex == 0 && window_id == 161){
 					
 					//cout << al._contigIndex << " " << al._readIndex << endl;
 					//cout << (breaking_points_[j + 1].second - breaking_points_[j].second) << " " << (0.02 * _windowLength) << endl;
 					//cout << sequence << endl;
 					//cout << quality << endl;
 					//getchar();
-				}
+				//}
 
 				indexWindow(al, window_id, posStart, posEnd, sequence, quality);
 

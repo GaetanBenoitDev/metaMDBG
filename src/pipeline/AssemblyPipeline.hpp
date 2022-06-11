@@ -172,7 +172,7 @@ public:
 
 		ofstream fileSmallContigs(_inputDir + "/small_contigs.bin");
 		fileSmallContigs.close();
-		
+
 		writeParameters(_minimizerSize, _firstK, _minimizerDensity, _firstK, _firstK, _lastK);
 		//createInputFile(false);
 
@@ -317,7 +317,7 @@ public:
 			Utils::executeCommand(command);
 
 			//getchar();
-			command = _filename_exe + " polish " + _inputDir + "/contigs_" + to_string(k) + ".fasta.gz " + _inputFilename + " -t " + to_string(_nbCores);
+			command = _filename_exe + " polish " + _inputDir + "/contigs_" + to_string(k) + ".fasta.gz " + _inputFilename + " -t " + to_string(_nbCores) + " --qual ";
 			Utils::executeCommand(command);
 			//generatedContigs = true;
 		}
