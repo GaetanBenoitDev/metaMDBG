@@ -1099,10 +1099,10 @@ public:
 			u_int32_t abundance = it.second._abundance;
 			u_int32_t quality = it.second._quality;
 
-			if(quality==0){
-				cout << "omg " << nodeName << endl;
-				getchar();
-			}
+			//if(quality==0){
+			//	cout << "omg " << nodeName << endl;
+			//	getchar();
+			//}
 			//bool isReversed;
 			//d._kmerVec.normalize(isReversed);
 

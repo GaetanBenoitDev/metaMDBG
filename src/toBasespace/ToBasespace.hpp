@@ -275,9 +275,6 @@ public:
 			extract_truth_kminmers();
 		}
 
-		cout << "Indexing reads" << endl;
-		_unitigDatas.resize(_mdbg->_dbg_nodes.size());
-		indexReads();
 
 		//cout << "Loading original mdbg" << endl;
 		//string mdbg_filename = _inputDir + "/mdbg_nodes_init.gz";
@@ -287,6 +284,13 @@ public:
 
 
 		appendSmallContigs();
+		removeOverlaps();
+
+
+		cout << "Indexing reads" << endl;
+		_unitigDatas.resize(_mdbg->_dbg_nodes.size());
+		indexReads();
+
 		loadContigs_min(_inputFilenameContig);
 		//loadContigs_min(inputFilenameContigSmall);
 		collectBestSupportingReads(_inputFilenameContig);
@@ -702,6 +706,7 @@ public:
 	unordered_set<u_int32_t> _invalidContigIndex;
 
 	void loadContigs_min(const string& contigFilename){
+
 
 		_nbNodes = 0;
 		_nbContigs = 0;
@@ -2702,7 +2707,308 @@ public:
 		//delete _minimizerParser;
 	}
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	struct ContigOverlap{
+		u_int64_t _contigIndex;
+		vector<u_int64_t> _minimizers;
+		vector<u_int32_t> _nodepath;
+		vector<u_int32_t> _nodepath_sorted;
+	};
+
+
+	static bool ContigOverlapComparator_ByLength(const ContigOverlap &a, const ContigOverlap &b){
+
+		if(a._nodepath.size() == b._nodepath.size()){
+			for(size_t i=0; i<a._nodepath.size() && i<b._nodepath.size(); i++){
+				if(BiGraph::nodeIndex_to_nodeName(a._nodepath[i]) == BiGraph::nodeIndex_to_nodeName(b._nodepath[i])){
+					continue;
+				}
+				else{
+					return BiGraph::nodeIndex_to_nodeName(a._nodepath[i]) > BiGraph::nodeIndex_to_nodeName(b._nodepath[i]);
+				}
+			}
+		}
+
+
+		return a._nodepath.size() > b._nodepath.size();
+	}
+
+
+	vector<ContigOverlap> _overContigs;
+	unordered_map<KmerVec, u_int32_t> _edgesToIndex;
+	u_int32_t _edgeIndex;
+
+	void removeOverlaps(){
+		_edgeIndex = 0;
+		indexEdges();
+		indexContigs();
+		detectOverlaps();
+
+		ofstream outputFile(_inputFilenameContig + ".nooverlaps");
+		
+		for(size_t i=0; i<_overContigs.size(); i++){
+			if(_overContigs[i]._nodepath.size() == 0) continue;
+			
+			u_int32_t contigSize = _overContigs[i]._minimizers.size();
+			outputFile.write((const char*)&contigSize, sizeof(contigSize));
+			outputFile.write((const char*)&_overContigs[i]._minimizers[0], contigSize*sizeof(u_int64_t));
+		}
+		outputFile.close();
+
+		_edgesToIndex.clear();
+		_overContigs.clear();
+
+		_inputFilenameContig = _inputFilenameContig + ".nooverlaps";
+	}
+
+
+	void indexEdges(){
+
+		KminmerParser parser(_inputFilenameContig, _minimizerSize, _kminmerSize-1, false, false);
+		auto fp = std::bind(&ToBasespace::indexEdges_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+		parser.parseMinspace(fp);
+	}
+
+	void indexEdges_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
+
+		
+		for(size_t i=0; i<kminmersInfos.size(); i++){
+			
+			const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
+			KmerVec vec = kminmerInfo._vec;
+
+			if(_edgesToIndex.find(vec) == _edgesToIndex.end()){
+				_edgesToIndex[vec] = _edgeIndex;
+				_edgeIndex += 1;
+			}
+		}
+	}
+
+	void indexContigs(){
+
+		KminmerParser parser(_inputFilenameContig, _minimizerSize, _kminmerSize-1, false, false);
+		auto fp = std::bind(&ToBasespace::indexContigs_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+		parser.parseMinspace(fp);
+	}
+
+	void indexContigs_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
+
+		vector<u_int32_t> nodepath;
+
+		for(size_t i=0; i<kminmersInfos.size(); i++){
+			
+			const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
+			KmerVec vec = kminmerInfo._vec;
+
+			nodepath.push_back(_edgesToIndex[vec]);
+		}
+
+
+		vector<u_int32_t> nodepath_sorted = nodepath;
+		std::sort(nodepath_sorted.begin(), nodepath_sorted.end());
+		_overContigs.push_back({readIndex, readMinimizers, nodepath, nodepath_sorted});
+
+	}
+
+	void detectOverlaps(){
+
+		std::sort(_overContigs.begin(), _overContigs.end(), ContigOverlapComparator_ByLength);
+
+		while(true){
+
+			bool isModification = false;
+
+
+			for(size_t i=0; i<_overContigs.size(); i++){
+				
+				if(_overContigs[i]._nodepath.size() == 0) continue;
+				//if(_invalidContigIndex.find(_contigs[i]._readIndex) != _invalidContigIndex.end()) continue;
+
+				for(long j=_overContigs.size()-1; j>=i+1; j--){
+
+					if(_overContigs[j]._nodepath.size() == 0) continue;
+					
+					
+					//if(_invalidContigIndex.find(_contigs[j]._readIndex) != _invalidContigIndex.end()) continue;
+
+					unordered_set<u_int32_t> sharedElements;
+					Utils::collectSharedElements(_overContigs[i]._nodepath_sorted, _overContigs[j]._nodepath_sorted, sharedElements);
+
+					if(sharedElements.size() == 0) continue;
+					cout << "-----------------------" << endl;
+					cout << _overContigs[j]._contigIndex << endl;
+					for(u_int32_t nodeName : _overContigs[j]._nodepath){
+						if(sharedElements.find(nodeName) == sharedElements.end()){
+							cout << "0";
+						}
+						else{
+							cout << "1";
+						}
+					}
+					cout << endl;
+					isModification = removeOverlap(_overContigs[i]._nodepath, _overContigs[j]._nodepath, sharedElements, true, _overContigs[j]);
+					cout << _overContigs[j]._contigIndex << endl;
+					for(u_int32_t nodeName : _overContigs[j]._nodepath){
+						if(sharedElements.find(nodeName) == sharedElements.end()){
+							cout << "0";
+						}
+						else{
+							cout << "1";
+						}
+					}
+					cout << endl;
+					isModification = removeOverlap(_overContigs[i]._nodepath, _overContigs[j]._nodepath, sharedElements, false, _overContigs[j]);
+					for(u_int32_t nodeName : _overContigs[j]._nodepath){
+						if(sharedElements.find(nodeName) == sharedElements.end()){
+							cout << "0";
+						}
+						else{
+							cout << "1";
+						}
+					}
+					cout << endl;
+
+					//if(_overContigs[j]._contigIndex == 1097) getchar();
+
+					//getchar();
+				}
+			}
+
+			if(!isModification) break;
+		}
+
+	}
+
+	bool removeOverlap(const vector<u_int32_t>& nodePath, vector<u_int32_t>& nodePath_shorter, unordered_set<u_int32_t>& sharedElements, bool right, ContigOverlap& contig){
+
+		bool isModification = false;
+
+		if(right){
+			std::reverse(nodePath_shorter.begin(), nodePath_shorter.end());
+		}
+		
+		u_int32_t overlapSize = computeOverlapSize(nodePath, nodePath_shorter, sharedElements);
+		cout << overlapSize << " " << contig._minimizers.size() << " " << contig._nodepath.size() << " " << contig._nodepath_sorted.size() << endl;
+		//if(overlapSize > 0) overlapSize += 1;
+		//if(right && overlapSize > 0) 
+
+		if(overlapSize > 0){
+			isModification = true;
+			overlapSize += (_kminmerSize-1-1);
+			if(overlapSize >= nodePath_shorter.size()){
+				contig._minimizers.clear();
+				contig._nodepath.clear();
+				contig._nodepath_sorted.clear();
+			}
+			else{
+				nodePath_shorter.erase(nodePath_shorter.begin(), nodePath_shorter.begin() + overlapSize);
+
+				vector<u_int64_t> minimizers = contig._minimizers;
+
+				if(right){
+					std::reverse(minimizers.begin(), minimizers.end());
+				}
+
+				minimizers.erase(minimizers.begin(), minimizers.begin() + overlapSize);
+
+				if(right){
+					std::reverse(minimizers.begin(), minimizers.end());
+					std::reverse(nodePath_shorter.begin(), nodePath_shorter.end());
+				}
+
+				contig._minimizers = minimizers;
+				contig._nodepath = nodePath_shorter;
+				contig._nodepath_sorted.clear();
+				for(u_int32_t index : contig._nodepath){
+					contig._nodepath_sorted.push_back(index);
+				}
+				std::sort(contig._nodepath_sorted.begin(), contig._nodepath_sorted.end());
+
+				/*
+				component.clear();
+				for(u_int32_t nodeIndex : nodePath){
+					component.push_back(BiGraph::nodeIndex_to_nodeName(nodeIndex));
+				}
+				std::sort(component.begin(), component.end());
+				Utils::collectSharedElements(contig._nodePath_sorted, component, sharedElements);
+				*/
+			}
+
+		}
+		else{
+
+			if(right){
+				std::reverse(nodePath_shorter.begin(), nodePath_shorter.end());
+			}
+
+		}
+
+		if(contig._minimizers.size() <= _kminmerSize){
+			contig._minimizers.clear();
+			contig._nodepath.clear();
+			contig._nodepath_sorted.clear();
+			isModification = true;
+		}
+
+
+		return isModification;
+
+	}
+
+	u_int32_t computeOverlapSize(const vector<u_int32_t>& nodePath, const vector<u_int32_t>& nodePath_shorter, unordered_set<u_int32_t>& sharedElements){
+
+		if(sharedElements.size() == 0) return 0;
+
+		size_t uniqueRunLength = 0;
+		bool isUnique = false;
+
+		u_int32_t nonUniquePos = 0;
+
+		for(size_t i=0; i<nodePath_shorter.size(); i++){
+
+			if(sharedElements.find(nodePath_shorter[i]) == sharedElements.end()){
+				if(isUnique) uniqueRunLength += 1;
+				isUnique = true;
+			}
+			else{
+				nonUniquePos = (i+1);
+				isUnique = false;
+				uniqueRunLength = 0;
+			}
+
+			if(uniqueRunLength > 0) break;
+
+		}
+
+		//if(nonUniquePos > 0) nonUniquePos += 1;
+		return nonUniquePos;
+	}
+
+
 };	
+
 
 
 #endif 
