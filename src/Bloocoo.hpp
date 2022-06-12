@@ -466,7 +466,7 @@ public:
 			const vector<ReadKminmerComplete>& kminmersInfos = kminmerList._kminmersInfo;
 
 
-			if(_extractingContigs && _kminmerSize > 9 && kminmersInfos.size() == 0 && getAbundance(readMinimizers) > 1){
+			if(_extractingContigs && _kminmerSize > 8 && kminmersInfos.size() == 0 && getAbundance(readMinimizers) > 1){
 
 				#pragma omp critical
 				{
