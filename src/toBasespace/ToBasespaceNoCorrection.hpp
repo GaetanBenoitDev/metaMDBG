@@ -832,9 +832,13 @@ public:
 
 	void detectOverlaps(){
 
+		cout << "detecting overlaps" << endl;
 
 		while(true){
 
+			
+			cout << "loop" << endl;
+			
 			std::sort(_overContigs.begin(), _overContigs.end(), ContigOverlapComparator_ByLength);
 			bool isModification = false;
 
@@ -853,7 +857,7 @@ public:
 					double sharedRate_2 = nbShared / _overContigs[j]._nodepath_sorted.size();
 
 
-					if(sharedRate_2 > 0.75){
+					if(sharedRate_2 > 0.95){
 
 						//cout << _overContigs[i]._nodepath_sorted.size() << " " << _overContigs[j]._nodepath_sorted.size() << " " << sharedRate_2 << endl;
 						//_invalidContigIndex.insert(_contigs[j]._readIndex);
@@ -898,7 +902,9 @@ public:
 					}
 					cout << endl;
 					*/
-					isModification = removeOverlap(_overContigs[i]._nodepath, _overContigs[j]._nodepath, sharedElements, true, _overContigs[j]);
+					if(removeOverlap(_overContigs[i]._nodepath, _overContigs[j]._nodepath, sharedElements, true, _overContigs[j])){
+						isModification = true;
+					}
 					/*
 					cout << _overContigs[j]._contigIndex << endl;
 					for(u_int32_t nodeName : _overContigs[j]._nodepath){
@@ -911,7 +917,9 @@ public:
 					}
 					cout << endl;
 					*/
-					isModification = removeOverlap(_overContigs[i]._nodepath, _overContigs[j]._nodepath, sharedElements, false, _overContigs[j]);
+					if(removeOverlap(_overContigs[i]._nodepath, _overContigs[j]._nodepath, sharedElements, false, _overContigs[j])){
+						isModification = true;
+					}
 					/*
 					for(u_int32_t nodeName : _overContigs[j]._nodepath){
 						if(sharedElements.find(nodeName) == sharedElements.end()){
@@ -1096,6 +1104,8 @@ public:
 
 			if(alignLength / queryLength < 0.95) continue;
 
+			cout << (nbMatches / alignLength) << " " << (nbMatches / queryLength) << endl;
+			
 			for(size_t i=12; i<fields->size(); i++){
 
 				//cout << (*fields)[i] << endl;
