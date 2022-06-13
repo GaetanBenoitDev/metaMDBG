@@ -96,15 +96,18 @@ int main (int argc, char* argv[])
     		else if(programName == "multik"){
                 Assembly3().run (argc, args);
     		}
+    		//else if(programName == "toBasespaceFast"){
+            //    ToBasespaceNoCorrection().run (argc, args);
+    		//}
     		else if(programName == "toBasespace"){
                 ToBasespace().run (argc, args);
     		}
     		else if(programName == "polish"){
                 ContigPolisher().run (argc, args);
     		}
-    		//else if(programName == "toBasespaceFast"){
-            //    ToBasespaceNoCorrection().run (argc, args);
-    		//}
+    		else if(programName == "toBasespaceFast"){
+                ToBasespaceNoCorrection().run (argc, args);
+    		}
     		else if(programName == "toMinspace"){
                 ToMinspace().run (argc, args);
     		}

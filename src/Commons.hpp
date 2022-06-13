@@ -2609,6 +2609,54 @@ public:
 
 	}
 	
+	void parseSequences(const std::function<void(vector<u_int64_t>, u_int64_t)>& fun){
+
+		ifstream file_readData(_inputFilename, std::ios::binary);
+
+		u_int64_t readIndex = 0;
+
+		while(true){
+			
+			u_int32_t size;
+			vector<u_int64_t> minimizers;
+			vector<u_int16_t> minimizersPosOffsets; 
+			vector<u_int8_t> minimizerQualities;
+			
+			file_readData.read((char*)&size, sizeof(size));
+
+			if(file_readData.eof())break;
+
+			minimizers.resize(size);
+			minimizersPosOffsets.resize(size);
+			minimizerQualities.resize(size, 0);
+
+			file_readData.read((char*)&minimizers[0], size*sizeof(u_int64_t));
+			if(_usePos){
+				file_readData.read((char*)&minimizersPosOffsets[0], size*sizeof(u_int16_t));
+			}
+			if(_hasQuality) file_readData.read((char*)&minimizerQualities[0], size*sizeof(u_int8_t));
+			
+			//cout << "----" << endl;
+			vector<u_int64_t> minimizersPos; 
+			if(size > 0){
+				u_int64_t pos = minimizersPosOffsets[0];
+				minimizersPos.push_back(pos);
+				for(size_t i=1; i<minimizersPosOffsets.size(); i++){
+					pos += minimizersPosOffsets[i];
+					minimizersPos.push_back(pos);
+					//cout << minimizersPosOffsets[i] << " " << pos << endl;
+				}
+			}
+
+			fun(minimizers, readIndex);
+
+			readIndex += 1;
+		}
+
+		file_readData.close();
+
+	}
+
 	/*
 	void parseDuo(const std::function<void(vector<KmerVec>, vector<ReadKminmer>, u_int64_t, vector<KmerVec>, vector<ReadKminmer>)>& fun){
 

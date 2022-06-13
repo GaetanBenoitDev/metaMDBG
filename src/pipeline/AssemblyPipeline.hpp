@@ -25,6 +25,7 @@ public:
 	size_t _lastK;
 
 	string _inputFilenameComplete;
+	size_t _meanReadLength;
 
 	AssemblyPipeline(): Tool (){
 	}
@@ -160,6 +161,7 @@ public:
 
 		u_int64_t meanReadLength = computeMeanReadLength(_inputFilename);
 		_lastK = meanReadLength*_minimizerDensity*1.2f; //*0.95
+		_meanReadLength = meanReadLength;
 		//_lastK = 41;
 		
 		cout << "Mean read length: " << meanReadLength << endl;
@@ -309,9 +311,15 @@ public:
 			command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/contigs.nodepath" + " -f " + _inputDir + "/contig_data.txt";
 			Utils::executeCommand(command);
 			
+			appendSmallContigs();
 
 			//getchar();
+			command = _filename_exe + " toBasespaceFast " + " -o " + _inputDir + " -i " + _inputFilename + " -c " + _inputDir + "/contig_data.txt " + " -f " + _inputDir + "/contigs_" + to_string(k) + ".fasta.gz " + " --fasta"  + " -t " + to_string(_nbCores);
+			if(pass == 0) command += " --firstpass";
+			Utils::executeCommand(command);
 
+			//getchar();
+			
 			command = _filename_exe + " toBasespace " + " -o " + _inputDir + " -i " + _inputFilename + " -c " + _inputDir + "/contig_data.txt " + " -f " + _inputDir + "/contigs_" + to_string(k) + ".fasta.gz " + " --fasta"  + " -t " + to_string(_nbCores);
 			if(pass == 0) command += " --firstpass";
 			Utils::executeCommand(command);
@@ -337,6 +345,30 @@ public:
 		}	
 			
 		savePassData(k);
+	}
+
+	ofstream _fileContigsAppend;
+
+	void appendSmallContigs(){
+		cout << "Append small contigs" << endl;
+
+		string contigFilename = _inputDir + "/contig_data.txt";
+
+		_fileContigsAppend = ofstream(contigFilename, std::ios_base::app);
+
+		KminmerParser parser(_inputDir + "/small_contigs.bin", _minimizerSize, _kminmerSize, false, false);
+		auto fp = std::bind(&AssemblyPipeline::appendSmallContigs_read, this, std::placeholders::_1, std::placeholders::_2);
+		parser.parseSequences(fp);
+
+		_fileContigsAppend.close();
+
+	}
+
+	void appendSmallContigs_read(const vector<u_int64_t>& readMinimizers, u_int64_t readIndex){
+		
+		u_int32_t contigSize = readMinimizers.size();
+		_fileContigsAppend.write((const char*)&contigSize, sizeof(contigSize));
+		_fileContigsAppend.write((const char*)&readMinimizers[0], contigSize*sizeof(u_int64_t));
 	}
 
 	void savePassData(u_int64_t k){
@@ -390,6 +422,7 @@ public:
 		gzwrite(file_parameters, (const char*)&kminmerOverlapMean, sizeof(kminmerOverlapMean));
 		gzwrite(file_parameters, (const char*)&prevK, sizeof(prevK));
 		gzwrite(file_parameters, (const char*)&lastK, sizeof(lastK));
+		gzwrite(file_parameters, (const char*)&_meanReadLength, sizeof(_meanReadLength));
 		gzclose(file_parameters);
 	}
 

@@ -271,9 +271,9 @@ public:
 		_mdbg->load(mdbg_filename, false);
 		cout << "MDBG nodes: " << _mdbg->_dbg_nodes.size() << endl;
 
-		if(_truthInputFilename != ""){
-			extract_truth_kminmers();
-		}
+		//if(_truthInputFilename != ""){
+		//	extract_truth_kminmers();
+		//}
 
 
 		//cout << "Loading original mdbg" << endl;
@@ -283,8 +283,7 @@ public:
 		//cout << "MDBG nodes: " << _mdbgInit->_dbg_nodes.size() << endl;
 
 
-		appendSmallContigs();
-		removeOverlaps();
+		//removeOverlaps();
 
 
 		cout << "Indexing reads" << endl;
@@ -367,6 +366,8 @@ public:
 		//createBaseContigs(inputFilenameContigSmall);
 
 		gzclose(_basespaceContigFile);
+
+		//removeDuplicatePost();
 		//delete _mdbg;
 		/*
 		gzclose(_outputFile_left);
@@ -538,27 +539,7 @@ public:
 	}
 
 	
-	ofstream _fileContigsAppend;
 
-	void appendSmallContigs(){
-		cout << "Append small contigs" << endl;
-
-		_fileContigsAppend = ofstream(_inputFilenameContig, std::ios_base::app);
-
-		KminmerParser parser(_inputDir + "/small_contigs.bin", _minimizerSize, _kminmerSize, false, false);
-		auto fp = std::bind(&ToBasespace::appendSmallContigs_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-		parser.parseMinspace(fp);
-
-		_fileContigsAppend.close();
-
-	}
-
-	void appendSmallContigs_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
-		
-		u_int32_t contigSize = readMinimizers.size();
-		_fileContigsAppend.write((const char*)&contigSize, sizeof(contigSize));
-		_fileContigsAppend.write((const char*)&readMinimizers[0], contigSize*sizeof(u_int64_t));
-	}
 
 	/*
 	void writeKminmerSequence(u_int32_t nodeName, unordered_map<u_int32_t, VariantQueue>& variants){
@@ -677,7 +658,7 @@ public:
 		}
 	}
 
-
+	/*
 	struct Contig{
 		u_int64_t _readIndex;
 		vector<u_int32_t> _nodepath;
@@ -701,13 +682,14 @@ public:
 
 		return a._nodepath.size() > b._nodepath.size();
 	}
+	*/
 	
 
-	unordered_set<u_int32_t> _invalidContigIndex;
+	//unordered_set<u_int32_t> _invalidContigIndex;
 
 	void loadContigs_min(const string& contigFilename){
 
-
+		/*
 		_nbNodes = 0;
 		_nbContigs = 0;
 
@@ -761,13 +743,14 @@ public:
 
 		cout << _nbContigs << " " << _invalidContigIndex.size() << endl;
  		cout << "Nb contigs (no duplicate): " << (_nbContigs-_invalidContigIndex.size()) << endl;
+		*/
 
 		cout << "Extracting kminmers: " << contigFilename << endl;
 		KminmerParser parser2(contigFilename, _minimizerSize, _kminmerSize, false, false);
 		auto fp2 = std::bind(&ToBasespace::loadContigs_min_read2, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 		parser2.parseMinspace(fp2);
 
-		nbRepeatedKminmers = 0;
+		double nbRepeatedKminmers = 0;
 		for(auto& it : _kminmerCounts){
 			if(it.second > 1){
 				nbRepeatedKminmers += 1;
@@ -777,8 +760,8 @@ public:
 		cout << "Repeated kminmer: " << nbRepeatedKminmers << endl;
 		cout << "Repeated kminmer rate: " << (nbRepeatedKminmers / _kminmerCounts.size()) << endl;
 
-		_contigs.clear();
 		/*
+		_contigs.clear();
 		for(size_t c=0; c<_contigs.size(); c++){
 			if(invalidContigs.find(c) != invalidContigs.end()) continue;
 
@@ -807,7 +790,7 @@ public:
 
 	}
 
-
+	/*
 	void loadContigs_min_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
 
 		vector<u_int32_t> nodepath;
@@ -841,36 +824,7 @@ public:
 			//}
 			//cout << kminmersInfos.size() << " " << nodeName << endl;
 
-			/*
-			_kminmerCounts[nodeName] += 1;
-
-			//if(_kminmerCounts[nodeName] > 1){
-			//	isKminmerRepeated.insert(nodeName);
-			//}
-			//vector<u_int64_t> minimizerSeq;
-			
-			//for(size_t i=kminmerInfo._read_pos_start; i<=kminmerInfo._read_pos_end; i++){
-			//	minimizerSeq.push_back(readMinimizers[i]);
-			//}
-			
-
-			//if(kminmerInfo._isReversed){
-			//	std::reverse(minimizerSeq.begin(), minimizerSeq.end());
-			//}
-			bool orientation = !kminmerInfo._isReversed;
-
-			if(i == 0){
-				_kminmerSequenceCopies_all_entire[nodeName] = {};
-			}
-			else {
-				if(orientation){ //+
-					_kminmerSequenceCopies_all_right[nodeName] = {};
-				}
-				else{ //-
-					_kminmerSequenceCopies_all_left[nodeName] = {};
-				}
-			}
-			*/
+		
 
 		}
 
@@ -881,11 +835,12 @@ public:
 		_contigs.push_back({readIndex, nodepath, nodepath_sorted});
 
 	}
+	*/
 
 	void loadContigs_min_read2(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
 
 		//cout << kminmersInfos.size() << " " << (_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) << endl;
-		if(_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) return;
+		//if(_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) return;
 		double s = 0;
 		for(size_t i=0; i<kminmersInfos.size(); i++){
 			
@@ -979,7 +934,7 @@ public:
 	
 	void collectBestSupportingReads_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
 
-		if(_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) return;
+		//if(_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) return;
 
 		//cout << "----------------------" << endl;
 		vector<u_int64_t> supportingReads;
@@ -2234,7 +2189,7 @@ public:
 
 	void createBaseContigs_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
 
-		if(_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) return;
+		//if(_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) return;
 
 		vector<u_int64_t> supportingReads;
 		u_int32_t size;
@@ -2416,35 +2371,6 @@ public:
 		//cout << contigSequence.size() << endl;
 
 
-		if(contigSequence.size() > 100000){
-
-			if(_truthInputFilename != ""){
-				
-				for(size_t i=0; i<kminmersInfos.size(); i++){
-					const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
-					KmerVec vec = kminmerInfo._vec;
-				
-					if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
-						continue;
-					}
-
-					u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
-
-					if(_evaluation_hifiasmGroundTruth_nodeName_to_unitigName.find(nodeName) != _evaluation_hifiasmGroundTruth_nodeName_to_unitigName.end()){
-						for(string& unitigName : _evaluation_hifiasmGroundTruth_nodeName_to_unitigName[nodeName]){
-							if(_hifiasmWrittenNodeNames.find(unitigName) != _hifiasmWrittenNodeNames.end()) continue;
-							_fileHifiasmAll << unitigName << "," << _hifiasmContigIndex << endl;
-							_hifiasmWrittenNodeNames.insert(unitigName);
-						}
-					}
-				}
-
-				_hifiasmContigIndex += 1;
-
-			}
-
-		}
-
 	}
 
 	/*
@@ -2611,400 +2537,6 @@ public:
 	}
 	*/
 
-
-
-
-	//MinimizerParser* _minimizerParser;
-	u_int32_t _extract_truth_kminmers_read_position;
-	unordered_map<u_int32_t, vector<string>> _evaluation_hifiasmGroundTruth_nodeName_to_unitigName;
-	vector<u_int32_t> _evaluation_hifiasmGroundTruth_path;
-	unordered_set<u_int32_t> _hifiasm_startingNodenames;
-	ofstream _file_groundTruth_hifiasm_position;
-	EncoderRLE _encoderRLE;
-
-	void extract_truth_kminmers_read(const Read& read){
-		//ottalSize += strlen(read->seq.s);
-
-
-		u_int64_t readIndex = read._index;
-
-		string rleSequence;
-		vector<u_int64_t> rlePositions;
-		_encoderRLE.execute(read._seq.c_str(), read._seq.size(), rleSequence, rlePositions);
-
-		vector<u_int64_t> minimizers;
-		vector<u_int64_t> minimizers_pos;
-		_minimizerParser->parse(rleSequence, minimizers, minimizers_pos);
-
-		vector<KmerVec> kminmers; 
-		vector<ReadKminmer> kminmersInfo;
-		MDBG::getKminmers(_minimizerSize, _kminmerSize, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex, false);
-
-		for(size_t i=0; i<kminmers.size(); i++){
-
-			KmerVec& vec = kminmers[i];
-			//if(_mdbg->_dbg_nodes.find(kminmers[i]) == _mdbg->_dbg_nodes.end()) continue;
-
-			//u_int32_t nodeName = _mdbg->_dbg_nodes[kminmers[i]]._index;
-			if(_mdbg->_dbg_nodes.find(vec) != _mdbg->_dbg_nodes.end()){
-
-				u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
-				//2262408
-				//if("utg009434l" == string(read->name.s)){
-				//	cout << nodeName << endl;
-				//	_hifiasm_startingNodenames.insert(nodeName);
-				//}
-				//cout << _evaluation_hifiasmGroundTruth_nodeName_to_unitigName.size() << endl;
-
-				_evaluation_hifiasmGroundTruth_nodeName_to_unitigName[_mdbg->_dbg_nodes[vec]._index].push_back(read._header);
-				_evaluation_hifiasmGroundTruth_path.push_back(_mdbg->_dbg_nodes[vec]._index);
-
-				//if(_evaluation_hifiasmGroundTruth_nodeNamePosition.find(_mdbg->_dbg_nodes[vec]._index) == _evaluation_hifiasmGroundTruth_nodeNamePosition.end()){
-				//	_evaluation_hifiasmGroundTruth_nodeNamePosition[_mdbg->_dbg_nodes[vec]._index] = _extract_truth_kminmers_read_position;
-				//}
-				//cout << mdbg->_dbg_nodes[vec]._index << " " << sequence.getComment() << endl;
-				
-				//_file_groundTruth_hifiasm_position << nodeName << "," << _extract_truth_kminmers_read_position << endl;
-			}
-			else{
-				//cout << "Not found position: " << position << endl;
-				_evaluation_hifiasmGroundTruth_path.push_back(-1);
-			}
-
-
-			//if(_evaluation_hifiasmGroundTruth.find(vec) != _evaluation_hifiasmGroundTruth.end()){
-				//cout << position << endl;
-			//	continue;
-			//}
-
-
-			//_evaluation_hifiasmGroundTruth[vec] = datasetID;
-			//_evaluation_hifiasmGroundTruth_position[vec] = _extract_truth_kminmers_read_position;
-			//_extract_truth_kminmers_read_position += 1;
-
-			
-			//cout << _extract_truth_kminmers_read_position << endl;
-		}
-
-
-	}
-
-
-	void extract_truth_kminmers(){
-
-		_file_groundTruth_hifiasm_position.open(_inputDir + "/groundtruth_hifiasm_position.csv");
-		_file_groundTruth_hifiasm_position << "Name,Position" << endl;
-
-		_extract_truth_kminmers_read_position = 0;
-		_minimizerParser = new MinimizerParser(_minimizerSize, _minimizerDensity);
-		
-		auto fp = std::bind(&ToBasespace::extract_truth_kminmers_read, this, std::placeholders::_1);
-		ReadParser readParser(_truthInputFilename, true, false);
-		readParser.parse(fp);
-
-		_file_groundTruth_hifiasm_position.close();
-
-		//delete _minimizerParser;
-	}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-	struct ContigOverlap{
-		u_int64_t _contigIndex;
-		vector<u_int64_t> _minimizers;
-		vector<u_int32_t> _nodepath;
-		vector<u_int32_t> _nodepath_sorted;
-	};
-
-
-	static bool ContigOverlapComparator_ByLength(const ContigOverlap &a, const ContigOverlap &b){
-
-		if(a._nodepath.size() == b._nodepath.size()){
-			for(size_t i=0; i<a._nodepath.size() && i<b._nodepath.size(); i++){
-				if(BiGraph::nodeIndex_to_nodeName(a._nodepath[i]) == BiGraph::nodeIndex_to_nodeName(b._nodepath[i])){
-					continue;
-				}
-				else{
-					return BiGraph::nodeIndex_to_nodeName(a._nodepath[i]) > BiGraph::nodeIndex_to_nodeName(b._nodepath[i]);
-				}
-			}
-		}
-
-
-		return a._nodepath.size() > b._nodepath.size();
-	}
-
-
-	vector<ContigOverlap> _overContigs;
-	unordered_map<KmerVec, u_int32_t> _edgesToIndex;
-	u_int32_t _edgeIndex;
-
-	void removeOverlaps(){
-		_edgeIndex = 0;
-		indexEdges();
-		indexContigs();
-		detectOverlaps();
-
-		ofstream outputFile(_inputFilenameContig + ".nooverlaps");
-		
-		for(size_t i=0; i<_overContigs.size(); i++){
-			if(_overContigs[i]._nodepath.size() == 0) continue;
-			
-			u_int32_t contigSize = _overContigs[i]._minimizers.size();
-			outputFile.write((const char*)&contigSize, sizeof(contigSize));
-			outputFile.write((const char*)&_overContigs[i]._minimizers[0], contigSize*sizeof(u_int64_t));
-		}
-		outputFile.close();
-
-		_edgesToIndex.clear();
-		_overContigs.clear();
-
-		_inputFilenameContig = _inputFilenameContig + ".nooverlaps";
-	}
-
-
-	void indexEdges(){
-
-		KminmerParser parser(_inputFilenameContig, _minimizerSize, _kminmerSize-1, false, false);
-		auto fp = std::bind(&ToBasespace::indexEdges_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-		parser.parseMinspace(fp);
-	}
-
-	void indexEdges_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
-
-		
-		for(size_t i=0; i<kminmersInfos.size(); i++){
-			
-			const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
-			KmerVec vec = kminmerInfo._vec;
-
-			if(_edgesToIndex.find(vec) == _edgesToIndex.end()){
-				_edgesToIndex[vec] = _edgeIndex;
-				_edgeIndex += 1;
-			}
-		}
-	}
-
-	void indexContigs(){
-
-		KminmerParser parser(_inputFilenameContig, _minimizerSize, _kminmerSize-1, false, false);
-		auto fp = std::bind(&ToBasespace::indexContigs_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-		parser.parseMinspace(fp);
-	}
-
-	void indexContigs_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
-
-		vector<u_int32_t> nodepath;
-
-		for(size_t i=0; i<kminmersInfos.size(); i++){
-			
-			const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
-			KmerVec vec = kminmerInfo._vec;
-
-			nodepath.push_back(_edgesToIndex[vec]);
-		}
-
-
-		vector<u_int32_t> nodepath_sorted = nodepath;
-		std::sort(nodepath_sorted.begin(), nodepath_sorted.end());
-		_overContigs.push_back({readIndex, readMinimizers, nodepath, nodepath_sorted});
-
-	}
-
-	void detectOverlaps(){
-
-		std::sort(_overContigs.begin(), _overContigs.end(), ContigOverlapComparator_ByLength);
-
-		while(true){
-
-			bool isModification = false;
-
-
-			for(size_t i=0; i<_overContigs.size(); i++){
-				
-				if(_overContigs[i]._nodepath.size() == 0) continue;
-				//if(_invalidContigIndex.find(_contigs[i]._readIndex) != _invalidContigIndex.end()) continue;
-
-				for(long j=_overContigs.size()-1; j>=i+1; j--){
-
-					if(_overContigs[j]._nodepath.size() == 0) continue;
-					
-					
-					//if(_invalidContigIndex.find(_contigs[j]._readIndex) != _invalidContigIndex.end()) continue;
-
-					unordered_set<u_int32_t> sharedElements;
-					Utils::collectSharedElements(_overContigs[i]._nodepath_sorted, _overContigs[j]._nodepath_sorted, sharedElements);
-
-					if(sharedElements.size() == 0) continue;
-					cout << "-----------------------" << endl;
-					cout << _overContigs[j]._contigIndex << endl;
-					for(u_int32_t nodeName : _overContigs[j]._nodepath){
-						if(sharedElements.find(nodeName) == sharedElements.end()){
-							cout << "0";
-						}
-						else{
-							cout << "1";
-						}
-					}
-					cout << endl;
-					isModification = removeOverlap(_overContigs[i]._nodepath, _overContigs[j]._nodepath, sharedElements, true, _overContigs[j]);
-					cout << _overContigs[j]._contigIndex << endl;
-					for(u_int32_t nodeName : _overContigs[j]._nodepath){
-						if(sharedElements.find(nodeName) == sharedElements.end()){
-							cout << "0";
-						}
-						else{
-							cout << "1";
-						}
-					}
-					cout << endl;
-					isModification = removeOverlap(_overContigs[i]._nodepath, _overContigs[j]._nodepath, sharedElements, false, _overContigs[j]);
-					for(u_int32_t nodeName : _overContigs[j]._nodepath){
-						if(sharedElements.find(nodeName) == sharedElements.end()){
-							cout << "0";
-						}
-						else{
-							cout << "1";
-						}
-					}
-					cout << endl;
-
-					//if(_overContigs[j]._contigIndex == 1097) getchar();
-
-					//getchar();
-				}
-			}
-
-			if(!isModification) break;
-		}
-
-	}
-
-	bool removeOverlap(const vector<u_int32_t>& nodePath, vector<u_int32_t>& nodePath_shorter, unordered_set<u_int32_t>& sharedElements, bool right, ContigOverlap& contig){
-
-		bool isModification = false;
-
-		if(right){
-			std::reverse(nodePath_shorter.begin(), nodePath_shorter.end());
-		}
-		
-		u_int32_t overlapSize = computeOverlapSize(nodePath, nodePath_shorter, sharedElements);
-		cout << overlapSize << " " << contig._minimizers.size() << " " << contig._nodepath.size() << " " << contig._nodepath_sorted.size() << endl;
-		//if(overlapSize > 0) overlapSize += 1;
-		//if(right && overlapSize > 0) 
-
-		if(overlapSize > 0){
-			isModification = true;
-			overlapSize += (_kminmerSize-1-1);
-			if(overlapSize >= nodePath_shorter.size()){
-				contig._minimizers.clear();
-				contig._nodepath.clear();
-				contig._nodepath_sorted.clear();
-			}
-			else{
-				nodePath_shorter.erase(nodePath_shorter.begin(), nodePath_shorter.begin() + overlapSize);
-
-				vector<u_int64_t> minimizers = contig._minimizers;
-
-				if(right){
-					std::reverse(minimizers.begin(), minimizers.end());
-				}
-
-				minimizers.erase(minimizers.begin(), minimizers.begin() + overlapSize);
-
-				if(right){
-					std::reverse(minimizers.begin(), minimizers.end());
-					std::reverse(nodePath_shorter.begin(), nodePath_shorter.end());
-				}
-
-				contig._minimizers = minimizers;
-				contig._nodepath = nodePath_shorter;
-				contig._nodepath_sorted.clear();
-				for(u_int32_t index : contig._nodepath){
-					contig._nodepath_sorted.push_back(index);
-				}
-				std::sort(contig._nodepath_sorted.begin(), contig._nodepath_sorted.end());
-
-				/*
-				component.clear();
-				for(u_int32_t nodeIndex : nodePath){
-					component.push_back(BiGraph::nodeIndex_to_nodeName(nodeIndex));
-				}
-				std::sort(component.begin(), component.end());
-				Utils::collectSharedElements(contig._nodePath_sorted, component, sharedElements);
-				*/
-			}
-
-		}
-		else{
-
-			if(right){
-				std::reverse(nodePath_shorter.begin(), nodePath_shorter.end());
-			}
-
-		}
-
-		if(contig._minimizers.size() <= _kminmerSize){
-			contig._minimizers.clear();
-			contig._nodepath.clear();
-			contig._nodepath_sorted.clear();
-			isModification = true;
-		}
-
-
-		return isModification;
-
-	}
-
-	u_int32_t computeOverlapSize(const vector<u_int32_t>& nodePath, const vector<u_int32_t>& nodePath_shorter, unordered_set<u_int32_t>& sharedElements){
-
-		if(sharedElements.size() == 0) return 0;
-
-		size_t uniqueRunLength = 0;
-		bool isUnique = false;
-
-		u_int32_t nonUniquePos = 0;
-
-		for(size_t i=0; i<nodePath_shorter.size(); i++){
-
-			if(sharedElements.find(nodePath_shorter[i]) == sharedElements.end()){
-				if(isUnique) uniqueRunLength += 1;
-				isUnique = true;
-			}
-			else{
-				nonUniquePos = (i+1);
-				isUnique = false;
-				uniqueRunLength = 0;
-			}
-
-			if(uniqueRunLength > 0) break;
-
-		}
-
-		//if(nonUniquePos > 0) nonUniquePos += 1;
-		return nonUniquePos;
-	}
 
 
 };	
