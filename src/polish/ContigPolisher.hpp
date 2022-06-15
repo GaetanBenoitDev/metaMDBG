@@ -1,5 +1,6 @@
 
 /*
+- read best hit: la maniere dont on le selection actuellement est pas forcement la meilleur car elle ne favorise pas les petit contigs (les grand contig vont attirer les reads meme si leur sililarité est plus faible que sur un petit contig)
 - attention ne pas outupt empty contig
 - ToBasespace: générer un assemblage grossier
 - tester les scores de qualité ?

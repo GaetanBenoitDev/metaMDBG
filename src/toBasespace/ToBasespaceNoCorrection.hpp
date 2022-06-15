@@ -7,6 +7,7 @@
 //#include "../utils/edlib.h"
 //#include "../utils/spoa/include/spoa/spoa.hpp"
 #include "../utils/DnaBitset.hpp"
+#include "OverlapRemover.hpp"
 //#include <seqan/align.h>
 //#include <seqan/graph_msa.h>
 //#include <cstring>
@@ -38,6 +39,7 @@ public:
 	string _filename_kminmerSequences;
 	MDBG* _mdbg;
 	EncoderRLE _encoderRLE;
+
 	//MinimizerParser* _minimizerParser;
 	
 	unordered_map<u_int32_t, DnaBitset*> _nodeName_entire;
@@ -144,7 +146,11 @@ public:
 		cout << "MDBG nodes: " << _mdbg->_dbg_nodes.size() << endl;
 
 		//cout << _inputFilenameContig_fasta << endl;
-		removeOverlaps();
+		OverlapRemover overlapRemover(_inputDir, _inputFilenameContig, _kminmerSize);
+		overlapRemover.execute();
+		
+		//removeOverlaps();
+
 		loadContigs_min(_inputFilenameContig);
 
 		extractKminmerSequences();
@@ -161,6 +167,8 @@ public:
 		delete _mdbg;
 
 		removeDuplicatePost();
+
+		cout << "Nb contigs (no duplicate): " << _nbContigsPost << endl;
 	}
 
 	void removeVariants(){
@@ -759,10 +767,17 @@ public:
 	u_int32_t _edgeIndex;
 
 	void removeOverlaps(){
+
 		_edgeIndex = 0;
 		indexEdges();
 		indexContigs();
+		cout << _overContigs.size() << endl;
+		getchar();
 		detectOverlaps();
+
+		//cout << _overContigs.size() << endl;
+
+		exit(1);
 
 		ofstream outputFile(_inputFilenameContig + ".nooverlaps");
 		
@@ -784,6 +799,7 @@ public:
 
 	void indexEdges(){
 
+		cout << "Indexing edges" << endl;
 		KminmerParser parser(_inputFilenameContig, _minimizerSize, _kminmerSize-1, false, false);
 		auto fp = std::bind(&ToBasespaceNoCorrection::indexEdges_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 		parser.parseMinspace(fp);
@@ -805,6 +821,8 @@ public:
 	}
 
 	void indexContigs(){
+
+		cout << "Loading min contigs" << endl;
 
 		KminmerParser parser(_inputFilenameContig, _minimizerSize, _kminmerSize-1, false, false);
 		auto fp = std::bind(&ToBasespaceNoCorrection::indexContigs_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
@@ -838,11 +856,11 @@ public:
 
 			
 			cout << "loop" << endl;
-			
+
 			std::sort(_overContigs.begin(), _overContigs.end(), ContigOverlapComparator_ByLength);
 			bool isModification = false;
 
-
+			/*
 			for(size_t i=0; i<_overContigs.size(); i++){
 				
 				if(_overContigs[i]._nodepath.size() == 0) continue;
@@ -857,7 +875,7 @@ public:
 					double sharedRate_2 = nbShared / _overContigs[j]._nodepath_sorted.size();
 
 
-					if(sharedRate_2 > 0.95){
+					if(sharedRate_2 > 0.75){
 
 						//cout << _overContigs[i]._nodepath_sorted.size() << " " << _overContigs[j]._nodepath_sorted.size() << " " << sharedRate_2 << endl;
 						//_invalidContigIndex.insert(_contigs[j]._readIndex);
@@ -871,6 +889,7 @@ public:
 
 				}
 			}
+			*/
 
 			for(size_t i=0; i<_overContigs.size(); i++){
 				
@@ -889,7 +908,7 @@ public:
 
 					if(sharedElements.size() == 0) continue;
 
-					/*
+					
 					cout << "-----------------------" << endl;
 					cout << _overContigs[j]._contigIndex << endl;
 					for(u_int32_t nodeName : _overContigs[j]._nodepath){
@@ -901,10 +920,10 @@ public:
 						}
 					}
 					cout << endl;
-					*/
+					/*
 					if(removeOverlap(_overContigs[i]._nodepath, _overContigs[j]._nodepath, sharedElements, true, _overContigs[j])){
 						isModification = true;
-					}
+					}*/
 					/*
 					cout << _overContigs[j]._contigIndex << endl;
 					for(u_int32_t nodeName : _overContigs[j]._nodepath){
@@ -917,9 +936,10 @@ public:
 					}
 					cout << endl;
 					*/
+					/*
 					if(removeOverlap(_overContigs[i]._nodepath, _overContigs[j]._nodepath, sharedElements, false, _overContigs[j])){
 						isModification = true;
-					}
+					}*/
 					/*
 					for(u_int32_t nodeName : _overContigs[j]._nodepath){
 						if(sharedElements.find(nodeName) == sharedElements.end()){
@@ -1057,11 +1077,12 @@ public:
 
 
 
-
 	gzFile _queryContigFile;
 	unordered_set<u_int32_t> _duplicatedContigIndex;
 
 	void removeDuplicatePost(){
+
+		_nbContigsPost = 0;
 
 		string outputMappingFilename = _filename_outputContigs + ".map";
 		const string& filenameQuery = _filename_outputContigs + ".query";
@@ -1139,8 +1160,10 @@ public:
 
 		fs::remove(_inputDir + "/contig_data.txt");
 		fs::rename(_inputDir + "/contig_data_derep.txt", _inputDir + "/contig_data.txt");
+		_duplicatedContigIndex.clear();
 	}
 
+	u_int64_t _nbContigsPost;
 
 	void dumpSmallContigs_read(const Read& read){
 		
@@ -1148,9 +1171,9 @@ public:
 		if(read._seq.size() > _meanReadLength*3) return;
 
 		string header = ">" + read._header + '\n';
-		gzwrite(_basespaceContigFile, (const char*)&header[0], header.size());
+		gzwrite(_queryContigFile, (const char*)&header[0], header.size());
 		string contigSequence = read._seq + '\n';
-		gzwrite(_basespaceContigFile, (const char*)&contigSequence[0], contigSequence.size());
+		gzwrite(_queryContigFile, (const char*)&contigSequence[0], contigSequence.size());
 		
 	}
 
@@ -1177,6 +1200,7 @@ public:
 		_outputContigFileDerep.write((const char*)&contigSize, sizeof(contigSize));
 		_outputContigFileDerep.write((const char*)&readMinimizers[0], contigSize*sizeof(u_int64_t));
 
+		_nbContigsPost += 1;
 		//cout << "Dump: " << readIndex << " " << readMinimizers.size() << endl;
 	}
 	
