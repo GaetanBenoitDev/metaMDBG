@@ -328,7 +328,7 @@ public:
 		u_int32_t _readEnd;
 		u_int64_t _contigStart;
 		u_int64_t _contigEnd;
-		//float _score;
+		float _score;
 		//u_int64_t _length;
 		
 		u_int64_t length(){
@@ -444,6 +444,7 @@ public:
 			u_int32_t readEnd;
 			u_int64_t contigStart;
 			u_int64_t contigEnd;
+			float score;
 			bool strand;
 
 			//u_int64_t nbMatches;
@@ -459,11 +460,12 @@ public:
 			infile.read((char*)&readStart, sizeof(readStart));
 			infile.read((char*)&readEnd, sizeof(readEnd));
 			infile.read((char*)&strand, sizeof(strand));
+			infile.read((char*)&score, sizeof(score));
 
 			if(_contigSequences.find(contigIndex) == _contigSequences.end()) continue;
 
 
-			Alignment align = {contigIndex, readIndex, strand, readStart, readEnd, contigStart, contigEnd};
+			Alignment align = {contigIndex, readIndex, strand, readStart, readEnd, contigStart, contigEnd, score};
 
 			//ContigRead alignKey = {_contigName_to_contigIndex[contigName], _readName_to_readIndex[readName]};
 
@@ -513,6 +515,7 @@ public:
 			//cout << endl;
         }
 
+		
 		for(auto& it : _alignments){
 
 			auto& als = it.second;
@@ -530,7 +533,9 @@ public:
 
 					if(std::find(removedIndex.begin(), removedIndex.end(), j) != removedIndex.end()) continue;
 
-					if(als[i].length() > als[j].length()){
+					//cout << als[i]._score << " " << als[j]._score << endl;
+					//if(als[i].length() < als[j].length()){
+					if(als[i]._score < als[j]._score){
 						removedIndex.push_back(j);
 						//alsFiltered.push_back(als[i]);
 					}
@@ -557,6 +562,7 @@ public:
 
 			als = alsFiltered;
 		}
+		
 	}
 
 

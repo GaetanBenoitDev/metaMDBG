@@ -115,6 +115,7 @@ int main (int argc, char* argv[])
 
 	ofstream outputFile(outputFilename);
 	vector<string>* fields = new vector<string>();
+	vector<string>* fields_optional = new vector<string>();
 	MappingIndex mappingIndex(contigFilename, readFilename);
 
     string lineInput;
@@ -152,9 +153,40 @@ int main (int argc, char* argv[])
 		double error = 1 - min((double)(contigEnd - contigStart), (double)(readEnd - readStart)) / length;
 
 		if(error > errorThreshold) continue;
+
+		float divergence = 0;
 		//cout << error << endl;
 		//getchar();
 		//cout << contigIndex << " " << readIndex << endl;
+
+		for(size_t i=12; i<fields->size(); i++){
+
+			//cout << (*fields)[i] << endl;
+
+			GfaParser::tokenize((*fields)[i], fields_optional, ':');
+
+			if((*fields_optional)[0] == "dv"){
+				divergence = std::stof((*fields_optional)[2]);
+
+				/*
+				//cout << (*fields_optional)[2] << endl;
+				//cout << contigName << " " << readName << " " << (alignLength/queryLength*100) << " " << (divergence*100) << "     " << queryLength << " " << targetLength << endl;
+				if(divergence < 0.05){
+					string name = readName;
+					size_t pos = name.find("ctg");
+					name.erase(pos, 3);
+					u_int32_t contigIndex = stoull(name);
+					//cout << "Duplicate: " << contigIndex << endl;
+
+					_duplicatedContigIndex.insert(contigIndex);
+				}
+				*/
+			}
+
+		}
+
+
+		float score = divergence; //nbMatches / 
 
 		outputFile.write((const char*)&contigIndex, sizeof(contigIndex));
 		outputFile.write((const char*)&contigStart, sizeof(contigStart));
@@ -163,6 +195,7 @@ int main (int argc, char* argv[])
 		outputFile.write((const char*)&readStart, sizeof(readStart));
 		outputFile.write((const char*)&readEnd, sizeof(readEnd));
 		outputFile.write((const char*)&strand, sizeof(strand));
+		outputFile.write((const char*)&score, sizeof(score));
 		//Alignment align = {contigIndex, readIndex, strand, readStart, readEnd, contigStart, contigEnd, score, length};
 
 	}
