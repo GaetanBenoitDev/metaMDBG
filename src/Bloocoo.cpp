@@ -318,22 +318,24 @@ void Bloocoo::createMDBG (){
 
 
 struct KmerVecSorterData{
-	u_int32_t _nodeName;
-	KmerVec _kmerVec;
+	vector<u_int64_t> _minimizers;
+	u_int32_t _abundance;
+	u_int32_t _quality;
 };
 
 static bool KmerVecComparator(const KmerVecSorterData &a, const KmerVecSorterData &b){
 
-	for(size_t i =0; i<a._kmerVec._kmers.size(); i++){
-		if(a._kmerVec._kmers[i] == b._kmerVec._kmers[i]){
+	for(size_t i =0; i<a._minimizers.size(); i++){
+		if(a._minimizers[i] == b._minimizers[i]){
 			continue;
 		}
 		else{
-			return a._kmerVec._kmers[i] > b._kmerVec._kmers[i];
+			return a._minimizers[i] > b._minimizers[i];
 		}
 	}
 	
-	return a._kmerVec._kmers[0] > b._kmerVec._kmers[0];
+	return a._abundance > b._abundance;
+	//return a._kmerVec._kmers[0] > b._kmerVec._kmers[0];
 	//if(a._startNodeIndex == b._startNodeIndex){
 	//    return a._length < b._length;
 	//}
@@ -552,7 +554,8 @@ void Bloocoo::createGfa(){
 	//for(const auto& it : _mdbg->_dbg_nodes){
 	//	keys.push_back(it.first);
 	//}
-
+	cout << "Computing deterministic node index" << endl;
+	computeDeterministicNodeNames();
 
 	cout << "Indexing edges" << endl;
 
@@ -594,6 +597,87 @@ void Bloocoo::createGfa(){
 	//_mdbg->_dbg_nodes.clear();
 	//_mdbg->_dbg_edges.clear();
 
+
+
+}
+
+void Bloocoo::computeDeterministicNodeNames(){
+
+	ifstream kminmerFile(_outputDir + "/kminmerData_min.txt");
+
+	bool isEOF = false;
+	KmerVec vec;
+	u_int32_t nodeName;
+
+	vector<KmerVecSorterData> kmerVecs;
+
+	while (true) {
+
+
+		vector<u_int64_t> minimizerSeq;
+		minimizerSeq.resize(_kminmerSize);
+		kminmerFile.read((char*)&minimizerSeq[0], minimizerSeq.size()*sizeof(u_int64_t));
+
+		isEOF = kminmerFile.eof();
+		if(isEOF) break;
+
+		
+		u_int32_t abundance;
+		u_int32_t quality;
+
+		kminmerFile.read((char*)&nodeName, sizeof(nodeName));
+		kminmerFile.read((char*)&abundance, sizeof(abundance));
+		kminmerFile.read((char*)&quality, sizeof(quality));
+		//vec._kmers = minimizerSeq;
+
+		kmerVecs.push_back({minimizerSeq, abundance, quality});
+
+	}
+	
+	kminmerFile.close();
+
+	std::sort(kmerVecs.begin(), kmerVecs.end(), KmerVecComparator);
+	nodeName = 0;
+
+
+	ofstream kminmerFileOut = ofstream(_outputDir + "/kminmerData_min.txt");
+
+	for(auto& entry : kmerVecs){
+		//KmerVec vec = it.first;
+
+		//it.second._index = _nodeName_to_deterministicNodeName[it.second._index];
+		
+		//KmerVecSorterData& d = kmerVecs[i];
+		//u_int32_t nodeName = it.second._index;
+		u_int32_t abundance = entry._abundance;
+		u_int32_t quality = entry._quality;
+
+		//if(quality==0){
+		//	cout << "omg " << nodeName << endl;
+		//	getchar();
+		//}
+		//bool isReversed;
+		//d._kmerVec.normalize(isReversed);
+
+		//vector<u_int64_t> minimizerSeq = d._kmerVec.normalize()._kmers;
+
+		vector<u_int64_t> minimizerSeq = entry._minimizers;
+		//if(kminmerInfo._isReversed){
+		//	std::reverse(minimizerSeq.begin(), minimizerSeq.end());
+		//}
+
+		u_int16_t size = minimizerSeq.size();
+		//_kminmerFile.write((const char*)&size, sizeof(size));
+		kminmerFileOut.write((const char*)&minimizerSeq[0], size*sizeof(uint64_t));
+
+		kminmerFileOut.write((const char*)&nodeName, sizeof(nodeName));
+		kminmerFileOut.write((const char*)&abundance, sizeof(abundance));
+		kminmerFileOut.write((const char*)&quality, sizeof(quality));
+
+		nodeName += 1;
+	}
+
+	kminmerFileOut.close();
 
 
 }

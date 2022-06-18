@@ -118,11 +118,19 @@ public:
 		}
 	};
 	
+
+
 	struct Window{
 		DnaBitset2* _sequence;
 		string _quality;
 		u_int32_t _posStart;
 		u_int32_t _posEnd;
+	};
+
+	struct WindowCoord{
+		u_int32_t _posStartContig;
+		u_int32_t _posEndContig;
+		vector<Window> _windows;
 	};
 
 	ContigPolisher(): Tool (){
@@ -223,7 +231,7 @@ public:
 		abpoa_post_set_para(abpt);
 		*/
 		
-		mapReads();
+		//mapReads();
 		//indexContigName();
 		//indexReadName();
 
@@ -262,19 +270,59 @@ public:
 
 		//_validContigIndexes.insert(contigIndex);
 
+		//cout << seq.substr(0, 10000) << endl;
 		u_int64_t totalByteSize = 0;
 
 		_contigSequences[contigIndex] = seq;
 
+		u_int32_t posStart = 0;
+		vector<WindowCoord> windowCoords;
+		int id = 0;
+
+		while(true){
+
+			bool isLastWindow = false;
+
+			u_int32_t posEnd = posStart + _windowLength;
+			if(posEnd >= seq.size()){
+				posEnd = seq.size()-1;
+				isLastWindow = true;
+			}
+
+			posEnd += 1;
+			while(true){
+				if(posEnd >= seq.size()) break;
+
+				char c = seq[posEnd-1];
+				char cNext = seq[posEnd];
+
+				if(c != cNext) break;
+
+				posEnd += 1;
+			}
+
+			if(posStart != posEnd){
+				windowCoords.push_back({posStart, posEnd, {}});
+			}
+			//cout << posStart << " " << posEnd << endl;			
+			if(contigIndex == 1 && id == 0) cout << seq.substr(posStart, posEnd-posStart) << endl;
+			//getchar();
+
+			posStart = posEnd;
+			id += 1;
+
+			if(isLastWindow) break;
+		}
+
 		//cout << "load contig: " << contigIndex << " " << seq.size() << endl;
-		size_t nbWindows = ceil((double)seq.size() / (double)_windowLength);
-		vector<vector<Window>> windows(nbWindows);
+		//size_t nbWindows = ceil((double)seq.size() / (double)_windowLength);
+		//vector<vector<Window>> windows(nbWindows);
 		//cout << "Nb windows: " << nbWindows << endl;
 
-		_contigWindowSequences[contigIndex] = windows;
+		_contigWindowSequences[contigIndex] = windowCoords;
 
 		//cout << nbWindows << " " << nbWindows * _windowByteSize << endl;
-		return nbWindows * _windowByteSize;
+		return _contigWindowSequences[contigIndex].size() * _windowByteSize; //nbWindows * _windowByteSize;
 	}
 	
 	void processPass(){
@@ -343,7 +391,7 @@ public:
 	//unordered_map<string, u_int64_t> _readName_to_readIndex;
 	unordered_map<u_int64_t, vector<Alignment>> _alignments;
 	unordered_map<u_int32_t, string> _contigSequences;
-	unordered_map<u_int32_t, vector<vector<Window>>> _contigWindowSequences;
+	unordered_map<u_int32_t, vector<WindowCoord>> _contigWindowSequences;
 	unordered_map<ContigRead, u_int32_t, ContigRead_hash> _alignmentCounts;
 	//u_int64_t _correctedContigIndex;
 
@@ -591,7 +639,7 @@ public:
 		//unordered_map<string, u_int64_t>& _readName_to_readIndex;
 		unordered_map<u_int64_t, vector<Alignment>>& _alignments;
 		unordered_map<u_int32_t, string>& _contigSequences;
-		unordered_map<u_int32_t, vector<vector<Window>>>& _contigWindowSequences;
+		unordered_map<u_int32_t, vector<WindowCoord>>& _contigWindowSequences;
 		size_t _windowLength;
 
 
@@ -606,6 +654,7 @@ public:
 		}
 
 		void operator () (const Read& read) {
+
 
 			u_int64_t readIndex = read._index;
 			
@@ -655,7 +704,7 @@ public:
 
 				edlibFreeAlignResult(result);
 				
-				find_breaking_points_from_cigar(_windowLength, al, readSeq.size(), cigar, readSeq, qualSeq);
+				find_breaking_points_from_cigar(al, readSeq.size(), cigar, readSeq, qualSeq);
 				free(cigar);
 
 				//getchar();
@@ -664,7 +713,7 @@ public:
 
 		}
 
-		void find_breaking_points_from_cigar(uint32_t window_length, const Alignment& al, u_int64_t readLength, char* cigar_, const string& readSequence, const string& qualSequence)
+		void find_breaking_points_from_cigar(const Alignment& al, u_int64_t readLength, char* cigar_, const string& readSequence, const string& qualSequence)
 		{
 			vector<std::pair<uint32_t, uint32_t>> breaking_points_;
 			u_int64_t t_begin_ = al._contigStart;
@@ -676,11 +725,23 @@ public:
 
 			// find breaking points from cigar
 			std::vector<int32_t> window_ends;
-			for (uint32_t i = 0; i < t_end_; i += window_length) {
-				if (i > t_begin_) {
-					window_ends.emplace_back(i - 1);
+			
+			#pragma omp critical(indexWindow)
+			{
+				for(WindowCoord wc : _contigWindowSequences[al._contigIndex]){
+					uint32_t i = wc._posEndContig;
+					if (i > t_begin_) {
+						window_ends.emplace_back(i - 1);
+					}
+					if(i >= t_end_) break;
 				}
 			}
+
+			//for (uint32_t i = 0; i < t_end_; i += window_length) {
+			//	if (i > t_begin_) {
+			//		window_ends.emplace_back(i - 1);
+			//	}
+			//}
 			window_ends.emplace_back(t_end_ - 1);
 
 			uint32_t w = 0;
@@ -762,11 +823,27 @@ public:
 					}
 				}
 				
+				uint64_t window_id = 0;
+				uint32_t window_start = 0;
+				u_int32_t windowLength = 0;
+				
+				#pragma omp critical(indexWindow)
+				{
+					//vector<Window>* windows;
+					uint64_t pos = breaking_points_[j].first;
+					for(const WindowCoord& wc : _contigWindowSequences[al._contigIndex]){
+						window_start = wc._posStartContig;
+						windowLength = wc._posEndContig - wc._posStartContig;
+						if(pos >= wc._posStartContig && pos < wc._posEndContig) break;
+						window_id += 1;
+						//windows = &wc._windows;
+					}
+				}
+				
 
 				//uint64_t window_id = id_to_first_window_id[overlaps[i]->t_id()] +
-				uint64_t window_id = breaking_points_[j].first / _windowLength;
-				uint32_t window_start = (breaking_points_[j].first / _windowLength) *
-					_windowLength;
+				//uint64_t window_id = breaking_points_[j].first / _windowLength;
+				//uint32_t window_start = (breaking_points_[j].first / _windowLength) * _windowLength;
 
 				//const char* data = overlaps[i]->strand() ?
 				//	&(sequence->reverse_complement()[breaking_points[j].second]) :
@@ -859,7 +936,7 @@ public:
 				//}
 
 				//if(sequence.size() < 490) continue;
-				indexWindow(al, window_id, posStart, posEnd, sequence, quality);
+				indexWindow(windowLength, al, window_id, posStart, posEnd, sequence, quality);
 
 				//cout << window_id << " " << posStart << " " << posEnd << endl;
 				//cout << sequence << endl;
@@ -903,13 +980,15 @@ public:
 		}
 
 		//void indexWindow(const Alignment& al, size_t readWindowStart, size_t readWindowEnd, size_t contigWindowStart, size_t contigWindowEnd, const string& windowSequence, const string& windowQualities){
-		void indexWindow(const Alignment& al, u_int64_t windowIndex, u_int32_t posStart, u_int32_t posEnd, const string& windowSequence, const string& windowQualities){
+		void indexWindow(u_int32_t windowLength, const Alignment& al, u_int64_t windowIndex, u_int32_t posStart, u_int32_t posEnd, const string& windowSequence, const string& windowQualities){
 
 			#pragma omp critical(indexWindow)
 			{
 				
+				vector<Window>& windows = _contigWindowSequences[al._contigIndex][windowIndex]._windows;
+				//cout << _contigWindowSequences.size() << " " << _contigWindowSequences[al._contigIndex].size() << " " << _contigWindowSequences[al._contigIndex][windowIndex]._windows.size() << endl;
 				//size_t contigWindowIndex = contigWindowStart / _windowLength;
-				vector<Window>& windows = _contigWindowSequences[al._contigIndex][windowIndex];
+				//vector<Window>& windows = _contigWindowSequences[al._contigIndex][windowIndex];
 				
 				/*
 				if(contigWindowIndex == 0){
@@ -928,16 +1007,12 @@ public:
 
 					windows.push_back({new DnaBitset2(windowSequence), windowQualities, posStart, posEnd});
 
-					/*
-					if(al._contigIndex == 1 && windowIndex == 2){
-						cout << "1111111111111111" << endl;
+					
+					if(al._contigIndex == 1 && windowIndex == 0){
 						cout  << windowSequence << endl;
+						cout << windows.size() << endl;
 					}
-					if(al._contigIndex == 1 && windowIndex == 3){
-						cout << "2222222222222222" << endl;
-						cout  << windowSequence << endl;
-					}
-					*/
+					
 
 					/*
 					if(windowSequences.size() > 1){
@@ -982,7 +1057,7 @@ public:
 					for(size_t i=0; i<windows.size(); i++){
 
 						const Window& window = windows[i];
-						u_int64_t distance = abs(((long)window._sequence->m_len) - ((long)_windowLength));
+						u_int64_t distance = abs(((long)window._sequence->m_len) - ((long)windowLength));
 
 						if(distance > largerDistanceWindow){
 							largerDistanceWindow = distance;
@@ -991,7 +1066,7 @@ public:
 					}
 
 
-					u_int64_t distance = abs(((long)windowSequence.size()) - ((long)_windowLength));
+					u_int64_t distance = abs(((long)windowSequence.size()) - ((long)windowLength));
 
 					if(distance < largerDistanceWindow){
 						Window& window = windows[largerWindowIndex];
@@ -1045,7 +1120,7 @@ public:
 		for(u_int32_t contigIndex : contigIndexes){
 
 
-			vector<vector<Window>>& windows = _contigWindowSequences[contigIndex];
+			vector<WindowCoord>& windows = _contigWindowSequences[contigIndex];
 			u_int64_t nbCorrectedWindows = 0;
 			vector<DnaBitset2*> correctedWindows(windows.size());
 		
@@ -1058,10 +1133,10 @@ public:
 				#pragma omp for
 				for(size_t w=0; w<windows.size(); w++){
 
-					vector<Window>& sequences = windows[w];
+					vector<Window>& sequences = windows[w]._windows;
 					
-					u_int64_t wStart = w*_windowLength;
-					u_int64_t wEnd = min(_contigSequences[contigIndex].size(), wStart+_windowLength);
+					u_int64_t wStart = windows[w]._posStartContig; //w*_windowLength;
+					u_int64_t wEnd = windows[w]._posEndContig; //min(_contigSequences[contigIndex].size(), wStart+_windowLength);
 					string contigOriginalSequence = _contigSequences[contigIndex].substr(wStart, wEnd-wStart);
 
 					checksum += sequences.size()+1;

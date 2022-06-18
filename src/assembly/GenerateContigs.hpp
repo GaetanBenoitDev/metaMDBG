@@ -1058,7 +1058,20 @@ public:
 			//	_graph->saveGraph(_inputDir + "/minimizer_graph_contigs.gfa");
 			//}
 
-			for(const Unitig& u: _graph->_unitigs){
+			//for(const Unitig& u: _graph->_unitigs){
+			for(size_t i=0; i<_graph->_unitigs.size(); i+=2){
+
+				const Unitig& u1 = _graph->_unitigs[i];
+				const Unitig& u2 = _graph->_unitigs[i+1];
+
+				Unitig u;
+
+				if(u1._startNode < u2._startNode){
+					u = u1;
+				}
+				else{
+					u = u2;
+				}
 				//cout << unitig._length << " " << unitig._abundance << endl;
 				//if(unitig._index % 2 == 1) continue;
 

@@ -122,7 +122,7 @@ public:
 
 	void createMDBG_collectKminmers_read(kseq_t* read, u_int64_t readIndex);
 	void extractKminmerSequence(const char* sequenceOriginal, const ReadKminmer& kminmerInfo, string& sequence);
-
+	void computeDeterministicNodeNames();
 
 	void createMDBG_index(const vector<u_int64_t>& minimizers, const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex);
 	void createGfa();

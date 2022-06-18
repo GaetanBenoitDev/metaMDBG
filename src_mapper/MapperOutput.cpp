@@ -149,9 +149,12 @@ int main (int argc, char* argv[])
 		//u_int64_t length = std::max(readEnd - readStart, contigEnd - contigStart);
 
 
+		//cout << contigIndex << " " << readIndex << endl;
+
 		double length = max((double)(contigEnd - contigStart), (double)(readEnd - readStart));
 		double error = 1 - min((double)(contigEnd - contigStart), (double)(readEnd - readStart)) / length;
-
+		//cout << error << " " << errorThreshold << endl;
+		
 		if(error > errorThreshold) continue;
 
 		float divergence = 0;

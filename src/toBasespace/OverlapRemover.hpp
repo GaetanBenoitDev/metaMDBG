@@ -142,7 +142,7 @@ public:
 
 			cout << "Nb contigs: " << contigIndex << endl;
 		
-			getchar();
+			//getchar();
 		}
 
 		ofstream outputFile(_inputFilenameContig + ".nooverlaps");
@@ -164,7 +164,7 @@ public:
 		fs::rename(_inputFilenameContig + ".nooverlaps", _inputFilenameContig);
 
 		cout << nbContigs << endl;
-		getchar();
+		//getchar();
 
 
 		//_inputFilenameContig = _inputFilenameContig + ".nooverlaps";

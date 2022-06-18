@@ -113,6 +113,7 @@ public:
     size_t _kminmerSizeLast;
     size_t _meanReadLength;
 
+	EncoderRLE _encoderRLE;
 	//unordered_map<ContigNode, string> _debug_node_sequences;
 	//unordered_map<u_int32_t, KminmerSequence> _nodeName_entire;
 	//unordered_map<u_int32_t, KminmerSequence> _nodeName_right;
@@ -1644,7 +1645,7 @@ public:
 
 							//if(_toBasespace.isKminmerRepeated.find(nodeName) != _toBasespace.isKminmerRepeated.end()) cancel = true;
 
-							if(queue->size() < 20) cancel = true;
+							if(queue->size() < 21) cancel = true;
 							
 							if(!cancel) isDoneNodeName.insert(nodeName);
 						}
@@ -1703,7 +1704,7 @@ public:
 						#pragma omp critical
 						{
 
-							if(readSequence._variants.size() < 20){
+							if(readSequence._variants.size() < 21){
 								readSequence._variants.push({result.editDistance, new DnaBitset(sequence)});
 							}
 							else{
@@ -2386,6 +2387,14 @@ public:
 		contigSequence +=  '\n';
 		gzwrite(_basespaceContigFile, (const char*)&contigSequence[0], contigSequence.size());
 
+		//string rleSequence;
+		//vector<u_int64_t> rlePositions;
+		//_encoderRLE.execute(contigSequence.c_str(), contigSequence.size(), rleSequence, rlePositions);
+
+		//rleSequence +=  '\n';
+		//gzwrite(_basespaceContigFile, (const char*)&rleSequence[0], rleSequence.size());
+
+
 		_nbBps += contigSequence.size();
 
 		_contigIndex += 1;
@@ -2609,7 +2618,7 @@ public:
 
 
 
-
+	/*
 
 	struct ContigOverlap{
 		u_int64_t _contigIndex;
@@ -2768,44 +2777,11 @@ public:
 
 					if(sharedElements.size() == 0) continue;
 
-					/*
-					cout << "-----------------------" << endl;
-					cout << _overContigs[j]._contigIndex << endl;
-					for(u_int32_t nodeName : _overContigs[j]._nodepath){
-						if(sharedElements.find(nodeName) == sharedElements.end()){
-							cout << "0";
-						}
-						else{
-							cout << "1";
-						}
-					}
-					cout << endl;
-					*/
+
 					isModification = removeOverlap(_overContigs[i]._nodepath, _overContigs[j]._nodepath, sharedElements, true, _overContigs[j]);
-					/*
-					cout << _overContigs[j]._contigIndex << endl;
-					for(u_int32_t nodeName : _overContigs[j]._nodepath){
-						if(sharedElements.find(nodeName) == sharedElements.end()){
-							cout << "0";
-						}
-						else{
-							cout << "1";
-						}
-					}
-					cout << endl;
-					*/
+
 					isModification = removeOverlap(_overContigs[i]._nodepath, _overContigs[j]._nodepath, sharedElements, false, _overContigs[j]);
-					/*
-					for(u_int32_t nodeName : _overContigs[j]._nodepath){
-						if(sharedElements.find(nodeName) == sharedElements.end()){
-							cout << "0";
-						}
-						else{
-							cout << "1";
-						}
-					}
-					cout << endl;
-					*/
+
 					//if(_overContigs[j]._contigIndex == 1097) getchar();
 
 					//getchar();
@@ -2862,14 +2838,7 @@ public:
 				}
 				std::sort(contig._nodepath_sorted.begin(), contig._nodepath_sorted.end());
 
-				/*
-				component.clear();
-				for(u_int32_t nodeIndex : nodePath){
-					component.push_back(BiGraph::nodeIndex_to_nodeName(nodeIndex));
-				}
-				std::sort(component.begin(), component.end());
-				Utils::collectSharedElements(contig._nodePath_sorted, component, sharedElements);
-				*/
+
 			}
 
 		}
@@ -2949,7 +2918,7 @@ public:
 
 		gzclose(_queryContigFile);
 
-		string command = "minimap2 -x map-hifi " + _filename_outputContigs + " " + filenameQuery + " > " + outputMappingFilename;
+		string command = "minimap2 --idx-no-seq -x map-hifi " + _filename_outputContigs + " " + filenameQuery + " > " + outputMappingFilename;
 		Utils::executeCommand(command);
 
 
@@ -3052,6 +3021,7 @@ public:
 
 		//cout << "Dump: " << readIndex << " " << readMinimizers.size() << endl;
 	}
+	*/
 
 };	
 
