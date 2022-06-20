@@ -1095,7 +1095,7 @@ public:
 
 		gzclose(_queryContigFile);
 
-		string command = "minimap2 -I 1GB -x map-hifi -t " + to_string(_nbCores) + " " + _filename_outputContigs + " " + filenameQuery + " > " + outputMappingFilename;
+		string command = "minimap2 -N 10 -p 0 --secondary=yes -I 2GB -x map-hifi -t " + to_string(_nbCores) + " " + _filename_outputContigs + " " + filenameQuery + " > " + outputMappingFilename;
 		Utils::executeCommand(command);
 
 
@@ -1123,9 +1123,9 @@ public:
 			u_int64_t nbMatches = stoull((*fields)[9]);
 			double alignLength = stoull((*fields)[10]);
 
-			if(alignLength / queryLength < 0.95) continue;
+			if(alignLength / queryLength < 0.9) continue;
 
-			cout << (nbMatches / alignLength) << " " << (nbMatches / queryLength) << endl;
+			//cout << (nbMatches / alignLength) << " " << (nbMatches / queryLength) << endl;
 			
 			for(size_t i=12; i<fields->size(); i++){
 
@@ -1138,7 +1138,7 @@ public:
 
 					//cout << (*fields_optional)[2] << endl;
 					//cout << contigName << " " << readName << " " << (alignLength/queryLength*100) << " " << (divergence*100) << "     " << queryLength << " " << targetLength << endl;
-					if(divergence < 0.05){
+					if(divergence < 0.02){
 						string name = readName;
 						size_t pos = name.find("ctg");
 						name.erase(pos, 3);
