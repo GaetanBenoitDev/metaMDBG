@@ -103,6 +103,26 @@ void Bloocoo::execute (){
 	createMDBG();
 	createGfa();
 
+
+	if(_isFirstPass){
+		const auto copyOptions = fs::copy_options::overwrite_existing;
+		fs::copy(_outputDir + "/kminmerData_min.txt", _outputDir + "/kminmerData_min_init.txt", copyOptions);
+		//_mdbg->dump(_outputDir + "/mdbg_nodes_init.gz");
+
+		/*
+		_mdbg = new MDBG(_kminmerSize);
+		_mdbg->load(_outputDir + "/kminmerData_min_init.txt", false);
+
+		KmerVec vec;
+		vec._kmers = {7892019983131394, 62446187524336769, 47730431539434127, 90993437045220547};
+		cout << _mdbg->_dbg_nodes[vec]._index << endl;
+		getchar();
+		*/
+
+	}
+	
+
+
 	if(_isFirstPass){
 		ofstream file_data(_outputDir + "/data.txt");
 
@@ -353,14 +373,12 @@ void Bloocoo::createGfa(){
 	cout << "Dumping mdbg nodes" << endl;
 	_mdbg->dump(_outputDir + "/kminmerData_min.txt");
 
-	if(_isFirstPass){
-		const auto copyOptions = fs::copy_options::overwrite_existing;
-		fs::copy(_outputDir + "/kminmerData_min.txt", _outputDir + "/kminmerData_min_init.txt", copyOptions);
-		//_mdbg->dump(_outputDir + "/mdbg_nodes_init.gz");
-	}
+
 
 	//cout << "A RMETTRE" << endl;
 	delete _mdbg;
+
+
 
 
 	//cout << "Cleaning repeats..." << endl;
@@ -557,6 +575,7 @@ void Bloocoo::createGfa(){
 	cout << "Computing deterministic node index" << endl;
 	computeDeterministicNodeNames();
 
+
 	cout << "Indexing edges" << endl;
 
 	indexEdges();
@@ -633,7 +652,7 @@ void Bloocoo::computeDeterministicNodeNames(){
 		kmerVecs.push_back({minimizerSeq, abundance, quality});
 
 	}
-	
+
 	kminmerFile.close();
 
 	std::sort(kmerVecs.begin(), kmerVecs.end(), KmerVecComparator);
@@ -674,8 +693,19 @@ void Bloocoo::computeDeterministicNodeNames(){
 		kminmerFileOut.write((const char*)&abundance, sizeof(abundance));
 		kminmerFileOut.write((const char*)&quality, sizeof(quality));
 
+		//if(minimizerSeq[0] == 7892019983131394 && minimizerSeq[1] == 62446187524336769 && minimizerSeq[2] == 47730431539434127 && minimizerSeq[3] == 90993437045220547){
+		//	cout << nodeName << endl;
+		//	getchar();
+		//}
+		//cout << nodeName << endl;
+		//for(u_int64_t m : minimizerSeq) cout << m << " ";
+		//cout << abundance << " " << quality << endl;
+		//cout << endl;
+		//getchar();
+		
 		nodeName += 1;
 	}
+
 
 	kminmerFileOut.close();
 

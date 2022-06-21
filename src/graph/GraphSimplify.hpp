@@ -2198,13 +2198,15 @@ public:
                     vector<BubbleSide> bubbleSides;
                     for(u_int32_t unitigIndex : maxAbNodes){
 
+                        /*
                         //cout << "\t-" << endl;
                         u_int64_t sum = 0;
                         for(u_int32_t nodeIndex : _unitigs[unitigIndex]._nodes){
                             //cout << "\t" << nodeIndex << ": " << _graph->_graphSuccessors->_nodeDatas[BiGraph::nodeIndex_to_nodeName(nodeIndex)]._quality << endl;
                             sum += nodeIndex;
                         }
-                        bubbleSides.push_back({unitigIndex, _unitigs[unitigIndex]._nbNodes, sum});
+                        */
+                        bubbleSides.push_back({unitigIndex, _unitigs[unitigIndex]._nbNodes, _unitigs[unitigIndex]._startNode});
                     }
 
 
@@ -3055,6 +3057,7 @@ public:
                     }
                     else{
                         
+                        /*
                         u_int64_t sum2 = 0;
                         for(u_int32_t nodeIndex : _unitigs[utg_2._index]._nodes){
                             sum2 += nodeIndex;
@@ -3063,10 +3066,11 @@ public:
                         for(u_int32_t nodeIndex : _unitigs[utg_3._index]._nodes){
                             sum3 += nodeIndex;
                         }
+                        */
 
                         vector<BubbleSide> bubbleSides;
-                        bubbleSides.push_back({utg_2._index, _unitigs[utg_2._index]._length, sum2});
-                        bubbleSides.push_back({utg_3._index, _unitigs[utg_3._index]._length, sum3});
+                        bubbleSides.push_back({utg_2._index, _unitigs[utg_2._index]._length, _unitigs[utg_2._index]._startNode});
+                        bubbleSides.push_back({utg_3._index, _unitigs[utg_3._index]._length, _unitigs[utg_3._index]._startNode});
 
                         std::sort(bubbleSides.begin(), bubbleSides.end(), BubbleSideComparator);
 

@@ -658,12 +658,16 @@ public:
 
 						exist = false;
 
-						if(_bloomFilter->contains(vec.h())){
-							exist = true;
-						}
-						else{
-							exist = false;
-							_bloomFilter->insert(vec.h());
+
+						#pragma omp critical
+						{
+							if(_bloomFilter->contains(vec.h())){
+								exist = true;
+							}
+							else{
+								exist = false;
+								_bloomFilter->insert(vec.h());
+							}
 						}
 					}
 

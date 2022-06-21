@@ -39,6 +39,7 @@ public:
 	string _filename_kminmerSequences;
 	MDBG* _mdbg;
 	EncoderRLE _encoderRLE;
+	u_int64_t _checksum;
 
 	//MinimizerParser* _minimizerParser;
 	
@@ -96,6 +97,7 @@ public:
 			_isOutputFasta = result[ARG_FASTA].as<bool>();
 			_filename_outputContigs = result[ARG_OUTPUT_FILENAME].as<string>();
 			_nbCores = result[ARG_NB_CORES].as<int>();
+			//_nbCores = 1;
 		}
 		catch (const std::exception& e){
 			std::cout << options.help() << std::endl;
@@ -168,6 +170,7 @@ public:
 
 		removeDuplicatePost();
 
+		cout << "Checksum: " << _checksum << endl;
 		cout << "Nb contigs (no duplicate): " << _nbContigsPost << endl;
 	}
 
@@ -1153,17 +1156,20 @@ public:
 
 			//getchar();
 		}
-
+		
 		mappingFile.close();
 
+		_checksum = 0;
 		dumpDereplicatedContigs();
 
 		fs::remove(_inputDir + "/contig_data.txt");
 		fs::rename(_inputDir + "/contig_data_derep.txt", _inputDir + "/contig_data.txt");
 		_duplicatedContigIndex.clear();
-	}
 
+	}
+	
 	u_int64_t _nbContigsPost;
+	ofstream _outputContigFileDerep;
 
 	void dumpSmallContigs_read(const Read& read){
 		
@@ -1174,10 +1180,8 @@ public:
 		gzwrite(_queryContigFile, (const char*)&header[0], header.size());
 		string contigSequence = read._seq + '\n';
 		gzwrite(_queryContigFile, (const char*)&contigSequence[0], contigSequence.size());
-		
-	}
 
-	ofstream _outputContigFileDerep;
+	}
 
 	void dumpDereplicatedContigs(){
 
@@ -1202,6 +1206,14 @@ public:
 
 		_nbContigsPost += 1;
 		//cout << "Dump: " << readIndex << " " << readMinimizers.size() << endl;
+
+		u_int64_t s = 0;
+		for(size_t i=0; i<readMinimizers.size(); i++){
+			s += (readMinimizers[i]);
+		}
+
+		_checksum += (s*readMinimizers.size());
+
 	}
 	
 };	

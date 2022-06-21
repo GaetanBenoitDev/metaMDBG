@@ -155,7 +155,7 @@ public:
 			outputFile.write((const char*)&contigSize, sizeof(contigSize));
 			outputFile.write((const char*)&_contigs[i]._minimizers[0], contigSize*sizeof(u_int64_t));
 
-			cout << contigSize << endl;
+			//cout << contigSize << endl;
 			nbContigs += 1;
 		}
 		outputFile.close();

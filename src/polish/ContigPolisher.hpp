@@ -1,5 +1,8 @@
 
 /*
+-ToBasespace index reads:
+	- pas besoin d'indexer les reads qui ne contiennent pas de minimizer dupliquer
+
 - Tester racon sur contigs 0.33 avec l'option -c (write cigar in ouput file), voir si ça ameliore les résulats de binning ou non
 
 - read best hit: la maniere dont on le selection actuellement est pas forcement la meilleur car elle ne favorise pas les petit contigs (les grand contig vont attirer les reads meme si leur sililarité est plus faible que sur un petit contig)
@@ -1217,8 +1220,6 @@ public:
 						const Window& window = sequences[i];
 						//const DnaBitset2* dna = variant._sequence; //sequenceCopies[s._sequenceIndex];
 						char* dnaStr = window._sequence->to_string();
-
-
 
 
 						/*

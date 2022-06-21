@@ -551,11 +551,14 @@ public:
 
 			vector<u_int64_t> contigSequence;
 
+			long checkmSumLocal = 0;
+
 			for(size_t i=0; i<nodePath.size(); i++){
 				
 				u_int32_t nodeIndex = nodePath[i];
 
-				_checksum += BiGraph::nodeIndex_to_nodeName(nodeIndex);
+				checkmSumLocal += nodeIndex;
+				//_checksum += nodeIndex; //BiGraph::nodeIndex_to_nodeName(nodeIndex);
 
 				bool orientation;
 				u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex, orientation);
@@ -683,6 +686,7 @@ public:
 				}*/
 
 
+				_checksum += checkmSumLocal*nodePath.size();
 			}
 
 			//if(isCircular){

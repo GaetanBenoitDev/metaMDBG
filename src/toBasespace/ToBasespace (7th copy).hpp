@@ -97,6 +97,7 @@ public:
     size_t _kminmerSizeFirst;
 	bool _isFirstPass;
 	bool _isOutputFasta;
+	bool _derep;
 
 	string _filename_outputContigs;
 	string _filename_kminmerSequences;
@@ -105,6 +106,14 @@ public:
 	string _truthInputFilename;
 	int _nbCores;
 	
+	float _minimizerSpacingMean;
+	float _kminmerLengthMean;
+	float _kminmerOverlapMean;
+    size_t _kminmerSizePrev;
+    size_t _kminmerSizeLast;
+    size_t _meanReadLength;
+
+	EncoderRLE _encoderRLE;
 	//unordered_map<ContigNode, string> _debug_node_sequences;
 	//unordered_map<u_int32_t, KminmerSequence> _nodeName_entire;
 	//unordered_map<u_int32_t, KminmerSequence> _nodeName_right;
@@ -176,6 +185,7 @@ public:
 
 	void parseArgs(int argc, char* argv[]){
 
+		const string& ARG_DEREP = "derep";
 
 		cxxopts::Options options("ToBasespace", "");
 		options.add_options()
@@ -185,6 +195,7 @@ public:
 		(ARG_OUTPUT_FILENAME, "", cxxopts::value<string>())
 		(ARG_FIRST_PASS, "", cxxopts::value<bool>()->default_value("false"))
 		(ARG_FASTA, "", cxxopts::value<bool>()->default_value("false"))
+		(ARG_DEREP, "", cxxopts::value<bool>()->default_value("false"))
 		(ARG_OUTPUT_DIR, "", cxxopts::value<string>())
 		(ARG_NB_CORES, "", cxxopts::value<int>()->default_value(NB_CORES_DEFAULT));
 
@@ -207,6 +218,7 @@ public:
 			_inputFilenameContig = result[ARG_INPUT_FILENAME_CONTIG].as<string>();
 			_isFirstPass = result[ARG_FIRST_PASS].as<bool>();
 			_isOutputFasta = result[ARG_FASTA].as<bool>();
+			_derep = result[ARG_DEREP].as<bool>();
 			_filename_outputContigs = result[ARG_OUTPUT_FILENAME].as<string>();
 			_truthInputFilename = result[ARG_INPUT_FILENAME_TRUTH].as<string>();
 			_nbCores = result[ARG_NB_CORES].as<int>();
@@ -229,6 +241,12 @@ public:
 		gzread(file_parameters, (char*)&_kminmerSize, sizeof(_kminmerSize));
 		gzread(file_parameters, (char*)&_minimizerDensity, sizeof(_minimizerDensity));
 		gzread(file_parameters, (char*)&_kminmerSizeFirst, sizeof(_kminmerSizeFirst));
+		gzread(file_parameters, (char*)&_minimizerSpacingMean, sizeof(_minimizerSpacingMean));
+		gzread(file_parameters, (char*)&_kminmerLengthMean, sizeof(_kminmerLengthMean));
+		gzread(file_parameters, (char*)&_kminmerOverlapMean, sizeof(_kminmerOverlapMean));
+		gzread(file_parameters, (char*)&_kminmerSizePrev, sizeof(_kminmerSizePrev));
+		gzread(file_parameters, (char*)&_kminmerSizeLast, sizeof(_kminmerSizeLast));
+		gzread(file_parameters, (char*)&_meanReadLength, sizeof(_meanReadLength));
 		gzclose(file_parameters);
 
 		_kminmerSize = _kminmerSizeFirst;
@@ -253,11 +271,10 @@ public:
 
     void execute (){
 		
-		_checksum = 0;
 
 		abpt = abpoa_init_para();
-		abpt->out_msa = 1; // generate Row-Column multiple sequence alignment(RC-MSA), set 0 to disable
-		abpt->out_cons = 0; // generate consensus sequence, set 0 to disable
+		abpt->out_msa = 0; // generate Row-Column multiple sequence alignment(RC-MSA), set 0 to disable
+		abpt->out_cons = 1; // generate consensus sequence, set 0 to disable
 		abpt->w = 6, abpt->k = 9; abpt->min_w = 10; // minimizer-based seeding and partition
 		abpt->progressive_poa = 1;
 		abpt->max_n_cons = 2;
@@ -272,11 +289,10 @@ public:
 		_mdbg->load(mdbg_filename, false);
 		cout << "MDBG nodes: " << _mdbg->_dbg_nodes.size() << endl;
 
+		//if(_truthInputFilename != ""){
+		//	extract_truth_kminmers();
+		//}
 
-
-		cout << "Indexing reads" << endl;
-		_unitigDatas.resize(_mdbg->_dbg_nodes.size());
-		indexReads();
 
 		//cout << "Loading original mdbg" << endl;
 		//string mdbg_filename = _inputDir + "/mdbg_nodes_init.gz";
@@ -284,7 +300,13 @@ public:
 		//_mdbgInit->load(mdbg_filename);
 		//cout << "MDBG nodes: " << _mdbgInit->_dbg_nodes.size() << endl;
 
-		string inputFilenameContigSmall = _inputDir + "/small_contigs.bin";
+
+		//if(_derep) removeOverlaps();
+
+
+		cout << "Indexing reads" << endl;
+		_unitigDatas.resize(_mdbg->_dbg_nodes.size());
+		indexReads();
 
 		loadContigs_min(_inputFilenameContig);
 		//loadContigs_min(inputFilenameContigSmall);
@@ -310,12 +332,11 @@ public:
 		//_alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kNW, 3, -5, -3);  // linear gaps
 		//spoa::Graph graph{};
 		
-		/*
+
 		endCorrection(_kminmerSequenceCopies_all_entire, _isDoneNodeName_entire, _kminmerSequence_entire, _repeatedKminmerSequence_entire, _kminmerSequence_entire_multi);
 		endCorrection(_kminmerSequenceCopies_all_left, _isDoneNodeName_left, _kminmerSequence_left, _repeatedKminmerSequence_left, _kminmerSequence_left_multi);
 		endCorrection(_kminmerSequenceCopies_all_right, _isDoneNodeName_right, _kminmerSequence_right, _repeatedKminmerSequence_right, _kminmerSequence_right_multi);
-		*/
-	
+
 		/*
 		for(auto& it : _kminmerSequenceCopies_all_left){
 			u_int32_t nodeName = it.first;
@@ -363,6 +384,9 @@ public:
 		//createBaseContigs(inputFilenameContigSmall);
 
 		gzclose(_basespaceContigFile);
+
+		//if(_derep) removeDuplicatePost();
+		//removeDuplicatePost();
 		//delete _mdbg;
 		/*
 		gzclose(_outputFile_left);
@@ -533,6 +557,9 @@ public:
 
 	}
 
+	
+
+
 	/*
 	void writeKminmerSequence(u_int32_t nodeName, unordered_map<u_int32_t, VariantQueue>& variants){
 
@@ -650,7 +677,7 @@ public:
 		}
 	}
 
-
+	/*
 	struct Contig{
 		u_int64_t _readIndex;
 		vector<u_int32_t> _nodepath;
@@ -674,24 +701,180 @@ public:
 
 		return a._nodepath.size() > b._nodepath.size();
 	}
+	*/
 	
 
-	unordered_set<u_int32_t> _invalidContigIndex;
+	//unordered_set<u_int32_t> _invalidContigIndex;
 
 	void loadContigs_min(const string& contigFilename){
+
+		/*
+		_nbNodes = 0;
+		_nbContigs = 0;
+
+		cout << "Extracting kminmers: " << contigFilename << endl;
+		KminmerParser parser(contigFilename, _minimizerSize, _kminmerSize, false, false);
+		auto fp = std::bind(&ToBasespace::loadContigs_min_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+		parser.parseMinspace(fp);
+
+		cout << "Nb contigs: " << _nbContigs << endl;
+
+		double nbRepeatedKminmers = 0;
+		for(auto& it : _kminmerCounts){
+			if(it.second > 1){
+				nbRepeatedKminmers += 1;
+			}
+		}
+		cout << "Nb kminmer: " << _kminmerCounts.size() << endl;
+		cout << "Repeated kminmer: " << nbRepeatedKminmers << endl;
+		cout << "Repeated kminmer rate: " << (nbRepeatedKminmers / _kminmerCounts.size()) << endl;
+
+		
+		std::sort(_contigs.begin(), _contigs.end(), ContigComparator_ByLength);
+
+		for(size_t i=0; i<_contigs.size(); i++){
+			
+			if(_invalidContigIndex.find(_contigs[i]._readIndex) != _invalidContigIndex.end()) continue;
+
+			for(long j=_contigs.size()-1; j>=i+1; j--){
+			
+				if(_invalidContigIndex.find(_contigs[j]._readIndex) != _invalidContigIndex.end()) continue;
+
+				double nbShared = Utils::computeSharedElements(_contigs[i]._nodepath_sorted, _contigs[j]._nodepath_sorted);
+				double sharedRate_1 = nbShared / _contigs[i]._nodepath_sorted.size();
+				double sharedRate_2 = nbShared / _contigs[j]._nodepath_sorted.size();
+
+				if(sharedRate_1 > 0.33 || sharedRate_2 > 0.33){
+
+					cout << _contigs[j]._nodepath_sorted.size() << " " << sharedRate_1 << " " << sharedRate_2 << endl;
+					_invalidContigIndex.insert(_contigs[j]._readIndex);
+					//break;
+
+				}
+
+				//if(_contigs[j]._nodepath.size() < 100) _invalidContigIndex.insert(_contigs[j]._readIndex);
+			}
+		}
+		
+
+
+		_kminmerCounts.clear();
+
+		cout << _nbContigs << " " << _invalidContigIndex.size() << endl;
+ 		cout << "Nb contigs (no duplicate): " << (_nbContigs-_invalidContigIndex.size()) << endl;
+		*/
+
+		_nbContigs = 0;
+		_checksum = 0;
+		_checksum2 = 0;
+		
 
 		cout << "Extracting kminmers: " << contigFilename << endl;
 		KminmerParser parser2(contigFilename, _minimizerSize, _kminmerSize, false, false);
 		auto fp2 = std::bind(&ToBasespace::loadContigs_min_read2, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 		parser2.parseMinspace(fp2);
 
+		double nbRepeatedKminmers = 0;
+		for(auto& it : _kminmerCounts){
+			if(it.second > 1){
+				nbRepeatedKminmers += 1;
+			}
+		}
+		cout << "Nb kminmer: " << _kminmerCounts.size() << endl;
+		cout << "Repeated kminmer: " << nbRepeatedKminmers << endl;
+		cout << "Repeated kminmer rate: " << (nbRepeatedKminmers / _kminmerCounts.size()) << endl;
+		cout << "Nb contigs: " << (_nbContigs) << endl;
+
+		/*
+		_contigs.clear();
+		for(size_t c=0; c<_contigs.size(); c++){
+			if(invalidContigs.find(c) != invalidContigs.end()) continue;
+
+			const Contig& contig = _contigs[c];
+
+			for(size_t i=0; i<contig._nodepath.size(); i++){
+				u_int32_t nodeName = contig._nodepath[i];
+				_kminmerCounts[nodeName] += 1;
+
+				bool orientation = !kminmerInfo._isReversed;
+
+				if(i == 0){
+					_kminmerSequenceCopies_all_entire[nodeName] = {};
+				}
+				else {
+					if(orientation){ //+
+						_kminmerSequenceCopies_all_right[nodeName] = {};
+					}
+					else{ //-
+						_kminmerSequenceCopies_all_left[nodeName] = {};
+					}
+				}
+			}
+		}
+		*/
+
 	}
+
+	/*
+	void loadContigs_min_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
+
+		vector<u_int32_t> nodepath;
+		//cout << kminmersInfos.size() << endl;
+		//if(kminmersInfos.size() < 41) return;
+
+		//cout << readIndex << " " << kminmersInfos.size() << endl;
+		for(size_t i=0; i<kminmersInfos.size(); i++){
+			
+			const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
+
+			KmerVec vec = kminmerInfo._vec;
+			
+			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
+				cout << "Not found kminmer" << endl;
+				//getchar();
+				continue;
+			}
+
+
+			//if(kminmersInfos.size() <= 1) continue;
+
+			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
+			nodepath.push_back(nodeName);
+			
+			_kminmerCounts[nodeName] += 1;
+			//if(nodeName == 38376){
+
+			//	cout << "lala" << endl;
+			//	getchar();
+			//}
+			//cout << kminmersInfos.size() << " " << nodeName << endl;
+
+		
+
+		}
+
+		_nbContigs += 1;
+
+		vector<u_int32_t> nodepath_sorted = nodepath;
+		std::sort(nodepath_sorted.begin(), nodepath_sorted.end());
+		_contigs.push_back({readIndex, nodepath, nodepath_sorted});
+
+	}
+	*/
 
 	void loadContigs_min_read2(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
 
+		u_int64_t s = 0;
+		for(size_t i=0; i<readMinimizers.size(); i++){
+			s += (readMinimizers[i]);
+		}
+
+		_checksum += (s*readMinimizers.size());
+
 		//cout << kminmersInfos.size() << " " << (_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) << endl;
-		if(_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) return;
-		double s = 0;
+		//if(_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) return;
+		//double s = 0;
+		double s2 = 0;
 		for(size_t i=0; i<kminmersInfos.size(); i++){
 			
 			const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
@@ -734,8 +917,12 @@ public:
 			//	std::reverse(minimizerSeq.begin(), minimizerSeq.end());
 			//}
 			bool orientation = !kminmerInfo._isReversed;
+
 			u_int32_t nodeIndex = BiGraph::nodeName_to_nodeIndex(nodeName, orientation);
-			s += nodeIndex;
+			s2 += nodeIndex;
+			//cout << i << " " << nodeIndex << endl;
+			//for(u_int64_t m : vec._kmers) cout << m << " ";
+			//cout << endl;
 
 			if(i == 0){
 				_kminmerSequenceCopies_all_entire[nodeName] = {};
@@ -752,7 +939,11 @@ public:
 
 		}
 
-		_checksum += s*kminmersInfos.size();
+		_checksum2 += s2*kminmersInfos.size();
+		_nbContigs += 1;
+
+		//cout << _checksum2 << endl;
+		//getchar();
 		/*
 		if(kminmersInfos.size() > 1 && kminmersInfos[0]._vec == kminmersInfos[kminmersInfos.size()-1]._vec){
 			cout << "lala" << endl;
@@ -762,7 +953,7 @@ public:
 		else{
 			_nbNodes += s*kminmersInfos.size();
 		}
-		//_nbContigs += 1;
+		//
 		*/
 
 	}
@@ -786,7 +977,7 @@ public:
 	
 	void collectBestSupportingReads_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
 
-		if(_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) return;
+		//if(_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) return;
 
 		//cout << "----------------------" << endl;
 		vector<u_int64_t> supportingReads;
@@ -847,17 +1038,8 @@ public:
 				//cout << _repeatedKminmerSequence_entire.size() << " " << _repeatedKminmerSequence_right.size() << " " << _repeatedKminmerSequence_left.size() << endl;
 			}
 			else{
+				supportingReads.push_back(-1);
 
-				u_int64_t readIndex = -1;
-				if(_unitigDatas[nodeName].size() == 0){
-					readIndex = -1;
-				}
-				else{
-					readIndex = _unitigDatas[nodeName][0];
-				}
-
-				supportingReads.push_back(readIndex);
-				/*
 				if(i == 0){
 					_kminmerSequenceCopies_all_entire[nodeName] = {};
 				}
@@ -869,24 +1051,6 @@ public:
 						_kminmerSequenceCopies_all_left[nodeName] = {};
 					}
 				}
-				*/
-				if(i == 0){
-					ReadSequence rs = {readIndex, nullptr, {}};
-					_kminmerSequence_entire_multi[nodeName].push_back(rs);
-				}
-				else {
-					if(orientation){ //+
-						//cout << "right: " << nodeName << " " << readIndex << endl;
-						ReadSequence rs = {readIndex, nullptr, {}};
-						_kminmerSequence_right_multi[nodeName].push_back(rs);
-					}
-					else{ //-
-						//cout << "left: " << nodeName << " " << readIndex << endl;
-						ReadSequence rs = {readIndex, nullptr, {}};
-						_kminmerSequence_left_multi[nodeName].push_back(rs);
-					}
-				}
-
 
 
 			}
@@ -1356,33 +1520,10 @@ public:
 				bool isLeft = false;
 				bool isRight = false;
 
-				if(_toBasespace._kminmerSequence_entire_multi.find(nodeName) != _toBasespace._kminmerSequence_entire_multi.end()){
-					for(const ReadSequence& rs : _toBasespace._kminmerSequence_entire_multi[nodeName]){
-						if(rs._readIndex == readIndex){
-							isEntire = true;
-						}
-					}
-				}
-
-				if(_toBasespace._kminmerSequence_left_multi.find(nodeName) != _toBasespace._kminmerSequence_left_multi.end()){
-					for(const ReadSequence& rs : _toBasespace._kminmerSequence_left_multi[nodeName]){
-						if(rs._readIndex == readIndex){
-							isLeft = true;
-						}
-					}
-				}
-
-				if(_toBasespace._kminmerSequence_right_multi.find(nodeName) != _toBasespace._kminmerSequence_right_multi.end()){
-					for(const ReadSequence& rs : _toBasespace._kminmerSequence_right_multi[nodeName]){
-						if(rs._readIndex == readIndex){
-							isRight = true;
-						}
-					}
-				}
 
 				//#pragma omp critical
 				//{
-					/*
+				/*
 					if(_toBasespace.isKminmerRepeated.find(nodeName) == _toBasespace.isKminmerRepeated.end()){
 						isEntire = _toBasespace._kminmerSequenceCopies_all_entire.find(nodeName) != _toBasespace._kminmerSequenceCopies_all_entire.end(); // && _toBasespace._isDoneNodeName_entire.find(nodeName) == _toBasespace._isDoneNodeName_entire.end();
 						isLeft = _toBasespace._kminmerSequenceCopies_all_left.find(nodeName) != _toBasespace._kminmerSequenceCopies_all_left.end(); // && _toBasespace._isDoneNodeName_left.find(nodeName) == _toBasespace._isDoneNodeName_left.end();
@@ -1428,10 +1569,13 @@ public:
 						//isLeft = _toBasespace._repeatedKminmerSequence_left.find(readNodeName) != _toBasespace._repeatedKminmerSequence_left.end();
 						//isRight = _toBasespace._repeatedKminmerSequence_right.find(readNodeName) != _toBasespace._repeatedKminmerSequence_right.end();
 					}
-					*/
 
-
+				*/
 				//}
+
+				isEntire = _toBasespace._kminmerSequenceCopies_all_entire.find(nodeName) != _toBasespace._kminmerSequenceCopies_all_entire.end(); // && _toBasespace._isDoneNodeName_entire.find(nodeName) == _toBasespace._isDoneNodeName_entire.end();
+				isLeft = _toBasespace._kminmerSequenceCopies_all_left.find(nodeName) != _toBasespace._kminmerSequenceCopies_all_left.end(); // && _toBasespace._isDoneNodeName_left.find(nodeName) == _toBasespace._isDoneNodeName_left.end();
+				isRight = _toBasespace._kminmerSequenceCopies_all_right.find(nodeName) != _toBasespace._kminmerSequenceCopies_all_right.end(); // && _toBasespace._isDoneNodeName_right.find(nodeName) == _toBasespace._isDoneNodeName_right.end();
 
 				//if(nodeName==293 && readIndex==8320){
 				//	ReadNodeName readNodeName = {nodeName, readIndex};
@@ -1499,9 +1643,14 @@ public:
 				
 				if(_collectModel){
 
-					for(ReadSequence& rs : repeatedKminmers[nodeName]){
-						if(rs._readIndex == readIndex){
-							rs._sequence = new DnaBitset(sequence);
+					if(_toBasespace.isKminmerRepeated.find(nodeName) == _toBasespace.isKminmerRepeated.end()){
+						repeatedKminmers[nodeName].push_back({-1, new DnaBitset(sequence)})
+					}
+					else{
+						for(ReadSequence& rs : repeatedKminmers[nodeName]){
+							if(rs._readIndex == readIndex){
+								rs._sequence = new DnaBitset(sequence);
+							}
 						}
 					}
 
@@ -1525,7 +1674,7 @@ public:
 
 							//if(_toBasespace.isKminmerRepeated.find(nodeName) != _toBasespace.isKminmerRepeated.end()) cancel = true;
 
-							if(queue->size() < 20) cancel = true;
+							if(queue->size() < 1) cancel = true;
 							
 							if(!cancel) isDoneNodeName.insert(nodeName);
 						}
@@ -1584,7 +1733,7 @@ public:
 						#pragma omp critical
 						{
 
-							if(readSequence._variants.size() < 19){
+							if(readSequence._variants.size() < 1){
 								readSequence._variants.push({result.editDistance, new DnaBitset(sequence)});
 							}
 							else{
@@ -1722,9 +1871,6 @@ public:
 			return;
 			*/
 			
-			ab = abpoa_init();
-
-
 			/*
 			vector<string> seqSorted;
 			for(size_t i=1; i<sequences.size(); i++){
@@ -1744,6 +1890,12 @@ public:
 			seqSorted.insert(seqSorted.begin(), string(dnaStrModel));
 			free(dnaStrModel);
 			*/
+
+			/*
+			ab = abpoa_init();
+
+
+
 
 			//cout << "1" << endl;
 			int n_seqs = sequences.size();
@@ -1780,6 +1932,15 @@ public:
 
 			
 			abpoa_cons_t *abc = ab->abc;
+
+			correctedSequence.clear();
+
+			for (size_t j = 0; j < abc->cons_len[0]; ++j){
+				correctedSequence += nt256_table2[abc->cons_base[0][j]];
+			}
+			*/
+
+			/*
 			vector<vector<u_int32_t>> counts(abc->msa_len, vector<u_int32_t>(4, 0));
 
 			for (int i = 0; i < abc->n_seq; ++i) {
@@ -1834,6 +1995,9 @@ public:
 
 			for (int i = 0; i < n_seqs; ++i) free(bseqs[i]); free(bseqs); free(seq_lens);
 			abpoa_free(ab);
+			*/
+		
+
 			
 
 			//cout << "3" << endl;
@@ -1907,7 +2071,7 @@ public:
 
 			//std::reverse(sequences.begin(), sequences.end());
 			
-			/*
+			
 			_graph.Clear();
 			
 			vector<string> seqSorted;
@@ -1928,7 +2092,6 @@ public:
 			seqSorted.insert(seqSorted.begin(), string(dnaStrModel));
 			free(dnaStrModel);
 
-
 			for(size_t i=0; i<seqSorted.size(); i++){ //&& processedSequences < 5
 
 				//DnaBitset* dna = sequences[i];
@@ -1945,11 +2108,16 @@ public:
 				//processedSequences += 1;
 			}
 
+
+			std::vector<uint32_t> coverages;
+			correctedSequence = _graph.GenerateConsensus(&coverages);
+
 			//string consensus = _graph.GenerateConsensus();
 			//correctedSequence = consensus;
 			//return;
 
 			//cout << endl;
+			/*
 			const vector<string>& msa = _graph.GenerateMultipleSequenceAlignment();
 			vector<vector<u_int32_t>> counts(msa[0].size(), vector<u_int32_t>(4, 0));
 
@@ -2014,6 +2182,7 @@ public:
 
 	u_int64_t _nbBps;
 	u_int64_t _checksum;
+	u_int64_t _checksum2;
 
 
 	void writeKminmerSequence_all(u_int32_t nodeName, const string& sequence, const gzFile& file){
@@ -2050,12 +2219,19 @@ public:
 	}
 	*/
 	
+	ofstream _fileHifiasmAll;
+	u_int64_t _hifiasmContigIndex;
+	unordered_set<string> _hifiasmWrittenNodeNames;
 
 	void createBaseContigs(const string& contigFilename){
 
 		_nbBps = 0;
 
 		_contigFileSupported_input = ifstream(contigFilename + ".tmp");
+
+		_hifiasmContigIndex = 0;
+		_fileHifiasmAll = ofstream(_inputDir + "/binning_results_hifiasm.csv");
+		_fileHifiasmAll << "Name,Colour" << endl;
 
 		cout << "Creating basespace contigs: " << contigFilename << endl;
 
@@ -2064,18 +2240,20 @@ public:
 		auto fp = std::bind(&ToBasespace::createBaseContigs_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 		parser.parseMinspace(fp);
 
+		_fileHifiasmAll.close();
 		_contigFileSupported_input.close();
 
 
 		cout << "Nb contigs: " << (_contigIndex) << endl;
 		cout << "Nb bps: " << _nbBps << endl;
-		cout << "Checksum: " << _checksum << endl;
+		cout << "Checksum 1: " << _checksum << endl;
+		cout << "Checksum 2: " << _checksum2 << endl;
 
 	}
 
 	void createBaseContigs_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
 
-		if(_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) return;
+		//if(_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) return;
 
 		vector<u_int64_t> supportingReads;
 		u_int32_t size;
@@ -2122,23 +2300,9 @@ public:
 			if(i == 0){
 				if(orientation){ //+
 
-					char* seq = nullptr;
+					char* seq;
 
-					if(_kminmerSequence_entire_multi.find(nodeName) != _kminmerSequence_entire_multi.end()){
-						for(const ReadSequence& rs : _kminmerSequence_entire_multi[nodeName]){
-							if(rs._readIndex == readIndex){
-								seq = rs._sequence->to_string();
-								break;
-							}
-						}
-					}
-
-					if(seq == nullptr){
-						cout << "No sequence for kminmer" << endl;
-						continue;
-					}
-
-					/*
+				
 					if(_kminmerSequence_entire.find(nodeName) != _kminmerSequence_entire.end()){
 						if(_kminmerSequence_entire[nodeName] == nullptr){
 							cout << "No sequence for kminmer" << endl;
@@ -2148,13 +2312,12 @@ public:
 					}
 					else{
 						ReadNodeName readNodeName = {nodeName, readIndex};
-						if(_kminmerSequence_entire_multi.find(readNodeName) == _kminmerSequence_entire_multi.end() || _kminmerSequence_entire_multi[readNodeName] == nullptr){
+						if(_repeatedKminmerSequence_entire.find(readNodeName) == _repeatedKminmerSequence_entire.end() || _repeatedKminmerSequence_entire[readNodeName] == nullptr){
 							cout << "No sequence for kminmer" << endl;
 							continue;
 						}
-						seq = _kminmerSequence_entire_multi[readNodeName]->to_string();
-					//}
-					*/
+						seq = _repeatedKminmerSequence_entire[readNodeName]->to_string();
+					}
 					//else if
 					//continue;
 					//char* seq = _kminmerSequence_entire[nodeName]->to_string();
@@ -2167,24 +2330,9 @@ public:
 				else{
 					
 					
-					char* seq = nullptr;
-
-					if(_kminmerSequence_entire_multi.find(nodeName) != _kminmerSequence_entire_multi.end()){
-						for(const ReadSequence& rs : _kminmerSequence_entire_multi[nodeName]){
-							if(rs._readIndex == readIndex){
-								seq = rs._sequence->to_string();
-								break;
-							}
-						}
-					}
-
-					if(seq == nullptr){
-						cout << "No sequence for kminmer" << endl;
-						continue;
-					}
+					char* seq;
 
 
-					/*
 					if(_kminmerSequence_entire.find(nodeName) != _kminmerSequence_entire.end()){
 						if(_kminmerSequence_entire[nodeName] == nullptr){
 							cout << "No sequence for kminmer" << endl;
@@ -2194,13 +2342,12 @@ public:
 					}
 					else{
 						ReadNodeName readNodeName = {nodeName, readIndex};
-						if(_kminmerSequence_entire_multi.find(readNodeName) == _kminmerSequence_entire_multi.end() || _kminmerSequence_entire_multi[readNodeName] == nullptr){
+						if(_repeatedKminmerSequence_entire.find(readNodeName) == _repeatedKminmerSequence_entire.end() || _repeatedKminmerSequence_entire[readNodeName] == nullptr){
 							cout << "No sequence for kminmer" << endl;
 							continue;
 						}
-						seq = _kminmerSequence_entire_multi[readNodeName]->to_string();
-					//}
-					*/
+						seq = _repeatedKminmerSequence_entire[readNodeName]->to_string();
+					}
 
 					string kminmerSequence = string(seq);
 					free(seq);
@@ -2212,23 +2359,9 @@ public:
 			else {
 				if(orientation){
 
-					char* seq = nullptr;
+					char* seq;
 
-					if(_kminmerSequence_right_multi.find(nodeName) != _kminmerSequence_right_multi.end()){
-						for(const ReadSequence& rs : _kminmerSequence_right_multi[nodeName]){
-							if(rs._readIndex == readIndex){
-								seq = rs._sequence->to_string();
-								break;
-							}
-						}
-					}
 
-					if(seq == nullptr){
-						cout << "No sequence for kminmer" << endl;
-						continue;
-					}
-
-					/*
 					if(_kminmerSequence_right.find(nodeName) != _kminmerSequence_right.end()){
 						if(_kminmerSequence_right[nodeName] == nullptr){
 							cout << "No sequence for kminmer" << endl;
@@ -2238,13 +2371,12 @@ public:
 					}
 					else{
 						ReadNodeName readNodeName = {nodeName, readIndex};
-						if(_kminmerSequence_entire_right.find(readNodeName) == _kminmerSequence_entire_right.end() || _kminmerSequence_entire_right[readNodeName] == nullptr){
+						if(_repeatedKminmerSequence_right.find(readNodeName) == _repeatedKminmerSequence_right.end() || _repeatedKminmerSequence_right[readNodeName] == nullptr){
 							cout << "No sequence for kminmer" << endl;
 							continue;
 						}
-						seq = _kminmerSequence_entire_right[readNodeName]->to_string();
-					//}
-					*/
+						seq = _repeatedKminmerSequence_right[readNodeName]->to_string();
+					}
 
 					string kminmerSequence = string(seq);
 					free(seq);
@@ -2255,23 +2387,9 @@ public:
 				}
 				else{
 					
-					char* seq = nullptr;
+					char* seq;
 
-					if(_kminmerSequence_left_multi.find(nodeName) != _kminmerSequence_left_multi.end()){
-						for(const ReadSequence& rs : _kminmerSequence_left_multi[nodeName]){
-							if(rs._readIndex == readIndex){
-								seq = rs._sequence->to_string();
-								break;
-							}
-						}
-					}
 
-					if(seq == nullptr){
-						cout << "No sequence for kminmer" << endl;
-						continue;
-					}
-
-					/*
 					if(_kminmerSequence_left.find(nodeName) != _kminmerSequence_left.end()){
 						if(_kminmerSequence_left[nodeName] == nullptr){
 							cout << "No sequence for kminmer" << endl;
@@ -2281,13 +2399,12 @@ public:
 					}
 					else{
 						ReadNodeName readNodeName = {nodeName, readIndex};
-						if(_kminmerSequence_entire_left.find(readNodeName) == _kminmerSequence_entire_left.end() || _kminmerSequence_entire_left[readNodeName] == nullptr){
+						if(_repeatedKminmerSequence_left.find(readNodeName) == _repeatedKminmerSequence_left.end() || _repeatedKminmerSequence_left[readNodeName] == nullptr){
 							cout << "No sequence for kminmer" << endl;
 							continue;
 						}
-						seq = _kminmerSequence_entire_left[readNodeName]->to_string();
-					//}
-					*/
+						seq = _repeatedKminmerSequence_left[readNodeName]->to_string();
+					}
 
 					string kminmerSequence = string(seq);
 					free(seq);
@@ -2311,10 +2428,20 @@ public:
 		contigSequence +=  '\n';
 		gzwrite(_basespaceContigFile, (const char*)&contigSequence[0], contigSequence.size());
 
+		//string rleSequence;
+		//vector<u_int64_t> rlePositions;
+		//_encoderRLE.execute(contigSequence.c_str(), contigSequence.size(), rleSequence, rlePositions);
+
+		//rleSequence +=  '\n';
+		//gzwrite(_basespaceContigFile, (const char*)&rleSequence[0], rleSequence.size());
+
+
 		_nbBps += contigSequence.size();
 
 		_contigIndex += 1;
 		
+		//cout << contigSequence.size() << endl;
+
 
 	}
 
@@ -2485,10 +2612,460 @@ public:
 
 
 
-	//MinimizerParser* _minimizerParser;
-	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	/*
+
+	struct ContigOverlap{
+		u_int64_t _contigIndex;
+		vector<u_int64_t> _minimizers;
+		vector<u_int32_t> _nodepath;
+		vector<u_int32_t> _nodepath_sorted;
+	};
+
+
+	static bool ContigOverlapComparator_ByLength(const ContigOverlap &a, const ContigOverlap &b){
+
+		if(a._nodepath.size() == b._nodepath.size()){
+			for(size_t i=0; i<a._nodepath.size() && i<b._nodepath.size(); i++){
+				if(BiGraph::nodeIndex_to_nodeName(a._nodepath[i]) == BiGraph::nodeIndex_to_nodeName(b._nodepath[i])){
+					continue;
+				}
+				else{
+					return BiGraph::nodeIndex_to_nodeName(a._nodepath[i]) > BiGraph::nodeIndex_to_nodeName(b._nodepath[i]);
+				}
+			}
+		}
+
+
+		return a._nodepath.size() > b._nodepath.size();
+	}
+
+
+	vector<ContigOverlap> _overContigs;
+	unordered_map<KmerVec, u_int32_t> _edgesToIndex;
+	u_int32_t _edgeIndex;
+
+	void removeOverlaps(){
+		_edgeIndex = 0;
+		indexEdges();
+		indexContigs();
+		detectOverlaps();
+
+		ofstream outputFile(_inputFilenameContig + ".nooverlaps");
+		
+		for(size_t i=0; i<_overContigs.size(); i++){
+			if(_overContigs[i]._nodepath.size() == 0) continue;
+			
+			u_int32_t contigSize = _overContigs[i]._minimizers.size();
+			outputFile.write((const char*)&contigSize, sizeof(contigSize));
+			outputFile.write((const char*)&_overContigs[i]._minimizers[0], contigSize*sizeof(u_int64_t));
+		}
+		outputFile.close();
+
+		_edgesToIndex.clear();
+		_overContigs.clear();
+
+		_inputFilenameContig = _inputFilenameContig + ".nooverlaps";
+	}
+
+
+	void indexEdges(){
+
+		KminmerParser parser(_inputFilenameContig, _minimizerSize, _kminmerSize-1, false, false);
+		auto fp = std::bind(&ToBasespace::indexEdges_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+		parser.parseMinspace(fp);
+	}
+
+	void indexEdges_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
+
+		
+		for(size_t i=0; i<kminmersInfos.size(); i++){
+			
+			const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
+			KmerVec vec = kminmerInfo._vec;
+
+			if(_edgesToIndex.find(vec) == _edgesToIndex.end()){
+				_edgesToIndex[vec] = _edgeIndex;
+				_edgeIndex += 1;
+			}
+		}
+	}
+
+	void indexContigs(){
+
+		KminmerParser parser(_inputFilenameContig, _minimizerSize, _kminmerSize-1, false, false);
+		auto fp = std::bind(&ToBasespace::indexContigs_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+		parser.parseMinspace(fp);
+	}
+
+	void indexContigs_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
+
+		vector<u_int32_t> nodepath;
+
+		for(size_t i=0; i<kminmersInfos.size(); i++){
+			
+			const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
+			KmerVec vec = kminmerInfo._vec;
+
+			nodepath.push_back(_edgesToIndex[vec]);
+		}
+
+
+		vector<u_int32_t> nodepath_sorted = nodepath;
+		std::sort(nodepath_sorted.begin(), nodepath_sorted.end());
+		_overContigs.push_back({readIndex, readMinimizers, nodepath, nodepath_sorted});
+
+	}
+
+	void detectOverlaps(){
+
+
+		while(true){
+
+			std::sort(_overContigs.begin(), _overContigs.end(), ContigOverlapComparator_ByLength);
+			bool isModification = false;
+
+
+			for(size_t i=0; i<_overContigs.size(); i++){
+				
+				if(_overContigs[i]._nodepath.size() == 0) continue;
+				//if(_invalidContigIndex.find(_contigs[i]._readIndex) != _invalidContigIndex.end()) continue;
+
+				for(long j=_overContigs.size()-1; j>=i+1; j--){
+
+					if(_overContigs[j]._nodepath.size() == 0) continue;
+
+					double nbShared = Utils::computeSharedElements(_overContigs[i]._nodepath_sorted, _overContigs[j]._nodepath_sorted);
+					double sharedRate_1 = nbShared / _overContigs[i]._nodepath_sorted.size();
+					double sharedRate_2 = nbShared / _overContigs[j]._nodepath_sorted.size();
+
+
+					if(sharedRate_2 > 0.75){
+
+						//cout << _overContigs[i]._nodepath_sorted.size() << " " << _overContigs[j]._nodepath_sorted.size() << " " << sharedRate_2 << endl;
+						//_invalidContigIndex.insert(_contigs[j]._readIndex);
+						//break;
+						isModification = true;
+						_overContigs[j]._minimizers.clear();
+						_overContigs[j]._nodepath.clear();
+						_overContigs[j]._nodepath_sorted.clear();
+
+					}
+
+				}
+			}
+
+			for(size_t i=0; i<_overContigs.size(); i++){
+				
+				if(_overContigs[i]._nodepath.size() == 0) continue;
+				//if(_invalidContigIndex.find(_contigs[i]._readIndex) != _invalidContigIndex.end()) continue;
+
+				for(long j=_overContigs.size()-1; j>=i+1; j--){
+
+					if(_overContigs[j]._nodepath.size() == 0) continue;
+					
+					
+					//if(_invalidContigIndex.find(_contigs[j]._readIndex) != _invalidContigIndex.end()) continue;
+
+					unordered_set<u_int32_t> sharedElements;
+					Utils::collectSharedElements(_overContigs[i]._nodepath_sorted, _overContigs[j]._nodepath_sorted, sharedElements);
+
+					if(sharedElements.size() == 0) continue;
+
+
+					isModification = removeOverlap(_overContigs[i]._nodepath, _overContigs[j]._nodepath, sharedElements, true, _overContigs[j]);
+
+					isModification = removeOverlap(_overContigs[i]._nodepath, _overContigs[j]._nodepath, sharedElements, false, _overContigs[j]);
+
+					//if(_overContigs[j]._contigIndex == 1097) getchar();
+
+					//getchar();
+				}
+			}
+
+			if(!isModification) break;
+		}
+
+	}
+
+	bool removeOverlap(const vector<u_int32_t>& nodePath, vector<u_int32_t>& nodePath_shorter, unordered_set<u_int32_t>& sharedElements, bool right, ContigOverlap& contig){
+
+		bool isModification = false;
+
+		if(right){
+			std::reverse(nodePath_shorter.begin(), nodePath_shorter.end());
+		}
+		
+		u_int32_t overlapSize = computeOverlapSize(nodePath, nodePath_shorter, sharedElements);
+		//cout << overlapSize << " " << contig._minimizers.size() << " " << contig._nodepath.size() << " " << contig._nodepath_sorted.size() << endl;
+		//if(overlapSize > 0) overlapSize += 1;
+		//if(right && overlapSize > 0) 
+
+		if(overlapSize > 0){
+			isModification = true;
+			overlapSize += (_kminmerSize-1-1);
+			if(overlapSize >= nodePath_shorter.size()){
+				contig._minimizers.clear();
+				contig._nodepath.clear();
+				contig._nodepath_sorted.clear();
+			}
+			else{
+				nodePath_shorter.erase(nodePath_shorter.begin(), nodePath_shorter.begin() + overlapSize);
+
+				vector<u_int64_t> minimizers = contig._minimizers;
+
+				if(right){
+					std::reverse(minimizers.begin(), minimizers.end());
+				}
+
+				minimizers.erase(minimizers.begin(), minimizers.begin() + overlapSize);
+
+				if(right){
+					std::reverse(minimizers.begin(), minimizers.end());
+					std::reverse(nodePath_shorter.begin(), nodePath_shorter.end());
+				}
+
+				contig._minimizers = minimizers;
+				contig._nodepath = nodePath_shorter;
+				contig._nodepath_sorted.clear();
+				for(u_int32_t index : contig._nodepath){
+					contig._nodepath_sorted.push_back(index);
+				}
+				std::sort(contig._nodepath_sorted.begin(), contig._nodepath_sorted.end());
+
+
+			}
+
+		}
+		else{
+
+			if(right){
+				std::reverse(nodePath_shorter.begin(), nodePath_shorter.end());
+			}
+
+		}
+
+		if(contig._minimizers.size() <= _kminmerSize){
+			contig._minimizers.clear();
+			contig._nodepath.clear();
+			contig._nodepath_sorted.clear();
+			isModification = true;
+		}
+
+
+		return isModification;
+
+	}
+
+	u_int32_t computeOverlapSize(const vector<u_int32_t>& nodePath, const vector<u_int32_t>& nodePath_shorter, unordered_set<u_int32_t>& sharedElements){
+
+		if(sharedElements.size() == 0) return 0;
+
+		size_t uniqueRunLength = 0;
+		bool isUnique = false;
+
+		u_int32_t nonUniquePos = 0;
+
+		for(size_t i=0; i<nodePath_shorter.size(); i++){
+
+			if(sharedElements.find(nodePath_shorter[i]) == sharedElements.end()){
+				if(isUnique) uniqueRunLength += 1;
+				isUnique = true;
+				break;
+			}
+			else{
+				nonUniquePos = (i+1);
+				isUnique = false;
+				uniqueRunLength = 0;
+			}
+
+			if(uniqueRunLength > 0) break;
+
+		}
+
+		//if(nonUniquePos > 0) nonUniquePos += 1;
+		return nonUniquePos;
+	}
+
+
+
+
+
+
+
+
+
+
+
+	gzFile _queryContigFile;
+	unordered_set<u_int32_t> _duplicatedContigIndex;
+
+	void removeDuplicatePost(){
+
+		string outputMappingFilename = _filename_outputContigs + ".map";
+		const string& filenameQuery = _filename_outputContigs + ".query";
+		_queryContigFile = gzopen(filenameQuery.c_str(),"wb");
+		
+
+		auto fp = std::bind(&ToBasespace::dumpSmallContigs_read, this, std::placeholders::_1);
+		ReadParser readParser(_filename_outputContigs, true, false);
+		readParser.parse(fp);
+
+		gzclose(_queryContigFile);
+
+		string command = "minimap2 --idx-no-seq -x map-hifi " + _filename_outputContigs + " " + filenameQuery + " > " + outputMappingFilename;
+		Utils::executeCommand(command);
+
+
+
+		ifstream mappingFile(outputMappingFilename);
+        vector<string>* fields = new vector<string>();
+        vector<string>* fields_optional = new vector<string>();
+
+		string line;
+		while (getline(mappingFile, line)) {
+
+
+            GfaParser::tokenize(line, fields, '\t');
+
+			const string& readName = (*fields)[0];
+			const string& contigName = (*fields)[5];
+			if(readName == contigName) continue;
+
+			//u_int64_t queryLength = stoull((*fields)[1]);
+			u_int64_t targetLength = stoull((*fields)[6]);
+			double queryLength = stoull((*fields)[1]);
+
+			if(targetLength < queryLength) continue;
+
+			u_int64_t nbMatches = stoull((*fields)[9]);
+			double alignLength = stoull((*fields)[10]);
+
+			if(alignLength / queryLength < 0.95) continue;
+
+			for(size_t i=12; i<fields->size(); i++){
+
+				//cout << (*fields)[i] << endl;
+
+				GfaParser::tokenize((*fields)[i], fields_optional, ':');
+
+				if((*fields_optional)[0] == "dv"){
+					float divergence = std::stof((*fields_optional)[2]);
+
+					//cout << (*fields_optional)[2] << endl;
+					//cout << contigName << " " << readName << " " << (alignLength/queryLength*100) << " " << (divergence*100) << "     " << queryLength << " " << targetLength << endl;
+					if(divergence < 0.05){
+						string name = readName;
+						size_t pos = name.find("ctg");
+						name.erase(pos, 3);
+						u_int32_t contigIndex = stoull(name);
+						//cout << "Duplicate: " << contigIndex << endl;
+
+						_duplicatedContigIndex.insert(contigIndex);
+					}
+				}
+
+			}
+
+			//getchar();
+		}
+
+		mappingFile.close();
+
+		dumpDereplicatedContigs();
+
+		fs::remove(_inputDir + "/contig_data.txt");
+		fs::rename(_inputDir + "/contig_data_derep.txt", _inputDir + "/contig_data.txt");
+	}
+
+
+	void dumpSmallContigs_read(const Read& read){
+		
+		//cout << read._seq.size() << endl;
+		if(read._seq.size() > _meanReadLength*3) return;
+
+		string header = ">" + read._header + '\n';
+		gzwrite(_basespaceContigFile, (const char*)&header[0], header.size());
+		string contigSequence = read._seq + '\n';
+		gzwrite(_basespaceContigFile, (const char*)&contigSequence[0], contigSequence.size());
+		
+	}
+
+	ofstream _outputContigFileDerep;
+
+	void dumpDereplicatedContigs(){
+
+		string contigFilename = _inputDir + "/contig_data_derep.txt";
+		_outputContigFileDerep = ofstream(contigFilename);
+
+		KminmerParser parser(_inputFilenameContig, _minimizerSize, _kminmerSize, false, false);
+		auto fp = std::bind(&ToBasespace::dumpDereplicatedContigs_read, this, std::placeholders::_1, std::placeholders::_2);
+		parser.parseSequences(fp);
+
+		_outputContigFileDerep.close();
+
+	}
+
+	void dumpDereplicatedContigs_read(const vector<u_int64_t>& readMinimizers, u_int64_t readIndex){
+		
+		if(_duplicatedContigIndex.find(readIndex) != _duplicatedContigIndex.end()) return;
+
+		u_int32_t contigSize = readMinimizers.size();
+		_outputContigFileDerep.write((const char*)&contigSize, sizeof(contigSize));
+		_outputContigFileDerep.write((const char*)&readMinimizers[0], contigSize*sizeof(u_int64_t));
+
+		//cout << "Dump: " << readIndex << " " << readMinimizers.size() << endl;
+	}
+	*/
 
 };	
+
 
 
 #endif 
