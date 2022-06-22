@@ -2093,13 +2093,16 @@ public:
 		for(size_t i=0; i<kminmersInfos.size(); i++){
 			
 			u_int64_t readIndex = supportingReads[i];
+			if(readIndex == -1){
+				cout << "No sequence for kminmer: " << readIndex << endl;
+			}
 			//cout << i << endl;
 			const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
 
 			KmerVec vec = kminmerInfo._vec;
 			
 			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
-				cout << "Not found" << endl;
+				cout << "Not found node name" << endl;
 				continue;
 			}
 
