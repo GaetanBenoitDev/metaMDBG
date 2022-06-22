@@ -676,7 +676,7 @@ public:
 	}
 	
 
-	unordered_set<u_int32_t> _invalidContigIndex;
+	//unordered_set<u_int32_t> _invalidContigIndex;
 
 	void loadContigs_min(const string& contigFilename){
 
@@ -690,7 +690,7 @@ public:
 	void loadContigs_min_read2(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
 
 		//cout << kminmersInfos.size() << " " << (_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) << endl;
-		if(_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) return;
+		//if(_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) return;
 		double s = 0;
 		for(size_t i=0; i<kminmersInfos.size(); i++){
 			
@@ -786,7 +786,7 @@ public:
 	
 	void collectBestSupportingReads_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
 
-		if(_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) return;
+		//if(_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) return;
 
 		//cout << "----------------------" << endl;
 		vector<u_int64_t> supportingReads;
@@ -1356,26 +1356,29 @@ public:
 				bool isLeft = false;
 				bool isRight = false;
 
-				if(_toBasespace._kminmerSequence_entire_multi.find(nodeName) != _toBasespace._kminmerSequence_entire_multi.end()){
-					for(const ReadSequence& rs : _toBasespace._kminmerSequence_entire_multi[nodeName]){
-						if(rs._readIndex == readIndex){
-							isEntire = true;
+				#pragma omp critical(indexKminmer)
+				{
+					if(_toBasespace._kminmerSequence_entire_multi.find(nodeName) != _toBasespace._kminmerSequence_entire_multi.end()){
+						for(const ReadSequence& rs : _toBasespace._kminmerSequence_entire_multi[nodeName]){
+							if(rs._readIndex == readIndex){
+								isEntire = true;
+							}
 						}
 					}
-				}
 
-				if(_toBasespace._kminmerSequence_left_multi.find(nodeName) != _toBasespace._kminmerSequence_left_multi.end()){
-					for(const ReadSequence& rs : _toBasespace._kminmerSequence_left_multi[nodeName]){
-						if(rs._readIndex == readIndex){
-							isLeft = true;
+					if(_toBasespace._kminmerSequence_left_multi.find(nodeName) != _toBasespace._kminmerSequence_left_multi.end()){
+						for(const ReadSequence& rs : _toBasespace._kminmerSequence_left_multi[nodeName]){
+							if(rs._readIndex == readIndex){
+								isLeft = true;
+							}
 						}
 					}
-				}
 
-				if(_toBasespace._kminmerSequence_right_multi.find(nodeName) != _toBasespace._kminmerSequence_right_multi.end()){
-					for(const ReadSequence& rs : _toBasespace._kminmerSequence_right_multi[nodeName]){
-						if(rs._readIndex == readIndex){
-							isRight = true;
+					if(_toBasespace._kminmerSequence_right_multi.find(nodeName) != _toBasespace._kminmerSequence_right_multi.end()){
+						for(const ReadSequence& rs : _toBasespace._kminmerSequence_right_multi[nodeName]){
+							if(rs._readIndex == readIndex){
+								isRight = true;
+							}
 						}
 					}
 				}
@@ -1494,7 +1497,7 @@ public:
 			bool isRepeated = false;
 			bool cancel = false;
 			
-			#pragma omp critical
+			#pragma omp critical(indexKminmer)
 			{
 				
 				if(_collectModel){
@@ -2075,7 +2078,7 @@ public:
 
 	void createBaseContigs_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
 
-		if(_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) return;
+		//if(_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) return;
 
 		vector<u_int64_t> supportingReads;
 		u_int32_t size;
@@ -2172,6 +2175,7 @@ public:
 					if(_kminmerSequence_entire_multi.find(nodeName) != _kminmerSequence_entire_multi.end()){
 						for(const ReadSequence& rs : _kminmerSequence_entire_multi[nodeName]){
 							if(rs._readIndex == readIndex){
+
 								seq = rs._sequence->to_string();
 								break;
 							}
