@@ -2095,7 +2095,9 @@ public:
 			u_int64_t readIndex = supportingReads[i];
 			if(readIndex == -1){
 				cout << "No sequence for kminmer: " << readIndex << endl;
+				continue;
 			}
+			
 			//cout << i << endl;
 			const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
 
