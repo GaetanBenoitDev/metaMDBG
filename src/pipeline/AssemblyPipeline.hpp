@@ -180,7 +180,7 @@ public:
 
 		//Read selection
 		command = _filename_exe + " readSelection -i " + _inputFilename + " -o " + _inputDir + " -f " + _inputDir + "/read_data_init.txt" + " -t " + to_string(_nbCores);
-		//Utils::executeCommand(command);
+		Utils::executeCommand(command);
 		
 
 		u_int64_t pass = 0;
