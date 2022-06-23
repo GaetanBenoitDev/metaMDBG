@@ -180,7 +180,7 @@ public:
 
 		//Read selection
 		command = _filename_exe + " readSelection -i " + _inputFilename + " -o " + _inputDir + " -f " + _inputDir + "/read_data_init.txt" + " -t " + to_string(_nbCores);
-		Utils::executeCommand(command);
+		//Utils::executeCommand(command);
 		
 
 		u_int64_t pass = 0;
@@ -341,6 +341,7 @@ public:
 			command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/contigs.nodepath" + " -f " + _inputDir + "/unitig_data.txt";
 			Utils::executeCommand(command);
 
+			//getchar();
 		}	
 			
 		savePassData(k);
@@ -400,6 +401,8 @@ public:
 			if(fs::exists(_inputDir + "/read_path_cleaned.txt")) fs::copy(_inputDir + "/read_path_cleaned.txt", dir + "/read_path_cleaned.txt");
 		}
 		//fs::copy(_inputDir + "/mdbg_nodes_init.gz", dir + "/mdbg_nodes_init.gz", copyOptions);
+
+		//fs::copy(_inputDir + "/unitig_data.txt", dir + "/unitig_data.txt"); //Debug
 	}
 
 

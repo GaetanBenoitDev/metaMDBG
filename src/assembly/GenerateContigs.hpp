@@ -163,7 +163,7 @@ public:
 		loadGraph();
 		//generateUnitigs();
 		generateContigs2(_inputDir + "/contigs.nodepath");
-
+		//exit(1);
 		
 		//if(_kminmerSize == 4){
 			_mdbg = new MDBG(_kminmerSize);
@@ -225,6 +225,9 @@ public:
 		ifstream kminmerFile(_inputDir + "/kminmerData_min.txt");
         _graph->_graphSuccessors->_nodeDatas.resize(_graph->_graphSuccessors->_nbNodes/2, {0, 0, 0});
 
+		u_int64_t abSum = 0;
+		u_int64_t qualSum = 0;
+
 		while (true) {
 
 			vector<u_int64_t> minimizerSeq;
@@ -242,6 +245,11 @@ public:
 			kminmerFile.read((char*)&abundance, sizeof(abundance));
 			kminmerFile.read((char*)&quality, sizeof(quality));
 
+			abSum += abundance;
+			qualSum += quality;
+
+			//cout << nodeName << " " << abSum << endl;
+
 			//cout << nodeName << " " << abundance << " " << quality << endl;
 			//if(quality == 0){
 			//	cout << quality << endl;
@@ -255,6 +263,9 @@ public:
 			//_graph->_graphSuccessors->_nodeLengths[nodeName] = _kminmerLengthMean;
 			//_kminmerAbundances[vec] = abundance;
 		}
+
+		//cout << abSum << " " << qualSum << endl;
+		//getchar();
 
 		kminmerFile.close();
 

@@ -693,6 +693,8 @@ void Bloocoo::computeDeterministicNodeNames(){
 		kminmerFileOut.write((const char*)&abundance, sizeof(abundance));
 		kminmerFileOut.write((const char*)&quality, sizeof(quality));
 
+		//cout << nodeName << " " <<  abundance << endl;
+		
 		//if(minimizerSeq[0] == 7892019983131394 && minimizerSeq[1] == 62446187524336769 && minimizerSeq[2] == 47730431539434127 && minimizerSeq[3] == 90993437045220547){
 		//	cout << nodeName << endl;
 		//	getchar();
