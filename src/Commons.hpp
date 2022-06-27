@@ -19,11 +19,12 @@
 #include <filesystem>
 #include <cmath>
 #include "./utils/ArgParse.hpp"
+#include "./utils/args.hxx"
 #include <random>
 #include <chrono>
 #include "utils/parallel_hashmap/phmap.h"
 #include "utils/kmer/Kmer.hpp"
-//#include <omp.h>
+#include <omp.h>
 namespace fs = std::filesystem;
 using namespace std::chrono;
 //namespace fs = std::filesystem;
@@ -102,8 +103,22 @@ const string ARG_NB_CORES = "t";
 const string ARG_EVAL = "eval";
 const string ARG_BLOOM_FILTER = "bf";
 
-const string NB_CORES_DEFAULT = "8";
+const string NB_CORES_DEFAULT = "3";
 const string FILENAME_NO_KMINMER_READS = "reads_noKminmers.bin";
+
+
+
+
+const char ARG_INPUT_FILENAME2 = 'i';
+const char ARG_OUTPUT_DIR2 = 'o';
+const char ARG_OUTPUT_FILENAME2 = 'f';
+const char ARG_MINIMIZER_LENGTH2 = 'l';
+const char ARG_KMINMER_LENGTH2 = 'k';
+const char ARG_MINIMIZER_DENSITY2 = 'd';
+const char ARG_INPUT_FILENAME_CONTIG2 = 'c';
+const char ARG_INPUT_FILENAME_ABUNDANCE2 = 'a';
+const char ARG_NB_CORES2 = 't';
+
 
 struct UnitigData{
 	u_int32_t _index;

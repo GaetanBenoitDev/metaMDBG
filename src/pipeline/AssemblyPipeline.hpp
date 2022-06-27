@@ -37,6 +37,76 @@ public:
 
 	void parseArgs(int argc, char* argv[]){
 
+		args::ArgumentParser parser("", ""); //"This is a test program.", "This goes after the options."
+		args::Positional<std::string> arg_outputDir(parser, "outputDir", "Output dir", args::Options::Required);
+		args::PositionalList<std::string> arg_readFilenames(parser, "reads", "Input filename(s) (separated by space)", args::Options::Required);
+		args::ValueFlag<int> arg_l(parser, "", "Minimizer length", {ARG_MINIMIZER_LENGTH2}, 13);
+		args::ValueFlag<float> arg_d(parser, "", "Minimizer density", {ARG_MINIMIZER_DENSITY2}, 0.005f);
+		args::ValueFlag<int> arg_nbCores(parser, "", "Number of cores", {ARG_NB_CORES2}, 3);
+		args::Flag arg_bf(parser, "", "Filter unique erroneous k-minmers", {ARG_BLOOM_FILTER});
+		args::Flag arg_help(parser, "", "", {'h', "help"}, args::Options::Hidden);
+		//args::HelpFlag help(parser, "help", "Display this help menu", {'h'});
+		//args::CompletionFlag completion(parser, {"complete"});
+
+		//(ARG_INPUT_FILENAME_TRUTH, "", cxxopts::value<string>()->default_value(""))
+		//(ARG_MINIMIZER_LENGTH, "", cxxopts::value<int>()->default_value("13"))
+		//(ARG_MINIMIZER_DENSITY, "", cxxopts::value<float>()->default_value("0.005"))
+		//(ARG_NB_CORES, "", cxxopts::value<int>()->default_value(NB_CORES_DEFAULT))
+		//(ARG_BLOOM_FILTER, "", cxxopts::value<bool>()->default_value("false"));
+
+		try
+		{
+			parser.ParseCLI(argc, argv);
+		}
+		catch (const args::Help&)
+		{
+			std::cout << parser;
+			exit(0);
+		}
+		catch (const std::exception& e)
+		{
+			std::cout << parser;
+			//cout << endl;
+			std::cout << e.what() << endl;
+			exit(0);
+		}
+
+		if(arg_help){
+			std::cout << parser;
+			exit(0);
+		}
+
+		_inputDir = args::get(arg_outputDir);
+		_minimizerSize = args::get(arg_l);
+		_minimizerDensity = args::get(arg_d);
+		_nbCores = args::get(arg_nbCores);
+
+		_useBloomFilter = false;
+		if(arg_bf){
+			_useBloomFilter = true;
+		}
+
+		createInputFile(args::get(arg_readFilenames));
+		//if (arg_l) { 
+		//}
+
+		/*
+		catch (const args::Help&)
+		{
+			std::cout << parser;
+			exit(0);
+		}
+		catch (const args::ParseError& e)
+		{
+			//std::cerr << e.what() << std::endl;
+			//std::cerr << parser;
+			std::cout << parser;
+			std::exit(EXIT_FAILURE);
+		}
+		*/
+		//return 0;
+
+		/*
 		cxxopts::Options options("AssemblyPipeline", "");
 		options.add_options()
 		//("d,debug", "Enable debugging") // a bool parameter
@@ -48,7 +118,7 @@ public:
 		(ARG_INPUT_FILENAME_TRUTH, "", cxxopts::value<string>()->default_value(""))
 		(ARG_MINIMIZER_LENGTH, "", cxxopts::value<int>()->default_value("13"))
 		(ARG_MINIMIZER_DENSITY, "", cxxopts::value<float>()->default_value("0.005"))
-		(ARG_NB_CORES, "", cxxopts::value<int>()->default_value("4"))
+		(ARG_NB_CORES, "", cxxopts::value<int>()->default_value(NB_CORES_DEFAULT))
 		(ARG_BLOOM_FILTER, "", cxxopts::value<bool>()->default_value("false"));
 		//(ARG_KMINMER_LENGTH, "", cxxopts::value<int>()->default_value("3"))
 		//("k,kminmerSize", "File name", cxxopts::value<std::string>())
@@ -99,6 +169,9 @@ public:
 			std::cerr << e.what() << std::endl;
 			std::exit(EXIT_FAILURE);
 		}
+		*/
+
+
 
         fs::path path(_inputDir);
 	    if(!fs::exists (path)) fs::create_directories(path); 
@@ -117,7 +190,7 @@ public:
 
 
 		//if(!System::file().doesExist (_outputDir)) System::file().mkdir(_outputDir, -1);
-		
+		//createInputFile();
 
 		cout << endl;
 		cout << "Input: " << _inputFilename << endl;
@@ -325,7 +398,7 @@ public:
 			Utils::executeCommand(command);
 
 			//getchar();
-			command = _filename_exe + " polish " + _inputDir + "/contigs_" + to_string(k) + ".fasta.gz " + _inputFilename + " -t " + to_string(_nbCores) + " --qual ";
+			command = _filename_exe + " polish " + _inputDir + "/contigs_" + to_string(k) + ".fasta.gz " + _inputFilename + " " + _inputDir + " -t " + to_string(_nbCores) + " --qual ";
 			Utils::executeCommand(command);
 			//generatedContigs = true;
 		}
@@ -429,6 +502,27 @@ public:
 		gzclose(file_parameters);
 	}
 
+	void createInputFile(auto& paths){
+
+		//string inputFilenames = _inputFilename;
+		_inputFilename = _inputDir + "/input.txt";
+		ofstream inputFile(_inputFilename);
+
+		//cout << inputFilenames << endl;
+		//vector<string>* fields = new vector<string>();
+		//GfaParser::tokenize(inputFilenames, fields, ',');
+
+		for(auto &&path : paths){
+			//string filenameAbs = fs::absolute(filename);
+			cout << path << endl; //" " << fs::canonical(filename) << " " << fs::weakly_canonical(filename) << endl;
+			inputFile << path << endl;
+		}
+
+		//delete fields;
+		inputFile.close();
+
+
+	}
 	/*
 	void createInputFile(bool useContigs){
 		_inputFilenameComplete = _inputDir + "/input.txt";

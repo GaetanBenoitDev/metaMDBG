@@ -1186,7 +1186,7 @@ public:
 				//cout << u._nbNodes  << " " << u._startNode << " " <<  u._endNode << endl;
 				
 
-
+				/*
 				bool isCircular = false;
 				if(_isFinalAssembly){
 					if(u._startNode == u._endNode){ //Circular
@@ -1205,6 +1205,8 @@ public:
 
 					}
 				}
+				
+				*/
 				
 				/*
 				if(nodePath.size() <= 1){

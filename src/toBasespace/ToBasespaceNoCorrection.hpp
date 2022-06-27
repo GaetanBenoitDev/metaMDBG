@@ -738,7 +738,7 @@ public:
 
 
 
-
+	/*
 	struct ContigOverlap{
 		u_int64_t _contigIndex;
 		vector<u_int64_t> _minimizers;
@@ -763,7 +763,6 @@ public:
 
 		return a._nodepath.size() > b._nodepath.size();
 	}
-
 
 	vector<ContigOverlap> _overContigs;
 	unordered_map<KmerVec, u_int32_t> _edgesToIndex;
@@ -863,36 +862,7 @@ public:
 			std::sort(_overContigs.begin(), _overContigs.end(), ContigOverlapComparator_ByLength);
 			bool isModification = false;
 
-			/*
-			for(size_t i=0; i<_overContigs.size(); i++){
-				
-				if(_overContigs[i]._nodepath.size() == 0) continue;
-				//if(_invalidContigIndex.find(_contigs[i]._readIndex) != _invalidContigIndex.end()) continue;
 
-				for(long j=_overContigs.size()-1; j>=i+1; j--){
-
-					if(_overContigs[j]._nodepath.size() == 0) continue;
-
-					double nbShared = Utils::computeSharedElements(_overContigs[i]._nodepath_sorted, _overContigs[j]._nodepath_sorted);
-					double sharedRate_1 = nbShared / _overContigs[i]._nodepath_sorted.size();
-					double sharedRate_2 = nbShared / _overContigs[j]._nodepath_sorted.size();
-
-
-					if(sharedRate_2 > 0.75){
-
-						//cout << _overContigs[i]._nodepath_sorted.size() << " " << _overContigs[j]._nodepath_sorted.size() << " " << sharedRate_2 << endl;
-						//_invalidContigIndex.insert(_contigs[j]._readIndex);
-						//break;
-						isModification = true;
-						_overContigs[j]._minimizers.clear();
-						_overContigs[j]._nodepath.clear();
-						_overContigs[j]._nodepath_sorted.clear();
-
-					}
-
-				}
-			}
-			*/
 
 			for(size_t i=0; i<_overContigs.size(); i++){
 				
@@ -923,37 +893,7 @@ public:
 						}
 					}
 					cout << endl;
-					/*
-					if(removeOverlap(_overContigs[i]._nodepath, _overContigs[j]._nodepath, sharedElements, true, _overContigs[j])){
-						isModification = true;
-					}*/
-					/*
-					cout << _overContigs[j]._contigIndex << endl;
-					for(u_int32_t nodeName : _overContigs[j]._nodepath){
-						if(sharedElements.find(nodeName) == sharedElements.end()){
-							cout << "0";
-						}
-						else{
-							cout << "1";
-						}
-					}
-					cout << endl;
-					*/
-					/*
-					if(removeOverlap(_overContigs[i]._nodepath, _overContigs[j]._nodepath, sharedElements, false, _overContigs[j])){
-						isModification = true;
-					}*/
-					/*
-					for(u_int32_t nodeName : _overContigs[j]._nodepath){
-						if(sharedElements.find(nodeName) == sharedElements.end()){
-							cout << "0";
-						}
-						else{
-							cout << "1";
-						}
-					}
-					cout << endl;
-					*/
+
 					//if(_overContigs[j]._contigIndex == 1097) getchar();
 
 					//getchar();
@@ -1010,14 +950,7 @@ public:
 				}
 				std::sort(contig._nodepath_sorted.begin(), contig._nodepath_sorted.end());
 
-				/*
-				component.clear();
-				for(u_int32_t nodeIndex : nodePath){
-					component.push_back(BiGraph::nodeIndex_to_nodeName(nodeIndex));
-				}
-				std::sort(component.begin(), component.end());
-				Utils::collectSharedElements(contig._nodePath_sorted, component, sharedElements);
-				*/
+
 			}
 
 		}
@@ -1071,7 +1004,7 @@ public:
 		return nonUniquePos;
 	}
 
-
+	*/
 
 
 

@@ -283,10 +283,16 @@ public:
 
 	static bool BubbleSideComparator(const BubbleSide &a, const BubbleSide &b){
 
-        if(a._quality == b._quality){
+        if(a._nbNodes == b._nbNodes){
             return a._nodeIndexSum > b._nodeIndexSum;
         }
-        return a._quality > b._quality;
+        return a._nbNodes > b._nbNodes;
+
+        //if(a._quality == b._quality){
+        //    return a._nodeIndexSum > b._nodeIndexSum;
+        //}
+        //return a._quality > b._quality;
+
         //if(a._startNodeIndex == b._startNodeIndex){
         //    return a._length < b._length;
         //}
@@ -1933,6 +1939,7 @@ public:
         //https://arxiv.org/pdf/1307.7925.pdf
         u_int32_t detectSuperbubble(u_int32_t unitigIndex_source, u_int64_t maxLength, vector<bool>& isBubble){
 
+            //if(8236239 == _unitigs[unitigIndex_source]._startNode) cout << "Source: " << _unitigs[unitigIndex_source]._startNode << endl;
             //disconnectSubGraph(_unitigs[unitigIndex_source]._endNode);
 
             unordered_set<u_int32_t> isVisited;
@@ -1946,7 +1953,7 @@ public:
             while(queue.size() > 0){
                 u_int32_t v = queue[queue.size()-1];
 
-                //cout << _unitigs[v]._startNode << " " << pathLength[v] << endl;
+                //if(8236239 == _unitigs[unitigIndex_source]._startNode) cout << "\t" << _unitigs[v]._startNode << " " << pathLength[v] << endl;
                 //cout << "\tVisited: " << BiGraph::nodeIndex_to_nodeName(_unitigs[v]._startNode) << " " << BiGraph::nodeIndex_to_nodeName(_unitigs[v]._endNode) << endl;
                 queue.pop_back();
 
@@ -1954,7 +1961,8 @@ public:
                 //cout << pathLength[v] << " " << _kminmerSize << endl;
                 if(pathLength[v] > maxLength){
                     //cout << "exit 1" << endl;
-                    continue;
+                    return -1;
+                    //continue;
                 }
 
                 isVisited.insert(v);
@@ -2198,10 +2206,17 @@ public:
                 vector<u_int32_t> successors;
                 _graph->getSuccessors_unitig(unitigIndex, 0, successors);
 
+                //cout << _unitigs[unitigIndex]._startNode << endl;
+
                 vector<u_int32_t> maxAbNodes;
                 float maxAbundance = 0;
                 u_int32_t maxV = -1;
                 for(u_int32_t v : successors){
+                    //cout << "\t" << _unitigs[v]._abundance << endl;
+                    //for(u_int32_t nodeIndex : _unitigs[v]._nodes){
+                    //    cout << nodeIndex << " ";
+                    //}
+                    //cout << endl;
                     if(_unitigs[v]._abundance == maxAbundance){
                         maxAbNodes.push_back(v);
                     }
@@ -2244,6 +2259,7 @@ public:
 
                     unitigIndex = bubbleSides[0]._unitigIndex;
 
+                    //cout << "Keep node: " << _unitigs[unitigIndex]._startNode << endl;
                     //cout << _unitigs[unitigIndex]._nbNodes;
                     //getchar();
                 }
@@ -2282,7 +2298,7 @@ public:
                     keepNodes.insert(nodeIndex);
                     //keepNodes.insert(nodeIndex_toReverseDirection(nodeIndex));
                     //if(print_superbubble){
-                    //    cout << "keep node: " << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
+                    //cout << "keep node: " << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
                     //}
                     //keepNodes.insert(nodeIndex_toReverseDirection(nodeIndex));
                 }
@@ -2458,7 +2474,7 @@ public:
                         if(!__debug_lala){
                             if(sw._nodeIndexRemoved.size() > 0){
                                 cout << "\t" << sw._readIndex << endl;
-                                cout << "\t\tCrush bubble: " << sw._nodeIndexRemoved[0] << endl;
+                                cout << "\t\tCrush bubble: " << sw._nodeIndexRemoved[0] << endl;// << " " << std::fixed << " " << getChecksumGlobal_nbUtg(removedNodes) << endl;
                                 unordered_set<u_int32_t> utgs;
                                 for(u_int32_t nodeIndex : sw._nodeIndexRemoved){
                                     utgs.insert(nodeIndex_to_unitigIndex(nodeIndex));
@@ -2466,13 +2482,16 @@ public:
                                 }
 
                                 cout << "\t\t" << utgs.size() << endl;
-                                for(u_int32_t unitigIndex: utgs){
+                                
+                                //for(u_int32_t unitigIndex: utgs){
                                     //cout << "\t\t" << unitigIndex << " " << _unitigs[unitigIndex]._nbNodes << endl;
-                                }
+                                //}
                                 //getchar();
                             }
                         }
                         */
+                        
+                        
                         
                         
                         
@@ -2493,20 +2512,23 @@ public:
                         //if(1122 == sw._readIndex) getchar();
                     }
                     
-                
-                    //if(!__debug_lala){
-                      //  if(sw._nodeIndexRemoved.size() > 0 && 956020 == sw._nodeIndexRemoved[0]) getchar();
-                        /*
-                        if(_nextReadIndexWriter % 10000 == 0){
-                            cout << _nextReadIndexWriter << endl;
-                            double lala = getChecksumGlobal_nbUtg(removedNodes);
-                            //cout << "Bubble: " << getChecksumGlobal_nbUtg(removedNodes) << endl;
-                            //getchar();
-                            cout << "\t" << lala << endl;
-                            if(lala < 828230)  getchar();
-                        }*/
+                    /*
+                    if(!__debug_lala){
+                        //if(sw._nodeIndexRemoved.size() > 0 && 897358 == sw._nodeIndexRemoved[0]) getchar();
+                        
+                        if(_nextReadIndexWriter % 100000 == 0){
+                        //    cout << _nextReadIndexWriter << endl;
+                        //    double lala = getChecksumGlobal_nbUtg(removedNodes);
+                            cout << "Bubble: " << std::fixed << " " << getChecksumGlobal_nbUtg(removedNodes) << endl;
+                                //cout << getNodeUnitigAbundance(894141) << endl;
+                                //getchar();
+                               // getchar();
+                        //    cout << "\t" << lala << endl;
+                        //    if(lala < 828230)  getchar();
+                        }
                         //cout << getChecksumGlobal_nbUtg(removedNodes) << endl;
-                    //}
+                    }
+                    */
                     
 
                     _readWriterQueue.pop();
@@ -5168,6 +5190,8 @@ public:
         */
 
 
+        //cout << _graphSuccessors->_nodeDatas[BiGraph::nodeIndex_to_nodeName(894141)]._abundance << endl;
+        //getchar();
         cout << "Cleaning graph" << endl;
         
         u_int64_t maxBubbleLength;
@@ -5407,6 +5431,8 @@ public:
                             isModification = true;
                             isModSub = true;
                             isModBubble = true;
+
+
                         }
                         //cout << "Nb nodes valid: " << _isNodeValid2.size() << endl;
                         
@@ -6054,7 +6080,6 @@ public:
 
     void checkSaveState(float currentCutoff, const vector<UnitigData>& unitigDatas, bool detectRoundabout, u_int64_t maxBubbleLength, SaveState2& currentSaveState, bool insertBubble, bool doesSaveUnitigGraph, MDBG* mdbg, size_t minimizerSize, size_t nbCores){
         
-        cout << "saving state" << endl;
         bool saveStateExist = false;
         for(const SaveState2& saveState : _cachedGraphStates){
             if(currentCutoff == saveState._abundanceCutoff_min){
@@ -6070,6 +6095,9 @@ public:
         //getchar();
         if(!saveStateExist){
 
+            cout << "saving state: " << currentCutoff << endl;
+
+            //getchar();
             compact(true, unitigDatas);
             if(doesSaveUnitigGraph && currentCutoff == 0) saveUnitigGraph(_outputDir + "/minimizer_graph_u_cleaned.gfa", mdbg, minimizerSize, nbCores, true);
             /*

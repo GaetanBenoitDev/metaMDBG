@@ -144,6 +144,8 @@ public:
 		
 			//getchar();
 		}
+		
+		removeOverlapsSelf();
 
 		ofstream outputFile(_inputFilenameContig + ".nooverlaps");
 		u_int64_t nbContigs = 0;
@@ -257,6 +259,43 @@ public:
 
 
 
+	void removeOverlapsSelf(){
+
+		//isContigRemoved.resize(_contigs.size(), false);
+		cout << "Removing self overlaps: " << _contigs.size()<< endl;
+
+		//while(true){
+
+			
+			//cout << "loop" << endl;
+
+		//std::sort(_contigs.begin(), _contigs.end(), ContigComparator_ByLength);
+		//bool isModification = false;
+
+		
+		for(long i=0; i<_contigs.size(); i++){
+
+			Contig& contig = _contigs[i];
+			cout << "---------------------" << endl;
+			cout << i << " " << contig._minimizers.size() << endl;
+
+			if(contig._minimizers.size() == 0) continue;
+
+			long n = longestPrefixSuffix(contig)-1;
+
+			if(n <= 0) continue;
+			
+
+			cout << "lala1: " << n << endl;
+			
+			contig._kminmers.resize(contig._kminmers.size()-n);
+			//cout << contig._minimizers.size() << endl;
+			contig._minimizers.resize(contig._minimizers.size()-n);
+
+			cout << "lala2: " << longestPrefixSuffix(contig) << endl;
+		}
+	}
+
 	bool removeOverlaps(){
 
 		//isContigRemoved.resize(_contigs.size(), false);
@@ -278,6 +317,8 @@ public:
 			//cout << i << " " << contig._minimizers.size() << endl;
 
 			if(contig._minimizers.size() == 0) continue;
+
+
 
 			//cout << "-------" << endl;
 			//for(u_int32_t nodeName : contig._kminmers){
@@ -421,8 +462,8 @@ public:
 			vector<KminmerIndex> nextContigIndex;
 
 			for(const KminmerIndex& mIndex : _kminmerIndex[contig._kminmers[p]]){
-				if(mIndex._contigIndex == contig._contigIndex) continue;
 				if(mIndex._contigIndex == -1) continue;
+				if(mIndex._contigIndex == contig._contigIndex) continue;
 
 				if(p == 0){
 					//validContigIndex.insert(mIndex._contigIndex);
@@ -560,6 +601,57 @@ public:
 		}
 
 		return overlapSize;
+	}
+
+
+	long longestPrefixSuffix(const Contig& contig)
+	{
+		int n = contig._minimizers.size();
+	
+		int lps[n];
+		lps[0] = 0; // lps[0] is always 0
+	
+		// length of the previous
+		// longest prefix suffix
+		int len = 0;
+	
+		// the loop calculates lps[i]
+		// for i = 1 to n-1
+		int i = 1;
+		while (i < n)
+		{
+			if (contig._minimizers[i] == contig._minimizers[len])
+			{
+				len++;
+				lps[i] = len;
+				i++;
+			}
+			else // (pat[i] != pat[len])
+			{
+				// This is tricky. Consider
+				// the example. AAACAAAA
+				// and i = 7. The idea is
+				// similar to search step.
+				if (len != 0)
+				{
+					len = lps[len-1];
+	
+					// Also, note that we do
+					// not increment i here
+				}
+				else // if (len == 0)
+				{
+					lps[i] = 0;
+					i++;
+				}
+			}
+		}
+	
+		int res = lps[n-1];
+	
+		// Since we are looking for
+		// non overlapping parts.
+		return (res > n/2)? res/2 : res;
 	}
 
 };	
