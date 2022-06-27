@@ -86,6 +86,11 @@ public:
 			_useBloomFilter = true;
 		}
 
+
+
+        fs::path path(_inputDir);
+	    if(!fs::exists (path)) fs::create_directories(path); 
+		
 		createInputFile(args::get(arg_readFilenames));
 		//if (arg_l) { 
 		//}
@@ -172,9 +177,6 @@ public:
 		*/
 
 
-
-        fs::path path(_inputDir);
-	    if(!fs::exists (path)) fs::create_directories(path); 
 
 		//T exception{text};
 
