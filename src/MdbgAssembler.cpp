@@ -1,4 +1,4 @@
-#include "Bloocoo.hpp"
+#include "graph/CreateMdbg.hpp"
 #include "assembly/Assembly2.hpp"
 #include "assembly/Assembly3.hpp"
 #include "assembly/GenerateContigs.hpp"
@@ -85,7 +85,7 @@ int main (int argc, char* argv[])
                 ReadSelection().run (argc, args);
     		}
     		else if(programName == "graph"){
-                Bloocoo().run (argc, args);
+                CreateMdbg().run (argc, args);
     		}
     		else if(programName == "binPass"){
                 Assembly2().run (argc, args);

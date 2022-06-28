@@ -42,7 +42,7 @@ public:
 		args::PositionalList<std::string> arg_readFilenames(parser, "reads", "Input filename(s) (separated by space)", args::Options::Required);
 		args::ValueFlag<int> arg_l(parser, "", "Minimizer length", {ARG_MINIMIZER_LENGTH2}, 13);
 		args::ValueFlag<float> arg_d(parser, "", "Minimizer density", {ARG_MINIMIZER_DENSITY2}, 0.005f);
-		args::ValueFlag<int> arg_nbCores(parser, "", "Number of cores", {ARG_NB_CORES2}, 3);
+		args::ValueFlag<int> arg_nbCores(parser, "", "Number of cores", {ARG_NB_CORES2}, NB_CORES_DEFAULT_INT);
 		args::Flag arg_bf(parser, "", "Filter unique erroneous k-minmers", {ARG_BLOOM_FILTER});
 		args::Flag arg_help(parser, "", "", {'h', "help"}, args::Options::Hidden);
 		//args::HelpFlag help(parser, "help", "Display this help menu", {'h'});
@@ -340,13 +340,13 @@ public:
 		string command = "";
 
 		if(pass == 0){
-			command = _filename_exe + " graph -i " + _inputFilename + " -o " + _inputDir + " -t " + to_string(_nbCores);
+			command = _filename_exe + " graph " + _inputDir + " -t " + to_string(_nbCores);
 			if(_useBloomFilter){
 				command += " --bf";
 			}
 		}
 		else{
-			command = _filename_exe + " graph -i " + _inputDir + "/read_data.txt.corrected.txt " + " -o " + _inputDir + " -t " + to_string(_nbCores);	
+			command = _filename_exe + " graph " + _inputDir + " -t " + to_string(_nbCores);	
 		}
 		if(pass == 0) command += " --firstpass";
 		Utils::executeCommand(command);

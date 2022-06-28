@@ -1,19 +1,13 @@
 
-//Real data
-//./bin/Bloocoo  -i ~/workspace/data/overlap_test/input.txt -l 21 -k 3 -d 0.005 -o ~/workspace/run/overlap_test/ -ihifiasm ~/workspace/run/hifiasm_meta/AD_components/big/component_3.fasta -idir ~/workspace/run/overlap_test/
-
-//Simulation
-///bin/Bloocoo  -i ~/workspace/data/overlap_test/input.txt -l 16 -k 3 -d 0.005 -o ~/workspace/run/overlap_test_3/ -ihifiasm ~/workspace/data/overlap_test/genome_2371_20x/truth_input.txt -idir ~/workspace/run/overlap_test_3/
-
-#ifndef _BLOOCOO_HPP_
-#define _BLOOCOO_HPP_
+#ifndef MDBG_METAG_CREATEMDBG
+#define MDBG_METAG_CREATEMDBG
 
 #include "Commons.hpp"
 
 //#include "graph/Graph.hpp"
-#include "graph/GfaParser.hpp"
-#include "graph/GraphSimplify.hpp"
-#include "utils/BloomFilter.hpp"
+#include "GfaParser.hpp"
+#include "GraphSimplify.hpp"
+#include "../utils/BloomFilter.hpp"
 //#include "./utils/ntHashIterator.hpp"
 
 //#include <boost/graph/adjacency_list.hpp>
@@ -31,7 +25,7 @@ typedef phmap::parallel_flat_hash_map<KmerVec, u_int32_t> KminmerAbundanceMap;
 
 
 
-class Bloocoo : public Tool{
+class CreateMdbg : public Tool{
     
 	struct KminmerData{
 		u_int32_t _count;
@@ -49,7 +43,6 @@ class Bloocoo : public Tool{
 public:
 
 	//string _inputFilename;
-	string _inputFilename;
 	string _outputDir;
 	float _minimizerDensity;
     size_t _minimizerSize;
@@ -111,7 +104,7 @@ public:
 	u_int64_t _nbEdges;
 	ofstream _outputFileGfa;
 
-    Bloocoo ();
+    CreateMdbg ();
     void execute ();
 	void createMDBG();
 	//void createMDBG_read(kseq_t* read, u_int64_t readIndex);
@@ -215,11 +208,11 @@ public:
 
 		public:
 
-		Bloocoo& _graph;
+		CreateMdbg& _graph;
 		BloomCacheCoherent<u_int64_t>* _bloomFilter;
 		u_int64_t _nbSolidKminmers;
 
-		FillBloomFilter(Bloocoo& graph) : _graph(graph){
+		FillBloomFilter(CreateMdbg& graph) : _graph(graph){
 			_bloomFilter = graph._bloomFilter;
 		}
 
@@ -265,7 +258,7 @@ public:
 
 		public:
 
-		Bloocoo& _graph;
+		CreateMdbg& _graph;
 		bool _isFirstPass;
 		bool _parsingContigs;
 		ofstream& _readFile;
@@ -282,7 +275,7 @@ public:
 		BloomCacheCoherent<u_int64_t>* _bloomFilter;
 		bool _extractingContigs;
 
-		IndexKminmerFunctor(Bloocoo& graph, bool extractingContigs) : _graph(graph), _readFile(graph._readFile), _kminmerExist(graph._kminmerExist), _kminmerAbundances(graph._kminmerAbundances), _kminmerFile(graph._kminmerFile){
+		IndexKminmerFunctor(CreateMdbg& graph, bool extractingContigs) : _graph(graph), _readFile(graph._readFile), _kminmerExist(graph._kminmerExist), _kminmerAbundances(graph._kminmerAbundances), _kminmerFile(graph._kminmerFile){
 			_isFirstPass = graph._isFirstPass;
 			_parsingContigs = graph._parsingContigs;
 			_mdbg = graph._mdbg;
@@ -1031,7 +1024,7 @@ public:
 
 		public:
 
-		Bloocoo& _graph;
+		CreateMdbg& _graph;
 		bool _isFirstPass;
 		bool _parsingContigs;
 		ofstream& _readFile;
@@ -1047,7 +1040,7 @@ public:
 		size_t _kminmerSizeFirst;
 		BloomCacheCoherent<u_int64_t>* _bloomFilter;
 
-		FilterKminmerFunctor(Bloocoo& graph) : _graph(graph), _readFile(graph._readFile), _kminmerExist(graph._kminmerExist), _kminmerAbundances(graph._kminmerAbundances), _kminmerFile(graph._kminmerFile){
+		FilterKminmerFunctor(CreateMdbg& graph) : _graph(graph), _readFile(graph._readFile), _kminmerExist(graph._kminmerExist), _kminmerAbundances(graph._kminmerAbundances), _kminmerFile(graph._kminmerFile){
 			_isFirstPass = graph._isFirstPass;
 			_parsingContigs = graph._parsingContigs;
 			_mdbg = graph._mdbg;

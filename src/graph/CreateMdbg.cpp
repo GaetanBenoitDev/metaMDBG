@@ -1,17 +1,65 @@
 
 
-#include <Bloocoo.hpp>
+#include "CreateMdbg.hpp"
 
-Bloocoo::Bloocoo () : Tool()
+CreateMdbg::CreateMdbg () : Tool()
 {
 
 }
 
 
-void Bloocoo::parseArgs(int argc, char* argv[]){
+void CreateMdbg::parseArgs(int argc, char* argv[]){
 
 
+	args::ArgumentParser parser("", ""); //"This is a test program.", "This goes after the options."
+	args::Positional<std::string> arg_outputDir(parser, "outputDir", "Output dir", args::Options::Required);
+	//args::PositionalList<std::string> arg_readFilenames(parser, "reads", "Input filename(s) (separated by space)", args::Options::Required);
+	//args::ValueFlag<int> arg_l(parser, "", "Minimizer length", {ARG_MINIMIZER_LENGTH2}, 13);
+	//args::ValueFlag<float> arg_d(parser, "", "Minimizer density", {ARG_MINIMIZER_DENSITY2}, 0.005f);
+	args::ValueFlag<int> arg_nbCores(parser, "", "Number of cores", {ARG_NB_CORES2}, NB_CORES_DEFAULT_INT);
+	args::Flag arg_bf(parser, "", "Filter unique erroneous k-minmers", {ARG_BLOOM_FILTER});
+	args::Flag arg_firstPass(parser, "", "Is first pass of multi-k", {ARG_FIRST_PASS});
+	args::Flag arg_help(parser, "", "", {'h', "help"}, args::Options::Hidden);
+	//args::HelpFlag help(parser, "help", "Display this help menu", {'h'});
+	//args::CompletionFlag completion(parser, {"complete"});
 
+	//(ARG_INPUT_FILENAME_TRUTH, "", cxxopts::value<string>()->default_value(""))
+	//(ARG_MINIMIZER_LENGTH, "", cxxopts::value<int>()->default_value("13"))
+	//(ARG_MINIMIZER_DENSITY, "", cxxopts::value<float>()->default_value("0.005"))
+	//(ARG_NB_CORES, "", cxxopts::value<int>()->default_value(NB_CORES_DEFAULT))
+	//(ARG_BLOOM_FILTER, "", cxxopts::value<bool>()->default_value("false"));
+
+	try
+	{
+		parser.ParseCLI(argc, argv);
+	}
+	catch (const std::exception& e)
+	{
+		std::cout << parser;
+		std::cout << e.what() << endl;
+		exit(0);
+	}
+
+	if(arg_help){
+		std::cout << parser;
+		exit(0);
+	}
+
+	_outputDir = args::get(arg_outputDir);
+	_nbCores = args::get(arg_nbCores);
+
+	_useBloomFilter = false;
+	if(arg_bf){
+		_useBloomFilter = true;
+	}
+
+	_isFirstPass = false;
+	if(arg_firstPass){
+		_isFirstPass = true;
+	}
+
+
+	/*
 	cxxopts::Options options("Graph", "Create MDBG");
 	options.add_options()
 	//("d,debug", "Enable debugging") // a bool parameter
@@ -52,6 +100,7 @@ void Bloocoo::parseArgs(int argc, char* argv[]){
     	std::cerr << e.what() << std::endl;
     	std::exit(EXIT_FAILURE);
     }
+	*/
 
 
 	
@@ -95,7 +144,7 @@ void Bloocoo::parseArgs(int argc, char* argv[]){
 	//getchar();
 }
 
-void Bloocoo::execute (){
+void CreateMdbg::execute (){
 
 	_file_noKminmerReads = ofstream(_filename_noKminmerReads, std::ofstream::app);
 	_node_id = 0;
@@ -137,7 +186,7 @@ void Bloocoo::execute (){
 }
 
 
-void Bloocoo::createMDBG (){
+void CreateMdbg::createMDBG (){
 
 	if(_useBloomFilter){
 		_bloomFilter = new BloomCacheCoherent<u_int64_t>(16000000000ull);
@@ -179,7 +228,7 @@ void Bloocoo::createMDBG (){
 	_mdbgNoFilter = new MDBG(_kminmerSize);
 	_mdbgSaved = new MDBG(_kminmerSize);
 
-	string inputFilename = _inputFilename;
+	//string inputFilename = _inputFilename;
 
 	if(!_isFirstPass){
 		
@@ -244,7 +293,7 @@ void Bloocoo::createMDBG (){
 		cout << "Building mdbg" << endl;
 		KminmerParserParallel parser2(inputFilename_min, _minimizerSize, _kminmerSize, usePos, true, _nbCores);
 		parser2.parse(IndexKminmerFunctor(*this, false));
-		//auto fp = std::bind(&Bloocoo::createMDBG_collectKminmers_minspace_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+		//auto fp = std::bind(&CreateMdbg::createMDBG_collectKminmers_minspace_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 		//parser.parseMinspace(fp);
 
 		if(_useBloomFilter){
@@ -330,7 +379,7 @@ void Bloocoo::createMDBG (){
 }
 
 
-//void Bloocoo::createMDBG_collectKminmers_minspace_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
+//void CreateMdbg::createMDBG_collectKminmers_minspace_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
 
 
 
@@ -367,7 +416,7 @@ static bool KmerVecComparator(const KmerVecSorterData &a, const KmerVecSorterDat
 }
 
 
-void Bloocoo::createGfa(){
+void CreateMdbg::createGfa(){
 
 	u_int32_t nbNodes = _mdbg->_dbg_nodes.size();
 	cout << "Dumping mdbg nodes" << endl;
@@ -620,7 +669,7 @@ void Bloocoo::createGfa(){
 
 }
 
-void Bloocoo::computeDeterministicNodeNames(){
+void CreateMdbg::computeDeterministicNodeNames(){
 
 	ifstream kminmerFile(_outputDir + "/kminmerData_min.txt");
 
@@ -714,7 +763,7 @@ void Bloocoo::computeDeterministicNodeNames(){
 
 }
 
-void Bloocoo::indexEdges(){
+void CreateMdbg::indexEdges(){
 
 	ifstream kminmerFile(_outputDir + "/kminmerData_min.txt");
 
@@ -760,7 +809,7 @@ void Bloocoo::indexEdges(){
 	kminmerFile.close();
 }
 
-void Bloocoo::indexEdge(const KmerVec& vec, u_int32_t nodeName){
+void CreateMdbg::indexEdge(const KmerVec& vec, u_int32_t nodeName){
 
 	
 	bool needprint = false;
@@ -916,7 +965,7 @@ void Bloocoo::indexEdge(const KmerVec& vec, u_int32_t nodeName){
 	//cout << _mdbgEdges.size() << endl;
 }
 
-void Bloocoo::computeEdges(){
+void CreateMdbg::computeEdges(){
 	
 	ifstream kminmerFile(_outputDir + "/kminmerData_min.txt");
 
@@ -961,7 +1010,7 @@ void Bloocoo::computeEdges(){
 	kminmerFile.close();
 }
 
-void Bloocoo::computeEdge(const KmerVec& vec, u_int32_t id){
+void CreateMdbg::computeEdge(const KmerVec& vec, u_int32_t id){
 
 
 	static u_int8_t isS = 0;
@@ -1084,7 +1133,7 @@ void Bloocoo::computeEdge(const KmerVec& vec, u_int32_t id){
 
 }
 
-void Bloocoo::dumpEdge(u_int32_t nodeNameFrom, u_int8_t nodeNameFromOri, u_int32_t nodeNameTo, u_int8_t nodeNameToOri){
+void CreateMdbg::dumpEdge(u_int32_t nodeNameFrom, u_int8_t nodeNameFromOri, u_int32_t nodeNameTo, u_int8_t nodeNameToOri){
 	
 	#pragma omp critical(gfa)
 	{

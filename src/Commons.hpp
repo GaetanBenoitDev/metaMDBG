@@ -104,6 +104,7 @@ const string ARG_EVAL = "eval";
 const string ARG_BLOOM_FILTER = "bf";
 
 const string NB_CORES_DEFAULT = "3";
+const int NB_CORES_DEFAULT_INT = 3;
 const string FILENAME_NO_KMINMER_READS = "reads_noKminmers.bin";
 
 
