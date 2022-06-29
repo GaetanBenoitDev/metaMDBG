@@ -283,13 +283,12 @@ public:
 			
 		//processPass();
 
-		cout << "a remettre" << endl;
 		/* !!!!!!!!!!!!
 		kseq_destroy(seq);
 		gzclose(fp);
-		fs::remove_all(_tmpDir);
 		*/
 		gzclose(_outputContigFile);
+		fs::remove_all(_tmpDir);
 
 	}
 
@@ -532,7 +531,7 @@ public:
 
 				if(writtenPartitions.find(partition) != writtenPartitions.end()) continue;
 				writtenPartitions.insert(partition);
-				
+
 				//cout << partition << endl;
 				PartitionFile* partitionFile = _contigPolisher._partitionFiles[partition];
 
