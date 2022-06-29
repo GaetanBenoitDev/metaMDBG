@@ -39,7 +39,10 @@ public:
 
 		auto stop = high_resolution_clock::now();
 
-		cout << "Duration: " << duration_cast<seconds>(stop - start).count() << "s" << endl;
+		//cout << "Duration: " << duration_cast<seconds>(stop - start).count() << "s" << endl;
+		ofstream outfile(_inputDir + "/perf.txt", std::ios_base::app);
+		outfile << "Duration (s): " << duration_cast<seconds>(stop - start).count() << endl;
+		outfile.close();
 
 	}
 

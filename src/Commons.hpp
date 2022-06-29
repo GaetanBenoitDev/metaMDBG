@@ -633,8 +633,13 @@ public:
 			_maxMemoryUsage = max(_maxMemoryUsage, maxMem);
 		}
 		infile.close();
-		cout << "Max memory: " << _maxMemoryUsage << " GB" << endl;
+		//cout << "Max memory: " << _maxMemoryUsage << " GB" << endl;
 		//getchar();
+
+		ofstream outfile(outputDir + "/perf.txt");
+		outfile << "Peak memory (GB): " << _maxMemoryUsage << endl;
+		outfile.close();
+
 	}
 
 	static double compute_first_quartile(vector<u_int64_t> scores){
