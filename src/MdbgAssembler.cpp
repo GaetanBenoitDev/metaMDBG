@@ -6,7 +6,7 @@
 #include "toBasespace/ToBasespaceNoCorrection.hpp"
 #include "toBasespace/ToMinspace.hpp"
 #include "pipeline/AssemblyPipeline.hpp"
-#include "pipeline/BinningPipeline.hpp"
+//#include "pipeline/BinningPipeline.hpp"
 #include "readSelection/ReadSelection.hpp"
 #include "contigFeatures/KminmerCounter.hpp"
 #include "contigFeatures/KmerCounter.hpp"
@@ -78,9 +78,9 @@ int main (int argc, char* argv[])
 			if(programName == "asm"){
                 AssemblyPipeline().run (argc, args);
     		}
-			else if(programName == "bin"){
-                BinningPipeline().run (argc, args);
-    		}
+			//else if(programName == "bin"){
+                //BinningPipeline().run (argc, args);
+    		//}
 			else if(programName == "readSelection"){
                 ReadSelection().run (argc, args);
     		}

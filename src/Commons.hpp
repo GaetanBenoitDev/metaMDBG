@@ -27,6 +27,10 @@
 #include <omp.h>
 namespace fs = std::filesystem;
 using namespace std::chrono;
+//using std::chrono::high_resolution_clock;
+//using std::chrono::duration_cast;
+//using std::chrono::duration;
+//using std::chrono::milliseconds;
 //namespace fs = std::filesystem;
 
 typedef unsigned __int128 u_int128_t;
@@ -591,14 +595,46 @@ public:
 		*/
 	}
 
-	static void executeCommand(const string& command){
+
+	static void executeCommand(const string& command, const string& outputDir){
+
+		static double _maxMemoryUsage = 0;
+		static string s = "Maximumresidentsetsize(kbytes):";
+
 		cout << command << endl;
 
-		int ret = system(command.c_str());
+		string command2 = "{ time -v " + command + "; } 2> " + outputDir + "/time.txt";
+
+		int ret = system(command2.c_str());
 		if(ret != 0){
 			cerr << "Command failed: " << ret << endl;
 			exit(ret);
 		}
+
+		ifstream infile(outputDir + "/time.txt");
+		string line;
+		while(std::getline(infile, line)){
+
+    		//line.erase(std::remove_if(line.begin(), line.end(), ::istab), line.end());
+    		line.erase(std::remove_if(line.begin(), line.end(), ::isspace), line.end());
+			if(line.empty()) continue;
+
+			size_t pos = line.find(s);
+			if (pos != std::string::npos){
+				line.erase(pos, s.length());
+			}
+			else{
+				continue;
+			}
+
+			double maxMem = stod(line);
+			maxMem /= 1024;
+			maxMem /= 1024;
+			_maxMemoryUsage = max(_maxMemoryUsage, maxMem);
+		}
+		infile.close();
+		cout << "Max memory: " << _maxMemoryUsage << " GB" << endl;
+		//getchar();
 	}
 
 	static double compute_first_quartile(vector<u_int64_t> scores){

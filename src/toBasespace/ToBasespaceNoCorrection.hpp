@@ -1032,7 +1032,7 @@ public:
 		gzclose(_queryContigFile);
 
 		string command = "minimap2 -N 10 -p 0 --secondary=yes -I 2GB -x map-hifi -t " + to_string(_nbCores) + " " + _filename_outputContigs + " " + filenameQuery + " > " + outputMappingFilename;
-		Utils::executeCommand(command);
+		Utils::executeCommand(command, _inputDir);
 
 
 

@@ -31,8 +31,16 @@ public:
 	}
 
     void execute (){
+
+		auto start = high_resolution_clock::now();
+
 		//for(size_t i=0; i<1000; i++)
 		execute_pipeline();
+
+		auto stop = high_resolution_clock::now();
+
+		cout << "Duration: " << duration_cast<seconds>(stop - start).count() << "s" << endl;
+
 	}
 
 	void parseArgs(int argc, char* argv[]){
@@ -255,7 +263,7 @@ public:
 
 		//Read selection
 		command = _filename_exe + " readSelection -i " + _inputFilename + " -o " + _inputDir + " -f " + _inputDir + "/read_data_init.txt" + " -t " + to_string(_nbCores);
-		Utils::executeCommand(command);
+		executeCommand(command);
 		
 
 		u_int64_t pass = 0;
@@ -318,7 +326,7 @@ public:
 			//if(k >= 21) break;
 			//exit(1);
 			//break;
-			cout << "pass done" << endl;
+			//cout << "pass done" << endl;
 			//if(generatedContigs) getchar();
 			//getchar();
 			//if(pass >= 2) break;
@@ -349,7 +357,7 @@ public:
 			command = _filename_exe + " graph " + _inputDir + " -t " + to_string(_nbCores);	
 		}
 		if(pass == 0) command += " --firstpass";
-		Utils::executeCommand(command);
+		executeCommand(command);
 		//getchar();
 
 		//command = _filename_exe + " multik -o " + _inputDir + " -t " + to_string(_nbCores);
@@ -379,29 +387,29 @@ public:
 			command = _filename_exe + " contig " + " -o " + _inputDir + " --final " + " -t " + to_string(_nbCores);
 			if(!_truthInputFilename.empty()) command += " --itruth " + _truthInputFilename;
 			//if(pass == 0) command += " --firstpass";
-			Utils::executeCommand(command);
+			executeCommand(command);
 
 			//getchar();
 
 			command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/contigs.nodepath" + " -f " + _inputDir + "/contig_data.txt";
-			Utils::executeCommand(command);
+			executeCommand(command);
 			
 			appendSmallContigs();
 
 			//getchar();
 			command = _filename_exe + " toBasespaceFast " + " -o " + _inputDir + " -i " + _inputFilename + " -c " + _inputDir + "/contig_data.txt " + " -f " + _inputDir + "/contigs_" + to_string(k) + ".fasta.gz " + " --fasta"  + " -t " + to_string(_nbCores);
 			if(pass == 0) command += " --firstpass";
-			Utils::executeCommand(command);
+			executeCommand(command);
 
 			//getchar();
 			
 			command = _filename_exe + " toBasespace " + " -o " + _inputDir + " -i " + _inputFilename + " -c " + _inputDir + "/contig_data.txt " + " -f " + _inputDir + "/contigs_" + to_string(k) + ".fasta.gz " + " --fasta"  + " -t " + to_string(_nbCores);
 			if(pass == 0) command += " --firstpass";
-			Utils::executeCommand(command);
+			executeCommand(command);
 
 			//getchar();
 			command = _filename_exe + " polish " + _inputDir + "/contigs_" + to_string(k) + ".fasta.gz " + _inputFilename + " " + _inputDir + " -t " + to_string(_nbCores) + " --qual ";
-			Utils::executeCommand(command);
+			executeCommand(command);
 			//generatedContigs = true;
 		}
 		else{
@@ -409,12 +417,12 @@ public:
 			command = _filename_exe + " contig " + " -o " + _inputDir + " -t " + to_string(_nbCores);;
 			if(!_truthInputFilename.empty()) command += " --itruth " + _truthInputFilename;
 			//if(pass == 0) command += " --firstpass";
-			Utils::executeCommand(command);
+			executeCommand(command);
 			//getchar();
 			
 
 			command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/contigs.nodepath" + " -f " + _inputDir + "/unitig_data.txt";
-			Utils::executeCommand(command);
+			executeCommand(command);
 
 			//getchar();
 		}	
@@ -589,6 +597,14 @@ public:
 		_readLengthN += 1;
 	}
 
+	void executeCommand(const string& command){
+
+		//cout << command << endl;
+		//string command2 = "time -v \"" + command + "\" 2>&1 " + _inputDir + "/time.txt";
+
+		Utils::executeCommand(command, _inputDir);
+		//getchar();
+	}
 };	
 
 
