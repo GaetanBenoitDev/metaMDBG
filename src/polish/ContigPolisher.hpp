@@ -1033,7 +1033,7 @@ public:
 			for(const Alignment& al : _alignments[readIndex]){
 				u_int64_t contigIndex = al._contigIndex;
 
-				if(_contigSequences.find(contigIndex) == _contigSequences.end()) return;
+				if(_contigSequences.find(contigIndex) == _contigSequences.end()) continue;
 
 				//cout << read._seq.size() << " " << read._qual.size() << " " << _contigSequences[contigIndex].size() << " " << al._readStart << " " << al._readEnd << " " << al._contigStart << " " << al._contigEnd << endl;
 				string readSeq = read._seq;
