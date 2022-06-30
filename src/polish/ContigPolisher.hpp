@@ -97,6 +97,7 @@ public:
 	size_t _maxWindowCopies;
 	string _mapperOutputExeFilename;
 	bool _useQual;
+	string _outputDir;
 	string _tmpDir;
 	
 	string _outputFilename_contigs;
@@ -181,7 +182,7 @@ public:
 
 			_inputFilename_reads = result["reads"].as<string>();
 			_inputFilename_contigs = result["contigs"].as<string>();
-			_tmpDir = result["tmpDir"].as<string>();;
+			_outputDir = result["tmpDir"].as<string>();;
 			_nbCores = result[ARG_NB_CORES].as<int>();
 			_useQual = result[ARG_USE_QUAL].as<bool>();
 			_windowLength = 500;
@@ -204,7 +205,7 @@ public:
 			p.replace_extension("");
 		}
 
-		_tmpDir = _tmpDir + "/__tmp/";
+		_tmpDir = _outputDir + "/__tmp/";
 		if(!fs::exists(_tmpDir)){
 			fs::create_directories(_tmpDir);
 		}
@@ -243,6 +244,7 @@ public:
 		abpoa_post_set_para(abpt);
 		*/
 		
+		/*
 		mapReads();
 
 		
@@ -250,10 +252,20 @@ public:
 		writeAlignmentBestHits();
 		//parseAlignments(true, false);
 		partitionReads();
+		*/
+
+		for(size_t i=0; i<10000000ull; i++){
+			_contigToPartition[i] = 0;
+		}
+
+		_nbPartitions = 1;
+		_partitionNbReads[0] = 10000;
 
 		for(size_t i=0; i<_nbPartitions; i++){
 			processPartition(i);
 		}
+
+		exit(1);
 		//indexContigName();
 		//indexReadName();
 
@@ -396,9 +408,9 @@ public:
 			//cout << nbContigs << " " << partition << endl;
 			nbContigs += 1;
 
-			if(partition == 0){
-				cout << "Contig in partition 0: " << contigStat._contigIndex << endl;
-			}
+			//if(partition == 0){
+			//	cout << "Contig in partition 0: " << contigStat._contigIndex << endl;
+			//}
 			
 			if(nbContigs >= nbContigsPerPartition){
 				//totalByteSize = 0;
@@ -657,7 +669,7 @@ public:
 
 		string command = "minimap2 -H -I 2GB -t " + to_string(_nbCores) + " -x map-hifi " + _inputFilename_contigs + " " + readFilenames;
 		command += " | " + _mapperOutputExeFilename + " " + _inputFilename_contigs + " " + _inputFilename_reads + " " + _outputFilename_mapping;
-		Utils::executeCommand(command, _tmpDir);
+		Utils::executeCommand(command, _outputDir);
 
 		//minimap2 -x map-hifi ~/workspace/run/overlap_test_201/contigs_47.fasta.gz ~/workspace/data/overlap_test/genome_201_50x/simulatedReads_0.fastq.gz | ./bin/mapper ~/workspace/run/overlap_test_201/contigs_47.fasta.gz ~/workspace/data/overlap_test/genome_201_50x/input.txt ~/workspace/run/overlap_test_201/align.bin
 	}
