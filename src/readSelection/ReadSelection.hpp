@@ -155,7 +155,7 @@ public:
 		#pragma omp critical
 		{
 			_readWriterQueue.push({read._index, minimizers, minimizerQualities});
-
+			//cout << _readWriterQueue.size() << " " << read._index << " " << _nextReadIndexWriter << endl;
 
 			while(!_readWriterQueue.empty()){
 

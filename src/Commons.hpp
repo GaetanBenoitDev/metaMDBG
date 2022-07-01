@@ -2152,14 +2152,17 @@ public:
 					#pragma omp critical
 					{
 						int result = kseq_read(seq);
-						readIndex += 1;
 						isEOF = result < 0;
 
-						if(seq->qual.l == 0){
-							read = {readIndex, string(seq->name.s), string(seq->seq.s)};
-						}
-						else{
-							read = {readIndex, string(seq->name.s), string(seq->seq.s), string(seq->qual.s)};
+						if(!isEOF){
+							readIndex += 1;
+
+							if(seq->qual.l == 0){
+								read = {readIndex, string(seq->name.s), string(seq->seq.s)};
+							}
+							else{
+								read = {readIndex, string(seq->name.s), string(seq->seq.s), string(seq->qual.s)};
+							}
 						}
 
 						//cout << "allo" << endl;
