@@ -244,7 +244,7 @@ public:
 		abpoa_post_set_para(abpt);
 		*/
 		
-		/*
+		
 		mapReads();
 
 		
@@ -252,20 +252,21 @@ public:
 		writeAlignmentBestHits();
 		//parseAlignments(true, false);
 		partitionReads();
-		*/
+		
 
+		/*
 		for(size_t i=0; i<10000000ull; i++){
 			_contigToPartition[i] = 0;
 		}
 
 		_nbPartitions = 1;
 		_partitionNbReads[0] = 10000;
-
+		*/
 		for(size_t i=0; i<_nbPartitions; i++){
 			processPartition(i);
 		}
 
-		exit(1);
+		//exit(1);
 		//indexContigName();
 		//indexReadName();
 
@@ -833,6 +834,7 @@ public:
 			}
 			else{
 
+				bool isUpdated = false;
 				//bool isBetter = false;
 				for(Alignment& al: _alignments[readIndex]){
 					if(al._contigIndex != contigIndex) continue;
@@ -847,9 +849,14 @@ public:
 						al._contigEnd = contigEnd;
 
 						//isBetter = true;
+						isUpdated = true;
 						break;
 						//_alignments[readIndex] = align;
 					}
+				}
+
+				if(!isUpdated){
+					_alignments[readIndex].push_back(align);
 				}
 
 				//if(length > _alignments[readIndex].length()){
