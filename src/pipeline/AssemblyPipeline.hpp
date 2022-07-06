@@ -250,6 +250,22 @@ public:
 		_meanReadLength = meanReadLength;
 		//_lastK = 41;
 		
+
+		sort(_readLengths.begin(), _readLengths.end());
+		cout << _readLengths[_readLengths.size() * 0.1] << endl;
+		cout << _readLengths[_readLengths.size() * 0.2] << endl;
+		cout << _readLengths[_readLengths.size() * 0.3] << endl;
+		cout << _readLengths[_readLengths.size() * 0.4] << endl;
+		cout << _readLengths[_readLengths.size() * 0.5] << endl;
+		cout << _readLengths[_readLengths.size() * 0.6] << endl;
+		cout << _readLengths[_readLengths.size() * 0.7] << endl;
+		cout << _readLengths[_readLengths.size() * 0.8] << endl;
+		cout << _readLengths[_readLengths.size() * 0.9] << endl;
+		_readLengths.clear();
+		//return scores[size * 0.1];
+
+
+
 		cout << "Mean read length: " << meanReadLength << endl;
 		cout << "Min k: " << _firstK << endl;
 		cout << "Max k: " << _lastK << endl;
@@ -579,17 +595,21 @@ public:
 		return inputFilename;
 	}
 
+	vector<u_int64_t> _readLengths;
 	u_int64_t _readLengthSum;
 	u_int64_t _readLengthN;
 
 	u_int64_t computeMeanReadLength(const string& filename){
+
+
+
 
 		_readLengthSum = 0;
 		_readLengthN = 0;
 
 		auto fp = std::bind(&AssemblyPipeline::computeMeanReadLength_read, this, std::placeholders::_1);
 		ReadParser readParser(filename, false, false);
-		readParser._maxReads = 10000;
+		readParser._maxReads = 100000;
 		readParser.parse(fp);
 
 		return _readLengthSum / _readLengthN;
@@ -598,6 +618,7 @@ public:
 	void computeMeanReadLength_read(const Read& read){
 		_readLengthSum += read._seq.size();
 		_readLengthN += 1;
+		_readLengths.push_back(read._seq.size());
 	}
 
 	void executeCommand(const string& command){
