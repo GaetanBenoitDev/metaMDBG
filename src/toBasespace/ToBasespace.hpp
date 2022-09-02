@@ -635,17 +635,18 @@ public:
 	void indexReads(){
 
 		KminmerParser parser(_inputDir + "/read_data_init.txt", _minimizerSize, _kminmerSize, false, true);
-		auto fp = std::bind(&ToBasespace::indexReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
+		auto fp = std::bind(&ToBasespace::indexReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5);
 		parser.parse(fp);
 	}
 
-	void indexReads_read(const vector<u_int64_t>& minimizers, const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex){//}, const vector<KmerVec>& kminmers_k3, const vector<ReadKminmer>& kminmersInfos_k3){
+	void indexReads_read(const vector<u_int64_t>& minimizers, const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, bool isCircular, u_int64_t readIndex){//}, const vector<KmerVec>& kminmers_k3, const vector<ReadKminmer>& kminmersInfos_k3){
 
 		for(const KmerVec& vec : kminmers){
 			
 			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()) continue;
 
 			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
+			//cout << nodeName << " " << readIndex << endl;
 			_unitigDatas[nodeName].push_back(readIndex);
 		}
 	}
@@ -682,12 +683,12 @@ public:
 
 		cout << "Extracting kminmers: " << contigFilename << endl;
 		KminmerParser parser2(contigFilename, _minimizerSize, _kminmerSize, false, false);
-		auto fp2 = std::bind(&ToBasespace::loadContigs_min_read2, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+		auto fp2 = std::bind(&ToBasespace::loadContigs_min_read2, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
 		parser2.parseMinspace(fp2);
 
 	}
 
-	void loadContigs_min_read2(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
+	void loadContigs_min_read2(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, bool isCircular, u_int64_t readIndex){
 
 		//cout << kminmersInfos.size() << " " << (_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) << endl;
 		//if(_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) return;
@@ -775,7 +776,7 @@ public:
 
 		cout << "Collecting best supporting reads" << endl;
 		KminmerParser parser(contigFilename, _minimizerSize, _kminmerSize, false, false);
-		auto fp = std::bind(&ToBasespace::collectBestSupportingReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+		auto fp = std::bind(&ToBasespace::collectBestSupportingReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
 		parser.parseMinspace(fp);
 
 
@@ -784,7 +785,7 @@ public:
 	}
 
 	
-	void collectBestSupportingReads_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
+	void collectBestSupportingReads_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, bool isCircular, u_int64_t readIndex){
 
 		//if(_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) return;
 
@@ -857,6 +858,7 @@ public:
 				}
 
 				supportingReads.push_back(readIndex);
+				//cout << readIndex << endl;
 				/*
 				if(i == 0){
 					_kminmerSequenceCopies_all_entire[nodeName] = {};
@@ -2064,7 +2066,7 @@ public:
 
 
 		KminmerParser parser(contigFilename, _minimizerSize, _kminmerSize, false, false);
-		auto fp = std::bind(&ToBasespace::createBaseContigs_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+		auto fp = std::bind(&ToBasespace::createBaseContigs_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
 		parser.parseMinspace(fp);
 
 		_contigFileSupported_input.close();
@@ -2076,7 +2078,7 @@ public:
 
 	}
 
-	void createBaseContigs_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
+	void createBaseContigs_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, bool isCircular, u_int64_t readIndex){
 
 		//if(_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) return;
 
@@ -2092,7 +2094,9 @@ public:
 
 		for(size_t i=0; i<kminmersInfos.size(); i++){
 			
+			//cout << i << " " << supportingReads.size() << endl;
 			u_int64_t readIndex = supportingReads[i];
+			//cout << readIndex << endl;
 			if(readIndex == -1){
 				cout << "No sequence for kminmer: " << readIndex << endl;
 				continue;
@@ -2135,6 +2139,7 @@ public:
 					if(_kminmerSequence_entire_multi.find(nodeName) != _kminmerSequence_entire_multi.end()){
 						for(const ReadSequence& rs : _kminmerSequence_entire_multi[nodeName]){
 							if(rs._readIndex == readIndex){
+								//cout << (rs._sequence != nullptr) << endl;
 								seq = rs._sequence->to_string();
 								break;
 							}
@@ -2180,6 +2185,8 @@ public:
 					if(_kminmerSequence_entire_multi.find(nodeName) != _kminmerSequence_entire_multi.end()){
 						for(const ReadSequence& rs : _kminmerSequence_entire_multi[nodeName]){
 							if(rs._readIndex == readIndex){
+
+								//cout << (rs._sequence != nullptr) << endl;
 
 								seq = rs._sequence->to_string();
 								break;
@@ -2315,7 +2322,17 @@ public:
 		}
 
 
-		string header = ">ctg" + to_string(_contigIndex) + '\n';
+		string linearOrCircular;
+		if(isCircular){
+			linearOrCircular = "c";
+		}
+		else{
+			linearOrCircular = "l";
+		}
+
+		//cout << contigSequence.size() << endl;
+
+		string header = ">ctg" + to_string(_contigIndex) + linearOrCircular + '\n';
 		gzwrite(_basespaceContigFile, (const char*)&header[0], header.size());
 		contigSequence +=  '\n';
 		gzwrite(_basespaceContigFile, (const char*)&contigSequence[0], contigSequence.size());

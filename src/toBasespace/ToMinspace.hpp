@@ -164,8 +164,8 @@ public:
 
 			if(contigFile.eof()) break;
 
-			//u_int8_t isCircular;
-			//gzread(contigFile, (char*)&isCircular, sizeof(isCircular));
+			bool isCircular;
+			contigFile.read((char*)&isCircular, sizeof(isCircular));
 
 			nodePath.resize(size);
 			//supportingReads.resize(size);
@@ -540,6 +540,8 @@ public:
 			if(contigFile.eof()) break;
 
 
+			bool isCircular;
+			contigFile.read((char*)&isCircular, sizeof(isCircular));
 			//u_int8_t isCircular;
 			//gzread(contigFile, (char*)&isCircular, sizeof(isCircular));
 
@@ -709,8 +711,10 @@ public:
 			//cout << "Write: " << contigSize << endl;
 			//getchar();
 			outputFile.write((const char*)&contigSize, sizeof(contigSize));
+			outputFile.write((const char*)&isCircular, sizeof(isCircular));
 			outputFile.write((const char*)&contigSequence[0], contigSize*sizeof(u_int64_t));
 
+			//cout << contigSize << " " << isCircular << endl;
 			//cout << contigSize << endl;
 			//if(contigSize <= 0){
 			//	cout << "Empty contig: " << nodePath.size() << endl;

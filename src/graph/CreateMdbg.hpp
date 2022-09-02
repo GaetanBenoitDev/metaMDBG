@@ -465,6 +465,9 @@ public:
 				{
 					u_int32_t contigSize = readMinimizers.size();
 					_graph._fileSmallContigs.write((const char*)&contigSize, sizeof(contigSize));
+
+					bool isCircular = false;
+					_graph._fileSmallContigs.write((const char*)&isCircular, sizeof(isCircular));
 					_graph._fileSmallContigs.write((const char*)&readMinimizers[0], contigSize*sizeof(u_int64_t));
 					//cout << "small contig" << endl;
 					//getchar();

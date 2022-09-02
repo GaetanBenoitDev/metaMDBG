@@ -280,7 +280,7 @@ public:
 		*/
 		cout << "Extracting kminmers: " << contigFilename << endl;
 		KminmerParser parser2(contigFilename, _minimizerSize, _kminmerSize, false, false);
-		auto fp2 = std::bind(&ToBasespaceNoCorrection::loadContigs_min_read2, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+		auto fp2 = std::bind(&ToBasespaceNoCorrection::loadContigs_min_read2, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
 		parser2.parseMinspace(fp2);
 
 		/*
@@ -334,7 +334,7 @@ public:
 	}
 	*/
 
-	void loadContigs_min_read2(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
+	void loadContigs_min_read2(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, bool isCircular, u_int64_t readIndex){
 
 		//if(_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) return;
 
@@ -526,7 +526,7 @@ public:
 		}
 
 		KminmerParser parser(contigFilename, _minimizerSize, _kminmerSize, false, false);
-		auto fp = std::bind(&ToBasespaceNoCorrection::createBaseContigs_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+		auto fp = std::bind(&ToBasespaceNoCorrection::createBaseContigs_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
 		parser.parseMinspace(fp);
 
 		if(_isOutputFasta){
@@ -543,7 +543,7 @@ public:
 	ofstream _contigFile_bitset;
 	u_int64_t _contigIndex;
 
-	void createBaseContigs_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
+	void createBaseContigs_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, bool isCircular, u_int64_t readIndex){
 
 
 		//if(_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) return;
@@ -1122,19 +1122,20 @@ public:
 		_outputContigFileDerep = ofstream(contigFilename);
 
 		KminmerParser parser(_inputFilenameContig, _minimizerSize, _kminmerSize, false, false);
-		auto fp = std::bind(&ToBasespaceNoCorrection::dumpDereplicatedContigs_read, this, std::placeholders::_1, std::placeholders::_2);
+		auto fp = std::bind(&ToBasespaceNoCorrection::dumpDereplicatedContigs_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 		parser.parseSequences(fp);
 
 		_outputContigFileDerep.close();
 
 	}
 
-	void dumpDereplicatedContigs_read(const vector<u_int64_t>& readMinimizers, u_int64_t readIndex){
+	void dumpDereplicatedContigs_read(const vector<u_int64_t>& readMinimizers, bool isCircular, u_int64_t readIndex){
 		
 		if(_duplicatedContigIndex.find(readIndex) != _duplicatedContigIndex.end()) return;
 
 		u_int32_t contigSize = readMinimizers.size();
 		_outputContigFileDerep.write((const char*)&contigSize, sizeof(contigSize));
+		_outputContigFileDerep.write((const char*)&isCircular, sizeof(isCircular));
 		_outputContigFileDerep.write((const char*)&readMinimizers[0], contigSize*sizeof(u_int64_t));
 
 		_nbContigsPost += 1;

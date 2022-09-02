@@ -2556,7 +2556,7 @@ public:
 		_hasQuality = hasQuality;
 	}
 
-	void parse(const std::function<void(vector<u_int64_t>, vector<KmerVec>, vector<ReadKminmer>, u_int64_t)>& fun){
+	void parse(const std::function<void(vector<u_int64_t>, vector<KmerVec>, vector<ReadKminmer>, bool, u_int64_t)>& fun){
 
 		ifstream file_readData(_inputFilename, std::ios::binary);
 
@@ -2578,6 +2578,11 @@ public:
 			minimizersPosOffsets.resize(size);
 			minimizerQualities.resize(size, 0);
 
+
+			bool isCircular;
+			file_readData.read((char*)&isCircular, sizeof(isCircular));
+
+			//cout << size << " " << isCircular << endl;
 			file_readData.read((char*)&minimizers[0], size*sizeof(u_int64_t));
 			if(_usePos) file_readData.read((char*)&minimizersPosOffsets[0], size*sizeof(u_int16_t));
 			if(_hasQuality) file_readData.read((char*)&minimizerQualities[0], size*sizeof(u_int8_t));
@@ -2605,7 +2610,7 @@ public:
 			vector<u_int64_t> rlePositions;
 			MDBG::getKminmers(_l, _k, minimizers, minimizersPos, kminmers, kminmersInfo, rlePositions, 0, false);
 
-			fun(minimizers, kminmers, kminmersInfo, readIndex);
+			fun(minimizers, kminmers, kminmersInfo, isCircular, readIndex);
 
 			readIndex += 1;
 
@@ -2617,7 +2622,7 @@ public:
 
 	
 	//template<typename SizeType>
-	void parseMinspace(const std::function<void(vector<u_int64_t>, vector<ReadKminmerComplete>, u_int64_t)>& fun){
+	void parseMinspace(const std::function<void(vector<u_int64_t>, vector<ReadKminmerComplete>, bool, u_int64_t)>& fun){
 
 		ifstream file_readData(_inputFilename, std::ios::binary);
 
@@ -2637,6 +2642,12 @@ public:
 			minimizers.resize(size);
 			minimizersPosOffsets.resize(size);
 			minimizerQualities.resize(size, 0);
+
+
+			bool isCircular;
+			file_readData.read((char*)&isCircular, sizeof(isCircular));
+
+			//cout << size << " " << isCircular << endl;
 
 			file_readData.read((char*)&minimizers[0], size*sizeof(u_int64_t));
 			if(_usePos){
@@ -2660,7 +2671,7 @@ public:
 			vector<ReadKminmerComplete> kminmersInfo;
 			MDBG::getKminmers_complete(_k, minimizers, minimizersPos, kminmersInfo, readIndex, minimizerQualities);
 
-			fun(minimizers, kminmersInfo, readIndex);
+			fun(minimizers, kminmersInfo, isCircular, readIndex);
 
 			readIndex += 1;
 		}
@@ -2669,7 +2680,7 @@ public:
 
 	}
 	
-	void parseSequences(const std::function<void(vector<u_int64_t>, u_int64_t)>& fun){
+	void parseSequences(const std::function<void(vector<u_int64_t>, bool, u_int64_t)>& fun){
 
 		ifstream file_readData(_inputFilename, std::ios::binary);
 
@@ -2690,6 +2701,11 @@ public:
 			minimizersPosOffsets.resize(size);
 			minimizerQualities.resize(size, 0);
 
+
+			bool isCircular;
+			file_readData.read((char*)&isCircular, sizeof(isCircular));
+
+
 			file_readData.read((char*)&minimizers[0], size*sizeof(u_int64_t));
 			if(_usePos){
 				file_readData.read((char*)&minimizersPosOffsets[0], size*sizeof(u_int16_t));
@@ -2708,7 +2724,7 @@ public:
 				}
 			}
 
-			fun(minimizers, readIndex);
+			fun(minimizers, isCircular, readIndex);
 
 			readIndex += 1;
 		}
@@ -2915,18 +2931,25 @@ public:
 				#pragma omp critical
 				{
 
-					readIndex += 1;
-
-					kminmerList = {readIndex};
 					
 					file_readData.read((char*)&size, sizeof(size));
 
 					if(file_readData.eof()) isEOF = true;
 
 					if(!isEOF){
+
+						readIndex += 1;
+
+						kminmerList = {readIndex};
+
 						minimizers.resize(size);
 						minimizersPosOffsets.resize(size);
 						minimizerQualities.resize(size, -1);
+
+						
+						bool isCircular;
+						file_readData.read((char*)&isCircular, sizeof(isCircular));
+
 						file_readData.read((char*)&minimizers[0], size*sizeof(u_int64_t));
 						//if(_usePos) file_readData.read((char*)&minimizersPosOffsets[0], size*sizeof(u_int16_t));
 						if(_hasQuality) file_readData.read((char*)&minimizerQualities[0], size*sizeof(u_int8_t));

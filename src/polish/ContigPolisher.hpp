@@ -630,6 +630,7 @@ public:
 		vector<vector<Window>> windows(nbWindows);
 
 		_contigWindowSequences[contigIndex] = windows;
+		_contigHeaders[contigIndex] = read._header;
 	}
 
 	//_validContigIndexes.insert(contigIndex);
@@ -650,6 +651,7 @@ public:
 		_contigSequences.clear();
 		//_validContigIndexes.clear();
 		_contigWindowSequences.clear();
+		_contigHeaders.clear();
 		//_alignments.clear();
 	}
 	/*
@@ -705,6 +707,7 @@ public:
 	unordered_map<u_int64_t, Alignment> _alignments;
 	unordered_map<u_int32_t, string> _contigSequences;
 	unordered_map<u_int32_t, vector<vector<Window>>> _contigWindowSequences;
+	unordered_map<u_int32_t, string> _contigHeaders;
 	unordered_map<ContigRead, u_int32_t, ContigRead_hash> _alignmentCounts;
 	//u_int64_t _correctedContigIndex;
 
@@ -1824,11 +1827,11 @@ public:
 
 			//cout << contigSequence.size() << " " << nbCorrectedWindows << endl;
 			
-			string header = ">ctg" + to_string(contigIndex) + '\n';
+			string header = ">" + _contigHeaders[contigIndex] + '\n';// ">ctg" + to_string(contigIndex) + '\n';
 			gzwrite(_outputContigFile, (const char*)&header[0], header.size());
 			contigSequence +=  '\n';
 			gzwrite(_outputContigFile, (const char*)&contigSequence[0], contigSequence.size());
-			//cout << contigSequence.size() << endl;
+			cout << _contigHeaders[contigIndex] << " " << contigSequence.size() << endl;
 		}
 
 		cout << "Checksum: " << checksum << endl;

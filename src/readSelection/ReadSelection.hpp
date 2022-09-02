@@ -174,6 +174,10 @@ public:
 					//cout << "Writing read: " << _nextReadIndexWriter << endl;
 					u_int32_t size = readWriter._minimizers.size();
 					_file_readData.write((const char*)&size, sizeof(size));
+
+					bool isCircular = false;
+					_file_readData.write((const char*)&isCircular, sizeof(isCircular));
+
 					_file_readData.write((const char*)&readWriter._minimizers[0], size*sizeof(u_int64_t));
 					_file_readData.write((const char*)&readWriter._minimizerQualities[0], size*sizeof(u_int8_t));
 

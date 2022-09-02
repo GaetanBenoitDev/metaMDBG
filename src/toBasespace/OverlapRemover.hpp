@@ -56,6 +56,7 @@ public:
 		u_int32_t _contigIndex;
 		vector<u_int64_t> _minimizers;
 		vector<u_int32_t> _kminmers;
+		bool isCircular;
 	};
 
 	static bool ContigComparator_ByLength(const Contig &a, const Contig &b){
@@ -136,7 +137,7 @@ public:
 				vector<ReadKminmer> kminmersInfo;
 				MDBG::getKminmers(-1, _kminmerSize, contigsTmp[i]._minimizers, minimizersPos, kminmers, kminmersInfo, rlePositions, 0, false);
 
-				indexContigs_read(contigsTmp[i]._minimizers, kminmers, kminmersInfo, contigIndex);
+				indexContigs_read(contigsTmp[i]._minimizers, kminmers, kminmersInfo, contigsTmp[i].isCircular, contigIndex);
 				contigIndex += 1;
 			}
 
@@ -155,6 +156,7 @@ public:
 			
 			u_int32_t contigSize = _contigs[i]._minimizers.size();
 			outputFile.write((const char*)&contigSize, sizeof(contigSize));
+			outputFile.write((const char*)&_contigs[i].isCircular, sizeof(_contigs[i].isCircular));
 			outputFile.write((const char*)&_contigs[i]._minimizers[0], contigSize*sizeof(u_int64_t));
 
 			//cout << contigSize << endl;
@@ -206,11 +208,11 @@ public:
 		_kminmerID = 0;
 
 		KminmerParser parser(_inputFilenameContig, -1, _kminmerSize, false, false);
-		auto fp = std::bind(&OverlapRemover::indexKminmers_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
+		auto fp = std::bind(&OverlapRemover::indexKminmers_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5);
 		parser.parse(fp);
 	}
 
-	void indexKminmers_read(const vector<u_int64_t>& readMinimizers, const vector<KmerVec>& vecs, const vector<ReadKminmer>& kminmersInfos, u_int32_t readIndex){
+	void indexKminmers_read(const vector<u_int64_t>& readMinimizers, const vector<KmerVec>& vecs, const vector<ReadKminmer>& kminmersInfos, bool isCircular, u_int32_t readIndex){
 		
 		for(u_int32_t i=0; i<vecs.size(); i++){
 			
@@ -228,13 +230,13 @@ public:
 		cout << "Indexing contigs" << endl;
 
 		KminmerParser parser(_inputFilenameContig, -1, _kminmerSize, false, false);
-		auto fp = std::bind(&OverlapRemover::indexContigs_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
+		auto fp = std::bind(&OverlapRemover::indexContigs_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5);
 		parser.parse(fp);
 
 		//_kminmerToIndex.clear();
 	}
 
-	void indexContigs_read(const vector<u_int64_t>& readMinimizers, const vector<KmerVec>& vecs, const vector<ReadKminmer>& kminmersInfos, u_int32_t readIndex){
+	void indexContigs_read(const vector<u_int64_t>& readMinimizers, const vector<KmerVec>& vecs, const vector<ReadKminmer>& kminmersInfos, bool isCircular, u_int32_t readIndex){
 
 		unordered_set<u_int32_t> indexedKminmer;
 		vector<u_int32_t> nodepath;
@@ -254,7 +256,7 @@ public:
 			
 		}
 		
-		_contigs.push_back({readIndex, readMinimizers, nodepath});
+		_contigs.push_back({readIndex, readMinimizers, nodepath, isCircular});
 	}
 
 

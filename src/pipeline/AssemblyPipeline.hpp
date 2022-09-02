@@ -471,6 +471,9 @@ public:
 		
 		u_int32_t contigSize = readMinimizers.size();
 		_fileContigsAppend.write((const char*)&contigSize, sizeof(contigSize));
+		
+		bool isCircular = false;
+		_fileContigsAppend.write((const char*)&isCircular, sizeof(isCircular));
 		_fileContigsAppend.write((const char*)&readMinimizers[0], contigSize*sizeof(u_int64_t));
 	}
 

@@ -1255,11 +1255,14 @@ public:
 				//}
 				//if(nodePath.size() <= 0) continue;
 
+				bool isCircular = u._startNode == u._endNode;
+
 				u_int64_t size = nodePath.size();
 
 				//gzwrite(outputContigFile_min, (const char*)&size, sizeof(size));
 				//gzwrite(outputContigFile_min, (const char*)&nodePath[0], size * sizeof(u_int32_t));
 				outputContigFile.write((const char*)&size, sizeof(size));
+				outputContigFile.write((const char*)&isCircular, sizeof(isCircular));
 				outputContigFile.write((const char*)&nodePath[0], size * sizeof(u_int32_t));
 
 				for(u_int32_t nodeIndex : nodePath){
