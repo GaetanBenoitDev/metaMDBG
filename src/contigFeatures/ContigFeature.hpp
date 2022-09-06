@@ -205,9 +205,9 @@ public:
 
 			string contigName = (*fields)[0];
 
-			size_t pos = contigName.find("ctg");
-			contigName.erase(pos, 3);
-			u_int32_t contigIndex = stoull(contigName);
+			//size_t pos = contigName.find("ctg");
+			//contigName.erase(pos, 3);
+			u_int32_t contigIndex = Utils::contigName_to_contigIndex(contigName);
 
 
 			//cout << contigIndex << ": ";
@@ -303,9 +303,9 @@ public:
 
 			string contigName = (*fields)[0];
 
-			size_t pos = contigName.find("ctg");
-			contigName.erase(pos, 3);
-			u_int32_t contigIndex = stoull(contigName);
+			//size_t pos = contigName.find("ctg");
+			//contigName.erase(pos, 3);
+			u_int32_t contigIndex = Utils::contigName_to_contigIndex(contigName);
 
 			//vector<u_int32_t> nodes;
 			//nodes = contigToNodenames[contigName];

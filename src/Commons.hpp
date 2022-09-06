@@ -534,6 +534,20 @@ class Utils{
 
 public:
 
+	static u_int64_t contigName_to_contigIndex(const string& header){
+		string name = header;
+		size_t pos = name.find("ctg");
+		name.erase(pos, 3);
+
+		//remove circular or linear indicator
+		if(name[name.size()-1] == 'l' || name[name.size()-1] == 'c'){
+			name.pop_back(); 
+		}
+
+		u_int64_t contigIndex = stoull(name);
+		return contigIndex;
+	}
+
 	static void toReverseComplement(string& seq) {
 
 		//string seq_rc;

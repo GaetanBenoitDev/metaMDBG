@@ -1009,10 +1009,6 @@ public:
 
 
 
-
-
-
-
 	gzFile _queryContigFile;
 	unordered_set<u_int32_t> _duplicatedContigIndex;
 
@@ -1075,13 +1071,13 @@ public:
 					//cout << (*fields_optional)[2] << endl;
 					//cout << contigName << " " << readName << " " << (alignLength/queryLength*100) << " " << (divergence*100) << "     " << queryLength << " " << targetLength << endl;
 					if(divergence < 0.02){
-						string name = readName;
-						size_t pos = name.find("ctg");
-						name.erase(pos, 3);
-						u_int32_t contigIndex = stoull(name);
+						//string name = readName;
+						//size_t pos = name.find("ctg");
+						//name.erase(pos, 3);
+						//u_int32_t contigIndex = stoull(name);
 						//cout << "Duplicate: " << contigIndex << endl;
 
-						_duplicatedContigIndex.insert(contigIndex);
+						_duplicatedContigIndex.insert(Utils::contigName_to_contigIndex(readName));
 					}
 				}
 

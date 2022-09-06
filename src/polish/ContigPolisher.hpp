@@ -160,7 +160,7 @@ public:
 		("reads", "", cxxopts::value<string>())
 		("tmpDir", "", cxxopts::value<string>())
 		(ARG_USE_QUAL, "", cxxopts::value<bool>()->default_value("false"))
-		(ARG_NB_CORES, "", cxxopts::value<int>()->default_value("4"));
+		(ARG_NB_CORES, "", cxxopts::value<int>()->default_value(NB_CORES_DEFAULT));
 
 		options.parse_positional({"contigs", "reads", "tmpDir"});
 		options.positional_help("contigs reads tmpDir");
@@ -1838,7 +1838,6 @@ public:
 	}
 
 };	
-
 
 #endif 
 

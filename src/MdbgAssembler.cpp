@@ -15,6 +15,7 @@
 #include "mapping/Mapping_ContigToMDBG.hpp"
 #include "mapping/Mapping_BinToMDBG.hpp"
 #include "polish/ContigPolisher.hpp"
+#include "toBasespace/Dereplicater.hpp"
 
 void displayHelp(){
 	cout << "Usage: ./simkaMin [option]" << endl;
@@ -104,6 +105,9 @@ int main (int argc, char* argv[])
     		}
     		else if(programName == "polish"){
                 ContigPolisher().run (argc, args);
+    		}
+    		else if(programName == "derep"){
+                Dereplicater().run (argc, args);
     		}
     		else if(programName == "toBasespaceFast"){
                 ToBasespaceNoCorrection().run (argc, args);
