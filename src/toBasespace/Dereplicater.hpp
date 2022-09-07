@@ -176,10 +176,12 @@ public:
 			//u_int64_t bl = alignLength;
 
 
-			if(nbMatches / alignLength < 0.2) continue;
-			if(alignLength < 2000) continue;
+			if(nbMatches / alignLength < 0.4) continue;
+			if(alignLength < 5000) continue;
 
-			u_int64_t maxHang = 1000;
+			//cout << alignLength / targetLength << endl;
+
+			u_int64_t maxHang = 100;
 			u_int64_t hangLeft = targetStart;
 			u_int64_t hangRight = targetLength - targetEnd;
 
