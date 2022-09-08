@@ -671,7 +671,7 @@ public:
 			readFilenames += filename + " ";
 		}
 
-		string command = "minimap2 -H -I 2GB -t " + to_string(_nbCores) + " -x map-hifi " + _inputFilename_contigs + " " + readFilenames;
+		string command = "minimap2 -H -I 2G -t " + to_string(_nbCores) + " -x map-hifi " + _inputFilename_contigs + " " + readFilenames;
 		command += " | " + _mapperOutputExeFilename + " " + _inputFilename_contigs + " " + _inputFilename_reads + " " + _outputFilename_mapping;
 		Utils::executeCommand(command, _outputDir);
 

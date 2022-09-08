@@ -105,7 +105,7 @@ public:
 
 
 		//-N 2 -p 0 --secondary=yes -I 2GB -x map-hifi -c -x asm20
-		string command = "minimap2 -DP -c -I 2GB -t " + to_string(_nbCores) + " " + _inputFilename_contigs + " " + _inputFilename_contigs + " > " + mapFilename;
+		string command = "minimap2 -H -DP -c -I 100M -t " + to_string(_nbCores) + " " + _inputFilename_contigs + " " + _inputFilename_contigs + " > " + mapFilename;
 		Utils::executeCommand(command, _tmpDir);
 
 	}
@@ -186,8 +186,8 @@ public:
 			//u_int64_t bl = alignLength;
 
 			//cout << nbMatches / alignLength << " " << alignLength << endl;
-			if(nbMatches / alignLength < 0.9) continue;
-			if(alignLength < 10000) continue;
+			if(nbMatches / alignLength < 0.8) continue;
+			if(alignLength < 1000) continue;
 
 			u_int64_t maxHang = 100;
 			u_int64_t hangLeft = targetStart;
