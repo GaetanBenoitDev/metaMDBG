@@ -42,7 +42,7 @@ typedef unsigned __int128 u_int128_t;
 
 #include <functional>
 #include <memory>
-#include "./utils/ntHashIterator.hpp"
+//#include "./utils/ntHashIterator.hpp"
 #include "./utils/kseq.h"
 #include "./utils/DnaBitset.hpp"
 KSEQ_INIT(gzFile, gzread)

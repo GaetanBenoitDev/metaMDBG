@@ -93,7 +93,7 @@ public:
 		dumpDereplicatedContigs();
 		
 
-		//fs::remove(outputMappingFilename);
+		fs::remove(outputMappingFilename);
 	}
 
 
@@ -103,11 +103,14 @@ public:
 	void mapContigs(const string& mapFilename){
 
 
-
-		string command = "minimap2 -N 2 -p 0 --secondary=yes -I 2GB -x map-hifi -t " + to_string(_nbCores) + " " + _inputFilename_contigs + " " + _inputFilename_contigs + " > " + mapFilename;
+		//-N 2 -p 0 --secondary=yes -I 2GB -x map-hifi -c -x asm20
+		string command = "minimap2  -DP -c -I 2GB -t " + to_string(_nbCores) + " " + _inputFilename_contigs + " " + _inputFilename_contigs + " > " + mapFilename;
 		Utils::executeCommand(command, _tmpDir);
 
 	}
+
+
+	unordered_set<DbgEdge, hash_pair> _performedPairs;
 
 	void detectDuplicatedContigs(const string& mapFilename){
 
@@ -123,7 +126,13 @@ public:
 
 			const string& readName = (*fields)[0];
 			const string& contigName = (*fields)[5];
-			if(readName == contigName) continue;
+			//if(readName == contigName) continue;
+
+			u_int64_t targetIndex = Utils::contigName_to_contigIndex(contigName);
+			u_int64_t queryIndex = Utils::contigName_to_contigIndex(readName);
+			DbgEdge edge = {targetIndex, queryIndex};
+			edge = edge.normalize();
+			if(_performedPairs.find(edge) != _performedPairs.end()) continue;
 
 			//string search1 ="ctg88963";
 			//string search2 ="ctg89401";
@@ -144,7 +153,7 @@ public:
 				cout << line << endl;
 			}
 
-
+			//cout << line << endl;
 
 			//continue;
 
@@ -175,9 +184,9 @@ public:
 			//u_int64_t ml = nbMatches;
 			//u_int64_t bl = alignLength;
 
-
-			if(nbMatches / alignLength < 0.4) continue;
-			if(alignLength < 5000) continue;
+			//cout << nbMatches / alignLength << " " << alignLength << endl;
+			if(nbMatches / alignLength < 0.8) continue;
+			if(alignLength < 1000) continue;
 
 			//cout << alignLength / targetLength << endl;
 
@@ -185,12 +194,15 @@ public:
 			u_int64_t hangLeft = targetStart;
 			u_int64_t hangRight = targetLength - targetEnd;
 
-			u_int64_t targetIndex = Utils::contigName_to_contigIndex(contigName);
+
 
 			//if(readName == "ctg89401" || contigName == "ctg89401"){
 				//cout << line << endl;
 			//}
-			
+			//cout << hangLeft << " " << hangRight << endl;
+
+			bool isOverlap = false;
+
 			if(hangLeft < maxHang){
 
 				cout << "left overlap: " << targetIndex << "    " << line << endl;
@@ -210,6 +222,7 @@ public:
 				//}
 
 				//_contigOverlaps[targetIndex] = contigOverlap;
+				isOverlap = true;
 			}
 
 			if(hangRight < maxHang){
@@ -232,8 +245,12 @@ public:
 				//}
 				
 				//_contigOverlaps[targetIndex] = contigOverlap;
+				isOverlap = true;
 			}
 
+			if(isOverlap){
+				_performedPairs.insert(edge);
+			}
 			//cout << alignLength / queryLength << endl;
 
 
@@ -523,938 +540,151 @@ public:
 
 /*
 
-90059 29513 18446744073709551615
-	Slicing left: 847077
-89096 53191 168468
-	Slicing both: 295145
-89401 3705 18446744073709551615
-	Slicing left: 380917
-89567 67242 18446744073709551615
-	Slicing left: 448801
-86936 124326 13
-	Slicing complete: 124337
-88674 0 185221
-	Slicing right: 224475
-83777 64387 59
-	Slicing complete: 64390
-85082 81257 56
-	Slicing complete: 81344
-87283 0 44197
-	Slicing right: 134520
-88963 0 83159
-	Slicing right: 250826
-87938 154041 18446744073709551615
-	Slicing left: 156245
-84539 74709 10
-	Slicing complete: 74720
-89441 369573 18446744073709551615
-	Slicing left: 399063
-61502 3324 9961
-	Slicing both: 13285
-
-
-
-
-
-
-
-
-
-
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	TIGR00488	ctg90059_919
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	TIGR00488	ctg89401_330
-
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	TIGR01351	ctg90131_610
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	TIGR00244	ctg90059_491
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	TIGR00416	ctg89401_93
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	TIGR00691	ctg89401_73
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	TIGR03598	ctg89401_211
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	TIGR00182	ctg90059_766
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	TIGR01575	ctg89401_313
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	TIGR00460	ctg90059_905
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	TIGR03263	ctg89401_338
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	TIGR03263	ctg90059_911
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	TIGR00436	ctg89401_260
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	TIGR00154	ctg90131_816
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	TIGR00422	ctg90131_554
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	TIGR00967	ctg90131_611
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	TIGR01079	ctg90131_621
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	TIGR00406	ctg90059_497
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	TIGR00159	ctg89401_276
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	TIGR00360	ctg89401_311
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	TIGR00185	ctg90059_729
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	TIGR03596	ctg90059_750
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	TIGR03725	ctg89401_314
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	TIGR03725	ctg90059_944
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	TIGR01051	ctg90059_741
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	TIGR00595	ctg90059_908
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	TIGR02168	ctg90059_763
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	TIGR03974	ctg87283_65
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	TIGR03974	ctg90059_284
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	TIGR00634	ctg90059_459
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	TIGR00482	ctg90059_919
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	TIGR00482	ctg89401_330
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	TIGR03594	ctg87283_117
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	TIGR03594	ctg90059_361
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	TIGR01069	ctg87283_83
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	TIGR01510	ctg90059_779
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	TIGR00233	ctg89401_83
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF03602.10	ctg90059_780
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF04816.7	ctg90059_830
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF00366.15	ctg90131_623
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF10458.4	ctg90131_554
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF01649.13	ctg90059_824
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF04998.12	ctg90131_870
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF03726.9	ctg90131_385
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF03947.13	ctg90131_629
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF00181.18	ctg90131_629
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF05833.6	ctg90059_893
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF01715.12	ctg90059_353
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF01715.12	ctg87283_111
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF09285.6	ctg90131_359
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF08207.7	ctg90131_359
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF01132.15	ctg90131_359
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF01000.21	ctg90131_601
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF01193.19	ctg90131_601
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF00861.17	ctg90131_615
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF01782.13	ctg90059_753
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF00297.17	ctg90131_632
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF00318.15	ctg90131_427
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF00416.17	ctg90131_604
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF00831.18	ctg90131_624
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF08459.6	ctg89401_132
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF01351.13	ctg90059_747
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF05190.13	ctg90059_356
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF05190.13	ctg87283_113
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF05188.12	ctg90059_356
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF05188.12	ctg87283_113
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF08676.6	ctg90059_354
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF08676.6	ctg87283_112
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF01119.14	ctg87283_112
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF01119.14	ctg90059_355
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF00410.14	ctg90131_618
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF06135.7	ctg90131_431
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF06838.6	ctg90059_351
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF06838.6	ctg87283_109
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF13742.1	ctg90059_472
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF02021.12	ctg90059_746
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF02132.10	ctg89401_86
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF01245.15	ctg90059_751
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF00562.23	ctg90131_872
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF04563.10	ctg90131_872
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF04561.9	ctg90131_872
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF04560.15	ctg90131_872
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF04565.11	ctg90131_872
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF10385.4	ctg90131_872
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF02542.11	ctg89401_241
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF02224.13	ctg87283_92
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF02224.13	ctg90059_330
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF01121.15	ctg90059_806
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF01746.16	ctg90059_752
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF00453.13	ctg90131_340
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF06421.7	ctg90059_504
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF11987.3	ctg90131_395
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF06574.7	ctg90131_390
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF06574.7	ctg90131_302
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF06574.7	ctg90059_35&&ctg90059_36
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF01687.12	ctg90131_302
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF01687.12	ctg90059_36
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF02401.13	ctg90059_332
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF02401.13	ctg87283_94
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF00338.17	ctg90131_633
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF01632.14	ctg90131_341
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF01765.14	ctg90131_422
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF00889.14	ctg90131_426
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF12072.3	ctg87283_100
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF12072.3	ctg90059_340
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF13184.1	ctg90131_400
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF04997.7	ctg90131_871
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF00623.15	ctg90131_871
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF04983.13	ctg90131_871
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF05000.12	ctg90131_871
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF05198.11	ctg90131_342
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF00707.17	ctg90131_342
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF04079.11	ctg90059_449
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF01078.16	ctg90059_743
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF01078.16	ctg89401_209
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF05491.8	ctg87283_56
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF05491.8	ctg90059_275
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF03147.9	ctg90131_50
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF03147.9	ctg90059_195
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF03484.10	ctg90131_50
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF03484.10	ctg90059_195
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF04297.9	ctg90059_758
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF00673.16	ctg90131_620
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF00281.14	ctg90131_620
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF01628.16	ctg90059_502
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF00189.15	ctg90131_626
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF00380.14	ctg90059_727
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF02130.12	ctg89401_258
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF08529.6	ctg90131_402
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF03485.11	ctg90131_1203
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF00154.16	ctg87283_99
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF00154.16	ctg90059_339
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF05697.8	ctg89401_204
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF00828.14	ctg90131_612
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF06071.8	ctg90131_1054
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF00237.14	ctg90131_627
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF01205.14	ctg90131_1123
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF09186.6	ctg90131_1123
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF09269.6	ctg90059_922
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF09269.6	ctg89401_327
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF01018.17	ctg89401_327
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF01018.17	ctg90059_922&&ctg90059_923
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF04468.7	ctg90131_844
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF07499.8	ctg87283_55
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF07499.8	ctg90059_274
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF01250.12	ctg90131_1145
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF01084.15	ctg90131_1147
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF06969.11	ctg90059_503
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF00118.19	ctg90131_641
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF12344.3	ctg90131_261
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF12344.3	ctg90059_77
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF03461.10	ctg89401_238
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF03668.10	ctg90059_426
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF02565.10	ctg89401_262
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF02609.11	ctg90059_470
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF00411.14	ctg90131_603
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF02616.9	ctg90059_450
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF06144.8	ctg90059_949
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF12392.3	ctg90059_314
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF12392.3	ctg87283_82
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF00347.18	ctg90131_616&&ctg90131_617
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF00573.17	ctg90131_631
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF02912.13	ctg90059_194
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF02912.13	ctg90131_51
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF00886.14	ctg90059_755
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF03652.10	ctg90131_430
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF08275.6	ctg90059_820
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF01176.14	ctg90131_606
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF02650.9	ctg90059_424
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF02603.11	ctg89401_134
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF01725.11	ctg90059_891
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF02631.11	ctg90059_785
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF00750.14	ctg90131_1204
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF00238.14	ctg90131_622
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF00252.13	ctg90131_625
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF01196.14	ctg90131_599
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF02367.12	ctg90059_943
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF02367.12	ctg89401_315
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF01195.14	ctg89401_236
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF03719.10	ctg90131_614
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF00333.15	ctg90131_614
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF00276.15	ctg90131_630
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF02547.10	ctg89401_317
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF02547.10	ctg90059_941
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF02033.13	ctg90131_394
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF03948.9	ctg90131_1141
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF01281.14	ctg90131_1141
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF02575.11	ctg89401_85
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF02576.12	ctg90131_404
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF02601.10	ctg90059_471
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF02978.14	ctg90059_756
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF00164.20	ctg90131_867
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF00572.13	ctg90059_728
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF01509.13	ctg90131_391&&ctg90131_392
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF02873.11	ctg90059_427
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF00203.16	ctg90131_628
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF01702.13	ctg89401_316
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF01702.13	ctg90059_942
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF01016.14	ctg90131_246
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF01016.14	ctg90059_86
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF00312.17	ctg90131_389
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF00829.16	ctg90131_244
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF00829.16	ctg90059_88
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF00177.16	ctg90131_866
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF01709.15	ctg90131_216
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF05636.6	ctg90059_776
-bin.1081.derep.derep.derep.derep.derep.derep.derep.derep	PF04296.8	ctg90131_399
-
-
-
-
-
-
-
-
-
-bin.1081.derep	TIGR00615	ctg89401_85
-bin.1081.derep	TIGR03723	ctg89567_174
-bin.1081.derep	TIGR00855	ctg89567_165
-bin.1081.derep	TIGR00250	ctg90131_426
-bin.1081.derep	TIGR00250	ctg88674_165
-bin.1081.derep	TIGR02432	ctg89096_19
-bin.1081.derep	TIGR02432	ctg90131_1042
-bin.1081.derep	TIGR02075	ctg88674_161
-bin.1081.derep	TIGR00922	ctg89567_169
-bin.1081.derep	TIGR00392	ctg89567_31
-bin.1081.derep	TIGR03263	ctg90059_854
-bin.1081.derep	TIGR00329	ctg89567_174
-bin.1081.derep	TIGR00459	ctg89401_77
-bin.1081.derep	TIGR00755	ctg89567_48
-bin.1081.derep	TIGR01079	ctg90131_615
-bin.1081.derep	TIGR00344	ctg89567_77
-bin.1081.derep	TIGR00019	ctg89567_277
-bin.1081.derep	TIGR03594	ctg90059_307
-bin.1081.derep	TIGR00967	ctg90131_605
-bin.1081.derep	TIGR00460	ctg90059_848
-bin.1081.derep	TIGR00460	ctg89441_20
-bin.1081.derep	TIGR00084	ctg90059_221
-bin.1081.derep	PF00366.15	ctg90131_617
-bin.1081.derep	PF04997.7	ctg90131_863
-bin.1081.derep	PF04997.7	ctg89096_90&&ctg89096_91
-bin.1081.derep	PF00623.15	ctg90131_863
-bin.1081.derep	PF00623.15	ctg89096_91
-bin.1081.derep	PF04983.13	ctg90131_863
-bin.1081.derep	PF04983.13	ctg89096_91
-bin.1081.derep	PF05000.12	ctg90131_863
-bin.1081.derep	PF05000.12	ctg89096_91
-bin.1081.derep	PF04998.12	ctg89096_91
-bin.1081.derep	PF04998.12	ctg90131_862
-
-bin.1081.derep	PF01795.14	ctg89401_214
-bin.1081.derep	PF01795.14	ctg88963_1
-
-bin.1081.derep	PF01016.14	ctg90131_243
-bin.1081.derep	PF01016.14	ctg90059_38
-bin.1081.derep	PF12344.3	ctg90131_258
-bin.1081.derep	PF00886.14	ctg90059_699
-bin.1081.derep	PF01250.12	ctg89567_354
-bin.1081.derep	PF01250.12	ctg90131_1135
-bin.1081.derep	PF08529.6	ctg90131_398
-bin.1081.derep	PF08529.6	ctg88674_151
-bin.1081.derep	PF13184.1	ctg88674_151
-bin.1081.derep	PF13184.1	ctg90131_396
-bin.1081.derep	PF06421.7	ctg90059_449
-bin.1081.derep	PF11987.3	ctg88674_148
-bin.1081.derep	PF11987.3	ctg90131_391
-bin.1081.derep	PF00889.14	ctg90131_422
-bin.1081.derep	PF00889.14	ctg88674_162
-bin.1081.derep	PF00562.23	ctg90131_864
-bin.1081.derep	PF00562.23	ctg89096_89
-bin.1081.derep	PF04563.10	ctg90131_864
-bin.1081.derep	PF04563.10	ctg89096_89
-bin.1081.derep	PF04561.9	ctg90131_864
-bin.1081.derep	PF04561.9	ctg89096_89
-bin.1081.derep	PF04560.15	ctg90131_864
-bin.1081.derep	PF04560.15	ctg89096_89
-bin.1081.derep	PF04565.11	ctg90131_864
-bin.1081.derep	PF04565.11	ctg89096_89
-bin.1081.derep	PF10385.4	ctg90131_864
-bin.1081.derep	PF10385.4	ctg89096_89
-bin.1081.derep	PF01509.13	ctg88674_145
-bin.1081.derep	PF01509.13	ctg90131_387&&ctg90131_388
-bin.1081.derep	PF05491.8	ctg90059_222
-bin.1081.derep	PF00203.16	ctg90131_622
-bin.1081.derep	PF02978.14	ctg90059_700
-
-bin.1081.derep	PF01018.17	ctg89401_326
-bin.1081.derep	PF01018.17	ctg90059_865&&ctg90059_866
-
-bin.1081.derep	PF06071.8	ctg89096_18
-bin.1081.derep	PF06071.8	ctg90131_1044
-bin.1081.derep	PF00573.17	ctg90131_625
-bin.1081.derep	PF00416.17	ctg90131_598
-bin.1081.derep	PF00411.14	ctg90131_597
-bin.1081.derep	PF00861.17	ctg90131_609
-bin.1081.derep	PF01765.14	ctg88674_160
-bin.1081.derep	PF01765.14	ctg90131_418
-bin.1081.derep	PF01649.13	ctg90059_767
-bin.1081.derep	PF00189.15	ctg90131_620
-bin.1081.derep	PF00380.14	ctg90059_672
-bin.1081.derep	PF00177.16	ctg89096_94
-bin.1081.derep	PF00177.16	ctg90131_858
-bin.1081.derep	PF03719.10	ctg90131_608
-bin.1081.derep	PF00333.15	ctg90131_608
-bin.1081.derep	PF01632.14	ctg88674_114
-bin.1081.derep	PF01632.14	ctg90131_338
-
-bin.1081.derep	PF02367.12	ctg90059_886
-bin.1081.derep	PF02367.12	ctg89401_314
-
-bin.1081.derep	PF01409.15	ctg90059_144
-bin.1081.derep	PF01409.15	ctg90131_51
-bin.1081.derep	PF02912.13	ctg90059_144
-bin.1081.derep	PF02912.13	ctg90131_51
-bin.1081.derep	PF03948.9	ctg90131_1131
-bin.1081.derep	PF03948.9	ctg89567_357
-bin.1081.derep	PF01281.14	ctg90131_1131
-bin.1081.derep	PF01281.14	ctg89567_357
-bin.1081.derep	PF01195.14	ctg89401_235
-bin.1081.derep	PF00276.15	ctg90131_624
-bin.1081.derep	PF00252.13	ctg90131_619
-bin.1081.derep	PF00466.15	ctg89567_166
-bin.1081.derep	PF03947.13	ctg90131_623
-bin.1081.derep	PF00181.18	ctg90131_623
-bin.1081.derep	PF00453.13	ctg88674_113
-bin.1081.derep	PF00453.13	ctg90131_337
-bin.1081.derep	PF00410.14	ctg90131_612
-bin.1081.derep	PF01746.16	ctg90059_696
-bin.1081.derep	PF08459.6	ctg89401_131
-bin.1081.derep	PF00338.17	ctg90131_627
-bin.1081.derep	PF00687.16	ctg89567_167
-bin.1081.derep	PF01196.14	ctg90131_593
-bin.1081.derep	PF01000.21	ctg90131_595
-bin.1081.derep	PF01193.19	ctg90131_595
-bin.1081.derep	PF00164.20	ctg89096_93
-bin.1081.derep	PF00164.20	ctg90131_859
-bin.1081.derep	PF03484.10	ctg90131_50
-bin.1081.derep	PF03484.10	ctg90059_145
-bin.1081.derep	PF00238.14	ctg90131_616
-bin.1081.derep	PF00297.17	ctg90131_626
-bin.1081.derep	PF00237.14	ctg90131_621
-bin.1081.derep	PF02130.12	ctg89401_257
-bin.1081.derep	PF00312.17	ctg88674_143
-bin.1081.derep	PF00312.17	ctg90131_385
-bin.1081.derep	PF01121.15	ctg90059_749
-bin.1081.derep	PF02033.13	ctg88674_147
-bin.1081.derep	PF02033.13	ctg90131_390
-bin.1081.derep	PF03946.9	ctg89567_168
-bin.1081.derep	PF00298.14	ctg89567_168
-bin.1081.derep	PF00831.18	ctg90131_618
-bin.1081.derep	PF00572.13	ctg90059_673
-bin.1081.derep	PF01245.15	ctg90059_695
-bin.1081.derep	PF00347.18	ctg90131_610&&ctg90131_611
-bin.1081.derep	PF00828.14	ctg90131_606
-
-bin.1081.derep	PF05697.8	ctg88963_12
-bin.1081.derep	PF05697.8	ctg89401_203
-
-bin.1081.derep	PF00673.16	ctg90131_614
-bin.1081.derep	PF00281.14	ctg90131_614
-bin.1081.derep	PF00318.15	ctg88674_163
-bin.1081.derep	PF00318.15	ctg90131_423
-bin.1081.derep	PF00829.16	ctg90131_241
-bin.1081.derep	PF00829.16	ctg90059_4
-
-
-
-
-
-bin.1081.derep	TIGR02432	ctg89096_19
-bin.1081.derep	TIGR02432	ctg90131_1042
-bin.1081.derep	TIGR00755	ctg89567_48
-bin.1081.derep	TIGR00019	ctg89567_277
-bin.1081.derep	TIGR00344	ctg89567_77
-bin.1081.derep	TIGR03263	ctg89401_337
-bin.1081.derep	TIGR03263	ctg90059_902
-bin.1081.derep	TIGR03723	ctg89567_174
-bin.1081.derep	TIGR00392	ctg89567_31
-bin.1081.derep	TIGR03594	ctg90059_354
-bin.1081.derep	TIGR00250	ctg90131_426
-bin.1081.derep	TIGR00250	ctg88674_165
-bin.1081.derep	TIGR02075	ctg88674_161
-bin.1081.derep	TIGR01079	ctg90131_615
-bin.1081.derep	TIGR00329	ctg89567_174
-bin.1081.derep	TIGR00922	ctg89567_169
-bin.1081.derep	TIGR00460	ctg90059_896
-bin.1081.derep	TIGR00460	ctg89441_20
-bin.1081.derep	TIGR00459	ctg89401_77
-bin.1081.derep	TIGR00855	ctg89567_165
-bin.1081.derep	TIGR00084	ctg90059_268
-bin.1081.derep	TIGR00615	ctg89401_85
-bin.1081.derep	PF01409.15	ctg90059_191
-bin.1081.derep	PF01409.15	ctg90131_51
-bin.1081.derep	PF02912.13	ctg90059_191
-bin.1081.derep	PF02912.13	ctg90131_51
-bin.1081.derep	PF00828.14	ctg90131_606
-bin.1081.derep	PF06071.8	ctg89096_18
-bin.1081.derep	PF06071.8	ctg90131_1044
-bin.1081.derep	PF04997.7	ctg90131_863
-bin.1081.derep	PF04997.7	ctg89096_90&&ctg89096_91
-bin.1081.derep	PF00623.15	ctg90131_863
-bin.1081.derep	PF00623.15	ctg89096_91
-bin.1081.derep	PF04983.13	ctg90131_863
-bin.1081.derep	PF04983.13	ctg89096_91
-bin.1081.derep	PF05000.12	ctg90131_863
-bin.1081.derep	PF05000.12	ctg89096_91
-bin.1081.derep	PF04998.12	ctg89096_91
-bin.1081.derep	PF04998.12	ctg90131_862
-bin.1081.derep	PF01016.14	ctg90131_243
-bin.1081.derep	PF01016.14	ctg90059_85
-bin.1081.derep	PF01245.15	ctg90059_743
-bin.1081.derep	PF02367.12	ctg90059_934
-bin.1081.derep	PF02367.12	ctg89401_314
-bin.1081.derep	PF08529.6	ctg88674_151
-bin.1081.derep	PF08529.6	ctg90131_398
-bin.1081.derep	PF13184.1	ctg88674_151
-bin.1081.derep	PF13184.1	ctg90131_396
-bin.1081.derep	PF01765.14	ctg88674_160
-bin.1081.derep	PF01765.14	ctg90131_418
-bin.1081.derep	PF00673.16	ctg90131_614
-bin.1081.derep	PF00281.14	ctg90131_614
-bin.1081.derep	PF00410.14	ctg90131_612
-bin.1081.derep	PF03946.9	ctg89567_168
-bin.1081.derep	PF00298.14	ctg89567_168
-bin.1081.derep	PF00562.23	ctg89096_89
-bin.1081.derep	PF00562.23	ctg90131_864
-bin.1081.derep	PF04563.10	ctg89096_89
-bin.1081.derep	PF04563.10	ctg90131_864
-bin.1081.derep	PF04561.9	ctg89096_89
-bin.1081.derep	PF04561.9	ctg90131_864
-bin.1081.derep	PF04560.15	ctg89096_89
-bin.1081.derep	PF04560.15	ctg90131_864
-bin.1081.derep	PF04565.11	ctg89096_89
-bin.1081.derep	PF04565.11	ctg90131_864
-bin.1081.derep	PF10385.4	ctg89096_89
-bin.1081.derep	PF10385.4	ctg90131_864
-bin.1081.derep	PF05491.8	ctg90059_269
-bin.1081.derep	PF00318.15	ctg88674_163
-bin.1081.derep	PF00318.15	ctg90131_423
-bin.1081.derep	PF00297.17	ctg90131_626
-bin.1081.derep	PF00237.14	ctg90131_621
-bin.1081.derep	PF03719.10	ctg90131_608
-bin.1081.derep	PF00333.15	ctg90131_608
-bin.1081.derep	PF12344.3	ctg90131_258
-bin.1081.derep	PF12344.3	ctg90059_76
-bin.1081.derep	PF11987.3	ctg88674_148
-bin.1081.derep	PF11987.3	ctg90131_391
-bin.1081.derep	PF00164.20	ctg89096_93
-bin.1081.derep	PF00164.20	ctg90131_859
-bin.1081.derep	PF00338.17	ctg90131_627
-bin.1081.derep	PF00453.13	ctg88674_113
-bin.1081.derep	PF00453.13	ctg90131_337
-bin.1081.derep	PF00831.18	ctg90131_618
-bin.1081.derep	PF02978.14	ctg90059_748
-bin.1081.derep	PF00573.17	ctg90131_625
-bin.1081.derep	PF01746.16	ctg90059_744
-bin.1081.derep	PF03484.10	ctg90059_192
-bin.1081.derep	PF03484.10	ctg90131_50
-bin.1081.derep	PF01018.17	ctg89401_326
-bin.1081.derep	PF01018.17	ctg90059_913&&ctg90059_914
-bin.1081.derep	PF00276.15	ctg90131_624
-bin.1081.derep	PF00572.13	ctg90059_721
-bin.1081.derep	PF00177.16	ctg89096_94
-bin.1081.derep	PF00177.16	ctg90131_858
-bin.1081.derep	PF00189.15	ctg90131_620
-bin.1081.derep	PF01000.21	ctg90131_595
-bin.1081.derep	PF01193.19	ctg90131_595
-bin.1081.derep	PF01632.14	ctg88674_114
-bin.1081.derep	PF01632.14	ctg90131_338
-bin.1081.derep	PF02130.12	ctg89401_257
-bin.1081.derep	PF00687.16	ctg89567_167
-bin.1081.derep	PF03947.13	ctg90131_623
-bin.1081.derep	PF00181.18	ctg90131_623
-bin.1081.derep	PF06421.7	ctg90059_497
-bin.1081.derep	PF00203.16	ctg90131_622
-bin.1081.derep	PF02033.13	ctg88674_147
-bin.1081.derep	PF02033.13	ctg90131_390
-bin.1081.derep	PF00380.14	ctg90059_720
-bin.1081.derep	PF05697.8	ctg88963_12
-bin.1081.derep	PF05697.8	ctg89401_203
-bin.1081.derep	PF00238.14	ctg90131_616
-bin.1081.derep	PF01250.12	ctg89567_354
-bin.1081.derep	PF01250.12	ctg90131_1135
-bin.1081.derep	PF01195.14	ctg89401_235
-bin.1081.derep	PF08459.6	ctg89401_131
-bin.1081.derep	PF00366.15	ctg90131_617
-bin.1081.derep	PF01649.13	ctg90059_815
-bin.1081.derep	PF00312.17	ctg88674_143
-bin.1081.derep	PF00312.17	ctg90131_385
-bin.1081.derep	PF00347.18	ctg90131_610&&ctg90131_611
-bin.1081.derep	PF00466.15	ctg89567_166
-bin.1081.derep	PF03948.9	ctg90131_1131
-bin.1081.derep	PF03948.9	ctg89567_357
-bin.1081.derep	PF01281.14	ctg90131_1131
-bin.1081.derep	PF01281.14	ctg89567_357
-bin.1081.derep	PF00411.14	ctg90131_597
-bin.1081.derep	PF00861.17	ctg90131_609
-bin.1081.derep	PF00886.14	ctg90059_747
-bin.1081.derep	PF01196.14	ctg90131_593
-bin.1081.derep	PF01121.15	ctg90059_797
-bin.1081.derep	PF01795.14	ctg89401_214
-bin.1081.derep	PF01795.14	ctg88963_1
-bin.1081.derep	PF00889.14	ctg90131_422
-bin.1081.derep	PF00889.14	ctg88674_162
-bin.1081.derep	PF00252.13	ctg90131_619
-bin.1081.derep	PF00829.16	ctg90131_241
-bin.1081.derep	PF00829.16	ctg90059_87
-bin.1081.derep	PF01509.13	ctg88674_145
-bin.1081.derep	PF01509.13	ctg90131_387&&ctg90131_388
-bin.1081.derep	PF00416.17	ctg90131_598
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-bin.1081.derep	TIGR00084	ctg87283_55
-bin.1081.derep	TIGR00084	ctg90059_268
-
 bin.1081.derep	TIGR03594	ctg87283_117
-bin.1081.derep	TIGR03594	ctg90059_354
-
-bin.1081.derep	PF05491.8	ctg87283_56
-bin.1081.derep	PF05491.8	ctg90059_269
-
-bin.1081.derep	TIGR00329	ctg89567_174
-bin.1081.derep	TIGR00855	ctg89567_165
-bin.1081.derep	TIGR00392	ctg89567_31
-bin.1081.derep	TIGR02075	ctg88674_161
-bin.1081.derep	TIGR00250	ctg90131_427
-bin.1081.derep	TIGR00250	ctg88674_165
-bin.1081.derep	TIGR01079	ctg90131_616
-
-bin.1081.derep	TIGR00460	ctg90059_896
-bin.1081.derep	TIGR00460	ctg89441_20
-
-bin.1081.derep	TIGR03723	ctg89567_174
-bin.1081.derep	TIGR00459	ctg89401_78
-bin.1081.derep	TIGR00344	ctg89567_77
-bin.1081.derep	TIGR00019	ctg89567_277
-bin.1081.derep	TIGR02432	ctg89096_19
-bin.1081.derep	TIGR02432	ctg90131_1044
-bin.1081.derep	TIGR00922	ctg89567_169
-bin.1081.derep	TIGR03263	ctg89401_338
-bin.1081.derep	TIGR03263	ctg90059_902
-bin.1081.derep	TIGR00615	ctg89401_86
-bin.1081.derep	TIGR00967	ctg90131_606
-bin.1081.derep	TIGR00755	ctg89567_48
-bin.1081.derep	PF01409.15	ctg90059_191
-bin.1081.derep	PF01409.15	ctg90131_51
-bin.1081.derep	PF02912.13	ctg90059_191
-bin.1081.derep	PF02912.13	ctg90131_51
-bin.1081.derep	PF02367.12	ctg90059_934
-bin.1081.derep	PF02367.12	ctg89401_315
-bin.1081.derep	PF02130.12	ctg89401_258
-bin.1081.derep	PF00687.16	ctg89567_167
-bin.1081.derep	PF00829.16	ctg90131_242
-bin.1081.derep	PF00829.16	ctg90059_87
-bin.1081.derep	PF01509.13	ctg88674_145
-bin.1081.derep	PF01509.13	ctg90131_388&&ctg90131_389
-bin.1081.derep	PF01795.14	ctg89401_215
-bin.1081.derep	PF01795.14	ctg88963_1
-bin.1081.derep	PF04998.12	ctg89096_91
-bin.1081.derep	PF04998.12	ctg90131_864
-bin.1081.derep	PF04997.7	ctg90131_865
-bin.1081.derep	PF04997.7	ctg89096_90&&ctg89096_91
-bin.1081.derep	PF00623.15	ctg89096_91
-bin.1081.derep	PF00623.15	ctg90131_865
-bin.1081.derep	PF04983.13	ctg89096_91
-bin.1081.derep	PF04983.13	ctg90131_865
-bin.1081.derep	PF05000.12	ctg89096_91
-bin.1081.derep	PF05000.12	ctg90131_865
-bin.1081.derep	PF03484.10	ctg90059_192
-bin.1081.derep	PF03484.10	ctg90131_50
-bin.1081.derep	PF01196.14	ctg90131_594
-bin.1081.derep	PF01000.21	ctg90131_596
-bin.1081.derep	PF01193.19	ctg90131_596
-bin.1081.derep	PF08459.6	ctg89401_132
-bin.1081.derep	PF12344.3	ctg90131_259
-bin.1081.derep	PF12344.3	ctg90059_76
-bin.1081.derep	PF00411.14	ctg90131_598
-bin.1081.derep	PF00861.17	ctg90131_610
-bin.1081.derep	PF11987.3	ctg90131_392
-bin.1081.derep	PF11987.3	ctg88674_148
-bin.1081.derep	PF01632.14	ctg88674_114
-bin.1081.derep	PF01632.14	ctg90131_339
-bin.1081.derep	PF03719.10	ctg90131_609
-bin.1081.derep	PF00333.15	ctg90131_609
-bin.1081.derep	PF00203.16	ctg90131_623
-bin.1081.derep	PF00238.14	ctg90131_617
-bin.1081.derep	PF13184.1	ctg90131_397
-bin.1081.derep	PF13184.1	ctg88674_151
-bin.1081.derep	PF00312.17	ctg88674_143
-bin.1081.derep	PF00312.17	ctg90131_386
-bin.1081.derep	PF01018.17	ctg89401_327
-bin.1081.derep	PF01018.17	ctg90059_913&&ctg90059_914
-bin.1081.derep	PF06421.7	ctg90059_497
-bin.1081.derep	PF00416.17	ctg90131_599
-bin.1081.derep	PF03946.9	ctg89567_168
-bin.1081.derep	PF00298.14	ctg89567_168
-bin.1081.derep	PF03948.9	ctg89567_357
-bin.1081.derep	PF03948.9	ctg90131_1133
-bin.1081.derep	PF01281.14	ctg89567_357
-bin.1081.derep	PF01281.14	ctg90131_1133
-bin.1081.derep	PF08529.6	ctg90131_399
-bin.1081.derep	PF08529.6	ctg88674_151
-bin.1081.derep	PF00572.13	ctg90059_721
-bin.1081.derep	PF00562.23	ctg89096_89
-bin.1081.derep	PF00562.23	ctg90131_866
-bin.1081.derep	PF04563.10	ctg89096_89
-bin.1081.derep	PF04563.10	ctg90131_866
-bin.1081.derep	PF04561.9	ctg89096_89
-bin.1081.derep	PF04561.9	ctg90131_866
-bin.1081.derep	PF04560.15	ctg89096_89
-bin.1081.derep	PF04560.15	ctg90131_866
-bin.1081.derep	PF04565.11	ctg89096_89
-bin.1081.derep	PF04565.11	ctg90131_866
-bin.1081.derep	PF10385.4	ctg89096_89
-bin.1081.derep	PF10385.4	ctg90131_866
-bin.1081.derep	PF00380.14	ctg90059_720
-bin.1081.derep	PF00347.18	ctg90131_611&&ctg90131_612
-bin.1081.derep	PF00573.17	ctg90131_626
-bin.1081.derep	PF01016.14	ctg90131_244
-bin.1081.derep	PF01016.14	ctg90059_85
-bin.1081.derep	PF03947.13	ctg90131_624
-bin.1081.derep	PF00181.18	ctg90131_624
-bin.1081.derep	PF00177.16	ctg89096_94
-bin.1081.derep	PF00177.16	ctg90131_860
-bin.1081.derep	PF00673.16	ctg90131_615
-bin.1081.derep	PF00281.14	ctg90131_615
-bin.1081.derep	PF00828.14	ctg90131_607
-bin.1081.derep	PF00410.14	ctg90131_613
-bin.1081.derep	PF01649.13	ctg90059_815
-bin.1081.derep	PF00831.18	ctg90131_619
-bin.1081.derep	PF01121.15	ctg90059_797
-bin.1081.derep	PF00276.15	ctg90131_625
-bin.1081.derep	PF01195.14	ctg89401_236
-bin.1081.derep	PF00318.15	ctg88674_163
-bin.1081.derep	PF00318.15	ctg90131_424
-bin.1081.derep	PF00466.15	ctg89567_166
-bin.1081.derep	PF00189.15	ctg90131_621
-bin.1081.derep	PF02033.13	ctg88674_147
-bin.1081.derep	PF02033.13	ctg90131_391
-bin.1081.derep	PF01746.16	ctg90059_744
-bin.1081.derep	PF00453.13	ctg88674_113
-bin.1081.derep	PF00453.13	ctg90131_338
-bin.1081.derep	PF00252.13	ctg90131_620
-bin.1081.derep	PF00886.14	ctg90059_747
-bin.1081.derep	PF00366.15	ctg90131_618
-bin.1081.derep	PF06071.8	ctg89096_18
-bin.1081.derep	PF06071.8	ctg90131_1046
-bin.1081.derep	PF01250.12	ctg89567_354
-bin.1081.derep	PF01250.12	ctg90131_1137
-bin.1081.derep	PF01245.15	ctg90059_743
-bin.1081.derep	PF00889.14	ctg90131_423
-bin.1081.derep	PF00889.14	ctg88674_162
-bin.1081.derep	PF02978.14	ctg90059_748
-bin.1081.derep	PF00237.14	ctg90131_622
-bin.1081.derep	PF00297.17	ctg90131_627
-bin.1081.derep	PF00338.17	ctg90131_628
-bin.1081.derep	PF05697.8	ctg88963_12
-bin.1081.derep	PF05697.8	ctg89401_204
-bin.1081.derep	PF01765.14	ctg88674_160
-bin.1081.derep	PF01765.14	ctg90131_419
-bin.1081.derep	PF00164.20	ctg89096_93
-bin.1081.derep	PF00164.20	ctg90131_861
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-bin.1081.derep	TIGR00615	ctg88963_123
-bin.1081.derep	TIGR00615	ctg89401_87 --
-
-bin.1081.derep	TIGR01079	ctg89096_282 --
+bin.1081.derep	TIGR03594	ctg90059_400
+bin.1081.derep	TIGR00855	ctg89567_224
 bin.1081.derep	TIGR01079	ctg90131_612
-
-bin.1081.derep	TIGR03594	ctg87283_117
-bin.1081.derep	TIGR03594	ctg90059_397 --
-
+bin.1081.derep	TIGR02075	ctg88674_149
 bin.1081.derep	TIGR00250	ctg90131_424
-bin.1081.derep	TIGR00250	ctg88674_165
-
-bin.1081.derep	TIGR00084	ctg87283_55
-bin.1081.derep	TIGR00084	ctg90059_311
-
-bin.1081.derep	TIGR00967	ctg89096_291
+bin.1081.derep	TIGR00250	ctg88674_153
 bin.1081.derep	TIGR00967	ctg90131_602
-
-bin.1081.derep	TIGR00459	ctg88963_132
-bin.1081.derep	TIGR00459	ctg89401_79 --
-
-bin.1081.derep	TIGR03263	ctg89401_339 --
-bin.1081.derep	TIGR03263	ctg90059_945 --
-
+bin.1081.derep	TIGR00084	ctg87283_55
+bin.1081.derep	TIGR00084	ctg90059_314
+bin.1081.derep	TIGR00922	ctg89567_228
+bin.1081.derep	TIGR03723	ctg89567_233
+bin.1081.derep	TIGR00392	ctg89567_90
+bin.1081.derep	TIGR00329	ctg89567_233
+bin.1081.derep	TIGR00019	ctg89567_336
+bin.1081.derep	TIGR00019	ctg86936_63
+bin.1081.derep	TIGR03263	ctg89401_340
+bin.1081.derep	TIGR00344	ctg89567_136
+bin.1081.derep	TIGR00810	ctg85082_33
+bin.1081.derep	TIGR00810	ctg89567_52
+bin.1081.derep	TIGR00460	ctg90059_942
+bin.1081.derep	TIGR00460	ctg89441_25
+bin.1081.derep	TIGR00459	ctg89401_80
 bin.1081.derep	TIGR02432	ctg89096_72
-bin.1081.derep	TIGR02432	ctg90131_1038
-
-bin.1081.derep	PF01018.17	ctg89401_328 --
-bin.1081.derep	PF01018.17	ctg90059_956&&ctg90059_957
-
-bin.1081.derep	PF06071.8	ctg89096_71
-bin.1081.derep	PF06071.8	ctg90131_1040
-
-bin.1081.derep	PF11987.3	ctg88674_148
-bin.1081.derep	PF11987.3	ctg90131_389
-
-bin.1081.derep	PF04998.12	ctg89096_144
-bin.1081.derep	PF04998.12	ctg90131_858
-
-bin.1081.derep	PF04997.7	ctg90131_859
-bin.1081.derep	PF04997.7	ctg89096_143&&ctg89096_144
-
-bin.1081.derep	PF00623.15	ctg89096_144
-bin.1081.derep	PF00623.15	ctg90131_859
-
-bin.1081.derep	PF04983.13	ctg89096_144
-bin.1081.derep	PF04983.13	ctg90131_859
-
-bin.1081.derep	PF05000.12	ctg89096_144
-bin.1081.derep	PF05000.12	ctg90131_859
-
-bin.1081.derep	PF00276.15	ctg89096_273
-bin.1081.derep	PF00276.15	ctg90131_621
-
-bin.1081.derep	PF00366.15	ctg89096_280
-bin.1081.derep	PF00366.15	ctg90131_614
-
-bin.1081.derep	PF05491.8	ctg87283_56
-bin.1081.derep	PF05491.8	ctg90059_312 --
-
-bin.1081.derep	PF00177.16	ctg89096_147
-bin.1081.derep	PF00177.16	ctg90131_854
-
-bin.1081.derep	PF00861.17	ctg90131_606
-bin.1081.derep	PF00861.17	ctg89096_287
-
-bin.1081.derep	PF01409.15	ctg90059_234
-bin.1081.derep	PF01409.15	ctg90131_51
-
-bin.1081.derep	PF02912.13	ctg90059_234
-bin.1081.derep	PF02912.13	ctg90131_51
-
-bin.1081.derep	PF03947.13	ctg90131_620
-bin.1081.derep	PF03947.13	ctg89096_274
-
-bin.1081.derep	PF00181.18	ctg90131_620
-bin.1081.derep	PF00181.18	ctg89096_274
-
-bin.1081.derep	PF00453.13	ctg88674_113
-bin.1081.derep	PF00453.13	ctg90131_335
-
-bin.1081.derep	PF00562.23	ctg90131_860
-bin.1081.derep	PF00562.23	ctg89096_142
-
-bin.1081.derep	PF04563.10	ctg90131_860
-bin.1081.derep	PF04563.10	ctg89096_142
-
-bin.1081.derep	PF04561.9	ctg90131_860
-bin.1081.derep	PF04561.9	ctg89096_142
-
-bin.1081.derep	PF04560.15	ctg90131_860
-bin.1081.derep	PF04560.15	ctg89096_142
-
-bin.1081.derep	PF04565.11	ctg90131_860
-bin.1081.derep	PF04565.11	ctg89096_142
-
-bin.1081.derep	PF10385.4	ctg90131_860
-bin.1081.derep	PF10385.4	ctg89096_142
-
-bin.1081.derep	PF03719.10	ctg89096_288
-bin.1081.derep	PF03719.10	ctg90131_605
-
-bin.1081.derep	PF00333.15	ctg89096_288
-bin.1081.derep	PF00333.15	ctg90131_605
-
-bin.1081.derep	PF00673.16	ctg89096_283
-bin.1081.derep	PF00673.16	ctg90131_611
-
-bin.1081.derep	PF00281.14	ctg89096_283
-bin.1081.derep	PF00281.14	ctg90131_611
-
-bin.1081.derep	PF00831.18	ctg89096_279
-bin.1081.derep	PF00831.18	ctg90131_615
-
-bin.1081.derep	PF00829.16	ctg90131_240
-bin.1081.derep	PF00829.16	ctg90059_132
-
-bin.1081.derep	PF00410.14	ctg89096_285
-bin.1081.derep	PF00410.14	ctg90131_609
-
-bin.1081.derep	PF00828.14	ctg89096_290
-bin.1081.derep	PF00828.14	ctg90131_603
-
-bin.1081.derep	PF00203.16	ctg89096_275
-bin.1081.derep	PF00203.16	ctg90131_619
-bin.1081.derep	PF00889.14	ctg90131_420
-bin.1081.derep	PF00889.14	ctg88674_162
-bin.1081.derep	PF00252.13	ctg89096_278
-bin.1081.derep	PF00252.13	ctg90131_616
-
-bin.1081.derep	PF02367.12	ctg90059_976
-bin.1081.derep	PF02367.12	ctg89401_316 -
-
-bin.1081.derep	PF03484.10	ctg90059_235
-bin.1081.derep	PF03484.10	ctg90131_50
-bin.1081.derep	PF00347.18	ctg89096_286
-bin.1081.derep	PF00347.18	ctg90131_607&&ctg90131_608
-bin.1081.derep	PF02978.14	ctg90059_790
-bin.1081.derep	PF00380.14	ctg90059_762
-bin.1081.derep	PF00237.14	ctg89096_276
-bin.1081.derep	PF00237.14	ctg90131_618
-bin.1081.derep	PF00886.14	ctg90059_789
-bin.1081.derep	PF02033.13	ctg88674_147
-bin.1081.derep	PF02033.13	ctg90131_388
-bin.1081.derep	PF00416.17	ctg89096_297
-bin.1081.derep	PF00416.17	ctg90131_595
-bin.1081.derep	PF01746.16	ctg90059_786
-bin.1081.derep	PF03948.9	ctg89567_415
-bin.1081.derep	PF03948.9	ctg90131_1127
-bin.1081.derep	PF01281.14	ctg89567_415
-bin.1081.derep	PF01281.14	ctg90131_1127
-
-bin.1081.derep	PF01795.14	ctg89401_216 -
-bin.1081.derep	PF01795.14	ctg88963_1
-
-bin.1081.derep	PF01509.13	ctg88674_145
-bin.1081.derep	PF01509.13	ctg90131_385&&ctg90131_386
-bin.1081.derep	PF00318.15	ctg88674_163
+bin.1081.derep	TIGR02432	ctg90131_1040
+bin.1081.derep	TIGR00755	ctg89567_107
+bin.1081.derep	TIGR00615	ctg89401_88
+bin.1081.derep	PF00318.15	ctg88674_151
 bin.1081.derep	PF00318.15	ctg90131_421
-
-bin.1081.derep	PF05697.8	ctg88963_12
-bin.1081.derep	PF05697.8	ctg89401_205 -
-
-bin.1081.derep	PF00338.17	ctg89096_270
-bin.1081.derep	PF00338.17	ctg90131_624
-bin.1081.derep	PF08529.6	ctg88674_151
+bin.1081.derep	PF01746.16	ctg90059_790
+bin.1081.derep	PF12344.3	ctg90059_122
+bin.1081.derep	PF12344.3	ctg90131_255
+bin.1081.derep	PF00572.13	ctg90059_767
+bin.1081.derep	PF04998.12	ctg89096_144
+bin.1081.derep	PF04998.12	ctg90131_860
+bin.1081.derep	PF04997.7	ctg90131_861
+bin.1081.derep	PF04997.7	ctg89096_143&&ctg89096_144
+bin.1081.derep	PF00623.15	ctg89096_144
+bin.1081.derep	PF00623.15	ctg90131_861
+bin.1081.derep	PF04983.13	ctg89096_144
+bin.1081.derep	PF04983.13	ctg90131_861
+bin.1081.derep	PF05000.12	ctg89096_144
+bin.1081.derep	PF05000.12	ctg90131_861
+bin.1081.derep	PF11987.3	ctg88674_136
+bin.1081.derep	PF11987.3	ctg90131_389
+bin.1081.derep	PF00237.14	ctg90131_618
+bin.1081.derep	PF03947.13	ctg90131_620
+bin.1081.derep	PF00181.18	ctg90131_620
+bin.1081.derep	PF01409.15	ctg90059_236
+bin.1081.derep	PF01409.15	ctg90131_51
+bin.1081.derep	PF02912.13	ctg90059_236
+bin.1081.derep	PF02912.13	ctg90131_51
+bin.1081.derep	PF02978.14	ctg90059_794
+bin.1081.derep	PF03946.9	ctg89567_227
+bin.1081.derep	PF00298.14	ctg89567_227
+bin.1081.derep	PF01668.13	ctg89567_50
+bin.1081.derep	PF01668.13	ctg85082_35
+bin.1081.derep	PF05697.8	ctg89401_206
+bin.1081.derep	PF06071.8	ctg89096_71
+bin.1081.derep	PF06071.8	ctg90131_1042
+bin.1081.derep	PF00252.13	ctg90131_616
+bin.1081.derep	PF01632.14	ctg88674_102
+bin.1081.derep	PF01632.14	ctg90131_335
+bin.1081.derep	PF00886.14	ctg90059_793
+bin.1081.derep	PF01018.17	ctg89401_329
+bin.1081.derep	PF05491.8	ctg87283_56
+bin.1081.derep	PF05491.8	ctg90059_315
+bin.1081.derep	PF00276.15	ctg90131_621
+bin.1081.derep	PF08529.6	ctg88674_139
 bin.1081.derep	PF08529.6	ctg90131_396
-bin.1081.derep	PF13184.1	ctg88674_151
+bin.1081.derep	PF13184.1	ctg88674_139
 bin.1081.derep	PF13184.1	ctg90131_394
-
-bin.1081.derep	PF08459.6	ctg88963_82
-bin.1081.derep	PF08459.6	ctg89401_133 -
-
-bin.1081.derep	PF01016.14	ctg90131_242
-bin.1081.derep	PF01016.14	ctg90059_130
-bin.1081.derep	PF01250.12	ctg89567_412
-bin.1081.derep	PF01250.12	ctg90131_1131
-bin.1081.derep	PF00189.15	ctg89096_277
-bin.1081.derep	PF00189.15	ctg90131_617
-bin.1081.derep	PF00297.17	ctg89096_271
-bin.1081.derep	PF00297.17	ctg90131_623
-bin.1081.derep	PF00238.14	ctg89096_281
-bin.1081.derep	PF00238.14	ctg90131_613
-bin.1081.derep	PF00573.17	ctg89096_272
-bin.1081.derep	PF00573.17	ctg90131_622
-bin.1081.derep	PF00312.17	ctg88674_143
-bin.1081.derep	PF00312.17	ctg90131_383
-bin.1081.derep	PF00164.20	ctg89096_146
-bin.1081.derep	PF00164.20	ctg90131_855
-bin.1081.derep	PF01765.14	ctg88674_160
-bin.1081.derep	PF01765.14	ctg90131_416
-bin.1081.derep	PF00572.13	ctg90059_763
-bin.1081.derep	PF01196.14	ctg90131_590
 bin.1081.derep	PF00411.14	ctg90131_594
-bin.1081.derep	PF00411.14	ctg89096_298
-bin.1081.derep	PF01632.14	ctg88674_114
-bin.1081.derep	PF01632.14	ctg90131_336
+bin.1081.derep	PF00861.17	ctg90131_606
+bin.1081.derep	PF00562.23	ctg89096_142
+bin.1081.derep	PF00562.23	ctg90131_862
+bin.1081.derep	PF04563.10	ctg89096_142
+bin.1081.derep	PF04563.10	ctg90131_862
+bin.1081.derep	PF04561.9	ctg89096_142
+bin.1081.derep	PF04561.9	ctg90131_862
+bin.1081.derep	PF04560.15	ctg89096_142
+bin.1081.derep	PF04560.15	ctg90131_862
+bin.1081.derep	PF04565.11	ctg89096_142
+bin.1081.derep	PF04565.11	ctg90131_862
+bin.1081.derep	PF10385.4	ctg89096_142
+bin.1081.derep	PF10385.4	ctg90131_862
+bin.1081.derep	PF00673.16	ctg90131_611
+bin.1081.derep	PF00281.14	ctg90131_611
+bin.1081.derep	PF00889.14	ctg90131_420
+bin.1081.derep	PF00889.14	ctg88674_150
+bin.1081.derep	PF00312.17	ctg88674_131
+bin.1081.derep	PF00312.17	ctg90131_383
+bin.1081.derep	PF01245.15	ctg90059_789
+bin.1081.derep	PF01016.14	ctg90131_241
+bin.1081.derep	PF01016.14	ctg90059_131
+bin.1081.derep	PF03484.10	ctg90059_237
+bin.1081.derep	PF03484.10	ctg90131_50
+bin.1081.derep	PF00347.18	ctg90131_607&&ctg90131_608
+bin.1081.derep	PF00829.16	ctg90131_239
+bin.1081.derep	PF00829.16	ctg90059_133
+bin.1081.derep	PF01196.14	ctg90131_590
+bin.1081.derep	PF00416.17	ctg90131_595
+bin.1081.derep	PF06421.7	ctg90059_542
+bin.1081.derep	PF01765.14	ctg88674_148
+bin.1081.derep	PF01765.14	ctg90131_416
+bin.1081.derep	PF00238.14	ctg90131_613
+bin.1081.derep	PF01649.13	ctg90059_861
+bin.1081.derep	PF00189.15	ctg90131_617
+bin.1081.derep	PF02130.12	ctg89401_260
+bin.1081.derep	PF01121.15	ctg90059_843
+bin.1081.derep	PF00164.20	ctg89096_146
+bin.1081.derep	PF00164.20	ctg90131_857
+bin.1081.derep	PF00366.15	ctg90131_614
+bin.1081.derep	PF00687.16	ctg89567_226
+bin.1081.derep	PF00410.14	ctg90131_609
+bin.1081.derep	PF01509.13	ctg88674_133
+bin.1081.derep	PF01509.13	ctg90131_385&&ctg90131_386
+bin.1081.derep	PF00162.14	ctg89567_55
+bin.1081.derep	PF00162.14	ctg85082_30
+bin.1081.derep	PF00828.14	ctg90131_603
+bin.1081.derep	PF00453.13	ctg88674_101
+bin.1081.derep	PF00453.13	ctg90131_334
+bin.1081.derep	PF01000.21	ctg90131_592
+bin.1081.derep	PF01193.19	ctg90131_592
+bin.1081.derep	PF00573.17	ctg90131_622
+bin.1081.derep	PF00338.17	ctg90131_624
+bin.1081.derep	PF03719.10	ctg90131_605
+bin.1081.derep	PF00333.15	ctg90131_605
+bin.1081.derep	PF02033.13	ctg88674_135
+bin.1081.derep	PF02033.13	ctg90131_388
+bin.1081.derep	PF08459.6	ctg89401_134
+bin.1081.derep	PF01250.12	ctg90131_1133
+bin.1081.derep	PF01795.14	ctg89401_217
+bin.1081.derep	PF03948.9	ctg90131_1129
+bin.1081.derep	PF01281.14	ctg90131_1129
+bin.1081.derep	PF00177.16	ctg89096_147
+bin.1081.derep	PF00177.16	ctg90131_856
+bin.1081.derep	PF02367.12	ctg89401_317
+bin.1081.derep	PF00203.16	ctg90131_619
+bin.1081.derep	PF00380.14	ctg90059_766
+bin.1081.derep	PF00831.18	ctg90131_615
+bin.1081.derep	PF01195.14	ctg89401_238
+bin.1081.derep	PF00466.15	ctg89567_225
+bin.1081.derep	PF00297.17	ctg90131_623
+
 */
 #endif 
 
