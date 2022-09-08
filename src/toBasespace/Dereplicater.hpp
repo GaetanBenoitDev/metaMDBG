@@ -99,12 +99,13 @@ public:
 
 	//zFile _queryContigFile;
 	unordered_set<u_int32_t> _duplicatedContigIndex;
+	unordered_map<u_int32_t, vector<DbgEdge>> _duplicationBounds;
 
 	void mapContigs(const string& mapFilename){
 
 
 		//-N 2 -p 0 --secondary=yes -I 2GB -x map-hifi -c -x asm20
-		string command = "minimap2  -DP -c -I 2GB -t " + to_string(_nbCores) + " " + _inputFilename_contigs + " " + _inputFilename_contigs + " > " + mapFilename;
+		string command = "minimap2 -DP -c -I 2GB -t " + to_string(_nbCores) + " " + _inputFilename_contigs + " " + _inputFilename_contigs + " > " + mapFilename;
 		Utils::executeCommand(command, _tmpDir);
 
 	}
@@ -128,11 +129,7 @@ public:
 			const string& contigName = (*fields)[5];
 			//if(readName == contigName) continue;
 
-			u_int64_t targetIndex = Utils::contigName_to_contigIndex(contigName);
-			u_int64_t queryIndex = Utils::contigName_to_contigIndex(readName);
-			DbgEdge edge = {targetIndex, queryIndex};
-			edge = edge.normalize();
-			if(_performedPairs.find(edge) != _performedPairs.end()) continue;
+
 
 			//string search1 ="ctg88963";
 			//string search2 ="ctg89401";
@@ -150,8 +147,12 @@ public:
 
 			//continue;
 			if((readName == search1 || contigName == search1) && (readName == search2 || contigName == search2)){
+				//cout << line << endl;
+			}
+			if((readName == "ctg89567" || contigName == "ctg89567")){
 				cout << line << endl;
 			}
+
 
 			//cout << line << endl;
 
@@ -185,225 +186,50 @@ public:
 			//u_int64_t bl = alignLength;
 
 			//cout << nbMatches / alignLength << " " << alignLength << endl;
-			if(nbMatches / alignLength < 0.8) continue;
-			if(alignLength < 1000) continue;
-
-			//cout << alignLength / targetLength << endl;
+			if(nbMatches / alignLength < 0.9) continue;
+			if(alignLength < 10000) continue;
 
 			u_int64_t maxHang = 100;
 			u_int64_t hangLeft = targetStart;
 			u_int64_t hangRight = targetLength - targetEnd;
 
+			
 
-
-			//if(readName == "ctg89401" || contigName == "ctg89401"){
-				//cout << line << endl;
-			//}
-			//cout << hangLeft << " " << hangRight << endl;
+			u_int64_t targetIndex = Utils::contigName_to_contigIndex(contigName);
+			u_int64_t queryIndex = Utils::contigName_to_contigIndex(readName);
+			DbgEdge edge = {targetIndex, queryIndex};
+			edge = edge.normalize();
 
 			bool isOverlap = false;
 
 			if(hangLeft < maxHang){
-
-				cout << "left overlap: " << targetIndex << "    " << line << endl;
-				//cout << "left overlap: " << targetIndex << " " << contigOverlap._leftPos << endl;
-				
-				if(_contigOverlaps.find(targetIndex) == _contigOverlaps.end()){
-					_contigOverlaps[targetIndex] = ContigOverlap();
+				if(_performedPairs.find(edge) == _performedPairs.end()){
+					_duplicationBounds[targetIndex].push_back({targetStart, targetEnd});
+					isOverlap = true;
 				}
-				ContigOverlap& contigOverlap = _contigOverlaps[targetIndex];
-
-				//if(strand){
-				//	contigOverlap._rightPos = min(contigOverlap._rightPos, targetLength-targetEnd);
-					//contigOverlap._rightPos = max(contigOverlap._leftPos, targetStart);
-				//}
-				//else{
-					contigOverlap._leftPos = max(contigOverlap._leftPos, targetEnd);
-				//}
-
-				//_contigOverlaps[targetIndex] = contigOverlap;
-				isOverlap = true;
 			}
 
 			if(hangRight < maxHang){
-
-				cout << "right overlap: " << targetIndex << "    " << line << endl;
-				//cout << "right overlap: " << targetIndex << " " << contigOverlap._leftPos << endl;
-
-				if(_contigOverlaps.find(targetIndex) == _contigOverlaps.end()){
-					_contigOverlaps[targetIndex] = ContigOverlap();
+				if(_performedPairs.find(edge) == _performedPairs.end()){
+					_duplicationBounds[targetIndex].push_back({targetStart, targetEnd});
+					isOverlap = true;
 				}
-				ContigOverlap& contigOverlap = _contigOverlaps[targetIndex];
-
-				//if(strand){
-					//contigOverlap._leftPos = max(contigOverlap._leftPos, targetLength-targetStart);
-					//contigOverlap._rightPos = min(contigOverlap._rightPos, targetEnd);
-				//}
-				//else{
-					contigOverlap._rightPos = min(contigOverlap._rightPos, targetStart);
-					//contigOverlap._rightPos = min(contigOverlap._rightPos, targetStart);
-				//}
-				
-				//_contigOverlaps[targetIndex] = contigOverlap;
-				isOverlap = true;
 			}
 
 			if(isOverlap){
 				_performedPairs.insert(edge);
 			}
-			//cout << alignLength / queryLength << endl;
 
 
-
-			/*
-			if(alignLength / queryLength < 0.1) continue;
-
-			//cout << (nbMatches / alignLength) << " " << (nbMatches / queryLength) << endl;
-			
-			float divergence = 1;
-
-			for(size_t i=12; i<fields->size(); i++){
-
-				//cout << (*fields)[i] << endl;
-
-				GfaParser::tokenize((*fields)[i], fields_optional, ':');
-
-				if((*fields_optional)[0] == "dv"){
-					divergence = std::stof((*fields_optional)[2]);
-
-				
-					
-					break;
-				}
-
-			}
-			*/
-			/*
-			u_int64_t queryIndex = Utils::contigName_to_contigIndex(readName);
-			u_int64_t targetIndex = Utils::contigName_to_contigIndex(contigName);
-
-			u_int64_t min_span = 2000;
-			u_int64_t min_match = 100;
-			u_int64_t max_hang = 1000;
-			float int_frac = 0.8;
-			
-			if(alignLength / queryLength > 1){
-				cout << "lala" << endl;
-				cout << line << endl;
-			}
-
-			u_int64_t maxHang = 10000;
+			if(nbMatches / alignLength < 0.95) continue;
+			if(alignLength < 10000) continue;
+			if(targetLength > queryLength) continue;
 
 
-			float queryRatio = (queryEnd-queryStart) / queryLength;
-			//if(queryRatio > 0.5){
-			//	cout << "overlap: " << line << endl; 
-			//	_duplicatedContigIndex.insert(queryIndex);
-			//	continue;
-			//}
-
-			//if(strand){
-				
-				u_int64_t leftHang = queryStart;
-				u_int64_t rightHang_target = queryLength - queryEnd;
-				u_int64_t rightHand_query = targetLength - targetEnd;
-				u_int64_t rightHang = min(rightHang_target, rightHand_query);
-				
-				if(leftHang < maxHang && rightHang < maxHang){
-					cout << "overlap: " << line << endl; 
-					_duplicatedContigIndex.insert(queryIndex);
-				}
-			*/
-			/*
-			}
-			else{
-
-				u_int64_t leftHang = queryLength - queryEnd;
-				u_int64_t rightHang_target = queryStart;
-				u_int64_t rightHand_query = targetLength - targetEnd;
-				u_int64_t rightHang = min(rightHang_target, rightHand_query);
-
-				if(leftHang < maxHang && rightHang < maxHang){
-					cout << "overlap: " << line << endl; 
-					_duplicatedContigIndex.insert(queryIndex);
-				}
-
-			}
-			*/
-
-			/*
-			int l5, l3;
-			if (qe - qs < min_span || te - ts < min_span || ml < min_match){
-				cout << "pre" << endl;
-				continue;
-			}
-			l5 = (!strand)? tl - te : ts;
-			l3 = (!strand)? ts : tl - te;
-			if (ql>>1 > tl) {
-				//cout << (l5 > max_hang>>2) << " " << (l3 > max_hang>>2) << " " << (te - ts < tl * int_frac) << endl;
-				if (l5 > max_hang>>2 || l3 > max_hang>>2 || te - ts < tl * int_frac){
-					cout << line << endl;
-					cout << "internal 1" << endl;
-					continue; // internal match
-				}
-				if ((int)qs - l5 > max_hang<<1 && (int)(ql - qe) - l3 > max_hang<<1){
-					//_duplicatedContigIndex.insert();
-					cout << "contained 1" << endl;
-					//sd_put(d, r.tn, r.tl);
-					//continue;
-				}
-			} else if (ql < tl>>1) {
-				//cout << qs << " " << (max_hang>>2) << " " << (qs > max_hang>>2) << " " << (qe - qs < ql * int_frac) << endl;
-				if (qs > max_hang>>2 || ql - qe > max_hang>>2 || qe - qs < ql * int_frac){
-					cout << line << endl;
-					cout << "internal 1" << endl;
-					continue; // internal match
-				}
-				if (l5 - (int)qs > max_hang<<1 && l3 - (int)(ql - qe) > max_hang<<1){
-					cout << "contained 1" << endl;
-					//sd_put(d, r.qn, r.ql);
-					//continue;
-				} 
-			}
-			
-
-
-			//uint64_t qns = sd_put(d, r.qn, r.ql)<<32 | r.qs
-			
-			int32_t tl5, tl3, ext5, ext3;//, qs = (int32_t)h->qns;
-			uint32_t u, v, l; // u: query end; v: target end; l: length from u to v
-			if (!strand) tl5 = tl - te, tl3 = ts; // tl5: 5'-end overhang (on the query strand); tl3: similar
-			else tl5 = ts, tl3 = tl - te;
-			ext5 = qs < tl5? qs : tl5;
-			ext3 = ql - qe < tl3? ql - qe : tl3;
-			if (ext5 > max_hang || ext3 > max_hang){// || qe - qs < (qe - qs + ext5 + ext3) * int_frac)
-				cout << "max hang" << endl;
-				continue;
-			}
-			if (qs <= tl5 && ql - qe <= tl3){
-				_duplicatedContigIndex.insert(queryIndex);
-				cout << "contained 2" << endl;
-				continue; // query contained	
-			} 
-			else if (qs >= tl5 && ql - qe >= tl3){
-				_duplicatedContigIndex.insert(targetIndex);
-				cout << "contained 2" << endl;
-				continue; // target contained
-			}
-			else if (qs > tl5) u = 0, v = !!(!strand), l = qs - tl5;
-			else u = 1, v = !(!strand), l = (ql - qe) - tl3;
-			//if (qe - qs + ext5 + ext3 < min_ovlp || h->te - h->ts + ext5 + ext3 < min_ovlp) return MA_HT_SHORT_OVLP; // short overlap
-			//u |= h->qns>>32<<1, v |= h->tn<<1;
-			//ul = (uint64_t)u<<32 | l, p->v = v, p->ol = ql - l, p->del = 0;
-
-
-			_duplicatedContigIndex.insert(targetIndex);
-
-			cout << line << endl;
-			cout << "overlap" << endl;
-			*/
+			_duplicationBounds[targetIndex].push_back({targetStart, targetEnd});
+			cout << "Add internal " << targetStart << " " << targetEnd << endl;
 		}
-		
+
 		mappingFile.close();
 
 	}
@@ -441,29 +267,14 @@ public:
 
 	void dumpDereplicatedContigs_read(const Read& read){
 
+		/*
 		if(read._header == "ctg88963"){
 			string header = ">" + read._header + '\n';
 			gzwrite(_file1, (const char*)&header[0], header.size());
 			string contigSequence = read._seq + '\n';
 			gzwrite(_file1, (const char*)&contigSequence[0], contigSequence.size());
 
-			/*
-			string seq1 = read._seq;
-			seq1 = seq1.substr(0, 167682+30000);
-			string seq2 = read._seq;
-			seq2 = seq2.substr(167682+30000, seq2.size());
 
-			
-			header = ">" + read._header + "_1" + '\n';
-			gzwrite(_file3, (const char*)&header[0], header.size());
-			contigSequence = seq1 + '\n';
-			gzwrite(_file3, (const char*)&contigSequence[0], contigSequence.size());
-			
-			header = ">" + read._header + "_2" + '\n';
-			gzwrite(_file4, (const char*)&header[0], header.size());
-			contigSequence = seq2 + '\n';
-			gzwrite(_file4, (const char*)&contigSequence[0], contigSequence.size());
-			*/
 		}
 		else if(read._header == "ctg89401"){
 			string header = ">" + read._header + '\n';
@@ -487,7 +298,6 @@ public:
 			contigSequence = seq2 + '\n';
 			gzwrite(_file4, (const char*)&contigSequence[0], contigSequence.size());
 		}
-
 		u_int64_t contigIndex = Utils::contigName_to_contigIndex(read._header);
 		//if(_duplicatedContigIndex.find(contigIndex) != _duplicatedContigIndex.end()){
 		//	cout << "Discard: " << read._seq.size() << endl;
@@ -524,12 +334,108 @@ public:
 			}
 		}
 
-		string header = ">" + read._header + '\n';
-		gzwrite(_outputContigFile, (const char*)&header[0], header.size());
-		string contigSequence = seq + '\n';
-		gzwrite(_outputContigFile, (const char*)&contigSequence[0], contigSequence.size());
+		*/
+
+		u_int64_t contigIndex = Utils::contigName_to_contigIndex(read._header);
+
+		string seq = read._seq;
+
+		if(_duplicationBounds.find(contigIndex) != _duplicationBounds.end()){
+
+			//if(read._header == "ctg89567") 
+			cout << "-----" << endl;
+			vector<bool> isDuplicated(seq.size(), false);
+
+			for(const DbgEdge& duplicatedBound : _duplicationBounds[contigIndex]){
+				//if(read._header == "ctg89567") 
+				cout << duplicatedBound._from << " " << duplicatedBound._to << endl;
+				for(size_t i=duplicatedBound._from; i<duplicatedBound._to; i++){
+					isDuplicated[i] = true;
+				}
+			}
+
+			bool isDuplicatedArea = true;
+			long startPos = 0;
+			size_t subSeqIndex = 0;
+			long endPos = 0;
+
+			for(long i=0; i<seq.size(); i++){
+				
+				endPos = i;
+
+				if(isDuplicated[i]){
+					if(!isDuplicatedArea){
+						long length = endPos-startPos-1;
+						if(length >= 500){
+							string header = read._header;
+
+
+							char lastChar = header[header.size()-1];
+							header.pop_back();
+
+							header += "_" + to_string(subSeqIndex) + lastChar;
+							
+							string subSeq = seq.substr(startPos, length);
+
+							header = ">" + header + '\n';
+							gzwrite(_outputContigFile, (const char*)&header[0], header.size());
+							string contigSequence = subSeq + '\n';
+							gzwrite(_outputContigFile, (const char*)&contigSequence[0], contigSequence.size());
+
+
+							//if(read._header == "ctg89567")
+							cout << "Dump area: " << startPos << " " << startPos+length << endl;
+
+							subSeqIndex += 1;
+						}
+
+
+					}
+					isDuplicatedArea = true;
+				}
+				else{
+					if(isDuplicatedArea){
+						startPos = i;
+					}
+					isDuplicatedArea = false;
+				}
+			}
+
+			if(!isDuplicatedArea){
+				long length = endPos-startPos-1;
+				if(length > 500){
+					string header = read._header;
+					char lastChar = header[header.size()-1];
+					header.pop_back();
+
+					header += "_" + to_string(subSeqIndex) + lastChar;
+					
+					string subSeq = seq.substr(startPos, length);
+
+					header = ">" + header + '\n';
+					gzwrite(_outputContigFile, (const char*)&header[0], header.size());
+					string contigSequence = subSeq + '\n';
+					gzwrite(_outputContigFile, (const char*)&contigSequence[0], contigSequence.size());
+					
+					cout << "Dump area: " << startPos << " " << startPos+length << endl;
+				}
+
+
+			}
+
+		}
+		else{
+			string header = ">" + read._header + '\n';
+			gzwrite(_outputContigFile, (const char*)&header[0], header.size());
+			string contigSequence = seq + '\n';
+			gzwrite(_outputContigFile, (const char*)&contigSequence[0], contigSequence.size());
+		}
+
+
 
 	}
+
+
 };	
 
 
