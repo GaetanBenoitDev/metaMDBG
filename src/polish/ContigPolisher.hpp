@@ -367,7 +367,7 @@ public:
 
 		cout << "\tIndexing read alignments" << endl;
 
-    	long maxHang = 30;
+    	long maxHang = 100;
         ifstream infile(_outputFilename_mapping);
 
         std::string line;
