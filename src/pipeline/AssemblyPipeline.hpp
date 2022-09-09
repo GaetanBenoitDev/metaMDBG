@@ -246,7 +246,7 @@ public:
 		_firstK = 4;
 
 		u_int64_t meanReadLength = computeMeanReadLength(_inputFilename);
-		_lastK = meanReadLength*_minimizerDensity*1.2f; //*0.95
+		_lastK = meanReadLength*_minimizerDensity*2.0f; //*0.95
 		_meanReadLength = meanReadLength;
 		//_lastK = 41;
 		

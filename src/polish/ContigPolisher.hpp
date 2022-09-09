@@ -1,5 +1,8 @@
 
 /*
+
+-multiampping: pour els contigs circular, les reads vont mapper au deux extremiter et etre mal corriger donc vu qu'on garde qu'un coté (faudrait juste ajouter une exception en focntion du hang)
+
 - Polisher pas deterministe dans la selection des 20 copies
 	- utiliser un meilleur critiere (qualité de l'alignement etc)
 
@@ -99,6 +102,8 @@ public:
 	bool _useQual;
 	string _outputDir;
 	string _tmpDir;
+	bool _circularize;
+	u_int64_t _minContigLength;
 	
 	string _outputFilename_contigs;
 	string _outputFilename_mapping;
@@ -107,6 +112,15 @@ public:
 
 	//abpoa_para_t *abpt;
 	
+
+	unordered_set<u_int32_t> _isContigCircular;
+	//unordered_set<u_int32_t> _isReadCircular;
+	//unordered_map<u_int64_t, u_int64_t> _contigLength;
+	unordered_map<u_int64_t, vector<u_int64_t>> _contigMapLeft;
+	unordered_map<u_int64_t, vector<u_int64_t>> _contigMapRight;
+
+
+
 	struct ContigRead{
 		u_int32_t _contigIndex;
 		u_int64_t _readIndex;
@@ -145,7 +159,9 @@ public:
 
 	void parseArgs(int argc, char* argv[]){
 
+
 		string ARG_USE_QUAL = "qual";
+		string ARG_CIRCULARIZE = "circ";
 		string filenameExe = argv[0];
 		//cout << filenameExe << endl;
 
@@ -160,7 +176,9 @@ public:
 		("reads", "", cxxopts::value<string>())
 		("tmpDir", "", cxxopts::value<string>())
 		(ARG_USE_QUAL, "", cxxopts::value<bool>()->default_value("false"))
+		(ARG_CIRCULARIZE, "", cxxopts::value<bool>()->default_value("false"))
 		(ARG_NB_CORES, "", cxxopts::value<int>()->default_value(NB_CORES_DEFAULT));
+
 
 		options.parse_positional({"contigs", "reads", "tmpDir"});
 		options.positional_help("contigs reads tmpDir");
@@ -185,9 +203,11 @@ public:
 			_outputDir = result["tmpDir"].as<string>();;
 			_nbCores = result[ARG_NB_CORES].as<int>();
 			_useQual = result[ARG_USE_QUAL].as<bool>();
+			_circularize = result[ARG_CIRCULARIZE].as<bool>();
 			_windowLength = 500;
 			_maxWindowCopies = 21; //21;
 			_qualityThreshold = 10.0;
+			_minContigLength = 1000000;
 			
 		}
 		catch (const std::exception& e){
@@ -246,7 +266,7 @@ public:
 		
 		
 		mapReads();
-
+		executeCircularize();
 		
 		parseAlignments(false);
 		writeAlignmentBestHits();
@@ -304,6 +324,185 @@ public:
 		fs::remove_all(_tmpDir);
 
 	}
+
+	void executeCircularize(){
+
+		indexCircularContigs();
+		indexMappingOnContigEnds();
+		detectCircularContigs();
+
+		_contigMapRight.clear();
+		_contigMapLeft.clear();
+		//_contigLength.clear();
+		//_isContigCircular.clear();
+	}
+
+	void indexCircularContigs(){
+
+		auto fp = std::bind(&ContigPolisher::indexCircularContigs_read, this, std::placeholders::_1);
+		ReadParser readParser(_inputFilename_contigs, true, false);
+		readParser.parse(fp);
+    
+	}
+
+	void indexCircularContigs_read(const Read& read){
+
+		//u_int64_t contigIndex = Utils::contigName_to_contigIndex(read._header);
+
+		//cout << "Contig: " << read._index << " " << read._seq.size() << endl;
+
+		if (read._seq.size() < _minContigLength) return;
+
+		//u_int32_t contigIndex = Utils::contigName_to_contigIndex(read._header);
+		//_contigLength[read._index] = read._seq.size();
+
+		char lastChar = read._header[read._header.size()-1];
+		if(lastChar == 'c'){
+			_isContigCircular.insert(read._index);
+		}
+
+	}
+
+	void indexMappingOnContigEnds(){
+
+		cout << "\tIndexing read alignments" << endl;
+
+    	long maxHang = 30;
+        ifstream infile(_outputFilename_mapping);
+
+        std::string line;
+
+		while(true){
+
+			u_int32_t contigIndex;
+			u_int32_t contigLength;
+			u_int64_t readIndex;
+			u_int32_t readStart;
+			u_int32_t readEnd;
+			u_int32_t contigStart;
+			u_int32_t contigEnd;
+			float score;
+			bool strand;
+
+
+
+			infile.read((char*)&contigIndex, sizeof(contigIndex));
+			if(infile.eof()) break;
+			infile.read((char*)&contigLength, sizeof(contigLength));
+			infile.read((char*)&contigStart, sizeof(contigStart));
+			infile.read((char*)&contigEnd, sizeof(contigEnd));
+			infile.read((char*)&readIndex, sizeof(readIndex));
+			infile.read((char*)&readStart, sizeof(readStart));
+			infile.read((char*)&readEnd, sizeof(readEnd));
+			infile.read((char*)&strand, sizeof(strand));
+			infile.read((char*)&score, sizeof(score));
+
+
+			if (contigLength < _minContigLength) continue;
+
+
+			long hangLeft = contigStart;
+			long hangRight = contigLength - contigEnd;
+
+			if (hangLeft < maxHang){
+				_contigMapLeft[contigIndex].push_back(readIndex);
+				//cout << readIndex << endl;
+			}
+			if (hangRight < maxHang){
+				_contigMapRight[contigIndex].push_back(readIndex);
+				//cout << readIndex << endl;
+			}
+
+		}
+
+		infile.close();
+
+	}
+
+	
+	void detectCircularContigs(){
+
+		auto fp = std::bind(&ContigPolisher::detectCircularContigs_read, this, std::placeholders::_1);
+		ReadParser readParser(_inputFilename_contigs, true, false);
+		readParser.parse(fp);
+    
+	}
+
+	void detectCircularContigs_read(const Read& read){
+
+		//u_int64_t contigIndex = read._index; //Utils::contigName_to_contigIndex(read._header);
+
+		bool isCircular = false;
+		u_int64_t nbSupportingReads = countCircularReads(read._index);
+
+		//char lastChar = read._header[read._header.size()-1];
+
+
+
+
+		//string header = read._header;
+		//header.pop_back();
+		
+		//if(isCircular){
+		//	header += "c";
+			//_isContigCircular[read._index] = true;
+		//}
+		//else{
+			//_isContigCircular[read._index] = false;
+		//	header += "l";
+		//}
+
+		//header = ">" + header + '\n';
+		//gzwrite(_outputContigFile, (const char*)&header[0], header.size());
+		//string contigSequence = read._seq + '\n';
+		//gzwrite(_outputContigFile, (const char*)&contigSequence[0], contigSequence.size());
+
+		if(read._seq.size() >= _minContigLength){
+			cout << read._header << " " << (_isContigCircular.find(read._index) != _isContigCircular.end()) << " " << nbSupportingReads << endl;
+		}
+
+		if(_isContigCircular.find(read._index) != _isContigCircular.end()){
+			//isCircular = true;
+		}
+		else{
+			if(nbSupportingReads >= 2){
+				//isCircular = true;
+				_isContigCircular.insert(read._index);
+			}
+		}
+
+	}
+	
+
+
+
+	u_int64_t countCircularReads(u_int64_t contigIndex){
+
+		if((_contigMapLeft.find(contigIndex) == _contigMapLeft.end()) || (_contigMapRight.find(contigIndex) == _contigMapRight.end())) return 0;
+
+		//cout << "---" << endl;
+		u_int64_t nbSupportingReads = 0;
+
+
+		const vector<u_int64_t>& leftReads = _contigMapLeft[contigIndex];
+		const vector<u_int64_t>& rightReads = _contigMapRight[contigIndex];
+
+		//cout << leftReads.size() << endl;
+		//cout << rightReads.size() << endl;
+
+		for(u_int64_t readIndex : leftReads){
+			//cout << readIndex << endl;
+			if(std::find(rightReads.begin(), rightReads.end(), readIndex) != rightReads.end()){
+				nbSupportingReads += 1;
+				//_isReadCircular.insert(readIndex);
+			}
+		}
+
+		return nbSupportingReads;
+
+
+	}
+
 
 
 	/*
@@ -630,7 +829,7 @@ public:
 		vector<vector<Window>> windows(nbWindows);
 
 		_contigWindowSequences[contigIndex] = windows;
-		_contigHeaders[contigIndex] = read._header;
+		//_contigHeaders[contigIndex] = read._header;
 	}
 
 	//_validContigIndexes.insert(contigIndex);
@@ -651,7 +850,7 @@ public:
 		_contigSequences.clear();
 		//_validContigIndexes.clear();
 		_contigWindowSequences.clear();
-		_contigHeaders.clear();
+		//_contigHeaders.clear();
 		//_alignments.clear();
 	}
 	/*
@@ -684,8 +883,8 @@ public:
 		bool _strand;
 		u_int32_t _readStart;
 		u_int32_t _readEnd;
-		u_int64_t _contigStart;
-		u_int64_t _contigEnd;
+		u_int32_t _contigStart;
+		u_int32_t _contigEnd;
 		//float _score;
 		//u_int64_t _length;
 		
@@ -707,7 +906,7 @@ public:
 	unordered_map<u_int64_t, Alignment> _alignments;
 	unordered_map<u_int32_t, string> _contigSequences;
 	unordered_map<u_int32_t, vector<vector<Window>>> _contigWindowSequences;
-	unordered_map<u_int32_t, string> _contigHeaders;
+	//unordered_map<u_int32_t, string> _contigHeaders;
 	unordered_map<ContigRead, u_int32_t, ContigRead_hash> _alignmentCounts;
 	//u_int64_t _correctedContigIndex;
 
@@ -773,7 +972,7 @@ public:
         ifstream infile(_outputFilename_mapping);
 
         std::string line;
-        vector<string>* fields = new vector<string>();
+        //vector<string>* fields = new vector<string>();
         //vector<string>* fields_optional = new vector<string>();
 
 		while(true){
@@ -805,11 +1004,12 @@ public:
 			*/
 
 			u_int32_t contigIndex;
+			u_int32_t contigLength;
 			u_int64_t readIndex;
 			u_int32_t readStart;
 			u_int32_t readEnd;
-			u_int64_t contigStart;
-			u_int64_t contigEnd;
+			u_int32_t contigStart;
+			u_int32_t contigEnd;
 			float score;
 			bool strand;
 
@@ -820,6 +1020,7 @@ public:
 
 			infile.read((char*)&contigIndex, sizeof(contigIndex));
 			if(infile.eof()) break;
+			infile.read((char*)&contigLength, sizeof(contigLength));
 			infile.read((char*)&contigStart, sizeof(contigStart));
 			infile.read((char*)&contigEnd, sizeof(contigEnd));
 			infile.read((char*)&readIndex, sizeof(readIndex));
@@ -985,7 +1186,10 @@ public:
 			const Alignment& al = it.second;
 			float score = 0;
 
+			u_int32_t contigLengthDummy = 0;
+
 			outputFile.write((const char*)&al._contigIndex, sizeof(al._contigIndex));
+			outputFile.write((const char*)&contigLengthDummy, sizeof(contigLengthDummy));
 			outputFile.write((const char*)&al._contigStart, sizeof(al._contigStart));
 			outputFile.write((const char*)&al._contigEnd, sizeof(al._contigEnd));
 			outputFile.write((const char*)&readIndex, sizeof(readIndex));
@@ -997,6 +1201,8 @@ public:
 		}
 
 		outputFile.close();
+
+		//_isReadCircular.clear();
 	}
 
 
@@ -1827,11 +2033,23 @@ public:
 
 			//cout << contigSequence.size() << " " << nbCorrectedWindows << endl;
 			
-			string header = ">" + _contigHeaders[contigIndex] + '\n';// ">ctg" + to_string(contigIndex) + '\n';
+			//string header = _contigHeaders[contigIndex];
+			string header = ">ctg" + to_string(contigIndex);
+			//header.pop_back(); //remove circular indicator
+
+			if(_isContigCircular.find(contigIndex) == _isContigCircular.end()){
+				header += 'l';
+			}
+			else{
+				header += 'c';
+			}
+
+			//header = ">" + header + '\n';// ">ctg" + to_string(contigIndex) + '\n';
+			header += '\n';
 			gzwrite(_outputContigFile, (const char*)&header[0], header.size());
 			contigSequence +=  '\n';
 			gzwrite(_outputContigFile, (const char*)&contigSequence[0], contigSequence.size());
-			cout << _contigHeaders[contigIndex] << " " << contigSequence.size() << endl;
+			//cout << _contigHeaders[contigIndex] << " " << contigSequence.size() << endl;
 		}
 
 		cout << "Checksum: " << checksum << endl;

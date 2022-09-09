@@ -133,8 +133,9 @@ int main (int argc, char* argv[])
 
 		u_int32_t readStart = stoull((*fields)[2]);
 		u_int32_t readEnd = stoull((*fields)[3]);
-		u_int64_t contigStart = stoull((*fields)[7]);
-		u_int64_t contigEnd = stoull((*fields)[8]);
+		u_int32_t contigLength = stoull((*fields)[6]);
+		u_int32_t contigStart = stoull((*fields)[7]);
+		u_int32_t contigEnd = stoull((*fields)[8]);
 
 		u_int64_t nbMatches = stoull((*fields)[9]);
 		u_int64_t alignLength = stoull((*fields)[10]);
@@ -192,6 +193,7 @@ int main (int argc, char* argv[])
 		float score = divergence; //nbMatches / 
 
 		outputFile.write((const char*)&contigIndex, sizeof(contigIndex));
+		outputFile.write((const char*)&contigLength, sizeof(contigLength));
 		outputFile.write((const char*)&contigStart, sizeof(contigStart));
 		outputFile.write((const char*)&contigEnd, sizeof(contigEnd));
 		outputFile.write((const char*)&readIndex, sizeof(readIndex));
@@ -200,6 +202,11 @@ int main (int argc, char* argv[])
 		outputFile.write((const char*)&strand, sizeof(strand));
 		outputFile.write((const char*)&score, sizeof(score));
 		//Alignment align = {contigIndex, readIndex, strand, readStart, readEnd, contigStart, contigEnd, score, length};
+
+		//if(readName == "D0_S0_14026"){
+		//	cout << lineInput << endl;
+		//	cout << contigIndex << " " << readIndex << endl;
+		//}
 
 	}
 
