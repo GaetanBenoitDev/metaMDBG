@@ -146,7 +146,7 @@ public:
 		input << _inputFilename_contigs << endl;
 		input.close();
 
-		string command = "minimap2 -H -DP -I 2G -t " + to_string(_nbCores) + " -x map-hifi " + _inputFilename_contigs + " " + _inputFilename_contigs;
+		string command = "minimap2 -m 1000 -H -X -I 2G -t " + to_string(_nbCores) + " -x map-hifi " + _inputFilename_contigs + " " + _inputFilename_contigs;
 		command += " | " + _mapperOutputExeFilename + " " + _inputFilename_contigs + " " + inputContigsFilename + " " + _outputFilename_mapping;
 		Utils::executeCommand(command, _outputDir);
 	}
@@ -292,29 +292,29 @@ public:
 			
 			//u_int64_t readIndex = stoull(read._header);
 
-			#pragma omp critical
-			{
-				cout << read._index << endl;
-			}
+			//#pragma omp critical
+			//{
+				//cout << read._index << endl;
+			//}
 
 			if(_alignments.find(read._index) == _alignments.end()) return;
 
-			cout << "\t" << _alignments[read._index].size() << endl;
+			//cout << "\t" << _alignments[read._index].size() << endl;
 			for(const Alignment& al : _alignments[read._index]){
 
 				if(read._index == al._contigIndex){
 
-					cout << "Self AL not normal" << endl;
+					//cout << "Self AL not normal" << endl;
 					continue;
 				}
 				
 				if(_contigSequences.find(al._contigIndex) == _contigSequences.end()) continue;
 
-				cout << al._readStart << " " << al._readEnd << endl;
+				//cout << al._readStart << " " << al._readEnd << endl;
 				processAlignment(read, al);
 				//cout << read._index << " " << al._contigIndex << endl;
 			}
-			cout << "\tdone" << endl;
+			//cout << "\tdone" << endl;
 			/*
 			//if(_contigPolisher._currentPartition == 0) cout << readIndex << " " << (_alignments.find(readIndex) != _alignments.end()) << endl;
 			
@@ -400,8 +400,8 @@ public:
 			static EdlibAlignConfig config = edlibNewAlignConfig(-1, EDLIB_MODE_NW, EDLIB_TASK_PATH, NULL, 0);
 
 
-			cout << "Comparing: " << readSequence.size() << " " << contigSequence.size() << endl;
-			
+			//cout << "Comparing: " << readSequence.size() << " " << contigSequence.size() << endl;
+
 			EdlibAlignResult result = edlibAlign(readSequence.c_str(), readSequence.size(), contigSequence.c_str(), contigSequence.size(), config);
 
 
@@ -417,6 +417,7 @@ public:
 			//cout << cigar << endl;
 
 			edlibFreeAlignResult(result);
+			free(cigar);
 
 			//cout << cigar << endl;
 			//exit(1);
