@@ -96,7 +96,6 @@ public:
 		fs::remove(outputMappingFilename);
 	}
 
-
 	//zFile _queryContigFile;
 	unordered_set<u_int32_t> _duplicatedContigIndex;
 	unordered_map<u_int32_t, vector<DbgEdge>> _duplicationBounds;
@@ -150,7 +149,7 @@ public:
 				//cout << line << endl;
 			}
 			if((readName == "ctg89567" || contigName == "ctg89567")){
-				cout << line << endl;
+				//cout << line << endl;
 			}
 
 
@@ -204,14 +203,20 @@ public:
 
 			if(hangLeft < maxHang){
 				if(_performedPairs.find(edge) == _performedPairs.end()){
+					//cout << "Left overlap: " << line << endl;
+					//cout << line << endl;
 					_duplicationBounds[targetIndex].push_back({targetStart, targetEnd});
+					cout << "overlap left: " << contigName << " " << targetStart << " " << targetEnd << endl;
 					isOverlap = true;
 				}
 			}
 
 			if(hangRight < maxHang){
 				if(_performedPairs.find(edge) == _performedPairs.end()){
+					//cout << "Right overlap: " << line << endl;
+					//cout << line << endl;
 					_duplicationBounds[targetIndex].push_back({targetStart, targetEnd});
+					cout << "overlap right: " << contigName << " " << targetStart << " " << targetEnd << endl;
 					isOverlap = true;
 				}
 			}
@@ -226,8 +231,8 @@ public:
 			if(targetLength > queryLength) continue;
 
 
-			_duplicationBounds[targetIndex].push_back({targetStart, targetEnd});
-			cout << "Add internal " << targetStart << " " << targetEnd << endl;
+			//_duplicationBounds[targetIndex].push_back({targetStart, targetEnd});
+			//cout << "Add internal " << targetStart << " " << targetEnd << endl;
 		}
 
 		mappingFile.close();

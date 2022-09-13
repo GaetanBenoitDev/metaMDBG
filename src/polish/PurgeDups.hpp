@@ -41,7 +41,7 @@ public:
 		//float _score;
 		//u_int64_t _length;
 		
-		u_int64_t length(){
+		u_int64_t length() const{
 			return std::max((u_int64_t)(_readEnd - _readStart), (u_int64_t)(_contigEnd - _contigStart));
 		}
 		
@@ -113,8 +113,8 @@ public:
 
 		_outputFilename_contigs = p.string() + "_derep.fasta.gz";
 		_maxBases = 100000000ull;
-		_minDuplicationLength_ends = 0.9;
-		_minDuplicationIdentity_ends = 1000;
+		_minDuplicationLength_ends = 1000;
+		_minDuplicationIdentity_ends = 0.97;
 		_minDuplicationLength_internal = 10000;
 		_minDuplicationIdentity_internal = 0.95;
 		//_outputFilename_contigs = p.string() + "_corrected.fasta.gz";
@@ -127,14 +127,26 @@ public:
 	unordered_map<u_int32_t, string> _contigSequences;
 	unordered_map<u_int32_t, vector<Alignment>> _alignments;
 
+	unordered_map<u_int32_t, string> _debug_contigIndex_to_contigName;
+
+	void debug_indexContigName(){
+		
+		auto fp = std::bind(&PurgeDups::indexContigName_read, this, std::placeholders::_1);
+		ReadParser readParser(_inputFilename_contigs, true, false);
+		readParser.parse(fp);
+	}
+
+	void indexContigName_read(const Read& read){
+		_debug_contigIndex_to_contigName[read._index] = read._header;
+	}
+
     void execute (){
 
-		_outputContigFile = gzopen(_outputFilename_contigs.c_str(), "wb");
-		
+		debug_indexContigName();
 		mapReads();
 		processContigs();
 		
-		gzclose(_outputContigFile);
+		dumpDereplicatedContigs();
 		//fs::remove_all(_tmpDir);
 
 	}
@@ -146,12 +158,14 @@ public:
 		input << _inputFilename_contigs << endl;
 		input.close();
 
-		string command = "minimap2 -m 1000 -H -X -I 2G -t " + to_string(_nbCores) + " -x map-hifi " + _inputFilename_contigs + " " + _inputFilename_contigs;
+		string command = "minimap2 -m 900 -H -DP --dual=no -I 2G -t " + to_string(_nbCores) + " -x map-hifi " + _inputFilename_contigs + " " + _inputFilename_contigs;
 		command += " | " + _mapperOutputExeFilename + " " + _inputFilename_contigs + " " + inputContigsFilename + " " + _outputFilename_mapping;
 		Utils::executeCommand(command, _outputDir);
 	}
 
 	u_int64_t _currentLoadedBases;
+	unordered_map<u_int32_t, vector<DbgEdge>> _duplicationBounds;
+	//unordered_set<DbgEdge, hash_pair> _performedPairs;
 
 	void processContigs(){
 
@@ -376,16 +390,24 @@ public:
 			*/
 		}
 
+		u_int64_t _maxHang = 1000;
+
 		void processAlignment(const Read& read, const Alignment& al){
 
 			u_int32_t readIndex = read._index;
 			u_int32_t contigIndex = al._contigIndex;
 
-			string readSeq = read._seq;
-			string qualSeq = read._qual;
-			string readSequence = readSeq.substr(al._readStart, al._readEnd-al._readStart);
-			string contigSequence = _contigSequences[contigIndex].substr(al._contigStart, al._contigEnd-al._contigStart);
 
+			const string& contigSequenceComplete = _contigSequences[contigIndex];
+
+			cout << readIndex << " " << read._seq.size() << " " << al._readStart << " " << al._readEnd << "    " << contigIndex << " " << contigSequenceComplete.size() << " " << al._contigStart << " " << al._contigEnd << endl;
+
+
+			string readSeq = read._seq;
+			string readSequence = readSeq.substr(al._readStart, al._readEnd-al._readStart);
+			string contigSequence = contigSequenceComplete.substr(al._contigStart, al._contigEnd-al._contigStart);
+
+			//cout << readSequence.size() << " " << contigSequence.size() << endl;
 
 
 			if(al._strand){
@@ -397,6 +419,61 @@ public:
 			//cout << readSequence << endl;
 			//exit(1);
 
+
+
+			//cout << cigar << endl;
+			//cout << contigSeq_al << endl;
+			//cout << readSeq_al << endl;
+			//cout << contigSeq_al.size() << endl;
+			//cout << readSeq_al.size() << endl;
+
+
+			if(contigSequenceComplete.size() < read._seq.size()){
+
+				vector<bool> isMatches_read;
+				vector<bool> isMatches_contig;
+				performAlignement(readSequence, contigSequence, isMatches_read, isMatches_contig);
+
+				bool allowOverlapLeft = true;
+				bool allowOverlapRight = true;
+				bool isOverlap = checkOverlap(contigIndex, al._contigStart, al._contigEnd, contigSequenceComplete.size(), isMatches_contig, allowOverlapLeft, allowOverlapRight);
+				if(!isOverlap) checkOverlap(readIndex, al._readStart, al._readEnd, read._seq.size(), isMatches_read, allowOverlapLeft, allowOverlapRight);
+			}
+			else{
+
+				vector<bool> isMatches_read;
+				vector<bool> isMatches_contig;
+				performAlignement(readSequence, contigSequence, isMatches_read, isMatches_contig);
+				
+				bool allowOverlapLeft = true;
+				bool allowOverlapRight = true;
+				bool isOverlap = checkOverlap(readIndex, al._readStart, al._readEnd, read._seq.size(), isMatches_read, allowOverlapLeft, allowOverlapRight);
+				if(!isOverlap) checkOverlap(contigIndex, al._contigStart, al._contigEnd, contigSequenceComplete.size(), isMatches_contig, allowOverlapLeft, allowOverlapRight);
+			}
+
+			
+			if(contigSequenceComplete.size() < read._seq.size()){
+				//if(contigSequenceComplete.size() < 30000){
+					//checkInternalDuplication(contigIndex, al._contigStart, al._contigEnd, isMatches_contig);
+				//}
+			}
+			else{
+				//if(readSeq.size() < 30000){
+					//checkInternalDuplication(readIndex, al._readStart, al._readEnd, isMatches_read);
+				//}
+			}
+			//cout << cigar << endl;
+
+
+
+			//getchar();
+			//cout << cigar << endl;
+			//exit(1);
+
+		}
+
+		void performAlignement(const string& readSequence, const string& contigSequence, vector<bool>& isMatches_read, vector<bool>& isMatches_contig){
+
 			static EdlibAlignConfig config = edlibNewAlignConfig(-1, EDLIB_MODE_NW, EDLIB_TASK_PATH, NULL, 0);
 
 
@@ -404,6 +481,8 @@ public:
 
 			EdlibAlignResult result = edlibAlign(readSequence.c_str(), readSequence.size(), contigSequence.c_str(), contigSequence.size(), config);
 
+			//cout << result.alignment << endl;
+			//cout << result.alignmentLength << endl;
 
 			char* cigar; 
 
@@ -414,130 +493,503 @@ public:
 				exit(1);
 			}
 
-			//cout << cigar << endl;
+
+
+
+
+
+			//string contigSeq_al = "";
+			//string readSeq_al = "";
+			int contigPos = 0;
+			int readPos = 0;
+
+			for (uint32_t i = 0, j = 0; i < strlen(cigar); ++i) {
+				if (cigar[i] == 'M' || cigar[i] == '=' || cigar[i] == 'X') {
+					uint32_t k = 0, num_bases = atoi(&cigar[j]);
+					j = i + 1;
+
+					for(size_t i=0; i<num_bases; i++){
+
+						if(contigSequence[contigPos] == readSequence[readPos]){
+							isMatches_read.push_back(true);
+							isMatches_contig.push_back(true);
+						}
+						else{
+							isMatches_read.push_back(false);
+							isMatches_contig.push_back(false);
+						}
+						//isMatches.push_back(true);
+						//contigSeq_al += contigSequence[contigPos];
+						//readSeq_al += readSequence[readPos];
+						contigPos += 1;
+						readPos += 1;
+					}
+
+					//cout << "Match: " << num_bases << endl;
+				} else if (cigar[i] == 'I') {
+					uint32_t k = 0, num_bases = atoi(&cigar[j]);
+					j = i + 1;
+
+					//for(size_t i=0; i<num_bases; i++){
+					//	seq2 += readSequence[readPos];
+					//	seq1 += "-";
+					//}
+
+				
+					//if(countInsert){
+					for(size_t i=0; i<num_bases; i++){
+						
+						//readSeq_al += readSequence[readPos];
+						//contigSeq_al += "-";
+						isMatches_read.push_back(false);
+						readPos += 1;
+						
+						//readPos += 1;
+					}
+					//}
+
+					/*
+					for(size_t i=0; i<num_bases; i++){
+						isMatches.push_back(true);
+						seq1 += contigSequence[contigPos];
+						seq2 += readSequence[readPos];
+						contigPos += 1;
+						readPos += 1;
+					}
+					*/
+
+					//cout << "Insert: " << num_bases << endl;
+
+				} else if (cigar[i] == 'D' || cigar[i] == 'N') {
+					uint32_t k = 0, num_bases = atoi(&cigar[j]);
+					j = i + 1;
+					//for(size_t i=0; i<num_bases; i++){
+					//	seq1 += contigSequence[readPos];
+					//	seq2 += "-";
+					//}
+					//if(!countInsert){
+					for(size_t i=0; i<num_bases; i++){
+
+						//contigSeq_al += contigSequence[readPos];
+						//readSeq_al += "-";
+
+						isMatches_contig.push_back(false);
+						contigPos += 1;
+					}
+					//}
+					//cout << "Del: " << num_bases << endl;
+
+				} else if (cigar[i] == 'S' || cigar[i] == 'H' || cigar[i] == 'P') {
+					//uint32_t num_bases = atoi(&cigar_[j]);
+					j = i + 1;
+					//isMatches.push_back(num_bases);
+				}
+				//else{
+				//	cout << cigar_[i] << endl;
+				//	cout << "mdr" << endl;
+				//}
+			}
 
 			edlibFreeAlignResult(result);
 			free(cigar);
+		}
 
-			//cout << cigar << endl;
-			//exit(1);
+		void checkInternalDuplication(u_int32_t targetIndex, u_int32_t alignStart, u_int32_t alignEnd, const vector<bool>& isMatches){
+
+			size_t alignLength = alignEnd - alignStart;
+			if(alignLength < _purgeDups._minDuplicationLength_internal) return;
+
+			//cout << "check internal: " << _purgeDups._debug_contigIndex_to_contigName[targetIndex] << " " << alignStart << " " << alignEnd << " " << alignLength << endl;
+
+			vector<bool> isDuplicated(isMatches.size(), false);
+
+			updateInternalDuplication(0, alignLength, isMatches, isDuplicated);
+			/*
+			size_t w = 1000;
+			size_t posStart = 0;
+			while(true){
+
+				size_t posEnd = posStart + _purgeDups._minDuplicationLength_internal;
+				if(posEnd >= isMatches.size()) break;
+
+				updateInternalDuplication(posStart, posEnd, isMatches, isDuplicated);
+
+				posStart += w;
+			}
+
+			updateInternalDuplication(isMatches.size()-_purgeDups._minDuplicationLength_internal, isMatches.size(), isMatches, isDuplicated);
+			*/
+
+			//for(size_t i=0; i<isDuplicated.size(); i++){
+				//cout << isDuplicated[i];
+			//}
+			//cout << endl;
+
+
+
+
+			//cout << "lala: " << isMatches.size() << endl;
+
+			bool isDuplicatedArea = false;
+			u_int32_t startPos = 0;
+			//size_t subSeqIndex = 0;
+			u_int32_t endPos = 0;
+
+			for(long i=0; i<isDuplicated.size(); i++){
+				
+				endPos = i;
+
+				if(!isDuplicated[i]){
+					if(isDuplicatedArea){
+						//long length = endPos-startPos;
+						//cout << length << endl;
+						#pragma omp critical(dup)
+						{
+							cout << "Internal duplication: " << alignStart+startPos << " " << alignStart+endPos << endl;
+							_purgeDups._duplicationBounds[targetIndex].push_back({alignStart+startPos, alignStart+endPos});
+						}
+
+					}
+					isDuplicatedArea = false;
+				}
+				else{
+					if(!isDuplicatedArea){
+						startPos = i;
+					}
+					isDuplicatedArea = true;
+				}
+			}
+
+			if(isDuplicatedArea){
+				//long length = endPos-startPos;
+				//cout << length << endl;
+
+				#pragma omp critical(dup)
+				{
+					cout << "Internal duplication: " << alignStart+startPos << " " << alignStart+endPos << endl;
+					_purgeDups._duplicationBounds[targetIndex].push_back({alignStart+startPos, alignStart+endPos});
+				}
+			}
+
 
 		}
 
-		void find_breaking_points_from_cigar(uint32_t window_length, const Alignment& al, u_int64_t readLength, char* cigar_, const string& readSequence, const string& qualSequence)
-		{
-			
-			vector<std::pair<uint32_t, uint32_t>> breaking_points_;
-			u_int64_t t_begin_ = al._contigStart;
-			u_int64_t t_end_ = al._contigEnd;
-			u_int64_t q_begin_ = al._readStart;
-			u_int64_t q_end_ = al._readEnd;
-			bool strand_ = al._strand;
-			u_int64_t q_length_ = readLength;
+		void updateInternalDuplication(size_t posStart, size_t posEnd, const vector<bool>& isMatches, vector<bool>& isDuplicated){
 
-			// find breaking points from cigar
-			std::vector<int32_t> window_ends;
-			for (uint32_t i = 0; i < t_end_; i += window_length) {
-				if (i > t_begin_) {
-					window_ends.emplace_back(i - 1);
+			double nbMatches = 0;
+			//double length = 0;
+
+			for(size_t i=posStart; i<posEnd; i++){
+				if(isMatches[i]) nbMatches += 1;
+				//length += 1;
+			}
+
+			double identity = nbMatches / (posEnd-posStart);
+			//cout << identity << endl;
+
+			if(identity >= _purgeDups._minDuplicationIdentity_internal){
+				for(size_t p=posStart; p<posEnd; p++){
+					isDuplicated[p] = true;
 				}
 			}
-			window_ends.emplace_back(t_end_ - 1);
+		}
 
-			uint32_t w = 0;
-			bool found_first_match = false;
-			std::pair<uint32_t, uint32_t> first_match = {0, 0}, last_match = {0, 0};
+		bool checkOverlap(u_int32_t targetIndex, u_int32_t alignStart, u_int32_t alignEnd, u_int32_t seqLength, const vector<bool>& isMatches, bool& allowOverlapLeft, bool& allowOverlapRight){
 
-			int32_t q_ptr = (strand_ ? (q_length_ - q_end_) : q_begin_) - 1;
-			int32_t t_ptr = t_begin_ - 1;
+			u_int64_t hangLeft = alignStart;
+			u_int64_t hangRight = seqLength - alignEnd;
 
-			for (uint32_t i = 0, j = 0; i < strlen(cigar_); ++i) {
-				if (cigar_[i] == 'M' || cigar_[i] == '=' || cigar_[i] == 'X') {
-					uint32_t k = 0, num_bases = atoi(&cigar_[j]);
-					j = i + 1;
-					while (k < num_bases) {
-						++q_ptr;
-						++t_ptr;
+			//cout << hangLeft << " " << hangRight << endl;
+			//DbgEdge edge = {targetIndex, queryIndex};
+			//edge = edge.normalize();
+			bool isOverlap = false;
 
-						if (!found_first_match) {
-							found_first_match = true;
-							first_match.first = t_ptr;
-							first_match.second = q_ptr;
-						}
-						last_match.first = t_ptr + 1;
-						last_match.second = q_ptr + 1;
-						if (t_ptr == window_ends[w]) {
-							if (found_first_match) {
-								breaking_points_.emplace_back(first_match);
-								breaking_points_.emplace_back(last_match);
-							}
-							found_first_match = false;
-							++w;
-						}
+			if((hangLeft < _maxHang) ){
+				u_int64_t overlapLength = determineOverlapLength(isMatches, true);
+				//if(_performedPairs.find(edge) == _performedPairs.end()){
+				//	_duplicationBounds[targetIndex].push_back({targetStart, targetEnd});
+				//	isOverlap = true;
+				//}
+				if(overlapLength > _purgeDups._minDuplicationLength_ends){
+					allowOverlapLeft = false;
+					isOverlap = true;
 
-
-						++k;
+					#pragma omp critical(dup)
+					{
+						//cout << "\tleft overlap: " << overlapLength << " " << alignStart << " " << alignEnd << endl;
+						cout << "\tleft overlap: " << _purgeDups._debug_contigIndex_to_contigName[targetIndex] << " " << alignStart << " " << alignEnd << endl;
+						_purgeDups._duplicationBounds[targetIndex].push_back({alignStart, alignEnd});
 					}
-				} else if (cigar_[i] == 'I') {
-					q_ptr += atoi(&cigar_[j]);
-					j = i + 1;
-				} else if (cigar_[i] == 'D' || cigar_[i] == 'N') {
-					uint32_t k = 0, num_bases = atoi(&cigar_[j]);
-					j = i + 1;
-					while (k < num_bases) {
-						++t_ptr;
-						if (t_ptr == window_ends[w]) {
-							if (found_first_match) {
-								breaking_points_.emplace_back(first_match);
-								breaking_points_.emplace_back(last_match);
-							}
-							found_first_match = false;
-							++w;
-						}
-						++k;
-					}
-				} else if (cigar_[i] == 'S' || cigar_[i] == 'H' || cigar_[i] == 'P') {
-					j = i + 1;
 				}
 			}
+
+			if((hangRight < _maxHang)){
+				u_int64_t overlapLength = determineOverlapLength(isMatches, false);
+
+				if(overlapLength > _purgeDups._minDuplicationLength_ends){
+					allowOverlapRight = false;
+					isOverlap = true;
+					#pragma omp critical(dup)
+					{
+						//cout << "\tright overlap: " << overlapLength << " " << alignStart << " " << alignEnd << endl;
+						cout << "\tright overlap: " << _purgeDups._debug_contigIndex_to_contigName[targetIndex] << " " << alignStart << " " << alignEnd << endl;
+						_purgeDups._duplicationBounds[targetIndex].push_back({alignStart, alignEnd});
+					}
+				}
+
+				//cout << "right overlap: " << overlapLength << endl;
+				//if(_performedPairs.find(edge) == _performedPairs.end()){
+				//	_duplicationBounds[targetIndex].push_back({targetStart, targetEnd});
+				//	isOverlap = true;
+				//}
+			}
+
+
 
 			/*
-			//if(breaking_points_.size() > 0) breaking_points_.emplace_back(last_match);
-				
-			for (uint32_t j = 0; j < breaking_points_.size(); j += 2) {
-				//if (breaking_points_[j + 1].second - breaking_points_[j].second < 0.02 * _windowLength) {
-				//	continue;
-				//}				
+			u_int64_t targetIndex = Utils::contigName_to_contigIndex(contigName);
+			u_int64_t queryIndex = Utils::contigName_to_contigIndex(readName);
+			DbgEdge edge = {targetIndex, queryIndex};
+			edge = edge.normalize();
 
-				//uint64_t window_id = id_to_first_window_id[overlaps[i]->t_id()] +
+			bool isOverlap = false;
 
+			if(hangLeft < maxHang){
+				if(_performedPairs.find(edge) == _performedPairs.end()){
+					_duplicationBounds[targetIndex].push_back({targetStart, targetEnd});
+					isOverlap = true;
+				}
+			}
 
-				//const char* data = overlaps[i]->strand() ?
-				//	&(sequence->reverse_complement()[breaking_points[j].second]) :
-				//	&(sequence->data()[breaking_points[j].second]);
-				const char* data = &readSequence[breaking_points_[j].second];
-				uint32_t data_length = breaking_points_[j + 1].second - breaking_points_[j].second;
+			if(hangRight < maxHang){
+				if(_performedPairs.find(edge) == _performedPairs.end()){
+					_duplicationBounds[targetIndex].push_back({targetStart, targetEnd});
+					isOverlap = true;
+				}
+			}
 
-				string sequence = string(data, data_length);
-
-
-				data = &readSequence[breaking_points_[j].second];
-				data_length = breaking_points_[j + 1].second - breaking_points_[j].second;
-				sequence = string(data, data_length);
-
-
-                u_int32_t posStart = breaking_points_[j].first - window_start;
-                u_int32_t posEnd =  breaking_points_[j + 1].first - window_start - 1;
-
-
-				//indexWindow(al, window_id, posStart, posEnd, sequence, quality);
-
+			if(isOverlap){
+				_performedPairs.insert(edge);
 			}
 			*/
+
+
+			//find_breaking_points_from_cigar(al, readSeq.size(), cigar, readSeq);
+
+			return isOverlap;
+		}
+
+
+
+		long determineOverlapLength(const vector<bool>& isMatches, bool isLeftOverlap){
 			
+			if(isMatches.size() < _purgeDups._minDuplicationLength_ends) return 0;
+
+			double nbMatches = 0;
+			//double length = 0;
+
+			for(size_t i=0; i<isMatches.size(); i++){
+				if(isMatches[i]) nbMatches += 1;
+				//length += 1;
+			}
+
+			double identity = nbMatches / (isMatches.size());
+			//cout << identity << endl;
+
+			if(identity >= _purgeDups._minDuplicationIdentity_ends){
+				return isMatches.size();
+				//for(size_t p=posStart; p<posEnd; p++){
+				//	isDuplicated[p] = true;
+				//}
+			}
+
+			return 0;
+
+			//if(!isLeftOverlap){
+			//	std::reverse(alTypes.begin(), alTypes.end());
+			//}
+			//cout << nbMatches / al.length() << endl;
+			
+			/*
+			double nbMatches = 0;
+			double currentLength = 0;
+
+			if(isLeftOverlap){
+				for(size_t i=0; i<isMatches.size(); i++){
+
+
+					if(currentLength == _purgeDups._minDuplicationLength_ends){
+						double identity = nbMatches / currentLength;
+						if(identity < _purgeDups._minDuplicationIdentity_ends){
+							return 0;
+						}
+					}
+					else if(currentLength > _purgeDups._minDuplicationLength_ends){
+						double identity = nbMatches / currentLength;
+						//cout << currentLength << " " << identity << endl;
+						if(identity < _purgeDups._minDuplicationIdentity_ends){
+							return currentLength;
+						}
+					}
+
+					if(isMatches[i]){
+						nbMatches += 1;
+					}
+
+					currentLength += 1;
+				}
+			}
+			else{
+				for(long i=isMatches.size(); i>= 0; i--){
+
+
+					if(currentLength == _purgeDups._minDuplicationLength_ends){
+						double identity = nbMatches / currentLength;
+						if(identity < _purgeDups._minDuplicationIdentity_ends){
+							return 0;
+						}
+					}
+					else if(currentLength > _purgeDups._minDuplicationLength_ends){
+						double identity = nbMatches / currentLength;
+						//cout << currentLength << " " << identity << endl;
+						if(identity < _purgeDups._minDuplicationIdentity_ends){
+							return currentLength;
+						}
+					}
+
+					if(isMatches[i]){
+						nbMatches += 1;
+					}
+
+					currentLength += 1;
+				}
+			}
+
+			if(currentLength >= _purgeDups._minDuplicationLength_ends){
+				return currentLength;
+			}
+
+			return 0;
+			*/
 		}
 
 	};
+
+	void dumpDereplicatedContigs(){
+		
+		cout << "Writing dereplicated contigs" << endl;
+
+		_outputContigFile = gzopen(_outputFilename_contigs.c_str(),"wb");
+
+
+		auto fp = std::bind(&PurgeDups::dumpDereplicatedContigs_read, this, std::placeholders::_1);
+		ReadParser readParser(_inputFilename_contigs, true, false);
+		readParser.parse(fp);
+
+		gzclose(_outputContigFile);
+	}
+
+
+	void dumpDereplicatedContigs_read(const Read& read){
+
+		u_int64_t contigIndex = read._index; //Utils::contigName_to_contigIndex(read._header);
+
+		string seq = read._seq;
+
+		if(_duplicationBounds.find(contigIndex) != _duplicationBounds.end()){
+
+			//if(read._header == "ctg89567") 
+			cout << "-----" << endl;
+			vector<bool> isDuplicated(seq.size(), false);
+
+			for(const DbgEdge& duplicatedBound : _duplicationBounds[contigIndex]){
+				//if(read._header == "ctg89567") 
+				cout << duplicatedBound._from << " " << duplicatedBound._to << endl;
+				for(size_t i=duplicatedBound._from; i<duplicatedBound._to; i++){
+					isDuplicated[i] = true;
+				}
+			}
+
+			bool isDuplicatedArea = true;
+			long startPos = 0;
+			size_t subSeqIndex = 0;
+			long endPos = 0;
+
+			for(long i=0; i<seq.size(); i++){
+				
+				endPos = i;
+
+				if(isDuplicated[i]){
+					if(!isDuplicatedArea){
+						long length = endPos-startPos-1;
+						if(length >= 500){
+							string header = read._header;
+
+
+							char lastChar = header[header.size()-1];
+							header.pop_back();
+
+							header += "_" + to_string(subSeqIndex) + lastChar;
+							
+							string subSeq = seq.substr(startPos, length);
+
+							header = ">" + header + '\n';
+							gzwrite(_outputContigFile, (const char*)&header[0], header.size());
+							string contigSequence = subSeq + '\n';
+							gzwrite(_outputContigFile, (const char*)&contigSequence[0], contigSequence.size());
+
+
+							//if(read._header == "ctg89567")
+							cout << "Dump area: " << startPos << " " << startPos+length << endl;
+
+							subSeqIndex += 1;
+						}
+
+
+					}
+					isDuplicatedArea = true;
+				}
+				else{
+					if(isDuplicatedArea){
+						startPos = i;
+					}
+					isDuplicatedArea = false;
+				}
+			}
+
+			if(!isDuplicatedArea){
+				long length = endPos-startPos-1;
+				if(length > 500){
+					string header = read._header;
+					char lastChar = header[header.size()-1];
+					header.pop_back();
+
+					header += "_" + to_string(subSeqIndex) + lastChar;
+					
+					string subSeq = seq.substr(startPos, length);
+
+					header = ">" + header + '\n';
+					gzwrite(_outputContigFile, (const char*)&header[0], header.size());
+					string contigSequence = subSeq + '\n';
+					gzwrite(_outputContigFile, (const char*)&contigSequence[0], contigSequence.size());
+					
+					cout << "Dump area: " << startPos << " " << startPos+length << endl;
+				}
+
+
+			}
+
+		}
+		else{
+			string header = ">" + read._header + '\n';
+			gzwrite(_outputContigFile, (const char*)&header[0], header.size());
+			string contigSequence = seq + '\n';
+			gzwrite(_outputContigFile, (const char*)&contigSequence[0], contigSequence.size());
+		}
+
+
+
+	}
 
 };	
 
