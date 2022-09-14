@@ -120,7 +120,7 @@ public:
 
 		_alignFilename = "/mnt/gpfs/gaetan/tmp/bin.1081_2.paf";
 		//mapReads();
-		//indexMappingOnContigEnds();
+		indexMappingOnContigEnds();
 
 		//gzclose(_outputContigFile);
 		//fs::remove_all(_tmpDir);
