@@ -17,6 +17,7 @@
 #include "polish/ContigPolisher.hpp"
 #include "polish/PurgeDups.hpp"
 #include "toBasespace/Dereplicater.hpp"
+#include "polish/PurgeGraph.hpp"
 
 void displayHelp(){
 	cout << "Usage: ./simkaMin [option]" << endl;
@@ -106,6 +107,9 @@ int main (int argc, char* argv[])
     		}
     		else if(programName == "polish"){
                 ContigPolisher().run (argc, args);
+    		}
+    		else if(programName == "derepgraph"){
+                PurgeGraph().run (argc, args);
     		}
     		else if(programName == "derep"){
                 PurgeDups().run (argc, args);
