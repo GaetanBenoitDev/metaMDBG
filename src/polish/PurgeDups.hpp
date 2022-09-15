@@ -112,11 +112,11 @@ public:
 		}
 
 		_outputFilename_contigs = p.string() + "_derep.fasta.gz";
-		_maxBases = 100000000ull;
+		_maxBases = 200000000ull;
 		_minDuplicationLength_ends = 1000;
 		_minDuplicationIdentity_ends = 0.97;
-		_minDuplicationLength_internal = 10000;
-		_minDuplicationIdentity_internal = 0.95;
+		_minDuplicationLength_internal = 50000;
+		_minDuplicationIdentity_internal = 0.97;
 		//_outputFilename_contigs = p.string() + "_corrected.fasta.gz";
 		_outputFilename_mapping = _tmpDir + "/_tmp_mapping_derep__.paf";
 		//_maxMemory = 4000000000ull;
@@ -237,7 +237,7 @@ public:
 			infile.read((char*)&strand, sizeof(strand));
 			infile.read((char*)&score, sizeof(score));
 
-
+			if(contigIndex == readIndex) continue;
 			if(_contigSequences.find(contigIndex) == _contigSequences.end() && _contigSequences.find(readIndex) == _contigSequences.end()) continue;
 
 			u_int32_t length = std::max((u_int64_t)(readEnd - readStart), (u_int64_t)(contigEnd - contigStart));
@@ -316,11 +316,11 @@ public:
 			//cout << "\t" << _alignments[read._index].size() << endl;
 			for(const Alignment& al : _alignments[read._index]){
 
-				if(read._index == al._contigIndex){
+				//if(read._index == al._contigIndex){
 
 					//cout << "Self AL not normal" << endl;
-					continue;
-				}
+				//	continue;
+				//}
 				
 				if(_contigSequences.find(al._contigIndex) == _contigSequences.end()) continue;
 
@@ -400,8 +400,13 @@ public:
 
 			const string& contigSequenceComplete = _contigSequences[contigIndex];
 
-			cout << readIndex << " " << read._seq.size() << " " << al._readStart << " " << al._readEnd << "    " << contigIndex << " " << contigSequenceComplete.size() << " " << al._contigStart << " " << al._contigEnd << endl;
 
+			#pragma omp critical
+			{
+				cout << readIndex << " " << read._seq.size() << " " << al._readStart << " " << al._readEnd << "    " << contigIndex << " " << contigSequenceComplete.size() << " " << al._contigStart << " " << al._contigEnd << endl;
+			}
+
+			if(al.length() > 400000) return;
 
 			string readSeq = read._seq;
 			string readSequence = readSeq.substr(al._readStart, al._readEnd-al._readStart);
@@ -427,41 +432,54 @@ public:
 			//cout << contigSeq_al.size() << endl;
 			//cout << readSeq_al.size() << endl;
 
+			bool isOverlap = false;
 
 			if(contigSequenceComplete.size() < read._seq.size()){
 
-				vector<bool> isMatches_read;
-				vector<bool> isMatches_contig;
+				vector<u_int8_t> isMatches_read;
+				vector<u_int8_t> isMatches_contig;
 				performAlignement(readSequence, contigSequence, isMatches_read, isMatches_contig);
 
 				bool allowOverlapLeft = true;
 				bool allowOverlapRight = true;
-				bool isOverlap = checkOverlap(contigIndex, al._contigStart, al._contigEnd, contigSequenceComplete.size(), isMatches_contig, allowOverlapLeft, allowOverlapRight);
+				isOverlap = checkOverlap(contigIndex, al._contigStart, al._contigEnd, contigSequenceComplete.size(), isMatches_contig, allowOverlapLeft, allowOverlapRight);
 				if(!isOverlap) checkOverlap(readIndex, al._readStart, al._readEnd, read._seq.size(), isMatches_read, allowOverlapLeft, allowOverlapRight);
 			}
 			else{
 
-				vector<bool> isMatches_read;
-				vector<bool> isMatches_contig;
+				vector<u_int8_t> isMatches_read;
+				vector<u_int8_t> isMatches_contig;
 				performAlignement(readSequence, contigSequence, isMatches_read, isMatches_contig);
-				
+
 				bool allowOverlapLeft = true;
 				bool allowOverlapRight = true;
-				bool isOverlap = checkOverlap(readIndex, al._readStart, al._readEnd, read._seq.size(), isMatches_read, allowOverlapLeft, allowOverlapRight);
+				isOverlap = checkOverlap(readIndex, al._readStart, al._readEnd, read._seq.size(), isMatches_read, allowOverlapLeft, allowOverlapRight);
 				if(!isOverlap) checkOverlap(contigIndex, al._contigStart, al._contigEnd, contigSequenceComplete.size(), isMatches_contig, allowOverlapLeft, allowOverlapRight);
 			}
 
-			
-			if(contigSequenceComplete.size() < read._seq.size()){
-				//if(contigSequenceComplete.size() < 30000){
-					//checkInternalDuplication(contigIndex, al._contigStart, al._contigEnd, isMatches_contig);
-				//}
+			if(!isOverlap){
+				if(contigSequenceComplete.size() < read._seq.size()){
+					
+					vector<u_int8_t> isMatches_read;
+					vector<u_int8_t> isMatches_contig;
+					performAlignement(readSequence, contigSequence, isMatches_read, isMatches_contig);
+
+					//if(contigSequenceComplete.size() < 30000){
+						checkInternalDuplication(contigIndex, al._contigStart, al._contigEnd, isMatches_contig);
+					//}
+				}
+				else{
+					
+					vector<u_int8_t> isMatches_read;
+					vector<u_int8_t> isMatches_contig;
+					performAlignement(readSequence, contigSequence, isMatches_read, isMatches_contig);
+
+					//if(readSeq.size() < 30000){
+						checkInternalDuplication(readIndex, al._readStart, al._readEnd, isMatches_read);
+					//}
+				}
 			}
-			else{
-				//if(readSeq.size() < 30000){
-					//checkInternalDuplication(readIndex, al._readStart, al._readEnd, isMatches_read);
-				//}
-			}
+
 			//cout << cigar << endl;
 
 
@@ -472,7 +490,7 @@ public:
 
 		}
 
-		void performAlignement(const string& readSequence, const string& contigSequence, vector<bool>& isMatches_read, vector<bool>& isMatches_contig){
+		void performAlignement(const string& readSequence, const string& contigSequence, vector<u_int8_t>& isMatches_read, vector<u_int8_t>& isMatches_contig){
 
 			static EdlibAlignConfig config = edlibNewAlignConfig(-1, EDLIB_MODE_NW, EDLIB_TASK_PATH, NULL, 0);
 
@@ -511,12 +529,12 @@ public:
 					for(size_t i=0; i<num_bases; i++){
 
 						if(contigSequence[contigPos] == readSequence[readPos]){
-							isMatches_read.push_back(true);
-							isMatches_contig.push_back(true);
+							isMatches_read.push_back(0);
+							isMatches_contig.push_back(0);
 						}
 						else{
-							isMatches_read.push_back(false);
-							isMatches_contig.push_back(false);
+							isMatches_read.push_back(1);
+							isMatches_contig.push_back(1);
 						}
 						//isMatches.push_back(true);
 						//contigSeq_al += contigSequence[contigPos];
@@ -536,13 +554,14 @@ public:
 					//}
 
 				
+
 					//if(countInsert){
 					for(size_t i=0; i<num_bases; i++){
 						
 						//readSeq_al += readSequence[readPos];
 						//contigSeq_al += "-";
-						isMatches_read.push_back(false);
 						readPos += 1;
+						isMatches_read.push_back(2);
 						
 						//readPos += 1;
 					}
@@ -568,13 +587,14 @@ public:
 					//	seq2 += "-";
 					//}
 					//if(!countInsert){
+
 					for(size_t i=0; i<num_bases; i++){
 
 						//contigSeq_al += contigSequence[readPos];
 						//readSeq_al += "-";
 
-						isMatches_contig.push_back(false);
 						contigPos += 1;
+						isMatches_contig.push_back(2);
 					}
 					//}
 					//cout << "Del: " << num_bases << endl;
@@ -590,11 +610,12 @@ public:
 				//}
 			}
 
+			//cout << "lala: " << isMatches_read.size() << " " << isMatches_contig.size() << endl;
 			edlibFreeAlignResult(result);
 			free(cigar);
 		}
 
-		void checkInternalDuplication(u_int32_t targetIndex, u_int32_t alignStart, u_int32_t alignEnd, const vector<bool>& isMatches){
+		void checkInternalDuplication(u_int32_t targetIndex, u_int32_t alignStart, u_int32_t alignEnd, const vector<u_int8_t>& isMatches){
 
 			size_t alignLength = alignEnd - alignStart;
 			if(alignLength < _purgeDups._minDuplicationLength_internal) return;
@@ -674,17 +695,9 @@ public:
 
 		}
 
-		void updateInternalDuplication(size_t posStart, size_t posEnd, const vector<bool>& isMatches, vector<bool>& isDuplicated){
+		void updateInternalDuplication(size_t posStart, size_t posEnd, const vector<u_int8_t>& isMatches, vector<bool>& isDuplicated){
 
-			double nbMatches = 0;
-			//double length = 0;
-
-			for(size_t i=posStart; i<posEnd; i++){
-				if(isMatches[i]) nbMatches += 1;
-				//length += 1;
-			}
-
-			double identity = nbMatches / (posEnd-posStart);
+			float identity = computeIdentity(isMatches);
 			//cout << identity << endl;
 
 			if(identity >= _purgeDups._minDuplicationIdentity_internal){
@@ -694,7 +707,36 @@ public:
 			}
 		}
 
-		bool checkOverlap(u_int32_t targetIndex, u_int32_t alignStart, u_int32_t alignEnd, u_int32_t seqLength, const vector<bool>& isMatches, bool& allowOverlapLeft, bool& allowOverlapRight){
+		float computeIdentity(const vector<u_int8_t>& isMatches){
+
+			double nbMatches = 0;
+			double length = 0;
+			bool isGap = false;
+
+			for(size_t i=0; i<isMatches.size(); i++){
+				if(isMatches[i] == 0){
+					isGap = false;
+					nbMatches += 1;
+					length += 1;
+				}
+				else if(isMatches[i] == 1){
+					isGap = false;
+					length += 1;
+				}
+				else if(isMatches[i] == 2){
+					if(!isGap){
+						length += 1;
+					}
+					isGap = true;
+				}
+				//length += 1;
+			}
+
+			double identity = nbMatches / length; //(posEnd-posStart);
+			return identity;
+		}
+
+		bool checkOverlap(u_int32_t targetIndex, u_int32_t alignStart, u_int32_t alignEnd, u_int32_t seqLength, const vector<u_int8_t>& isMatches, bool& allowOverlapLeft, bool& allowOverlapRight){
 
 			u_int64_t hangLeft = alignStart;
 			u_int64_t hangRight = seqLength - alignEnd;
@@ -781,10 +823,19 @@ public:
 
 
 
-		long determineOverlapLength(const vector<bool>& isMatches, bool isLeftOverlap){
+		long determineOverlapLength(const vector<u_int8_t>& isMatches, bool isLeftOverlap){
 			
 			if(isMatches.size() < _purgeDups._minDuplicationLength_ends) return 0;
 
+			float identity = computeIdentity(isMatches);
+
+			if(identity >= _purgeDups._minDuplicationIdentity_ends){
+				return isMatches.size();
+			}
+
+			return 0;
+
+			/*
 			double nbMatches = 0;
 			//double length = 0;
 
@@ -804,6 +855,7 @@ public:
 			}
 
 			return 0;
+			*/
 
 			//if(!isLeftOverlap){
 			//	std::reverse(alTypes.begin(), alTypes.end());
@@ -899,17 +951,32 @@ public:
 		if(_duplicationBounds.find(contigIndex) != _duplicationBounds.end()){
 
 			//if(read._header == "ctg89567") 
-			cout << "-----" << endl;
+			//cout << "-----" << endl;
 			vector<bool> isDuplicated(seq.size(), false);
 
 			for(const DbgEdge& duplicatedBound : _duplicationBounds[contigIndex]){
 				//if(read._header == "ctg89567") 
-				cout << duplicatedBound._from << " " << duplicatedBound._to << endl;
+				//cout << duplicatedBound._from << " " << duplicatedBound._to << endl;
 				for(size_t i=duplicatedBound._from; i<duplicatedBound._to; i++){
 					isDuplicated[i] = true;
 				}
 			}
 
+			double nbDuplicatedPos = 0;
+			for(size_t i=0; i<isDuplicated.size(); i++){
+				if(isDuplicated[i]){
+					nbDuplicatedPos += 1;
+				}
+			}
+
+			cout << read._header << " " << read._seq.size() << " " << (nbDuplicatedPos / isDuplicated.size()) << endl;
+
+			float duplicatuionRate = nbDuplicatedPos / isDuplicated.size();
+			if(duplicatuionRate > 0.95){
+				return;
+			}
+
+			
 			bool isDuplicatedArea = true;
 			long startPos = 0;
 			size_t subSeqIndex = 0;
@@ -940,7 +1007,7 @@ public:
 
 
 							//if(read._header == "ctg89567")
-							cout << "Dump area: " << startPos << " " << startPos+length << endl;
+							//cout << "Dump area: " << startPos << " " << startPos+length << endl;
 
 							subSeqIndex += 1;
 						}
@@ -973,11 +1040,12 @@ public:
 					string contigSequence = subSeq + '\n';
 					gzwrite(_outputContigFile, (const char*)&contigSequence[0], contigSequence.size());
 					
-					cout << "Dump area: " << startPos << " " << startPos+length << endl;
+					//cout << "Dump area: " << startPos << " " << startPos+length << endl;
 				}
 
 
 			}
+			
 
 		}
 		else{
@@ -986,6 +1054,8 @@ public:
 			string contigSequence = seq + '\n';
 			gzwrite(_outputContigFile, (const char*)&contigSequence[0], contigSequence.size());
 		}
+
+
 
 
 
