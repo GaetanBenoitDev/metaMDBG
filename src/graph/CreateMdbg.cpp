@@ -258,7 +258,7 @@ void CreateMdbg::createMDBG (){
 			KmerVec vec;
 			vec._kmers = minimizerSeq;
 
-			_kminmerAbundances[vec] = abundance;
+			_kminmerAbundances[vec] = {abundance, 0};
 		}
 
 		kminmerFile.close();
@@ -321,7 +321,11 @@ void CreateMdbg::createMDBG (){
 
 	if(!_isFirstPass){
 		//const string& filename_uncorrectedReads = _outputDir + "/read_uncorrected.txt";
+		const string& filename_contigs = _outputDir + "/unitig_data.txt";
 		const string& filename_uncorrectedReads = _outputDir + "/read_data.txt";
+
+		KminmerParserParallel parser4(filename_contigs, _minimizerSize, _kminmerSizePrev, false, false, 1);
+		parser4.parse(IndexContigFunctor(*this));
 
 		cout << "Filling bloom filter" << endl;
 		//KminmerParserParallel parser(filename_uncorrectedReads, _minimizerSize, _kminmerSize, false, _nbCores);
@@ -329,10 +333,9 @@ void CreateMdbg::createMDBG (){
 
 		cout << "Building mdbg" << endl;
 		KminmerParserParallel parser2(filename_uncorrectedReads, _minimizerSize, _kminmerSize, false, true, _nbCores);
-		parser2.parse(IndexKminmerFunctor(*this, false));
+		parser2.parse(FilterKminmerFunctor2(*this));
 
 		_parsingContigs = true;
-		const string& filename_contigs = _outputDir + "/unitig_data.txt";
 
 		KminmerParserParallel parser3(filename_contigs, _minimizerSize, _kminmerSize, false, false, _nbCores);
 		parser3.parse(IndexKminmerFunctor(*this, true));
