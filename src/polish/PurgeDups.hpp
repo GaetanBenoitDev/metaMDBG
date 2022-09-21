@@ -19,6 +19,9 @@ public:
 	string _mapperOutputExeFilename;
 	string _outputDir;
 	string _tmpDir;
+	//bool _cut_contigEnds;
+	bool _cut_contigInternal;
+	bool _dontOuputContigs;
 	
 	string _outputFilename_contigs;
 	string _outputFilename_mapping;
@@ -28,6 +31,7 @@ public:
 	float _minDuplicationIdentity_ends;
 	u_int64_t _minDuplicationLength_internal;
 	float _minDuplicationIdentity_internal;
+	ofstream _file_duplicatedContigs;
 	//u_int64_t _maxMemory;
 
 	struct Alignment{
@@ -54,6 +58,11 @@ public:
 
 	void parseArgs(int argc, char* argv[]){
 
+
+		//string ARG_CUT_ENDS = "cutends";
+		string ARG_CUT_INTERNAL = "cutinternal";
+		string ARG_NO_DUMP= "nodump";
+
 		string filenameExe = argv[0];
 		//cout << filenameExe << endl;
 
@@ -65,13 +74,17 @@ public:
 		cxxopts::Options options("ToBasespace", "");
 		options.add_options()
 		("contigs", "", cxxopts::value<string>())
+		("outputFilename", "", cxxopts::value<string>())
 		//("reads", "", cxxopts::value<string>())
 		("tmpDir", "", cxxopts::value<string>())
+		//(ARG_CUT_ENDS, "", cxxopts::value<bool>()->default_value("false"))
+		(ARG_CUT_INTERNAL, "", cxxopts::value<bool>()->default_value("false"))
+		(ARG_NO_DUMP, "", cxxopts::value<bool>()->default_value("false"))
 		(ARG_NB_CORES, "", cxxopts::value<int>()->default_value(NB_CORES_DEFAULT));
 
 
-		options.parse_positional({"contigs", "tmpDir"});
-		options.positional_help("contigs tmpDir");
+		options.parse_positional({"contigs", "outputFilename", "tmpDir"});
+		options.positional_help("contigs outputFilename tmpDir");
 
 
 		//("k,kminmerSize", "File name", cxxopts::value<std::string>())
@@ -90,7 +103,11 @@ public:
 
 			//_inputFilename_reads = result["reads"].as<string>();
 			_inputFilename_contigs = result["contigs"].as<string>();
-			_outputDir = result["tmpDir"].as<string>();;
+			_outputFilename_contigs = result["outputFilename"].as<string>();
+			_outputDir = result["tmpDir"].as<string>();
+			//_cut_contigEnds = result[ARG_CUT_ENDS].as<bool>();
+			_cut_contigInternal = result[ARG_CUT_INTERNAL].as<bool>();
+			_dontOuputContigs = result[ARG_NO_DUMP].as<bool>();
 			_nbCores = result[ARG_NB_CORES].as<int>();
 		}
 		catch (const std::exception& e){
@@ -99,28 +116,37 @@ public:
 			std::exit(EXIT_FAILURE);
 		}
 
-		cout << "Contigs: " << _inputFilename_contigs << endl;
 
-		fs::path p(_inputFilename_contigs);
-		while(p.has_extension()){
-			p.replace_extension("");
+		if (_outputFilename_contigs.find(".gz") == std::string::npos) {
+			_outputFilename_contigs += ".gz";
 		}
+
+		//fs::path p(_inputFilename_contigs);
+		//while(p.has_extension()){
+		//	p.replace_extension("");
+		//}
 
 		_tmpDir = _outputDir + "/__tmp/";
 		if(!fs::exists(_tmpDir)){
 			fs::create_directories(_tmpDir);
 		}
 
-		_outputFilename_contigs = p.string() + "_derep.fasta.gz";
+		//_outputFilename_contigs = p.string() + "_derep.fasta.gz";
 		_maxBases = 200000000ull;
 		_minDuplicationLength_ends = 1000;
-		_minDuplicationIdentity_ends = 0.97;
-		_minDuplicationLength_internal = 50000;
-		_minDuplicationIdentity_internal = 0.97;
+		_minDuplicationIdentity_ends = 0.95;
+		_minDuplicationLength_internal = 30000;
+		_minDuplicationIdentity_internal = 0.95;
 		//_outputFilename_contigs = p.string() + "_corrected.fasta.gz";
 		_outputFilename_mapping = _tmpDir + "/_tmp_mapping_derep__.paf";
 		//_maxMemory = 4000000000ull;
-		cout << _outputFilename_contigs << endl;
+
+		_file_duplicatedContigs = ofstream(_outputDir + "/duplicatedContigs.txt");
+		
+		cout << "Contigs: " << _inputFilename_contigs << endl;
+		//cout << "Cut contigs ends: " << _cut_contigEnds << endl;
+		cout << "Cut contigs internal: " << _cut_contigInternal << endl;
+		cout << "Output filename: " << _outputFilename_contigs << endl;
 	}
 
 	gzFile _outputContigFile;
@@ -147,7 +173,7 @@ public:
 		processContigs();
 		
 		dumpDereplicatedContigs();
-		//fs::remove_all(_tmpDir);
+		fs::remove_all(_tmpDir);
 
 	}
 
@@ -164,7 +190,8 @@ public:
 	}
 
 	u_int64_t _currentLoadedBases;
-	unordered_map<u_int32_t, vector<DbgEdge>> _duplicationBounds;
+	unordered_map<u_int32_t, vector<DbgEdge>> _duplicationEnds;
+	unordered_map<u_int32_t, vector<DbgEdge>> _duplicationInternal;
 	//unordered_set<DbgEdge, hash_pair> _performedPairs;
 
 	void processContigs(){
@@ -443,7 +470,7 @@ public:
 				bool allowOverlapLeft = true;
 				bool allowOverlapRight = true;
 				isOverlap = checkOverlap(contigIndex, al._contigStart, al._contigEnd, contigSequenceComplete.size(), isMatches_contig, allowOverlapLeft, allowOverlapRight);
-				if(!isOverlap) checkOverlap(readIndex, al._readStart, al._readEnd, read._seq.size(), isMatches_read, allowOverlapLeft, allowOverlapRight);
+				//if(!isOverlap) checkOverlap(readIndex, al._readStart, al._readEnd, read._seq.size(), isMatches_read, allowOverlapLeft, allowOverlapRight);
 			}
 			else{
 
@@ -454,31 +481,34 @@ public:
 				bool allowOverlapLeft = true;
 				bool allowOverlapRight = true;
 				isOverlap = checkOverlap(readIndex, al._readStart, al._readEnd, read._seq.size(), isMatches_read, allowOverlapLeft, allowOverlapRight);
-				if(!isOverlap) checkOverlap(contigIndex, al._contigStart, al._contigEnd, contigSequenceComplete.size(), isMatches_contig, allowOverlapLeft, allowOverlapRight);
+				//if(!isOverlap) checkOverlap(contigIndex, al._contigStart, al._contigEnd, contigSequenceComplete.size(), isMatches_contig, allowOverlapLeft, allowOverlapRight);
 			}
 
-			if(!isOverlap){
-				if(contigSequenceComplete.size() < read._seq.size()){
-					
-					vector<u_int8_t> isMatches_read;
-					vector<u_int8_t> isMatches_contig;
-					performAlignement(readSequence, contigSequence, isMatches_read, isMatches_contig);
+			if(_purgeDups._cut_contigInternal){
+				if(!isOverlap){
+					if(contigSequenceComplete.size() < read._seq.size()){
+						
+						vector<u_int8_t> isMatches_read;
+						vector<u_int8_t> isMatches_contig;
+						performAlignement(readSequence, contigSequence, isMatches_read, isMatches_contig);
 
-					//if(contigSequenceComplete.size() < 30000){
-						checkInternalDuplication(contigIndex, al._contigStart, al._contigEnd, isMatches_contig);
-					//}
-				}
-				else{
-					
-					vector<u_int8_t> isMatches_read;
-					vector<u_int8_t> isMatches_contig;
-					performAlignement(readSequence, contigSequence, isMatches_read, isMatches_contig);
+						//if(contigSequenceComplete.size() < 30000){
+							checkInternalDuplication(contigIndex, al._contigStart, al._contigEnd, isMatches_contig);
+						//}
+					}
+					else{
+						
+						vector<u_int8_t> isMatches_read;
+						vector<u_int8_t> isMatches_contig;
+						performAlignement(readSequence, contigSequence, isMatches_read, isMatches_contig);
 
-					//if(readSeq.size() < 30000){
-						checkInternalDuplication(readIndex, al._readStart, al._readEnd, isMatches_read);
-					//}
+						//if(readSeq.size() < 30000){
+							checkInternalDuplication(readIndex, al._readStart, al._readEnd, isMatches_read);
+						//}
+					}
 				}
 			}
+
 
 			//cout << cigar << endl;
 
@@ -667,7 +697,7 @@ public:
 						#pragma omp critical(dup)
 						{
 							cout << "Internal duplication: " << alignStart+startPos << " " << alignStart+endPos << endl;
-							_purgeDups._duplicationBounds[targetIndex].push_back({alignStart+startPos, alignStart+endPos});
+							_purgeDups._duplicationInternal[targetIndex].push_back({alignStart+startPos, alignStart+endPos});
 						}
 
 					}
@@ -688,7 +718,7 @@ public:
 				#pragma omp critical(dup)
 				{
 					cout << "Internal duplication: " << alignStart+startPos << " " << alignStart+endPos << endl;
-					_purgeDups._duplicationBounds[targetIndex].push_back({alignStart+startPos, alignStart+endPos});
+					_purgeDups._duplicationInternal[targetIndex].push_back({alignStart+startPos, alignStart+endPos});
 				}
 			}
 
@@ -760,7 +790,7 @@ public:
 					{
 						//cout << "\tleft overlap: " << overlapLength << " " << alignStart << " " << alignEnd << endl;
 						cout << "\tleft overlap: " << _purgeDups._debug_contigIndex_to_contigName[targetIndex] << " " << alignStart << " " << alignEnd << endl;
-						_purgeDups._duplicationBounds[targetIndex].push_back({alignStart, alignEnd});
+						_purgeDups._duplicationEnds[targetIndex].push_back({alignStart, alignEnd});
 					}
 				}
 			}
@@ -775,7 +805,7 @@ public:
 					{
 						//cout << "\tright overlap: " << overlapLength << " " << alignStart << " " << alignEnd << endl;
 						cout << "\tright overlap: " << _purgeDups._debug_contigIndex_to_contigName[targetIndex] << " " << alignStart << " " << alignEnd << endl;
-						_purgeDups._duplicationBounds[targetIndex].push_back({alignStart, alignEnd});
+						_purgeDups._duplicationEnds[targetIndex].push_back({alignStart, alignEnd});
 					}
 				}
 
@@ -939,6 +969,7 @@ public:
 		readParser.parse(fp);
 
 		gzclose(_outputContigFile);
+		_file_duplicatedContigs.close();
 	}
 
 
@@ -948,112 +979,142 @@ public:
 
 		string seq = read._seq;
 
-		if(_duplicationBounds.find(contigIndex) != _duplicationBounds.end()){
+		//if(_duplicationBounds.find(contigIndex) != _duplicationBounds.end()){
 
 			//if(read._header == "ctg89567") 
 			//cout << "-----" << endl;
-			vector<bool> isDuplicated(seq.size(), false);
+		vector<bool> isDuplicated(seq.size(), false);
 
-			for(const DbgEdge& duplicatedBound : _duplicationBounds[contigIndex]){
-				//if(read._header == "ctg89567") 
-				//cout << duplicatedBound._from << " " << duplicatedBound._to << endl;
+		for(const DbgEdge& duplicatedBound : _duplicationEnds[contigIndex]){
+			for(size_t i=duplicatedBound._from; i<duplicatedBound._to; i++){
+				isDuplicated[i] = true;
+			}
+		}
+		for(const DbgEdge& duplicatedBound : _duplicationInternal[contigIndex]){
+			for(size_t i=duplicatedBound._from; i<duplicatedBound._to; i++){
+				isDuplicated[i] = true;
+			}
+		}
+		
+		double nbDuplicatedPos = 0;
+		for(size_t i=0; i<isDuplicated.size(); i++){
+			if(isDuplicated[i]){
+				nbDuplicatedPos += 1;
+			}
+		}
+
+		cout << read._header << " " << read._seq.size() << " " << (nbDuplicatedPos / isDuplicated.size()) << endl;
+
+		float duplicatuionRate = nbDuplicatedPos / isDuplicated.size();
+		if(duplicatuionRate > 0.95){
+			_file_duplicatedContigs << Utils::contigName_to_contigIndex(read._header) << endl;
+			return;
+		}
+		if(_dontOuputContigs) return;
+
+
+
+
+
+
+
+
+
+
+		isDuplicated.clear();
+
+		for(const DbgEdge& duplicatedBound : _duplicationEnds[contigIndex]){
+			for(size_t i=duplicatedBound._from; i<duplicatedBound._to; i++){
+				isDuplicated[i] = true;
+			}
+		}
+		if(_cut_contigInternal){
+			for(const DbgEdge& duplicatedBound : _duplicationInternal[contigIndex]){
 				for(size_t i=duplicatedBound._from; i<duplicatedBound._to; i++){
 					isDuplicated[i] = true;
 				}
 			}
+		}
 
-			double nbDuplicatedPos = 0;
-			for(size_t i=0; i<isDuplicated.size(); i++){
-				if(isDuplicated[i]){
-					nbDuplicatedPos += 1;
-				}
-			}
 
-			cout << read._header << " " << read._seq.size() << " " << (nbDuplicatedPos / isDuplicated.size()) << endl;
+		
+		bool isDuplicatedArea = true;
+		long startPos = 0;
+		size_t subSeqIndex = 0;
+		long endPos = 0;
 
-			float duplicatuionRate = nbDuplicatedPos / isDuplicated.size();
-			if(duplicatuionRate > 0.95){
-				return;
-			}
-
+		for(long i=0; i<seq.size(); i++){
 			
-			bool isDuplicatedArea = true;
-			long startPos = 0;
-			size_t subSeqIndex = 0;
-			long endPos = 0;
+			endPos = i;
 
-			for(long i=0; i<seq.size(); i++){
+			if(isDuplicated[i]){
+				if(!isDuplicatedArea){
+					long length = endPos-startPos-1;
+					if(length >= 500){
+						string header = read._header;
+
+
+						char lastChar = header[header.size()-1];
+						header.pop_back();
+
+						header += "_" + to_string(subSeqIndex) + lastChar;
+						
+						string subSeq = seq.substr(startPos, length);
+
+						header = ">" + header + '\n';
+						gzwrite(_outputContigFile, (const char*)&header[0], header.size());
+						string contigSequence = subSeq + '\n';
+						gzwrite(_outputContigFile, (const char*)&contigSequence[0], contigSequence.size());
+
+
+						//if(read._header == "ctg89567")
+						//cout << "Dump area: " << startPos << " " << startPos+length << endl;
+
+						subSeqIndex += 1;
+					}
+
+
+				}
+				isDuplicatedArea = true;
+			}
+			else{
+				if(isDuplicatedArea){
+					startPos = i;
+				}
+				isDuplicatedArea = false;
+			}
+		}
+
+		if(!isDuplicatedArea){
+			long length = endPos-startPos-1;
+			if(length > 500){
+				string header = read._header;
+				char lastChar = header[header.size()-1];
+				header.pop_back();
+
+				header += "_" + to_string(subSeqIndex) + lastChar;
 				
-				endPos = i;
+				string subSeq = seq.substr(startPos, length);
 
-				if(isDuplicated[i]){
-					if(!isDuplicatedArea){
-						long length = endPos-startPos-1;
-						if(length >= 500){
-							string header = read._header;
-
-
-							char lastChar = header[header.size()-1];
-							header.pop_back();
-
-							header += "_" + to_string(subSeqIndex) + lastChar;
-							
-							string subSeq = seq.substr(startPos, length);
-
-							header = ">" + header + '\n';
-							gzwrite(_outputContigFile, (const char*)&header[0], header.size());
-							string contigSequence = subSeq + '\n';
-							gzwrite(_outputContigFile, (const char*)&contigSequence[0], contigSequence.size());
-
-
-							//if(read._header == "ctg89567")
-							//cout << "Dump area: " << startPos << " " << startPos+length << endl;
-
-							subSeqIndex += 1;
-						}
-
-
-					}
-					isDuplicatedArea = true;
-				}
-				else{
-					if(isDuplicatedArea){
-						startPos = i;
-					}
-					isDuplicatedArea = false;
-				}
+				header = ">" + header + '\n';
+				gzwrite(_outputContigFile, (const char*)&header[0], header.size());
+				string contigSequence = subSeq + '\n';
+				gzwrite(_outputContigFile, (const char*)&contigSequence[0], contigSequence.size());
+				
+				//cout << "Dump area: " << startPos << " " << startPos+length << endl;
 			}
 
-			if(!isDuplicatedArea){
-				long length = endPos-startPos-1;
-				if(length > 500){
-					string header = read._header;
-					char lastChar = header[header.size()-1];
-					header.pop_back();
 
-					header += "_" + to_string(subSeqIndex) + lastChar;
-					
-					string subSeq = seq.substr(startPos, length);
-
-					header = ">" + header + '\n';
-					gzwrite(_outputContigFile, (const char*)&header[0], header.size());
-					string contigSequence = subSeq + '\n';
-					gzwrite(_outputContigFile, (const char*)&contigSequence[0], contigSequence.size());
-					
-					//cout << "Dump area: " << startPos << " " << startPos+length << endl;
-				}
-
-
-			}
+		}
 			
 
-		}
-		else{
-			string header = ">" + read._header + '\n';
-			gzwrite(_outputContigFile, (const char*)&header[0], header.size());
-			string contigSequence = seq + '\n';
-			gzwrite(_outputContigFile, (const char*)&contigSequence[0], contigSequence.size());
-		}
+		//}
+		//else{
+		//	string header = ">" + read._header + '\n';
+		//	gzwrite(_outputContigFile, (const char*)&header[0], header.size());
+		//	string contigSequence = seq + '\n';
+		//	gzwrite(_outputContigFile, (const char*)&contigSequence[0], contigSequence.size());
+		//}
 
 
 

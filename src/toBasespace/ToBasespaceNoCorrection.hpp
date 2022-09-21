@@ -168,15 +168,12 @@ public:
 		cout << endl << "Contig filename: " << _filename_outputContigs << endl;
 		delete _mdbg;
 
-		removeDuplicatePost();
+		//removeDuplicatePost();
 
 		cout << "Checksum: " << _checksum << endl;
-		cout << "Nb contigs (no duplicate): " << _nbContigsPost << endl;
+		//cout << "Nb contigs (no duplicate): " << _nbContigsPost << endl;
 	}
 
-	void removeVariants(){
-
-	}
 
 	/*
 	void writeKminmerSequence(u_int32_t nodeName, unordered_map<u_int32_t, VariantQueue>& variants){
@@ -671,21 +668,31 @@ public:
 		}
 
 		
+		string header = ">ctg" + to_string(_contigIndex) + '\n';
+		gzwrite(_basespaceContigFile, (const char*)&header[0], header.size());
+
 		if(contigSequence.size() == 0){
 			cout << "empty contig" << endl;
-			return;
+			//return;
+		
+			string rleSequence =  "\n";
+			gzwrite(_basespaceContigFile, (const char*)&rleSequence[0], rleSequence.size());
 		}
-
-		if(_isOutputFasta){
-			string header = ">ctg" + to_string(_contigIndex) + '\n';
-			gzwrite(_basespaceContigFile, (const char*)&header[0], header.size());
-
+		else{
 			string rleSequence;
 			vector<u_int64_t> rlePositions;
 			_encoderRLE.execute(contigSequence.c_str(), contigSequence.size(), rleSequence, rlePositions);
 
 			rleSequence +=  '\n';
 			gzwrite(_basespaceContigFile, (const char*)&rleSequence[0], rleSequence.size());
+		}
+
+		//if(_isOutputFasta){
+
+
+
+		//cout << rleSequence.size() << endl;
+		/*
 		}
 		else{
 			DnaBitset* contigSequenceBitset = new DnaBitset(contigSequence);
@@ -697,6 +704,7 @@ public:
 			_contigFile_bitset.write((const char*)&m_data[0], sizeData*sizeof(uint8_t));
 			delete contigSequenceBitset;
 		}
+		*/
 
 		_contigIndex += 1;
 
@@ -1008,12 +1016,13 @@ public:
 
 
 
-
+	
 	gzFile _queryContigFile;
 	unordered_set<u_int32_t> _duplicatedContigIndex;
 
 	void removeDuplicatePost(){
 
+		/*
 		_nbContigsPost = 0;
 
 		string outputMappingFilename = _filename_outputContigs + ".map";
@@ -1087,6 +1096,7 @@ public:
 		}
 		
 		mappingFile.close();
+		*/
 
 		_checksum = 0;
 		dumpDereplicatedContigs();
@@ -1146,6 +1156,7 @@ public:
 
 	}
 	
+
 };	
 
 

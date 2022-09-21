@@ -278,8 +278,8 @@ public:
 		for(long i=0; i<_contigs.size(); i++){
 
 			Contig& contig = _contigs[i];
-			cout << "---------------------" << endl;
-			cout << i << " " << contig._minimizers.size() << endl;
+			//cout << "---------------------" << endl;
+			//cout << i << " " << contig._minimizers.size() << endl;
 
 			if(contig._minimizers.size() == 0) continue;
 
@@ -288,13 +288,13 @@ public:
 			if(n <= 0) continue;
 			
 
-			cout << "lala1: " << n << endl;
+			//cout << "lala1: " << n << endl;
 			
 			contig._kminmers.resize(contig._kminmers.size()-n);
 			//cout << contig._minimizers.size() << endl;
 			contig._minimizers.resize(contig._minimizers.size()-n);
 
-			cout << "lala2: " << longestPrefixSuffix(contig) << endl;
+			//cout << "lala2: " << longestPrefixSuffix(contig) << endl;
 		}
 	}
 

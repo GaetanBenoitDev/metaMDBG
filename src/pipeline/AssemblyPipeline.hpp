@@ -246,7 +246,7 @@ public:
 		_firstK = 4;
 
 		u_int64_t meanReadLength = computeMeanReadLength(_inputFilename);
-		_lastK = meanReadLength*_minimizerDensity*2.0f; //*0.95
+		_lastK = meanReadLength*_minimizerDensity*2.0f; //1.2f; //2.0f; //*0.95
 		_meanReadLength = meanReadLength;
 		//_lastK = 41;
 		
@@ -396,7 +396,6 @@ public:
 		executeCommand(command);
 		*/
 
-
 		//bool generatedContigs = false;
 		//if(k == 5 || k == 10 || k == 16 || k == 21 || k == 26 || k == 31){
 		if(isFinalPass){
@@ -415,16 +414,32 @@ public:
 			
 			appendSmallContigs();
 
+			string contigFilenameCompressed = _inputDir + "/contigs_H_" + to_string(k) + ".fasta.gz ";
 			//getchar();
-			command = _filename_exe + " toBasespaceFast " + " -o " + _inputDir + " -i " + _inputFilename + " -c " + _inputDir + "/contig_data.txt " + " -f " + _inputDir + "/contigs_" + to_string(k) + ".fasta.gz " + " --fasta"  + " -t " + to_string(_nbCores);
+			command = _filename_exe + " toBasespaceFast " + " -o " + _inputDir + " -i " + _inputFilename + " -c " + _inputDir + "/contig_data.txt " + " -f " + contigFilenameCompressed + " --fasta"  + " -t " + to_string(_nbCores);
 			if(pass == 0) command += " --firstpass";
 			executeCommand(command);
 
-			//getchar();
-			
+			string contigFilenameCompressed_derep = _inputDir + "/contigs_H_" + to_string(k) + "_derep.fasta.gz ";
+			command = _filename_exe + " derep " + contigFilenameCompressed + " " + contigFilenameCompressed_derep + " " + _inputDir + " -t " + to_string(_nbCores) + " --nodump";
+			executeCommand(command);
+
+			dereplicate();
+
+			/*
+
+		
+			ofstream contigInputFile(_inputDir + "/input_contig.txt");
+			contigInputFile << contigFilenameCompressed_derep << endl;
+			contigInputFile.close();
+			command = _filename_exe + " readSelection -i " + _inputDir + "/input_contig.txt" + " -o " + _inputDir + " -f " + _inputDir + "/contig_data.txt" + " -t " + to_string(_nbCores) + " --contig";
+			executeCommand(command);
+			*/
+
 			command = _filename_exe + " toBasespace " + " -o " + _inputDir + " -i " + _inputFilename + " -c " + _inputDir + "/contig_data.txt " + " -f " + _inputDir + "/contigs_" + to_string(k) + ".fasta.gz " + " --fasta"  + " -t " + to_string(_nbCores);
 			if(pass == 0) command += " --firstpass";
 			executeCommand(command);
+			//getchar();
 
 			//getchar();
 			command = _filename_exe + " polish " + _inputDir + "/contigs_" + to_string(k) + ".fasta.gz " + _inputFilename + " " + _inputDir + " -t " + to_string(_nbCores) + " --qual ";
@@ -449,6 +464,67 @@ public:
 		savePassData(k);
 
 	}
+
+	unordered_set<u_int32_t> _duplicatedContigIndex;
+	ofstream _outputContigFileDerep;
+
+	void dereplicate(){
+
+		ifstream infile(_inputDir + "/duplicatedContigs.txt");
+
+		string line;
+
+		while (infile >> line){
+			cout << "Duplicate: " << line << endl;
+			_duplicatedContigIndex.insert(stoull(line));
+		}
+
+		infile.close();
+
+		dumpDereplicatedContigs();
+	}
+
+	void dumpDereplicatedContigs(){
+
+		string contigFilename = _inputDir + "/contig_data_derep.txt";
+		_outputContigFileDerep = ofstream(contigFilename);
+
+		KminmerParser parser(_inputDir + "/contig_data.txt", _minimizerSize, _kminmerSize, false, false);
+		auto fp = std::bind(&AssemblyPipeline::dumpDereplicatedContigs_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+		parser.parseSequences(fp);
+
+		_outputContigFileDerep.close();
+
+		_duplicatedContigIndex.clear();
+		fs::remove(_inputDir + "/contig_data.txt");
+		fs::rename(_inputDir + "/contig_data_derep.txt", _inputDir + "/contig_data.txt");
+
+	}
+
+	void dumpDereplicatedContigs_read(const vector<u_int64_t>& readMinimizers, bool isCircular, u_int64_t readIndex){
+		
+		cout << "contig: " << readIndex << " " << readMinimizers.size() << endl;
+		if(readMinimizers.size() == 0) return;
+		if(_duplicatedContigIndex.find(readIndex) != _duplicatedContigIndex.end()) return;
+
+		cout << "dump contigs: " << readIndex << " " << readMinimizers.size() << endl;
+		u_int32_t contigSize = readMinimizers.size();
+		_outputContigFileDerep.write((const char*)&contigSize, sizeof(contigSize));
+		_outputContigFileDerep.write((const char*)&isCircular, sizeof(isCircular));
+		_outputContigFileDerep.write((const char*)&readMinimizers[0], contigSize*sizeof(u_int64_t));
+
+		//_nbContigsPost += 1;
+		//cout << "Dump: " << readIndex << " " << readMinimizers.size() << endl;
+
+		//u_int64_t s = 0;
+		//for(size_t i=0; i<readMinimizers.size(); i++){
+		//	s += (readMinimizers[i]);
+		//}
+
+		//_checksum += (s*readMinimizers.size());
+
+	}
+
 
 	ofstream _fileContigsAppend;
 
