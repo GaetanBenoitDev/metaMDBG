@@ -29,6 +29,8 @@ public:
 	string _outputFilename_contigs;
 	string _outputFilename_mapping;
 
+	unordered_map<string, u_int64_t> _contigNbHits;
+	unordered_map<string, vector<u_int32_t>> _contigHitPos;
 
 	PurgeGraph(): Tool (){
 
@@ -118,10 +120,11 @@ public:
 
     void execute (){
 
-		_alignFilename = "/mnt/gpfs/gaetan/tmp/bin.1081_2.paf";
+		_alignFilename = "/home/gats/workspace/tmp/bin.1081_2.paf";
 		//mapReads();
+		initContigs();
 		indexMappingOnContigEnds();
-
+		computeContigCoverage();
 		//gzclose(_outputContigFile);
 		//fs::remove_all(_tmpDir);
 
@@ -142,6 +145,21 @@ public:
 
 		//minimap2 -x map-hifi ~/workspace/run/overlap_test_201/contigs_47.fasta.gz ~/workspace/data/overlap_test/genome_201_50x/simulatedReads_0.fastq.gz | ./bin/mapper ~/workspace/run/overlap_test_201/contigs_47.fasta.gz ~/workspace/data/overlap_test/genome_201_50x/input.txt ~/workspace/run/overlap_test_201/align.bin
 	}
+
+	void initContigs(){
+
+		auto fp = std::bind(&PurgeGraph::initContigs_read, this, std::placeholders::_1);
+		ReadParser readParser(_inputFilename_contigs, true, false);
+		readParser.parse(fp);
+
+	}
+
+	
+	void initContigs_read(const Read& read){
+		_contigHitPos[read._header].resize(read._seq.size(), 0);
+		//cout << read._header << " " << read._seq.size() << " " << _contigNbHits[read._header] / read._seq.size() << endl;
+	}
+
 
 	void indexMappingOnContigEnds(){
 
@@ -177,28 +195,62 @@ public:
 			u_int64_t alignLength = stoull((*fields)[10]);
 			u_int64_t queryLength = stoull((*fields)[1]);
 
+			float alignLengthRate = ((double) alignLength) / queryLength;
+			//cout << line << endl;
+			//cout << alignLengthRate << endl;
+			//if(alignLengthRate < 0.8) continue;
+
 			bool strand = (*fields)[4] == "-";
 
 			long hangLeft = contigStart;
 			long hangRight = contigLength - contigEnd;
 
 			if (hangLeft < maxHang){
-				cout << line << endl;
+				//cout << line << endl;
 				//_contigMapLeft[contigIndex].push_back(readIndex);
 				//cout << readIndex << endl;
 			}
 			if (hangRight < maxHang){
-				cout << line << endl;
+				//cout << line << endl;
 				//_contigMapRight[contigIndex].push_back(readIndex);
 				//cout << readIndex << endl;
 			}
 
+			_contigNbHits[contigName] += alignLength;
+			vector<u_int32_t>& v = _contigHitPos[contigName];
+			for(size_t i=contigStart; i<contigEnd; i++){
+				v[i] += 1;
+			}
 		}
 
 		infile.close();
 
 	}
 
+	void computeContigCoverage(){
+
+		auto fp = std::bind(&PurgeGraph::computeContigCoverage_read, this, std::placeholders::_1);
+		ReadParser readParser(_inputFilename_contigs, true, false);
+		readParser.parse(fp);
+
+	}
+
+	
+	void computeContigCoverage_read(const Read& read){
+
+		float median = Utils::compute_median(_contigHitPos[read._header]);
+
+		if(read._header == "ctg89567"){
+			
+			vector<u_int32_t>& v = _contigHitPos[read._header];
+
+			for(size_t i=0; i<v.size(); i++){
+				cout << v[i] << " ";
+			}
+		}
+		cout << endl;
+		cout << read._header << " " << read._seq.size() << " " << median << " " << _contigNbHits[read._header] / read._seq.size() << endl;
+	}
 
 
 };	

@@ -1,4 +1,7 @@
-
+/*
+TODO:
+- toBasespace: il faudrait utiliser le processus de mapping pour tous les kminmer en fait, pas seulement ceux repeter (ne aps etre repeter dasn les contigs ne veux pas dire que la sequence du kminmer n'est pas ambigue dans les reads)
+*/
 
 #ifndef MDBG_METAG_COMMONS
 #define MDBG_METAG_COMMONS
@@ -2578,7 +2581,7 @@ public:
 
 		while(true){
 			
-
+			
 			u_int32_t size;
 			vector<u_int64_t> minimizers;
 			vector<u_int16_t> minimizersPosOffsets; 

@@ -93,7 +93,7 @@ public:
 		dumpDereplicatedContigs();
 		
 
-		fs::remove(outputMappingFilename);
+		//fs::remove(outputMappingFilename);
 	}
 
 	//zFile _queryContigFile;
@@ -104,9 +104,11 @@ public:
 
 
 		//-N 2 -p 0 --secondary=yes -I 2GB -x map-hifi -c -x asm20
-		string command = "minimap2 -H -DP -c -I 100M -t " + to_string(_nbCores) + " " + _inputFilename_contigs + " " + _inputFilename_contigs + " > " + mapFilename;
+		string command = "minimap2 --dual=no -H -DP -c -I 100M -t " + to_string(_nbCores) + " " + _inputFilename_contigs + " " + _inputFilename_contigs + " > " + mapFilename;
 		Utils::executeCommand(command, _tmpDir);
 
+		//string command = "wfmash " + _inputFilename_contigs + " -t 15   > " + mapFilename; //-l 5000 -p 80
+		//Utils::executeCommand(command, _tmpDir);
 	}
 
 
@@ -124,8 +126,8 @@ public:
 
             GfaParser::tokenize(line, fields, '\t');
 
-			const string& readName = (*fields)[0];
-			const string& contigName = (*fields)[5];
+			const string& queryName = (*fields)[0];
+			const string& targetName = (*fields)[5];
 			//if(readName == contigName) continue;
 
 
@@ -145,12 +147,12 @@ public:
 
 
 			//continue;
-			if((readName == search1 || contigName == search1) && (readName == search2 || contigName == search2)){
+			//if((readName == search1 || contigName == search1) && (readName == search2 || contigName == search2)){
 				//cout << line << endl;
-			}
-			if((readName == "ctg89567" || contigName == "ctg89567")){
+			//}
+			//if((readName == "ctg89567" || contigName == "ctg89567")){
 				//cout << line << endl;
-			}
+			//}
 
 
 			//cout << line << endl;
@@ -184,55 +186,74 @@ public:
 			//u_int64_t ml = nbMatches;
 			//u_int64_t bl = alignLength;
 
-			//cout << nbMatches / alignLength << " " << alignLength << endl;
+			cout << nbMatches / alignLength << " " << alignLength << endl;
 			if(nbMatches / alignLength < 0.8) continue;
 			if(alignLength < 1000) continue;
 
 			u_int64_t maxHang = 100;
-			u_int64_t hangLeft = targetStart;
-			u_int64_t hangRight = targetLength - targetEnd;
 
 			
 
-			u_int64_t targetIndex = Utils::contigName_to_contigIndex(contigName);
-			u_int64_t queryIndex = Utils::contigName_to_contigIndex(readName);
-			DbgEdge edge = {targetIndex, queryIndex};
-			edge = edge.normalize();
+			u_int64_t queryIndex = Utils::contigName_to_contigIndex(queryName);
+			u_int64_t targetIndex = Utils::contigName_to_contigIndex(targetName);
+			//DbgEdge edge = {targetIndex, queryIndex};
+			//edge = edge.normalize();
 
 			bool isOverlap = false;
 
-			if(hangLeft < maxHang){
-				if(_performedPairs.find(edge) == _performedPairs.end()){
-					//cout << "Left overlap: " << line << endl;
-					//cout << line << endl;
+			if(targetLength < queryLength){
+				
+				u_int64_t hangLeft = targetStart;
+				u_int64_t hangRight = targetLength - targetEnd;
+
+				if(hangLeft < maxHang){
 					_duplicationBounds[targetIndex].push_back({targetStart, targetEnd});
-					cout << "overlap left: " << contigName << " " << targetStart << " " << targetEnd << endl;
+					cout << "overlap left: " << targetName << " " << targetStart << " " << targetEnd << endl;
+					isOverlap = true;
+				}
+
+				if(hangRight < maxHang){
+					_duplicationBounds[targetIndex].push_back({targetStart, targetEnd});
+					cout << "overlap right: " << targetName << " " << targetStart << " " << targetEnd << endl;
+					isOverlap = true;
+				}
+			}
+			else{
+				u_int64_t hangLeft = queryStart;
+				u_int64_t hangRight = queryLength - queryEnd;
+
+				if(hangLeft < maxHang){
+					_duplicationBounds[queryIndex].push_back({queryStart, queryEnd});
+					cout << "overlap left: " << queryName << " " << queryStart << " " << queryEnd << endl;
+					isOverlap = true;
+				}
+
+				if(hangRight < maxHang){
+					_duplicationBounds[queryIndex].push_back({queryStart, queryEnd});
+					cout << "overlap right: " << queryName << " " << queryStart << " " << queryEnd << endl;
 					isOverlap = true;
 				}
 			}
 
-			if(hangRight < maxHang){
-				if(_performedPairs.find(edge) == _performedPairs.end()){
-					//cout << "Right overlap: " << line << endl;
-					//cout << line << endl;
-					_duplicationBounds[targetIndex].push_back({targetStart, targetEnd});
-					cout << "overlap right: " << contigName << " " << targetStart << " " << targetEnd << endl;
-					isOverlap = true;
-				}
-			}
-
-			if(isOverlap){
-				_performedPairs.insert(edge);
-			}
+			if(isOverlap) continue;
+			//if(isOverlap){
+			//	_performedPairs.insert(edge);
+			//}
 
 
 			if(nbMatches / alignLength < 0.95) continue;
 			if(alignLength < 10000) continue;
-			if(targetLength > queryLength) continue;
+			//if(targetLength > queryLength) continue;
 
 
-			//_duplicationBounds[targetIndex].push_back({targetStart, targetEnd});
-			//cout << "Add internal " << targetStart << " " << targetEnd << endl;
+			if(targetLength < queryLength){
+				_duplicationBounds[targetIndex].push_back({targetStart, targetEnd});
+				cout << "Add internal " << targetName << " " << targetStart << " " << targetEnd << endl;
+			}
+			else{
+				_duplicationBounds[queryIndex].push_back({queryStart, queryEnd});
+				cout << "Add internal " << queryName <<  " " << queryStart << " " << queryEnd << endl;
+			}
 		}
 
 		mappingFile.close();
