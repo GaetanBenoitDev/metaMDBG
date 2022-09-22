@@ -1048,7 +1048,9 @@ public:
 			*/
 		
 			//float readAbundance = getReadAbundance(readMinimizers);
-			float readAbundance = getReadAbundance(readMinimizers);
+
+			int nbKminmers = 0;
+			float readAbundance = getReadAbundance(readMinimizers, nbKminmers);
 			double cutoff = readAbundance * 0.1f;
 			/*
 			#pragma omp critical
@@ -1068,6 +1070,7 @@ public:
 			*/
 			
 
+
 			
 			//if(cutoff > 1) return;
 
@@ -1086,8 +1089,11 @@ public:
 				
 				//if(kminmerAbundance == 1) getchar();
 				//if(kminmerAbundance == 1 && cutoff > 1) continue;
+				//if(kminmerAbundance == 1) continue;
+				//if(kminmerAbundance == 1) continue; // && kminmerAbundance < cutoff) continue;
+				if(kminmerAbundance == 0) continue;
 				if(kminmerAbundance < cutoff) continue;
-
+				//if(kminmerAbundance <= 1 && kminmerAbundance < cutoff) continue;
 				/*
 				float kminmerAbundance = -1;
 				if(!_isFirstPass){
@@ -1152,7 +1158,7 @@ public:
 
 		}
 		
-		float getReadAbundance(const vector<u_int64_t>& readMinimizers){
+		float getReadAbundance(const vector<u_int64_t>& readMinimizers, int& nbKminmers){
 
 			vector<u_int64_t> rlePositions;
 			vector<u_int64_t> minimizers_pos;//(minimizers.size());
@@ -1190,6 +1196,7 @@ public:
 				}
 			}
 
+			nbKminmers = abundances.size();
 			float abundance = Utils::compute_median_float(abundances);
 
 			return abundance;
@@ -1248,7 +1255,7 @@ public:
 					n += 1;
 				}
 				else{
-					minAbundance = 1;
+					minAbundance = 0;
 					break;
 				}
 			}

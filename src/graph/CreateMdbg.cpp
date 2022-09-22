@@ -310,6 +310,8 @@ void CreateMdbg::createMDBG (){
 				u_int32_t abundance = it.second._abundance;
 				u_int32_t quality = it.second._quality;
 
+				//cout << nodeName << " " << abundance << endl;
+
 				_mdbg->_dbg_nodes[vec] = {nodeName, abundance, quality};
 			}
 
@@ -334,6 +336,7 @@ void CreateMdbg::createMDBG (){
 		cout << "Building mdbg" << endl;
 		KminmerParserParallel parser2(filename_uncorrectedReads, _minimizerSize, _kminmerSize, false, true, _nbCores);
 		parser2.parse(FilterKminmerFunctor2(*this));
+		//parser2.parse(IndexKminmerFunctor(*this, false));
 
 		_parsingContigs = true;
 
