@@ -1,6 +1,11 @@
 /*
 TODO:
 - toBasespace: il faudrait utiliser le processus de mapping pour tous les kminmer en fait, pas seulement ceux repeter (ne aps etre repeter dasn les contigs ne veux pas dire que la sequence du kminmer n'est pas ambigue dans les reads)
+- Argument a changer dans COntigPolisheer (liste de read en argument, fichier de sortie en argument)
+
+Paralelisation:
+	- ToBasespace: read indexing phmap
+	- ToMinsapce: phmap
 */
 
 #ifndef MDBG_METAG_COMMONS

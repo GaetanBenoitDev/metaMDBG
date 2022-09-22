@@ -127,7 +127,7 @@ public:
 	unordered_map<u_int32_t, vector<DnaBitset*>> _kminmerSequenceCopies_all_left;
 	unordered_map<u_int32_t, vector<DnaBitset*>> _kminmerSequenceCopies_all_right;
 	
-	unordered_set<u_int32_t> isKminmerRepeated;
+	//unordered_set<u_int32_t> isKminmerRepeated;
 
 	unordered_map<ReadNodeName, DnaBitset*> _repeatedKminmerSequence_entire;
 	unordered_map<ReadNodeName, DnaBitset*> _repeatedKminmerSequence_left;
@@ -251,9 +251,12 @@ public:
 	ifstream _contigFileSupported_input;
 	abpoa_para_t *abpt;
 
+	u_int64_t _bestSupportChecksum;
+
     void execute (){
 		
 		_checksum = 0;
+		_bestSupportChecksum = 0;
 
 		abpt = abpoa_init_para();
 		abpt->out_msa = 1; // generate Row-Column multiple sequence alignment(RC-MSA), set 0 to disable
@@ -286,7 +289,7 @@ public:
 
 		string inputFilenameContigSmall = _inputDir + "/small_contigs.bin";
 
-		loadContigs_min(_inputFilenameContig);
+		//loadContigs_min(_inputFilenameContig);
 		//loadContigs_min(inputFilenameContigSmall);
 		collectBestSupportingReads(_inputFilenameContig);
 		//collectBestSupportingReads(inputFilenameContigSmall);
@@ -419,6 +422,7 @@ public:
 			nodeNames.push_back(it.first);
 		}
 		
+		/*
 		cout << nodeNames.size() << endl;
 		#pragma omp parallel num_threads(_nbCores)
 		{
@@ -462,6 +466,7 @@ public:
 		}
 
 		cout << correctedSequences.size() << endl;
+		*/
 
 
 
@@ -678,7 +683,7 @@ public:
 	
 
 	//unordered_set<u_int32_t> _invalidContigIndex;
-
+	/*
 	void loadContigs_min(const string& contigFilename){
 
 		cout << "Extracting kminmers: " << contigFilename << endl;
@@ -754,30 +759,24 @@ public:
 		}
 
 		_checksum += s*kminmersInfos.size();
-		/*
-		if(kminmersInfos.size() > 1 && kminmersInfos[0]._vec == kminmersInfos[kminmersInfos.size()-1]._vec){
-			cout << "lala" << endl;
-			getchar();
-			//_nbNodes += s*(kminmersInfos.size()-1);
-		}
-		else{
-			_nbNodes += s*kminmersInfos.size();
-		}
-		//_nbContigs += 1;
-		*/
+
 
 	}
+	*/
 
 
 
 	void collectBestSupportingReads(const string& contigFilename){
 
+		_nextReadIndexWriter = 0;
 		_contigFileSupported = ofstream(contigFilename + ".tmp");
 
 		cout << "Collecting best supporting reads" << endl;
-		KminmerParser parser(contigFilename, _minimizerSize, _kminmerSize, false, false);
-		auto fp = std::bind(&ToBasespace::collectBestSupportingReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
-		parser.parseMinspace(fp);
+		KminmerParserParallel parser(contigFilename, _minimizerSize, _kminmerSize, false, false, _nbCores);
+		parser.parse(CollectBestSupportingReadsFunctor(*this));
+		//KminmerParser parser(contigFilename, _minimizerSize, _kminmerSize, false, false);
+		//auto fp = std::bind(&ToBasespace::collectBestSupportingReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
+		//parser.parse(fp);
 
 
 		_contigFileSupported.close();
@@ -785,397 +784,198 @@ public:
 	}
 
 	
-	void collectBestSupportingReads_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, bool isCircular, u_int64_t readIndex){
+    struct CollectBestSupportingReadsFunctor_Writer{
+        u_int64_t _readIndex;
+        vector<u_int64_t> _supportingReads;
+        //u_int32_t _prevNodeIndex;
+    };
 
-		//if(_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) return;
+    struct CollectBestSupportingReadsFunctor_WriterComparator {
+        bool operator()(CollectBestSupportingReadsFunctor_Writer const& p1, CollectBestSupportingReadsFunctor_Writer const& p2){
+            return p1._readIndex > p2._readIndex;
+        }
+    };
 
-		//cout << "----------------------" << endl;
-		vector<u_int64_t> supportingReads;
+	priority_queue<CollectBestSupportingReadsFunctor_Writer, vector<CollectBestSupportingReadsFunctor_Writer> , CollectBestSupportingReadsFunctor_WriterComparator> _readWriterQueue;
+	u_int64_t _nextReadIndexWriter;
 
-		//cout << readIndex << " " << kminmersInfos.size() << endl;
-		for(size_t i=0; i<kminmersInfos.size(); i++){
-			
-			//cout << readIndex << " " << i << endl;
-			const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
+	class CollectBestSupportingReadsFunctor {
 
-			KmerVec vec = kminmerInfo._vec;
-			
-			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
-				cout << "Not found kminmer" << endl;
-				supportingReads.push_back(-1);
-				//getchar();
-				continue;
+		public:
+
+		ToBasespace& _toBasespace;
+
+		CollectBestSupportingReadsFunctor(ToBasespace& toBasespace) : _toBasespace(toBasespace){
+		}
+
+		CollectBestSupportingReadsFunctor(const CollectBestSupportingReadsFunctor& copy) : _toBasespace(copy._toBasespace){
+		}
+
+		~CollectBestSupportingReadsFunctor(){
+		}
+
+		//void collectBestSupportingReads_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, bool isCircular, u_int64_t readIndex){
+
+		void operator () (const KminmerList& kminmerList) {
+			//if(_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) return;
+
+			//cout << "----------------------" << endl;
+			vector<u_int64_t> supportingReads;
+
+			//cout << readIndex << " " << kminmersInfos.size() << endl;
+			for(size_t i=0; i<kminmerList._kminmersInfo.size(); i++){
+				
+				//cout << readIndex << " " << i << endl;
+				const ReadKminmerComplete& kminmerInfo = kminmerList._kminmersInfo[i];
+
+				KmerVec vec = kminmerInfo._vec;
+				
+				if(_toBasespace._mdbg->_dbg_nodes.find(vec) == _toBasespace._mdbg->_dbg_nodes.end()){
+					cout << "Not found kminmer" << endl;
+					supportingReads.push_back(-1);
+					//getchar();
+					continue;
+				}
+
+				bool orientation = !kminmerInfo._isReversed;
+
+				
+				u_int32_t nodeName = _toBasespace._mdbg->_dbg_nodes[vec]._index;
+
+				//_kminmerCounts.clear();
+				//if(_kminmerCounts[nodeName] > 1){
+					//cout << nodeName << endl;
+					//isKminmerRepeated.insert(nodeName);
+					u_int64_t readIndex = getBestSupportingRead(nodeName, i, kminmerList._kminmersInfo);
+					supportingReads.push_back(readIndex);
+					
+					ReadNodeName readNodeName = {nodeName, readIndex};
+
+					#pragma omp critical(bestSupport)
+					{
+						if(i == 0){
+							ReadSequence rs = {readIndex, nullptr, {}};
+							_toBasespace._kminmerSequence_entire_multi[nodeName].push_back(rs);
+						}
+						else {
+							if(orientation){ //+
+								//cout << "right: " << nodeName << " " << readIndex << endl;
+								ReadSequence rs = {readIndex, nullptr, {}};
+								_toBasespace._kminmerSequence_right_multi[nodeName].push_back(rs);
+							}
+							else{ //-
+								//cout << "left: " << nodeName << " " << readIndex << endl;
+								ReadSequence rs = {readIndex, nullptr, {}};
+								_toBasespace._kminmerSequence_left_multi[nodeName].push_back(rs);
+							}
+						}
+					}
+
 			}
 
-			bool orientation = !kminmerInfo._isReversed;
+			//_toBasespace._nbContigs += 1;
 
-			
-			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
+			#pragma omp critical(bestSupport)
+			{
+				_toBasespace._readWriterQueue.push({kminmerList._readIndex, supportingReads});
+				//cout << _readWriterQueue.size() << " " << read._index << " " << _nextReadIndexWriter << endl;
 
-			//_kminmerCounts.clear();
-			if(_kminmerCounts[nodeName] > 1){
-				//cout << nodeName << endl;
-				isKminmerRepeated.insert(nodeName);
-				u_int64_t readIndex = getBestSupportingRead(nodeName, i, kminmersInfos);
-				supportingReads.push_back(readIndex);
+				while(!_toBasespace._readWriterQueue.empty()){
+
+					const CollectBestSupportingReadsFunctor_Writer& readWriter = _toBasespace._readWriterQueue.top();
+
+					if(readWriter._readIndex == _toBasespace._nextReadIndexWriter){
+
+						for(u_int64_t readIndex : readWriter._supportingReads){
+							_toBasespace._bestSupportChecksum += readIndex;
+						}
+
+						u_int32_t size = readWriter._supportingReads.size();
+						_toBasespace._contigFileSupported.write((const char*)&size, sizeof(size));
+						_toBasespace._contigFileSupported.write((const char*)&readWriter._supportingReads[0], size*sizeof(u_int64_t));
+
+						_toBasespace._readWriterQueue.pop();
+						_toBasespace._nextReadIndexWriter += 1;
+					}
+					else{
+						break;
+					}
+				}
 				
-				ReadNodeName readNodeName = {nodeName, readIndex};
-
-				if(i == 0){
-					ReadSequence rs = {readIndex, nullptr, {}};
-					_kminmerSequence_entire_multi[nodeName].push_back(rs);
-				}
-				else {
-					if(orientation){ //+
-						//cout << "right: " << nodeName << " " << readIndex << endl;
-						ReadSequence rs = {readIndex, nullptr, {}};
-						_kminmerSequence_right_multi[nodeName].push_back(rs);
-					}
-					else{ //-
-						//cout << "left: " << nodeName << " " << readIndex << endl;
-						ReadSequence rs = {readIndex, nullptr, {}};
-						_kminmerSequence_left_multi[nodeName].push_back(rs);
-					}
-				}
+			}
 
 
-				//if(nodeName==293 && readIndex==8320){
-				//	cout << "omg" << endl;
-				//	getchar();
-				//}
 
-				//getchar();
-				//cout << _repeatedKminmerSequence_entire.size() << " " << _repeatedKminmerSequence_right.size() << " " << _repeatedKminmerSequence_left.size() << endl;
+		}
+
+		u_int64_t getBestSupportingRead(u_int32_t nodeName, size_t nodeNamePosition, const vector<ReadKminmerComplete>& kminmersInfos){
+
+			u_int64_t readIndex;
+
+			if(kminmersInfos.size() - nodeNamePosition > nodeNamePosition){
+				readIndex = getBestSupportingRead_direction(nodeName, nodeNamePosition+1, kminmersInfos, 1);
 			}
 			else{
-
-				u_int64_t readIndex = -1;
-				if(_unitigDatas[nodeName].size() == 0){
-					readIndex = -1;
-				}
-				else{
-					readIndex = _unitigDatas[nodeName][0];
-				}
-
-				supportingReads.push_back(readIndex);
-				//cout << readIndex << endl;
-				/*
-				if(i == 0){
-					_kminmerSequenceCopies_all_entire[nodeName] = {};
-				}
-				else {
-					if(orientation){ //+
-						_kminmerSequenceCopies_all_right[nodeName] = {};
-					}
-					else{ //-
-						_kminmerSequenceCopies_all_left[nodeName] = {};
-					}
-				}
-				*/
-				if(i == 0){
-					ReadSequence rs = {readIndex, nullptr, {}};
-					_kminmerSequence_entire_multi[nodeName].push_back(rs);
-				}
-				else {
-					if(orientation){ //+
-						//cout << "right: " << nodeName << " " << readIndex << endl;
-						ReadSequence rs = {readIndex, nullptr, {}};
-						_kminmerSequence_right_multi[nodeName].push_back(rs);
-					}
-					else{ //-
-						//cout << "left: " << nodeName << " " << readIndex << endl;
-						ReadSequence rs = {readIndex, nullptr, {}};
-						_kminmerSequence_left_multi[nodeName].push_back(rs);
-					}
-				}
-
-
-
+				readIndex = getBestSupportingRead_direction(nodeName, nodeNamePosition-1, kminmersInfos, -1);
 			}
-			//vector<u_int64_t> minimizerSeq;
+
+
+			return readIndex;
+
+
+		}
+
+		u_int64_t getBestSupportingRead_direction(u_int32_t nodeName, size_t nodeNamePosition, const vector<ReadKminmerComplete>& kminmersInfos, int inc){
 			
-			//for(size_t i=kminmerInfo._read_pos_start; i<=kminmerInfo._read_pos_end; i++){
-			//	minimizerSeq.push_back(readMinimizers[i]);
-			//}
-			
-
-			//if(kminmerInfo._isReversed){
-			//	std::reverse(minimizerSeq.begin(), minimizerSeq.end());
-			//}
-
-
-
-
-		}
-
-		_nbContigs += 1;
-
-		u_int32_t size = supportingReads.size();
-		_contigFileSupported.write((const char*)&size, sizeof(size));
-		_contigFileSupported.write((const char*)&supportingReads[0], size*sizeof(u_int64_t));
-
-	}
-
-	u_int64_t getBestSupportingRead(u_int32_t nodeName, size_t nodeNamePosition, const vector<ReadKminmerComplete>& kminmersInfos){
-
-		//cout << "-----" << endl;
-		//cout << "Size: " << kminmersInfos.size() << endl;
-
-		//unordered_map<u_int64_t, u_int32_t> readSupports;
-
-		u_int64_t readIndex;
-
-		if(kminmersInfos.size() - nodeNamePosition > nodeNamePosition){
-			readIndex = getBestSupportingRead_direction(nodeName, nodeNamePosition+1, kminmersInfos, 1);
-		}
-		else{
-			readIndex = getBestSupportingRead_direction(nodeName, nodeNamePosition-1, kminmersInfos, -1);
-		}
-
-		/*
-		u_int64_t minSharedReads = -1;
-
-		u_int64_t readIndexMin = -1;
-		
-		bool isValidRight;
-		bool isValidLeft;
-		readIndexMin = getBestSupportingRead_direction(nodeName, nodeNamePosition+1, kminmersInfos, 1, isValidRight, minSharedReads);
-		u_int64_t nodeNamePosition_left = getBestSupportingRead_direction(nodeName, nodeNamePosition-1, kminmersInfos, -1, isValidLeft, minSharedReads);
-
-		if(nodeNamePosition_left != -1) readIndexMin = nodeNamePosition_left;
-		*/
-		//long dist_right = nodeNamePosition_right - nodeNamePosition;
-		//long dist_left = nodeNamePosition - nodeNamePosition_left;
-		//cout << nodeNamePosition << " " << nodeNamePosition_left << " " << nodeNamePosition_right << "     " << dist_left << " " << dist_right << endl;
-
-
-		//u_int64_t longuestSupportingReadIndex = -1;
-
-		/*
-		if((!isValidLeft && !isValidRight) || (isValidLeft && isValidRight)){
-
-			if(dist_right > dist_left){
-
-				u_int32_t nodeName_right = _mdbg->_dbg_nodes[kminmersInfos[nodeNamePosition_right]._vec]._index;
-
-				vector<u_int64_t> sharedElements;
-				Utils::collectSharedElements(_unitigDatas[nodeName], _unitigDatas[nodeName_right], sharedElements);
-				longuestSupportingReadIndex = sharedElements[0];
-				cout << sharedElements.size() << endl;
-				if(sharedElements.size() > 5) getchar();
-			}
-			else{
-				
-				u_int32_t nodeName_left = _mdbg->_dbg_nodes[kminmersInfos[nodeNamePosition_left]._vec]._index;
-
-				vector<u_int64_t> sharedElements;
-				Utils::collectSharedElements(_unitigDatas[nodeName], _unitigDatas[nodeName_left], sharedElements);
-				longuestSupportingReadIndex = sharedElements[0];
-				cout << sharedElements.size() << endl;
-				if(sharedElements.size() > 5) getchar();
-			}
-		}
-		else if(isValidRight){
-			u_int32_t nodeName_right = _mdbg->_dbg_nodes[kminmersInfos[nodeNamePosition_right]._vec]._index;
-
+			u_int64_t readIndex = -1;
 			vector<u_int64_t> sharedElements;
-			Utils::collectSharedElements(_unitigDatas[nodeName], _unitigDatas[nodeName_right], sharedElements);
-			longuestSupportingReadIndex = sharedElements[0];
-			cout << sharedElements.size() << endl;
-			if(sharedElements.size() > 5) getchar();
-		}
-		else{
-			u_int32_t nodeName_left = _mdbg->_dbg_nodes[kminmersInfos[nodeNamePosition_left]._vec]._index;
 
-			vector<u_int64_t> sharedElements;
-			Utils::collectSharedElements(_unitigDatas[nodeName], _unitigDatas[nodeName_left], sharedElements);
-			longuestSupportingReadIndex = sharedElements[0];
-			cout << sharedElements.size() << endl;
-			if(sharedElements.size() > 5) getchar();
-		}
-		*/
+			long i = nodeNamePosition;
 
-		return readIndex;
-		//cout << kminmersInfos.size() << " " << nodeNamePosition_left << " " << nodeNamePosition_right << endl;
-
-
-		//cout << nodeName_left << " " << nodeName_right << endl;
-		//cout << sharedElements.size() << endl;
-		//return sharedElements[0];
-		/*
-		u_int64_t maxSupportRead = -1;
-
-		if(readSupports.size() == 0){
-			return _unitigDatas[nodeName][0];
-		}
-		else{
-
-			u_int64_t maxSupport = 0;
-			for(const auto& it : readSupports){
-				if(it.second > maxSupport){
-					maxSupport = it.second;
-					maxSupportRead = it.first;
-				}
-			}
-
-
-		}
-
-
-		return maxSupportRead;
-		*/
-
-	}
-
-	u_int64_t getBestSupportingRead_direction(u_int32_t nodeName, size_t nodeNamePosition, const vector<ReadKminmerComplete>& kminmersInfos, int inc){
-		
-		u_int64_t readIndex = -1;
-		vector<u_int64_t> sharedElements;
-
-		long i = nodeNamePosition;
-
-		while(true){
-			if(i < 0 || i >= kminmersInfos.size()){
-				break;
-			}
-
-			const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
-
-			KmerVec vec = kminmerInfo._vec;
-
-			if(_mdbg->_dbg_nodes.find(vec) != _mdbg->_dbg_nodes.end()){
-
-				u_int32_t nodeName2 = _mdbg->_dbg_nodes[vec]._index;
-				
-				if(sharedElements.size() == 0){
-					Utils::collectSharedElements(_unitigDatas[nodeName], _unitigDatas[nodeName2], sharedElements);
-				}
-				else{
-					vector<u_int64_t> sharedElementTmp;
-					Utils::collectSharedElements(sharedElements, _unitigDatas[nodeName2], sharedElementTmp);
-					sharedElements = sharedElementTmp;
-				}
-
-				if(sharedElements.size() == 0) break;
-
-
-				readIndex = sharedElements[0];
-
-
-
-				/*
-				if(!Utils::shareAny(_unitigDatas[nodeName], _unitigDatas[nodeName2])){
-					cout << "valid" << endl;
-					isValid = true;
-					//isValid = false;
+			while(true){
+				if(i < 0 || i >= kminmersInfos.size()){
 					break;
 				}
-				*/
 
-				//if(nodeName2 == nodeName) break;
-				//if(sharedElements.size() == 0) break;
+				const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
 
-				//for(u_int64_t readIndex : sharedElements){
-				//	readSupports[readIndex] += 1;
-				//}
+				KmerVec vec = kminmerInfo._vec;
+
+				if(_toBasespace._mdbg->_dbg_nodes.find(vec) != _toBasespace._mdbg->_dbg_nodes.end()){
+
+					u_int32_t nodeName2 = _toBasespace._mdbg->_dbg_nodes[vec]._index;
+					
+					if(sharedElements.size() == 0){
+						Utils::collectSharedElements(_toBasespace._unitigDatas[nodeName], _toBasespace._unitigDatas[nodeName2], sharedElements);
+					}
+					else{
+						vector<u_int64_t> sharedElementTmp;
+						Utils::collectSharedElements(sharedElements, _toBasespace._unitigDatas[nodeName2], sharedElementTmp);
+						sharedElements = sharedElementTmp;
+					}
+
+					if(sharedElements.size() == 0) break;
 
 
-				//cout << i << " " << sharedElements.size() << endl;
-
-			}
-
-			i += inc;
-
-		}
-
-		//if(isValid) return i;
-		return readIndex;
-		/*
-		if(inc == 1){
-			return i-1;
-		}
-		else{
-			return i+1;
-		}
-		*/
-
-	}
-
-	/*
-	void loadContigs_fasta_read(kseq_t* read, u_int64_t readIndex){
-		//cout << readIndex << endl;
-		//ottalSize += strlen(read->seq.s);
+					readIndex = sharedElements[0];
 
 
 
-
-		string kminmerSequence;
-		char* sequenceOriginal = read->seq.s;
-
-		string rleSequence;
-		vector<u_int64_t> rlePositions;
-		Encoder::encode_rle(read->seq.s, strlen(read->seq.s), rleSequence, rlePositions);
-
-		vector<u_int64_t> minimizers;
-		vector<u_int64_t> minimizers_pos;
-		_minimizerParser->parse(rleSequence, minimizers, minimizers_pos);
-
-
-		
-		//if(readIndex == 31){
-			//minimizers.erase(minimizers.begin()+920);
-			//minimizers_pos.erase(minimizers_pos.begin()+920);
-		//}
-		//for(size_t i=0; i<minimizers.size(); i++){
-		//	cout << i << ": " << minimizers[i] << " " << minimizers_pos[i] << endl;
-		//}
-
-		
-
-
-
-		vector<KmerVec> kminmers; 
-		vector<ReadKminmer> kminmersInfo;
-		MDBG::getKminmers(_minimizerSize, _kminmerSize, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex, false);
-		
-
-		for(size_t i=0; i<kminmers.size(); i++){
-			if(_mdbg->_dbg_nodes.find(kminmers[i]) == _mdbg->_dbg_nodes.end()){
-				cout << "Unknown original kminmer" << endl;
-				cout << readIndex << " " << strlen(sequenceOriginal) << " " << minimizers.size() << endl;
-				cout << i << endl;
-				//exit(1);
-				continue;
-			}
-
-			u_int32_t nodeName = _mdbg->_dbg_nodes[kminmers[i]]._index;
-			//cout << nodeName << endl;
-			_kminmerCounts[nodeName] += 1;
-
-			bool orientation = true;
-			if(kminmersInfo[i]._isReversed){
-				orientation = false;
-			}
-
-			if(i == 0){
-				_kminmerSequenceCopies_all_entire[nodeName] = {};
-			}
-			else {
-				if(orientation){ //+
-					_kminmerSequenceCopies_all_right[nodeName] = {};
 				}
-				else{ //-
-					_kminmerSequenceCopies_all_left[nodeName] = {};
-				}
+
+				i += inc;
+
 			}
-				
+
+			return readIndex;
+
+
 		}
 
-		//cout << readIndex << " " << _nodeName_left.size() << " " << _nodeName_right.size() << endl;
 
-		_nbContigs += 1;
-	}
-	*/
+
+	};
+
 
 
 
@@ -1521,6 +1321,7 @@ public:
 					//}
 				}
 				else{
+					/*
 					if(_toBasespace.isKminmerRepeated.find(nodeName) == _toBasespace.isKminmerRepeated.end()){
 						if(isDoneNodeName.find(nodeName) != isDoneNodeName.end()) cancel = true;
 
@@ -1537,7 +1338,7 @@ public:
 
 						isRepeated = false;
 					}
-					else{
+					else{*/
 
 						//cout << "1" << endl;
 						cancel = true;
@@ -1559,7 +1360,7 @@ public:
 						}
 						*/
 
-					}
+					//}
 				}
 
 
@@ -2075,6 +1876,7 @@ public:
 		cout << "Nb contigs: " << (_contigIndex) << endl;
 		cout << "Nb bps: " << _nbBps << endl;
 		cout << "Checksum: " << _checksum << endl;
+		cout << "Checksum (best support): " << _bestSupportChecksum << endl;
 
 	}
 
