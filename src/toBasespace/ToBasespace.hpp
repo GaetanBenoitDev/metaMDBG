@@ -910,6 +910,23 @@ public:
 
 		u_int64_t getBestSupportingRead(u_int32_t nodeName, size_t nodeNamePosition, const vector<ReadKminmerComplete>& kminmersInfos){
 
+			const vector<u_int64_t>& reads = _toBasespace._unitigDatas[nodeName];
+
+			u_int64_t maxNbmatches = 0;
+			u_int64_t bestReadIndex = -1;
+
+			for(u_int64_t readIndex : reads){
+				u_int64_t nbMatchesRight = getMatchDirection(nodeName, nodeNamePosition+1, kminmersInfos, 1, readIndex);
+				u_int64_t nbMatchesLeft = getMatchDirection(nodeName, nodeNamePosition-1, kminmersInfos, -1, readIndex);
+				u_int64_t nbMatches = nbMatchesRight + nbMatchesLeft + 1; //+1 seed match not counted
+				if(nbMatches > maxNbmatches){
+					maxNbmatches = nbMatches;
+					bestReadIndex = readIndex;
+				}
+			}
+
+			return bestReadIndex;
+			/*
 			u_int64_t readIndex;
 
 			if(kminmersInfos.size() - nodeNamePosition > nodeNamePosition){
@@ -921,7 +938,7 @@ public:
 
 
 			return readIndex;
-
+			*/
 
 		}
 
@@ -972,7 +989,63 @@ public:
 
 		}
 
+		u_int64_t getMatchDirection(u_int32_t nodeName, size_t nodeNamePosition, const vector<ReadKminmerComplete>& kminmersInfos, int inc, u_int64_t readIndex){
+			
+			//vector<u_int64_t> readIndexSource = {readIndex};
+			u_int64_t nbMatches = 0;
 
+			long i = nodeNamePosition;
+
+			while(true){
+				if(i < 0 || i >= kminmersInfos.size()){
+					break;
+				}
+
+				const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
+
+				KmerVec vec = kminmerInfo._vec;
+
+				if(_toBasespace._mdbg->_dbg_nodes.find(vec) != _toBasespace._mdbg->_dbg_nodes.end()){
+
+					u_int32_t nodeName2 = _toBasespace._mdbg->_dbg_nodes[vec]._index;
+
+					vector<u_int64_t>& readIndexes = _toBasespace._unitigDatas[nodeName2];
+					if(std::find(readIndexes.begin(), readIndexes.end(), readIndex) == readIndexes.end()){
+						break; 
+					}
+					/*
+					u_int32_t nodeName2 = _toBasespace._mdbg->_dbg_nodes[vec]._index;
+					
+					if(sharedElements.size() == 0){
+						Utils::collectSharedElements(_toBasespace._unitigDatas[nodeName], _toBasespace._unitigDatas[nodeName2], sharedElements);
+					}
+					else{
+						vector<u_int64_t> sharedElementTmp;
+						Utils::collectSharedElements(sharedElements, _toBasespace._unitigDatas[nodeName2], sharedElementTmp);
+						sharedElements = sharedElementTmp;
+					}
+
+					if(sharedElements.size() == 0) break;
+
+
+					readIndex = sharedElements[0];
+					*/
+
+
+				}
+				else{
+					break;
+				}
+
+				nbMatches += 1;
+				i += inc;
+
+			}
+
+			return nbMatches;
+
+
+		}
 
 	};
 

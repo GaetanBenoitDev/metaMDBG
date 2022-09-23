@@ -326,8 +326,8 @@ void CreateMdbg::createMDBG (){
 		const string& filename_contigs = _outputDir + "/unitig_data.txt";
 		const string& filename_uncorrectedReads = _outputDir + "/read_data.txt";
 
-		KminmerParserParallel parser4(filename_contigs, _minimizerSize, _kminmerSizePrev, false, false, 1);
-		parser4.parse(IndexContigFunctor(*this));
+		//KminmerParserParallel parser4(filename_contigs, _minimizerSize, _kminmerSizePrev, false, false, 1);
+		//parser4.parse(IndexContigFunctor(*this));
 
 		cout << "Filling bloom filter" << endl;
 		//KminmerParserParallel parser(filename_uncorrectedReads, _minimizerSize, _kminmerSize, false, _nbCores);
@@ -335,8 +335,8 @@ void CreateMdbg::createMDBG (){
 
 		cout << "Building mdbg" << endl;
 		KminmerParserParallel parser2(filename_uncorrectedReads, _minimizerSize, _kminmerSize, false, true, _nbCores);
-		parser2.parse(FilterKminmerFunctor2(*this));
-		//parser2.parse(IndexKminmerFunctor(*this, false));
+		//parser2.parse(FilterKminmerFunctor2(*this));
+		parser2.parse(IndexKminmerFunctor(*this, false));
 
 		_parsingContigs = true;
 
