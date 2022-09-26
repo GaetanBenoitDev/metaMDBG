@@ -50,7 +50,7 @@ public:
 	void parseArgs(int argc, char* argv[]){
 
 		args::ArgumentParser parser("asm", ""); //"This is a test program.", "This goes after the options."
-		args::Positional<std::string> arg_outputDir(parser, "outputDir", "Output dir", args::Options::Required);
+		args::Positional<std::string> arg_outputDir(parser, "outputDir", "Output dir for contigs and temporary files", args::Options::Required);
 		args::PositionalList<std::string> arg_readFilenames(parser, "reads", "Input filename(s) (separated by space)", args::Options::Required);
 		args::ValueFlag<int> arg_l(parser, "", "Minimizer length", {ARG_MINIMIZER_LENGTH2}, 13);
 		args::ValueFlag<float> arg_d(parser, "", "Minimizer density", {ARG_MINIMIZER_DENSITY2}, 0.005f);
