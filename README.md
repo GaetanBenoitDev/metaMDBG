@@ -34,8 +34,9 @@ After successful installation, an executable named metaMDBG will appear in build
 
 	outputDir     Output dir for contigs and temporary files
 	reads...      Input filename(s) (separated by space)
-	-l            Minimizer length [13]
-	-d            Minimizer density [0.005]
 	-t            Number of cores [3]
-	--nofilter    Disable unique kminmer filter prior to graph construction
 ```
+
+The contig file, named contigs_uncorrected.fasta.gz, will appear in outputDir.
+
+## Correcting contigs
