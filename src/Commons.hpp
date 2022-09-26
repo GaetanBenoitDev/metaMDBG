@@ -11,6 +11,9 @@ GenerateContigs:
 	- a test: pas besoin de générer le graph initial (t=1), de le compacter et générer les contigs (normalement on veut pas générer les side des bubbles enlevé etc)
 
 - ajuster valeur par defaut de l (minimizer size, 13 ou 21 a test)
+
+- Polisher:  si on a plus besoin de low mmeory correction, enlever l'exe "mapper" eventuellement, et utiliser gzip pour compresser els sortie de minimap2 (on en aura besoin dans derep je pense) 
+- enelever tous els code de abpoa et spoa, et sortir tous ce qui est contigpolisher
 */
 
 #ifndef MDBG_METAG_COMMONS

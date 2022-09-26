@@ -1,5 +1,5 @@
-project(mdbgAsmMeta)
-#project(mdbgAsmMeta VERSION 0.1)
+project(metaMDBG)
+#project(metaMDBG VERSION 0.1)
 
 cmake_minimum_required(VERSION 3.10)
 
