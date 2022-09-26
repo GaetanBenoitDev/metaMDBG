@@ -661,6 +661,7 @@ namespace args
         /** The program name for help generation
          */
         std::string programName;
+        std::string subProgramName;
 
         /** Show command's flags
          */
@@ -712,7 +713,7 @@ namespace args
 
         /** Program line prefix
          */
-        std::string usageString;
+        std::string usageString = "Usage: ";
 
         /** String shown in help before flags descriptions
          */
@@ -2007,6 +2008,10 @@ namespace args
                 auto res = Group::GetProgramLine(params);
                 res.insert(res.end(), subparserProgramLine.begin(), subparserProgramLine.end());
 
+                //std::cout << params.longPrefix << " " << params.shortPrefix << std::endl;
+
+                res.insert(res.begin(), params.subProgramName);
+
                 if (!params.proglineCommand.empty() && (Group::HasCommand() || subparserHasCommand))
                 {
                     res.insert(res.begin(), commandIsRequired ? params.proglineCommand : "[" + params.proglineCommand + "]");
@@ -2260,6 +2265,7 @@ namespace args
         private:
             std::string longprefix;
             std::string shortprefix;
+            std::string programName;
 
             std::string longseparator;
 
@@ -2815,7 +2821,8 @@ namespace args
 
             ArgumentParser(const std::string &description_, const std::string &epilog_ = std::string())
             {
-                Description(description_);
+                Description("");
+                this->helpParams.subProgramName = description_;
                 Epilog(epilog_);
                 LongPrefix("--");
                 ShortPrefix("-");

@@ -48,9 +48,9 @@ void CreateMdbg::parseArgs(int argc, char* argv[]){
 	_outputDir = args::get(arg_outputDir);
 	_nbCores = args::get(arg_nbCores);
 
-	_useBloomFilter = false;
+	_useBloomFilter = true;
 	if(arg_bf){
-		_useBloomFilter = true;
+		_useBloomFilter = false;
 	}
 
 	_isFirstPass = false;
@@ -58,6 +58,9 @@ void CreateMdbg::parseArgs(int argc, char* argv[]){
 		_isFirstPass = true;
 	}
 
+	if(!_isFirstPass){
+		_useBloomFilter = false;	
+	}
 
 	/*
 	cxxopts::Options options("Graph", "Create MDBG");
@@ -137,7 +140,7 @@ void CreateMdbg::parseArgs(int argc, char* argv[]){
 
 
 
-	_filename_noKminmerReads = _outputDir + "/" + FILENAME_NO_KMINMER_READS;
+	//_filename_noKminmerReads = _outputDir + "/" + FILENAME_NO_KMINMER_READS;
 	//cout << _minimizerSpacingMean << endl;
 	//cout << _kminmerLengthMean << endl;
 	//cout << _kminmerOverlapMean << endl;
@@ -146,7 +149,7 @@ void CreateMdbg::parseArgs(int argc, char* argv[]){
 
 void CreateMdbg::execute (){
 
-	_file_noKminmerReads = ofstream(_filename_noKminmerReads, std::ofstream::app);
+	//_file_noKminmerReads = ofstream(_filename_noKminmerReads, std::ofstream::app);
 	_node_id = 0;
 	//parseArgs();
 	createMDBG();
@@ -180,7 +183,7 @@ void CreateMdbg::execute (){
 		file_data.close();
 	}
 
-	_file_noKminmerReads.close();
+	//_file_noKminmerReads.close();
 
 
 }

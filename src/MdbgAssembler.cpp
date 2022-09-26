@@ -1,5 +1,5 @@
 #include "graph/CreateMdbg.hpp"
-#include "assembly/Assembly2.hpp"
+//#include "assembly/Assembly2.hpp"
 #include "assembly/Assembly3.hpp"
 #include "assembly/GenerateContigs.hpp"
 #include "toBasespace/ToBasespace.hpp"
@@ -19,20 +19,13 @@
 #include "toBasespace/Dereplicater.hpp"
 #include "polish/PurgeGraph.hpp"
 
-void displayHelp(){
-	cout << "Usage: ./simkaMin [option]" << endl;
-
-	cout << endl << "[Distance computation options]" << endl;
-	cout << "\tsketch      : transform datasets in small sketches of k-mers and their abundance" << endl;
-	cout << "\tdistance    : compute Jaccard and Bray-Curtis distances between sketches" << endl;
-
-	cout << endl << "[Distance matrix manipulation options]" << endl;
-	cout << "\texport      : export distance matrices stored in binary format" << endl;
-	//cout << "\tmatrix-update       : update existing distance matrices" << endl;
-
-	cout << endl << "[Sketch options]" << endl;
-	cout << "\tappend      : merge multiple sketch files into a single one" << endl;
-	cout << "\tinfo        : list datasets contained in a sketch file" << endl;
+void displayHelp(string programName){
+	cout << "Usage: " + programName + " [program]" << endl;
+	cout << endl;
+	cout << "program:" << endl;
+	cout << "\t- asm      : perform assembly" << endl;
+	//cout << "\treadSelection      : transform readset into its minimizer reprentation" << endl;
+	//cout << "\tdgraph   : create minimizer de-bruijn graph" << endl;
 
 	cout << endl;
 }
@@ -42,7 +35,7 @@ int main (int argc, char* argv[])
     try
     {
     	if(argc < 2){
-    		displayHelp();
+    		displayHelp(argv[0]);
     	}
     	else{
 
@@ -90,9 +83,9 @@ int main (int argc, char* argv[])
     		else if(programName == "graph"){
                 CreateMdbg().run (argc, args);
     		}
-    		else if(programName == "binPass"){
-                Assembly2().run (argc, args);
-    		}
+    		//else if(programName == "binPass"){
+            //    Assembly2().run (argc, args);
+    		//}
     		else if(programName == "contig"){
                 GenerateContigs().run (argc, args);
     		}
@@ -142,7 +135,7 @@ int main (int argc, char* argv[])
                 Mapping_ContigToMDBG().run (argc, args);
     		}
     		else{
-    			displayHelp();
+    			displayHelp(argv[0]);
     		}
     	}
     	//cout << argc << endl;

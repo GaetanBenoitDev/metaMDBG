@@ -11,7 +11,7 @@ class AssemblyPipeline : public Tool{
 public:
 
 	string _inputFilename;
-	string _inputDir;
+	string _outputDir;
 	float _minimizerDensity;
     size_t _minimizerSize;
     size_t _kminmerSize;
@@ -19,13 +19,14 @@ public:
 	string _filename_exe;
 	string _truthInputFilename;
 	int _nbCores;
-	bool _useBloomFilter;
+	bool _useInitialKminmerFilter;
 
 	size_t _firstK;
 	size_t _lastK;
 
 	string _inputFilenameComplete;
 	size_t _meanReadLength;
+	string _tmpDir;
 
 	AssemblyPipeline(): Tool (){
 	}
@@ -40,7 +41,7 @@ public:
 		auto stop = high_resolution_clock::now();
 
 		//cout << "Duration: " << duration_cast<seconds>(stop - start).count() << "s" << endl;
-		ofstream outfile(_inputDir + "/perf.txt", std::ios_base::app);
+		ofstream outfile(_tmpDir + "/perf.txt", std::ios_base::app);
 		outfile << "Duration (s): " << duration_cast<seconds>(stop - start).count() << endl;
 		outfile.close();
 
@@ -48,13 +49,13 @@ public:
 
 	void parseArgs(int argc, char* argv[]){
 
-		args::ArgumentParser parser("", ""); //"This is a test program.", "This goes after the options."
+		args::ArgumentParser parser("asm", ""); //"This is a test program.", "This goes after the options."
 		args::Positional<std::string> arg_outputDir(parser, "outputDir", "Output dir", args::Options::Required);
 		args::PositionalList<std::string> arg_readFilenames(parser, "reads", "Input filename(s) (separated by space)", args::Options::Required);
 		args::ValueFlag<int> arg_l(parser, "", "Minimizer length", {ARG_MINIMIZER_LENGTH2}, 13);
 		args::ValueFlag<float> arg_d(parser, "", "Minimizer density", {ARG_MINIMIZER_DENSITY2}, 0.005f);
 		args::ValueFlag<int> arg_nbCores(parser, "", "Number of cores", {ARG_NB_CORES2}, NB_CORES_DEFAULT_INT);
-		args::Flag arg_bf(parser, "", "Filter unique erroneous k-minmers", {ARG_BLOOM_FILTER});
+		args::Flag arg_bf(parser, "", "Disable unique kminmer filter prior to graph construction", {ARG_BLOOM_FILTER});
 		args::Flag arg_help(parser, "", "", {'h', "help"}, args::Options::Hidden);
 		//args::HelpFlag help(parser, "help", "Display this help menu", {'h'});
 		//args::CompletionFlag completion(parser, {"complete"});
@@ -87,20 +88,21 @@ public:
 			exit(0);
 		}
 
-		_inputDir = args::get(arg_outputDir);
+		_outputDir = args::get(arg_outputDir);
+		_tmpDir = _outputDir + "/tmp/";
 		_minimizerSize = args::get(arg_l);
 		_minimizerDensity = args::get(arg_d);
 		_nbCores = args::get(arg_nbCores);
 
-		_useBloomFilter = false;
+		_useInitialKminmerFilter = true;
 		if(arg_bf){
-			_useBloomFilter = true;
+			_useInitialKminmerFilter = false;
 		}
 
 
 
-        fs::path path(_inputDir);
-	    if(!fs::exists (path)) fs::create_directories(path); 
+	    if(!fs::exists (_outputDir)) fs::create_directories(_outputDir); 
+	    if(!fs::exists (_tmpDir)) fs::create_directories(_tmpDir); 
 		
 		createInputFile(args::get(arg_readFilenames));
 		//if (arg_l) { 
@@ -167,12 +169,12 @@ public:
 
 
 			_inputFilename = result["reads"].as<string>();
-			//_inputDir = result["asmDir"].as<string>();
+			//_tmpDir = result["asmDir"].as<string>();
 			//_outputDir_binning = result["outputDir"].as<string>() + "/bins_/";
 
 			//_kminmerSize = result[ARG_KMINMER_LENGTH].as<int>(); //getInput()->getInt(STR_KMINMER_SIZE);
 			//_inputFilename = result[ARG_INPUT_FILENAME].as<string>(); //getInput()->getStr(STR_INPUT);
-			_inputDir = result["outputDir"].as<string>(); //getInput()->getStr(STR_OUTPUT);
+			_tmpDir = result["outputDir"].as<string>(); //getInput()->getStr(STR_OUTPUT);
 			_truthInputFilename = result[ARG_INPUT_FILENAME_TRUTH].as<string>();
 			_nbCores = result[ARG_NB_CORES].as<int>();
 			_minimizerSize = result[ARG_MINIMIZER_LENGTH].as<int>(); //getInput()->getInt(STR_MINIM_SIZE);
@@ -207,7 +209,7 @@ public:
 
 		cout << endl;
 		cout << "Input: " << _inputFilename << endl;
-		cout << "Dir: " << _inputDir << endl;
+		cout << "Dir: " << _outputDir << endl;
 		cout << "Minimizer length: " << _minimizerSize << endl;
 		//cout << "Kminmer length: " << _kminmerSize << endl;
 		cout << "Density: " << _minimizerDensity << endl;
@@ -215,7 +217,7 @@ public:
 
 		_filename_exe = argv[0];
 		/*
-		//_inputDir = getInput()->get(STR_INPUT_DIR) ? getInput()->getStr(STR_INPUT_DIR) : "";
+		//_outputDir = getInput()->get(STR_INPUT_DIR) ? getInput()->getStr(STR_INPUT_DIR) : "";
 		//_input_extractKminmers= getInput()->get(STR_INPUT_EXTRACT_KMINMERS) ? getInput()->getStr(STR_INPUT_EXTRACT_KMINMERS) : "";
 
 		_filename_readMinimizers = _outputDir + "/read_data.gz";
@@ -232,10 +234,10 @@ public:
 		gzclose(file_parameters);
 		*/
 
-		string filename = _inputDir + "/" + FILENAME_NO_KMINMER_READS;
-		if(fs::exists(filename)){
-			fs::remove(filename);
-		}
+		//string filename = _outputDir + "/" + FILENAME_NO_KMINMER_READS;
+		//if(fs::exists(filename)){
+		//	fs::remove(filename);
+		//}
 		
 	}
 
@@ -274,14 +276,14 @@ public:
 
 		string command = "";
 
-		ofstream fileSmallContigs(_inputDir + "/small_contigs.bin");
+		ofstream fileSmallContigs(_tmpDir + "/small_contigs.bin");
 		fileSmallContigs.close();
 
 		writeParameters(_minimizerSize, _firstK, _minimizerDensity, _firstK, _firstK, _lastK);
 		//createInputFile(false);
 
 		//Read selection
-		command = _filename_exe + " readSelection -i " + _inputFilename + " -o " + _inputDir + " -f " + _inputDir + "/read_data_init.txt" + " -t " + to_string(_nbCores);
+		command = _filename_exe + " readSelection -i " + _inputFilename + " -o " + _tmpDir + " -f " + _tmpDir + "/read_data_init.txt" + " -t " + to_string(_nbCores);
 		executeCommand(command);
 		
 
@@ -310,7 +312,7 @@ public:
 			//}
 
 			//Read selection
-			//command = _filename_exe + " readSelection -i " + inputFilename + " -o " + _inputDir + " -f " + _inputDir + "/read_data.gz";
+			//command = _filename_exe + " readSelection -i " + inputFilename + " -o " + _tmpDir + " -f " + _tmpDir + "/read_data.gz";
 			//if(pass == 0) command += " --firstpass";
 			//executeCommand(command);
 
@@ -327,12 +329,12 @@ public:
 
 			/*
 			//Contig selection
-			const string& inputFilenameContig =  _inputDir + "/tmpInputContig.txt";
+			const string& inputFilenameContig =  _tmpDir + "/tmpInputContig.txt";
 			ofstream inputFileContig(inputFilenameContig);
-			inputFileContig << _inputDir + "/tmpContigs.fasta.gz" << endl;
+			inputFileContig << _tmpDir + "/tmpContigs.fasta.gz" << endl;
 			inputFileContig.close();
 			
-			command = _filename_exe + " readSelection -i " + inputFilenameContig + " -f " + _inputDir + "/contig_data.gz" + " -o " + _inputDir;
+			command = _filename_exe + " readSelection -i " + inputFilenameContig + " -f " + _tmpDir + "/contig_data.gz" + " -o " + _tmpDir;
 			executeCommand(command);
 			*/
 
@@ -367,21 +369,21 @@ public:
 		string command = "";
 
 		if(pass == 0){
-			command = _filename_exe + " graph " + _inputDir + " -t " + to_string(_nbCores);
-			if(_useBloomFilter){
-				command += " --bf";
+			command = _filename_exe + " graph " + _tmpDir + " -t " + to_string(_nbCores);
+			if(!_useInitialKminmerFilter){
+				command += " --nofilter ";
 			}
 		}
 		else{
-			command = _filename_exe + " graph " + _inputDir + " -t " + to_string(_nbCores);	
+			command = _filename_exe + " graph " + _tmpDir + " -t " + to_string(_nbCores);	
 		}
 		if(pass == 0) command += " --firstpass";
 		executeCommand(command);
 		//getchar();
 
-		//command = _filename_exe + " multik -o " + _inputDir + " -t " + to_string(_nbCores);
+		//command = _filename_exe + " multik -o " + _tmpDir + " -t " + to_string(_nbCores);
 		//if(!_truthInputFilename.empty()) command += " --itruth " + _truthInputFilename;
-		//if(pass > 0) command += " -c " +  _inputDir + "/contig_data.gz";
+		//if(pass > 0) command += " -c " +  _tmpDir + "/contig_data.gz";
 		//executeCommand(command);
 
 		//Generate contigs
@@ -392,7 +394,7 @@ public:
 
 
 		/*
-		command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/unitigs.nodepath.gz" + " -f " + _inputDir + "/unitig_data.txt";
+		command = _filename_exe + " toMinspace " + " -o " + _tmpDir + " -c " + _tmpDir + "/unitigs.nodepath.gz" + " -f " + _tmpDir + "/unitig_data.txt";
 		executeCommand(command);
 		*/
 
@@ -402,26 +404,26 @@ public:
 
 			
 			//Generate contigs
-			command = _filename_exe + " contig " + " -o " + _inputDir + " --final " + " -t " + to_string(_nbCores);
+			command = _filename_exe + " contig " + " -o " + _tmpDir + " --final " + " -t " + to_string(_nbCores);
 			if(!_truthInputFilename.empty()) command += " --itruth " + _truthInputFilename;
 			//if(pass == 0) command += " --firstpass";
 			executeCommand(command);
 
 			//getchar();
 
-			command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/contigs.nodepath" + " -f " + _inputDir + "/contig_data.txt";
+			command = _filename_exe + " toMinspace " + " -o " + _tmpDir + " -c " + _tmpDir + "/contigs.nodepath" + " -f " + _tmpDir + "/contig_data.txt";
 			executeCommand(command);
 			
 			appendSmallContigs();
 
-			string contigFilenameCompressed = _inputDir + "/contigs_H_" + to_string(k) + ".fasta.gz ";
+			string contigFilenameCompressed = _tmpDir + "/contigs_H_" + to_string(k) + ".fasta.gz ";
 			//getchar();
-			command = _filename_exe + " toBasespaceFast " + " -o " + _inputDir + " -i " + _inputFilename + " -c " + _inputDir + "/contig_data.txt " + " -f " + contigFilenameCompressed + " --fasta"  + " -t " + to_string(_nbCores);
+			command = _filename_exe + " toBasespaceFast " + " -o " + _tmpDir + " -i " + _inputFilename + " -c " + _tmpDir + "/contig_data.txt " + " -f " + contigFilenameCompressed + " --fasta"  + " -t " + to_string(_nbCores);
 			if(pass == 0) command += " --firstpass";
 			executeCommand(command);
 
-			string contigFilenameCompressed_derep = _inputDir + "/contigs_H_" + to_string(k) + "_derep.fasta.gz ";
-			command = _filename_exe + " derep " + contigFilenameCompressed + " " + contigFilenameCompressed_derep + " " + _inputDir + " -t " + to_string(_nbCores) + " --nodump";
+			string contigFilenameCompressed_derep = _tmpDir + "/contigs_H_" + to_string(k) + "_derep.fasta.gz ";
+			command = _filename_exe + " derep " + contigFilenameCompressed + " " + contigFilenameCompressed_derep + " " + _tmpDir + " -t " + to_string(_nbCores) + " --nodump";
 			executeCommand(command);
 
 			dereplicate();
@@ -429,33 +431,34 @@ public:
 			/*
 
 		
-			ofstream contigInputFile(_inputDir + "/input_contig.txt");
+			ofstream contigInputFile(_tmpDir + "/input_contig.txt");
 			contigInputFile << contigFilenameCompressed_derep << endl;
 			contigInputFile.close();
-			command = _filename_exe + " readSelection -i " + _inputDir + "/input_contig.txt" + " -o " + _inputDir + " -f " + _inputDir + "/contig_data.txt" + " -t " + to_string(_nbCores) + " --contig";
+			command = _filename_exe + " readSelection -i " + _tmpDir + "/input_contig.txt" + " -o " + _tmpDir + " -f " + _tmpDir + "/contig_data.txt" + " -t " + to_string(_nbCores) + " --contig";
 			executeCommand(command);
 			*/
 
-			command = _filename_exe + " toBasespace " + " -o " + _inputDir + " -i " + _inputFilename + " -c " + _inputDir + "/contig_data.txt " + " -f " + _inputDir + "/contigs_" + to_string(k) + ".fasta.gz " + " --fasta"  + " -t " + to_string(_nbCores);
+			const string contigFilename_uncorrected = _outputDir + "/contigs_uncorrected.fasta.gz";
+			command = _filename_exe + " toBasespace " + " -o " + _tmpDir + " -i " + _inputFilename + " -c " + _tmpDir + "/contig_data.txt " + " -f " + contigFilename_uncorrected + " --fasta"  + " -t " + to_string(_nbCores);
 			if(pass == 0) command += " --firstpass";
 			executeCommand(command);
 			//getchar();
 
 			//getchar();
-			command = _filename_exe + " polish " + _inputDir + "/contigs_" + to_string(k) + ".fasta.gz " + _inputFilename + " " + _inputDir + " -t " + to_string(_nbCores) + " --qual ";
+			command = _filename_exe + " polish " + contigFilename_uncorrected + " " + _inputFilename + " " + _tmpDir + " -t " + to_string(_nbCores) + " --qual ";
 			executeCommand(command);
 			//generatedContigs = true;
 		}
 		else{
 
-			command = _filename_exe + " contig " + " -o " + _inputDir + " -t " + to_string(_nbCores);;
+			command = _filename_exe + " contig " + " -o " + _tmpDir + " -t " + to_string(_nbCores);;
 			if(!_truthInputFilename.empty()) command += " --itruth " + _truthInputFilename;
 			//if(pass == 0) command += " --firstpass";
 			executeCommand(command);
 			//getchar();
 			
 
-			command = _filename_exe + " toMinspace " + " -o " + _inputDir + " -c " + _inputDir + "/contigs.nodepath" + " -f " + _inputDir + "/unitig_data.txt";
+			command = _filename_exe + " toMinspace " + " -o " + _tmpDir + " -c " + _tmpDir + "/contigs.nodepath" + " -f " + _tmpDir + "/unitig_data.txt";
 			executeCommand(command);
 
 			//getchar();
@@ -470,7 +473,7 @@ public:
 
 	void dereplicate(){
 
-		ifstream infile(_inputDir + "/duplicatedContigs.txt");
+		ifstream infile(_tmpDir + "/duplicatedContigs.txt");
 
 		string line;
 
@@ -486,18 +489,18 @@ public:
 
 	void dumpDereplicatedContigs(){
 
-		string contigFilename = _inputDir + "/contig_data_derep.txt";
+		string contigFilename = _tmpDir + "/contig_data_derep.txt";
 		_outputContigFileDerep = ofstream(contigFilename);
 
-		KminmerParser parser(_inputDir + "/contig_data.txt", _minimizerSize, _kminmerSize, false, false);
+		KminmerParser parser(_tmpDir + "/contig_data.txt", _minimizerSize, _kminmerSize, false, false);
 		auto fp = std::bind(&AssemblyPipeline::dumpDereplicatedContigs_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 		parser.parseSequences(fp);
 
 		_outputContigFileDerep.close();
 
 		_duplicatedContigIndex.clear();
-		fs::remove(_inputDir + "/contig_data.txt");
-		fs::rename(_inputDir + "/contig_data_derep.txt", _inputDir + "/contig_data.txt");
+		fs::remove(_tmpDir + "/contig_data.txt");
+		fs::rename(_tmpDir + "/contig_data_derep.txt", _tmpDir + "/contig_data.txt");
 
 	}
 
@@ -531,11 +534,11 @@ public:
 	void appendSmallContigs(){
 		cout << "Append small contigs" << endl;
 
-		string contigFilename = _inputDir + "/contig_data.txt";
+		string contigFilename = _tmpDir + "/contig_data.txt";
 
 		_fileContigsAppend = ofstream(contigFilename, std::ios_base::app);
 
-		KminmerParser parser(_inputDir + "/small_contigs.bin", _minimizerSize, _kminmerSize, false, false);
+		KminmerParser parser(_tmpDir + "/small_contigs.bin", _minimizerSize, _kminmerSize, false, false);
 		auto fp = std::bind(&AssemblyPipeline::appendSmallContigs_read, this, std::placeholders::_1, std::placeholders::_2);
 		parser.parseSequences(fp);
 
@@ -555,7 +558,7 @@ public:
 
 	void savePassData(u_int64_t k){
 
-		const string& dir = _inputDir + "/pass_k" + to_string(k);
+		const string& dir = _tmpDir + "/pass_k" + to_string(k);
 
 		if(fs::exists(dir)){
 			fs::remove_all(dir);
@@ -564,26 +567,26 @@ public:
 		fs::create_directories(dir);
 
 		//const auto copyOptions = fs::copy_options::overwrite_existing;
-		//fs::copy(_inputDir + "/read_data.txt", dir + "/read_data.txt");
+		//fs::copy(_tmpDir + "/read_data.txt", dir + "/read_data.txt");
 
 
-		//if(fs::exists(_inputDir + "/read_index.txt")) fs::copy(_inputDir + "/read_index.txt", dir + "/read_index.txt");
-		if(fs::exists(_inputDir + "/minimizer_graph_u.gfa")) fs::copy(_inputDir + "/minimizer_graph_u.gfa", dir + "/minimizer_graph_u.gfa");
-		fs::copy(_inputDir + "/minimizer_graph_u_cleaned.gfa", dir + "/minimizer_graph_u_cleaned.gfa");
-		//fs::copy(_inputDir + "/minimizer_graph_cleaned.gfa", dir + "/minimizer_graph_cleaned.gfa");
-		fs::copy(_inputDir + "/parameters.gz", dir + "/parameters.gz");
+		//if(fs::exists(_tmpDir + "/read_index.txt")) fs::copy(_tmpDir + "/read_index.txt", dir + "/read_index.txt");
+		if(fs::exists(_tmpDir + "/minimizer_graph_u.gfa")) fs::copy(_tmpDir + "/minimizer_graph_u.gfa", dir + "/minimizer_graph_u.gfa");
+		fs::copy(_tmpDir + "/minimizer_graph_u_cleaned.gfa", dir + "/minimizer_graph_u_cleaned.gfa");
+		//fs::copy(_tmpDir + "/minimizer_graph_cleaned.gfa", dir + "/minimizer_graph_cleaned.gfa");
+		fs::copy(_tmpDir + "/parameters.gz", dir + "/parameters.gz");
 
 		if(k == _firstK || k == _lastK){
-			fs::copy(_inputDir + "/minimizer_graph.gfa", dir + "/minimizer_graph.gfa");
-			fs::copy(_inputDir + "/kminmerData_min.txt", dir + "/kminmerData_min.txt");
-			if(fs::exists(_inputDir + "/nodeName_to_unitigIndex.bin")) fs::copy(_inputDir + "/nodeName_to_unitigIndex.bin", dir + "/nodeName_to_unitigIndex.bin");
-			if(fs::exists(_inputDir + "/groundtruth_position.csv")) fs::copy(_inputDir + "/groundtruth_position.csv", dir + "/groundtruth_position.csv");
-			if(fs::exists(_inputDir + "/read_path.txt")) fs::copy(_inputDir + "/read_path.txt", dir + "/read_path.txt");
-			if(fs::exists(_inputDir + "/read_path_cleaned.txt")) fs::copy(_inputDir + "/read_path_cleaned.txt", dir + "/read_path_cleaned.txt");
+			fs::copy(_tmpDir + "/minimizer_graph.gfa", dir + "/minimizer_graph.gfa");
+			fs::copy(_tmpDir + "/kminmerData_min.txt", dir + "/kminmerData_min.txt");
+			if(fs::exists(_tmpDir + "/nodeName_to_unitigIndex.bin")) fs::copy(_tmpDir + "/nodeName_to_unitigIndex.bin", dir + "/nodeName_to_unitigIndex.bin");
+			if(fs::exists(_tmpDir + "/groundtruth_position.csv")) fs::copy(_tmpDir + "/groundtruth_position.csv", dir + "/groundtruth_position.csv");
+			if(fs::exists(_tmpDir + "/read_path.txt")) fs::copy(_tmpDir + "/read_path.txt", dir + "/read_path.txt");
+			if(fs::exists(_tmpDir + "/read_path_cleaned.txt")) fs::copy(_tmpDir + "/read_path_cleaned.txt", dir + "/read_path_cleaned.txt");
 		}
-		//fs::copy(_inputDir + "/mdbg_nodes_init.gz", dir + "/mdbg_nodes_init.gz", copyOptions);
+		//fs::copy(_tmpDir + "/mdbg_nodes_init.gz", dir + "/mdbg_nodes_init.gz", copyOptions);
 
-		//fs::copy(_inputDir + "/unitig_data.txt", dir + "/unitig_data.txt"); //Debug
+		//fs::copy(_tmpDir + "/unitig_data.txt", dir + "/unitig_data.txt"); //Debug
 	}
 
 
@@ -595,7 +598,7 @@ public:
 		float kminmerLengthMean = minimizerSpacingMean * (k-1);
 		float kminmerOverlapMean = kminmerLengthMean - minimizerSpacingMean;
 
-		string filename_parameters = _inputDir + "/parameters.gz";
+		string filename_parameters = _tmpDir + "/parameters.gz";
 		gzFile file_parameters = gzopen(filename_parameters.c_str(),"wb");
 		gzwrite(file_parameters, (const char*)&minimizerSize, sizeof(minimizerSize));
 		gzwrite(file_parameters, (const char*)&k, sizeof(k));
@@ -613,7 +616,7 @@ public:
 	void createInputFile(auto& paths){
 
 		//string inputFilenames = _inputFilename;
-		_inputFilename = _inputDir + "/input.txt";
+		_inputFilename = _tmpDir + "/input.txt";
 		ofstream inputFile(_inputFilename);
 
 		//cout << inputFilenames << endl;
@@ -622,7 +625,7 @@ public:
 
 		for(auto &&path : paths){
 			//string filenameAbs = fs::absolute(filename);
-			cout << path << endl; //" " << fs::canonical(filename) << " " << fs::weakly_canonical(filename) << endl;
+			//cout << path << endl; //" " << fs::canonical(filename) << " " << fs::weakly_canonical(filename) << endl;
 			inputFile << path << endl;
 		}
 
@@ -633,7 +636,7 @@ public:
 	}
 	/*
 	void createInputFile(bool useContigs){
-		_inputFilenameComplete = _inputDir + "/input.txt";
+		_inputFilenameComplete = _tmpDir + "/input.txt";
 		ofstream inputFile(_inputFilenameComplete);
 
 		ReadParser readParser(_inputFilename, false);
@@ -643,7 +646,7 @@ public:
 		}
 
 		if(useContigs){
-			inputFile << _inputDir + "/tmpContigs.fasta.gz"  << endl;
+			inputFile << _tmpDir + "/tmpContigs.fasta.gz"  << endl;
 		}
 
 		inputFile.close();
@@ -651,11 +654,11 @@ public:
 	*/
 
 	string createInputFile(u_int32_t k){
-		string inputFilename = _inputDir + "/input.txt";
+		string inputFilename = _tmpDir + "/input.txt";
 		ofstream inputFile(inputFilename);
 
-		//const string& filename = _inputDir + "/correctedReads_" + to_string(k) + ".min.gz.bitset";
-		const string& filename = _inputDir + "/read_data.txt.corrected.txt";
+		//const string& filename = _tmpDir + "/correctedReads_" + to_string(k) + ".min.gz.bitset";
+		const string& filename = _tmpDir + "/read_data.txt.corrected.txt";
 		inputFile << filename << endl;
 		/*
 		ReadParser readParser(_inputFilename, false);
@@ -665,7 +668,7 @@ public:
 		}
 
 		if(useContigs){
-			inputFile << _inputDir + "/tmpContigs.fasta.gz"  << endl;
+			inputFile << _tmpDir + "/tmpContigs.fasta.gz"  << endl;
 		}
 		*/
 
@@ -703,9 +706,9 @@ public:
 	void executeCommand(const string& command){
 
 		//cout << command << endl;
-		//string command2 = "time -v \"" + command + "\" 2>&1 " + _inputDir + "/time.txt";
+		//string command2 = "time -v \"" + command + "\" 2>&1 " + _tmpDir + "/time.txt";
 
-		Utils::executeCommand(command, _inputDir);
+		Utils::executeCommand(command, _tmpDir);
 		//getchar();
 	}
 };	

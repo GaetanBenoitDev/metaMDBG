@@ -6,6 +6,11 @@ TODO:
 Paralelisation:
 	- ToBasespace: read indexing phmap
 	- ToMinsapce: phmap
+
+GenerateContigs:
+	- a test: pas besoin de générer le graph initial (t=1), de le compacter et générer les contigs (normalement on veut pas générer les side des bubbles enlevé etc)
+
+- ajuster valeur par defaut de l (minimizer size, 13 ou 21 a test)
 */
 
 #ifndef MDBG_METAG_COMMONS
@@ -113,11 +118,11 @@ const string ARG_FIRST_PASS = "firstpass";
 const string ARG_FASTA = "fasta";
 const string ARG_NB_CORES = "t";
 const string ARG_EVAL = "eval";
-const string ARG_BLOOM_FILTER = "bf";
+const string ARG_BLOOM_FILTER = "nofilter";
 
 const string NB_CORES_DEFAULT = "3";
 const int NB_CORES_DEFAULT_INT = 3;
-const string FILENAME_NO_KMINMER_READS = "reads_noKminmers.bin";
+//const string FILENAME_NO_KMINMER_READS = "reads_noKminmers.bin";
 
 
 

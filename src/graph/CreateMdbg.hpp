@@ -54,7 +54,7 @@ public:
     size_t _kminmerSizeFirst;
     size_t _kminmerSizePrev;
 	string _filename_noKminmerReads;
-	ofstream _file_noKminmerReads;
+	//ofstream _file_noKminmerReads;
 	int _nbCores;
 	bool _useBloomFilter;
 
