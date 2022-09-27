@@ -1,4 +1,4 @@
-metaMDBG is a lightweight assembler for metagenomics long accurate reads.
+metaMDBG is a lightweight assembler for long and accurate metagenomics reads.
 
 Developper: Gaëtan Benoit
 
@@ -33,10 +33,11 @@ After successful installation, an executable named metaMDBG will appear in build
 ./metaMDBG asm outputDir reads... {OPTIONS}
 
 	outputDir     Output dir for contigs and temporary files
-	reads...      Input filename(s) (separated by space)
+	reads...      Read filename(s) (separated by space)
 	-t            Number of cores [3]
 ```
 
-The contig file, named contigs_uncorrected.fasta.gz, will appear in outputDir.
+The resulting contig file, named contigs_uncorrected.fasta.gz, will appear in outputDir.
 
-## Correcting contigs
+## Polishing contigs
+Polishing contigs is necessary to enable accurate gene identification.
