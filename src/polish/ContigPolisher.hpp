@@ -205,7 +205,7 @@ public:
 			_useQual = result[ARG_USE_QUAL].as<bool>();
 			_circularize = result[ARG_CIRCULARIZE].as<bool>();
 			_windowLength = 500;
-			_maxWindowCopies = 21; //21;
+			_maxWindowCopies = 10000; //21;
 			_qualityThreshold = 10.0;
 			_minContigLength = 1000000;
 			
