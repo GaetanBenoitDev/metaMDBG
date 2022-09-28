@@ -170,6 +170,7 @@ public:
 		//cout << _mapperOutputExeFilename << endl;
 		//exit(1);
 
+		/*
 		cxxopts::Options options("ToBasespace", "");
 		options.add_options()
 		("contigs", "", cxxopts::value<string>())
@@ -215,23 +216,98 @@ public:
 			std::cerr << e.what() << std::endl;
 			std::exit(EXIT_FAILURE);
 		}
+		*/
+		args::ArgumentParser parser("polish", ""); //"This is a test program.", "This goes after the options."
+		args::Positional<std::string> arg_contigs(parser, "contigs", "Contig filename to be corrected", args::Options::Required);
+		args::Positional<std::string> arg_outputDir(parser, "outputDir", "Output dir for contigs and temporary files", args::Options::Required);
+		args::PositionalList<std::string> arg_readFilenames(parser, "reads", "Read filename(s) used for correction (separated by space)", args::Options::Required);
+		args::ValueFlag<int> arg_nbCores(parser, "", "Number of cores", {ARG_NB_CORES2}, NB_CORES_DEFAULT_INT);
+		args::Flag arg_useQual(parser, "", "Use quality during correction (recommanded)", {ARG_USE_QUAL});
+		args::Flag arg_useCirculize(parser, "", "Check if contigs are circular and add a flag in contig header (l: linear, c: circular)", {ARG_CIRCULARIZE});
+		args::Flag arg_help(parser, "", "", {'h', "help"}, args::Options::Hidden);
+		//args::HelpFlag help(parser, "help", "Display this help menu", {'h'});
+		//args::CompletionFlag completion(parser, {"complete"});
+
+		//(ARG_INPUT_FILENAME_TRUTH, "", cxxopts::value<string>()->default_value(""))
+		//(ARG_MINIMIZER_LENGTH, "", cxxopts::value<int>()->default_value("13"))
+		//(ARG_MINIMIZER_DENSITY, "", cxxopts::value<float>()->default_value("0.005"))
+		//(ARG_NB_CORES, "", cxxopts::value<int>()->default_value(NB_CORES_DEFAULT))
+		//(ARG_BLOOM_FILTER, "", cxxopts::value<bool>()->default_value("false"));
+
+		try
+		{
+			parser.ParseCLI(argc, argv);
+		}
+		catch (const args::Help&)
+		{
+			std::cout << parser;
+			exit(0);
+		}
+		catch (const std::exception& e)
+		{
+			std::cout << parser;
+			//cout << endl;
+			std::cout << e.what() << endl;
+			exit(0);
+		}
+
+		if(arg_help){
+			std::cout << parser;
+			exit(0);
+		}
+
+
+
+
+		_inputFilename_contigs = args::get(arg_contigs);
+		_outputDir = args::get(arg_outputDir);
+		_nbCores = args::get(arg_nbCores);
+
+		_useQual = false;
+		if(arg_useQual){
+			_useQual = true;
+		}
+
+		_useQual = false;
+		if(arg_useQual){
+			_useQual = true;
+		}
+
+		_circularize = false;
+		if(arg_useCirculize){
+			_circularize = true;
+		}
+
+
+		_windowLength = 500;
+		_maxWindowCopies = 10000; //21;
+		_qualityThreshold = 10.0;
+		_minContigLength = 1000000;
+
+		_tmpDir = _outputDir + "/tmp/";
+		if(!fs::exists(_tmpDir)){
+			fs::create_directories(_tmpDir);
+		}
+
+		_inputFilename_reads = _tmpDir + "/input_polish.txt";
+		Commons::createInputFile(args::get(arg_readFilenames), _inputFilename_reads);
 
 		cout << "Contigs: " << _inputFilename_contigs << endl;
 		cout << "Reads: " << _inputFilename_reads << endl;
 		cout << "Use quality: " << _useQual << endl;
 
-		fs::path p(_inputFilename_contigs);
-		while(p.has_extension()){
-			p.replace_extension("");
-		}
+		//fs::path p(_inputFilename_contigs);
+		//while(p.has_extension()){
+		//	p.replace_extension("");
+		//}
 
-		_tmpDir = _outputDir + "/__tmp/";
-		if(!fs::exists(_tmpDir)){
-			fs::create_directories(_tmpDir);
-		}
 
-		_outputFilename_contigs = p.string() + "_corrected.fasta.gz";
-		_outputFilename_mapping = p.string() + "_tmp_mapping__.paf";
+
+		//_outputFilename_contigs = p.string() + "_corrected.fasta.gz";
+		//_outputFilename_mapping = p.string() + "_tmp_mapping__.paf";
+		_outputFilename_contigs = _outputDir + "/contigs_polished.fasta.gz";
+		_outputFilename_mapping = _tmpDir + "/polish_mapping.paf";
+
 		_maxMemory = 4000000000ull;
 
 		if(_useQual){
@@ -240,6 +316,9 @@ public:
 		else{
 			_windowByteSize = _maxWindowCopies  * (_windowLength/4);
 		}
+
+
+
 	}
 
 
@@ -321,7 +400,7 @@ public:
 		gzclose(fp);
 		*/
 		gzclose(_outputContigFile);
-		fs::remove_all(_tmpDir);
+		//fs::remove_all(_tmpDir);
 
 	}
 
@@ -872,7 +951,7 @@ public:
 
 		string command = "minimap2 -c -H -I 2G -t " + to_string(_nbCores) + " -x map-hifi " + _inputFilename_contigs + " " + readFilenames;
 		command += " | " + _mapperOutputExeFilename + " " + _inputFilename_contigs + " " + _inputFilename_reads + " " + _outputFilename_mapping;
-		Utils::executeCommand(command, _outputDir);
+		Utils::executeCommand(command, _tmpDir);
 
 		//minimap2 -x map-hifi ~/workspace/run/overlap_test_201/contigs_47.fasta.gz ~/workspace/data/overlap_test/genome_201_50x/simulatedReads_0.fastq.gz | ./bin/mapper ~/workspace/run/overlap_test_201/contigs_47.fasta.gz ~/workspace/data/overlap_test/genome_201_50x/input.txt ~/workspace/run/overlap_test_201/align.bin
 	}

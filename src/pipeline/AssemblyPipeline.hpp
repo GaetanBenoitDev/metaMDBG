@@ -104,7 +104,8 @@ public:
 	    if(!fs::exists (_outputDir)) fs::create_directories(_outputDir); 
 	    if(!fs::exists (_tmpDir)) fs::create_directories(_tmpDir); 
 		
-		createInputFile(args::get(arg_readFilenames));
+		_inputFilename = _tmpDir + "/input.txt";
+		Commons::createInputFile(args::get(arg_readFilenames), _inputFilename);
 		//if (arg_l) { 
 		//}
 
@@ -444,8 +445,16 @@ public:
 			executeCommand(command);
 			//getchar();
 
+
+			string readFilenames = "";
+			ReadParser readParser(_inputFilename, false, false);
+			for(const string& filename : readParser._filenames){
+				readFilenames += filename + " ";
+			}
+
+			//./bin/metaMDBG polish ~/workspace/run/overlap_test_201/contigs_uncorrected.fasta.gz ~/workspace/run/overlap_test_201/ ~/workspace/data/overlap_test/genome_201_50x/simulatedReads_0.fastq.gz ~/workspace/data/overlap_test/genome_201_50x/simulatedReads_0.fastq.gz -t 15 --qual
 			//getchar();
-			command = _filename_exe + " polish " + contigFilename_uncorrected + " " + _inputFilename + " " + _tmpDir + " -t " + to_string(_nbCores) + " --qual ";
+			command = _filename_exe + " polish " + contigFilename_uncorrected + " " + _outputDir + " " + readFilenames + " " + " -t " + to_string(_nbCores) + " --qual --circ";
 			executeCommand(command);
 			//generatedContigs = true;
 		}
@@ -613,27 +622,7 @@ public:
 		gzclose(file_parameters);
 	}
 
-	void createInputFile(auto& paths){
 
-		//string inputFilenames = _inputFilename;
-		_inputFilename = _tmpDir + "/input.txt";
-		ofstream inputFile(_inputFilename);
-
-		//cout << inputFilenames << endl;
-		//vector<string>* fields = new vector<string>();
-		//GfaParser::tokenize(inputFilenames, fields, ',');
-
-		for(auto &&path : paths){
-			//string filenameAbs = fs::absolute(filename);
-			//cout << path << endl; //" " << fs::canonical(filename) << " " << fs::weakly_canonical(filename) << endl;
-			inputFile << path << endl;
-		}
-
-		//delete fields;
-		inputFile.close();
-
-
-	}
 	/*
 	void createInputFile(bool useContigs){
 		_inputFilenameComplete = _tmpDir + "/input.txt";
@@ -651,7 +640,6 @@ public:
 
 		inputFile.close();
 	}
-	*/
 
 	string createInputFile(u_int32_t k){
 		string inputFilename = _tmpDir + "/input.txt";
@@ -660,22 +648,13 @@ public:
 		//const string& filename = _tmpDir + "/correctedReads_" + to_string(k) + ".min.gz.bitset";
 		const string& filename = _tmpDir + "/read_data.txt.corrected.txt";
 		inputFile << filename << endl;
-		/*
-		ReadParser readParser(_inputFilename, false);
 
-		for(const string& filename : readParser._filenames){
-			inputFile << filename << endl;
-		}
-
-		if(useContigs){
-			inputFile << _tmpDir + "/tmpContigs.fasta.gz"  << endl;
-		}
-		*/
 
 		inputFile.close();
 
 		return inputFilename;
 	}
+	*/
 
 	vector<u_int64_t> _readLengths;
 	u_int64_t _readLengthSum;

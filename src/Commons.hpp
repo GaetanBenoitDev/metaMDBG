@@ -1,4 +1,8 @@
 /*
+
+- add "polish" dans les commandes du tool si ça fonctionne bien
+- tester les différents paramètres (surtout minimizer size)
+
 TODO:
 - toBasespace: il faudrait utiliser le processus de mapping pour tous les kminmer en fait, pas seulement ceux repeter (ne aps etre repeter dasn les contigs ne veux pas dire que la sequence du kminmer n'est pas ambigue dans les reads)
 - Argument a changer dans COntigPolisheer (liste de read en argument, fichier de sortie en argument)
@@ -14,6 +18,11 @@ GenerateContigs:
 
 - Polisher:  si on a plus besoin de low mmeory correction, enlever l'exe "mapper" eventuellement, et utiliser gzip pour compresser els sortie de minimap2 (on en aura besoin dans derep je pense) 
 - enelever tous els code de abpoa et spoa, et sortir tous ce qui est contigpolisher
+- Add tool version in program help
+- enelever cxxopts (old arg system)
+
+ContigPolisher:
+	- determiner le coverage d'un contig, utiliser cette valeur pour estimater la memory total du contig _windowByteSize = (contigLength*windowLength*NbWindows) (puis _windowByteSize a enelever)
 */
 
 #ifndef MDBG_METAG_COMMONS
@@ -541,6 +550,33 @@ struct KminmerList{
 	Read _read;
 	//vector<KmerVec> _kminmers;
 	//vector<ReadKminmer> _kminmersInfo;
+};
+
+class Commons{
+
+public:
+
+	static void createInputFile(auto& paths, const string& filename){
+
+		//string inputFilenames = _inputFilename;
+		ofstream inputFile(filename);
+
+		//cout << inputFilenames << endl;
+		//vector<string>* fields = new vector<string>();
+		//GfaParser::tokenize(inputFilenames, fields, ',');
+
+		for(auto &&path : paths){
+			//string filenameAbs = fs::absolute(filename);
+			//cout << path << endl; //" " << fs::canonical(filename) << " " << fs::weakly_canonical(filename) << endl;
+			inputFile << path << endl;
+		}
+
+		//delete fields;
+		inputFile.close();
+
+
+	}
+
 };
 
 class Utils{

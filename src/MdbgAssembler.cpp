@@ -20,15 +20,21 @@
 #include "polish/PurgeGraph.hpp"
 
 void displayHelp(string programName){
-	cout << "Usage: " + programName + " [program]" << endl;
 	cout << endl;
-	cout << "program:" << endl;
-	cout << "\t- asm      : perform assembly" << endl;
+	cout << "Program: metaMDBG (assembly of long and accurate metagenomics reads)" << endl;
+	cout << "Version: 1" << endl;
+	cout << "Contact: Gaëtan Benoit (gaetanbenoitdev@gmail.com)" << endl;
+	cout << endl;
+	cout << "Usage: " + programName + " [command]" << endl;
+	cout << endl;
+	cout << "command:" << endl;
+	cout << "\tasm      : perform assembly" << endl;
 	//cout << "\treadSelection      : transform readset into its minimizer reprentation" << endl;
 	//cout << "\tdgraph   : create minimizer de-bruijn graph" << endl;
 
 	cout << endl;
 }
+
 
 int main (int argc, char* argv[])
 {
