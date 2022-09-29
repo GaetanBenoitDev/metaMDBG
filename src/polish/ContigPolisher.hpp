@@ -374,7 +374,7 @@ public:
 		parseAlignments(false);
 		//writeAlignmentBestHits();
 		//parseAlignments(true, false);
-		partitionReads();
+		//partitionReads();
 		_contigSequences.clear();
 		
 
@@ -700,7 +700,7 @@ public:
 
 		for(u_int32_t i=0; i<_nbPartitions; i++){
 			_partitionNbReads[i] = 0;
-			_partitionFiles.push_back(new PartitionFile(i, _tmpDir));
+			//_partitionFiles.push_back(new PartitionFile(i, _tmpDir));
 		}
 
 		u_int32_t partition = 0;
@@ -782,16 +782,16 @@ public:
 
 
 
-		writeReadPartitions();
+		//writeReadPartitions();
 
 		//readToContigIndex.clear();
 		//_contigToPartition.clear();
 		_alignments.clear();
 
-		for(PartitionFile* partitionFile : _partitionFiles){
-			delete partitionFile;
-		}
-		_partitionFiles.clear();
+		//for(PartitionFile* partitionFile : _partitionFiles){
+		//	delete partitionFile;
+		//}
+		//_partitionFiles.clear();
 	}
 
 
