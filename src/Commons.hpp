@@ -5,7 +5,7 @@
 
 TODO:
 - toBasespace: il faudrait utiliser le processus de mapping pour tous les kminmer en fait, pas seulement ceux repeter (ne aps etre repeter dasn les contigs ne veux pas dire que la sequence du kminmer n'est pas ambigue dans les reads)
-- Argument a changer dans COntigPolisheer (liste de read en argument, fichier de sortie en argument)
+- Argument a changer dans ContigPolisheer (liste de read en argument, fichier de sortie en argument)
 
 Paralelisation:
 	- ToBasespace: read indexing phmap
@@ -24,6 +24,13 @@ GenerateContigs:
 ContigPolisher:
 	- determiner le coverage d'un contig, utiliser cette valeur pour estimater la memory total du contig _windowByteSize = (contigLength*windowLength*NbWindows) (puis _windowByteSize a enelever)
 	- flag "c" rempalcer par "l" parfois a check
+	- supprimer les fichier temporaire (read partition) quand tout est debug
+	- compress paf (gzip)
+	- read mal mapper sur les bord des contig circulaire (double mapping)
+
+- logs:
+	- écrire les logs debug dans un fichier dans tmpDir
+	- ajouter une progress bar global
 
 */
 

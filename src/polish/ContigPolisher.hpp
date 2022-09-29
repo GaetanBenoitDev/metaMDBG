@@ -330,7 +330,7 @@ public:
 		//_outputFilename_mapping = p.string() + "_tmp_mapping__.paf";
 		_outputFilename_contigs = _outputDir + "/contigs_polished.fasta.gz";
 		_outputFilename_mapping = _tmpDir + "/polish_mapping.paf.gz";
-		_outputFilename_mapping = "/mnt/gpfs/gaetan/tmp/debug_polish/racon_align.paf";
+		//_outputFilename_mapping = "/mnt/gpfs/gaetan/tmp/debug_polish/racon_align.paf";
 
 		_maxMemory = 4000000000ull;
 
@@ -368,7 +368,7 @@ public:
 		*/
 		
 		
-		//mapReads();
+		mapReads();
 		executeCircularize();
 		
 		parseAlignments(false);
@@ -980,7 +980,7 @@ public:
 			readFilenames += filename + " ";
 		}
 
-		string command = "minimap2 -c -H -I 2G -t " + to_string(_nbCores) + " -x map-hifi " + _inputFilename_contigs + " " + readFilenames;
+		string command = "minimap2 -I 2G -t " + to_string(_nbCores) + " -x map-hifi " + _inputFilename_contigs + " " + readFilenames;
 		command += " > " + _outputFilename_mapping;
 		//command += " | gzip -c - > " c;
 		//command += " | " + _mapperOutputExeFilename + " " + _inputFilename_contigs + " " + _inputFilename_reads + " " + _outputFilename_mapping;
