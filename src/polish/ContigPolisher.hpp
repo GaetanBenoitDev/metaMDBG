@@ -787,7 +787,7 @@ public:
 		//readToContigIndex.clear();
 		//_contigToPartition.clear();
 		_alignments.clear();
-
+		_partitionNbReads[0] = 1;
 		//for(PartitionFile* partitionFile : _partitionFiles){
 		//	delete partitionFile;
 		//}
