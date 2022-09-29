@@ -1690,16 +1690,17 @@ public:
 				//size_t contigWindowIndex = contigWindowStart / _windowLength;
 				vector<Window>& windows = _contigWindowSequences[al._contigName][windowIndex];
 				
-				/*
-				if(contigWindowIndex == 0){
+				
+				if(windowIndex == 0){
 					//cout << contigWindowStart << endl;
+					cout << posStart << " " << posEnd << endl;
 					cout << windowSequence << endl;
 					//cout << windows.size() << endl;
-					cout << readWindowStart << " " << readWindowEnd << endl;
-					getchar();
+					//cout << readWindowStart << " " << readWindowEnd << endl;
+					//getchar();
 					//cout << windowQualities << endl;
 				}
-				*/
+				
 				
 				bool interrupt = false;
 				if(windows.size() < (_contigPolisher._maxWindowCopies-1)){
