@@ -45,7 +45,7 @@
 #include "../utils/spoa/include/spoa/spoa.hpp"
 #include "../utils/DnaBitset.hpp"
 #include "../utils/abPOA2/include/abpoa.h"
-
+//#include "../utils/pafParser/paf_parser.hpp"
 
 /*
 extern unsigned char nt4_table;
@@ -93,6 +93,29 @@ class ContigPolisher : public Tool{
     
 public:
 
+	class Alignment2{
+		public:
+		std::string q_name_;
+		uint64_t q_id_;
+		uint32_t q_begin_;
+		uint32_t q_end_;
+		uint32_t q_length_;
+
+		std::string t_name_;
+		uint64_t t_id_;
+		uint32_t t_begin_;
+		uint32_t t_end_;
+		uint32_t t_length_;
+
+		uint32_t strand_;
+		uint32_t length_;
+		double error_;
+		std::string cigar_;
+
+	};
+
+
+
 	string _inputFilename_reads;
 	string _inputFilename_contigs;
 	int _nbCores;
@@ -113,7 +136,7 @@ public:
 	//abpoa_para_t *abpt;
 	
 
-	unordered_set<u_int32_t> _isContigCircular;
+	unordered_set<string> _isContigCircular;
 	//unordered_set<u_int32_t> _isReadCircular;
 	//unordered_map<u_int64_t, u_int64_t> _contigLength;
 	unordered_map<u_int64_t, vector<u_int64_t>> _contigMapLeft;
@@ -306,7 +329,8 @@ public:
 		//_outputFilename_contigs = p.string() + "_corrected.fasta.gz";
 		//_outputFilename_mapping = p.string() + "_tmp_mapping__.paf";
 		_outputFilename_contigs = _outputDir + "/contigs_polished.fasta.gz";
-		_outputFilename_mapping = _tmpDir + "/polish_mapping.paf";
+		_outputFilename_mapping = _tmpDir + "/polish_mapping.paf.gz";
+		_outputFilename_mapping = "/mnt/gpfs/gaetan/tmp/debug_polish/racon_align.paf";
 
 		_maxMemory = 4000000000ull;
 
@@ -344,11 +368,11 @@ public:
 		*/
 		
 		
-		mapReads();
+		//mapReads();
 		executeCircularize();
 		
 		parseAlignments(false);
-		writeAlignmentBestHits();
+		//writeAlignmentBestHits();
 		//parseAlignments(true, false);
 		partitionReads();
 		
@@ -437,7 +461,7 @@ public:
 
 		char lastChar = read._header[read._header.size()-1];
 		if(lastChar == 'c'){
-			_isContigCircular.insert(read._index);
+			_isContigCircular.insert(Utils::shortenHeader(read._header));
 		}
 
 	}
@@ -509,6 +533,8 @@ public:
 
 	void detectCircularContigs_read(const Read& read){
 
+		const string& contigName = Utils::shortenHeader(read._header);
+
 		//u_int64_t contigIndex = read._index; //Utils::contigName_to_contigIndex(read._header);
 
 		bool isCircular = false;
@@ -537,16 +563,16 @@ public:
 		//gzwrite(_outputContigFile, (const char*)&contigSequence[0], contigSequence.size());
 
 		if(read._seq.size() >= _minContigLength){
-			cout << read._header << " " << (_isContigCircular.find(read._index) != _isContigCircular.end()) << " " << nbSupportingReads << endl;
+			cout << read._header << " " << (_isContigCircular.find(contigName) != _isContigCircular.end()) << " " << nbSupportingReads << endl;
 		}
 
-		if(_isContigCircular.find(read._index) != _isContigCircular.end()){
+		if(_isContigCircular.find(contigName) != _isContigCircular.end()){
 			//isCircular = true;
 		}
 		else{
 			if(nbSupportingReads >= 2){
 				//isCircular = true;
-				_isContigCircular.insert(read._index);
+				_isContigCircular.insert(contigName);
 			}
 		}
 
@@ -625,13 +651,13 @@ public:
 		}
 	};
 
-	unordered_map<u_int32_t, u_int32_t> _contigToPartition;
+	unordered_map<string, u_int32_t> _contigToPartition;
 	vector<PartitionFile*> _partitionFiles;
 	unordered_map<u_int32_t, u_int64_t> _partitionNbReads;
 
 	
 	struct ContigStats{
-		u_int32_t _contigIndex;
+		string _contigName;
 		u_int32_t _length;
 	};
 
@@ -683,7 +709,7 @@ public:
 		for(const ContigStats& contigStat : _contigStats){
 
 			//totalByteSize += computeContigMemory(contigStat._length);
-			_contigToPartition[contigStat._contigIndex] = partition;
+			_contigToPartition[contigStat._contigName] = partition;
 			//cout << nbContigs << " " << partition << endl;
 			nbContigs += 1;
 
@@ -775,7 +801,7 @@ public:
 	}
 	
 	void collectContigStats_read(const Read& read){
-		_contigStats.push_back({(u_int32_t)read._index, (u_int32_t)read._seq.size()});
+		_contigStats.push_back({Utils::shortenHeader(read._header), (u_int32_t)read._seq.size()});
 	}
 
 	u_int64_t computeContigMemory(size_t contigLength){
@@ -807,19 +833,21 @@ public:
 
 		void operator () (const Read& read) {
 
-			u_int64_t readIndex = read._index;
+			//u_int64_t readIndex = read._index;
+			const string& readName = Utils::shortenHeader(read._header);
 
-			if(readIndex % 10000 == 0) cout << "\t" << readIndex << endl;
+			if(read._index % 10000 == 0) cout << "\t" << read._index << endl;
 			
-			if(_contigPolisher._alignments.find(readIndex) == _contigPolisher._alignments.end()) return;
+			if(_contigPolisher._alignments.find(readName) == _contigPolisher._alignments.end()) return;
 
 			//unordered_set<u_int32_t> writtenPartitions;
 
 			//for(const Alignment& al : _contigPolisher._alignments[readIndex]){
-			const Alignment& al = _contigPolisher._alignments[readIndex];
-			u_int32_t contigIndex = al._contigIndex; //_contigPolisher._alignments[readIndex]._contigIndex;
+			const Alignment& al = _contigPolisher._alignments[readName];
+			const string& contigName = al._contigName;
+			//u_int32_t contigIndex = al._contigIndex; //_contigPolisher._alignments[readIndex]._contigIndex;
 			//cout << contigIndex << " " << (_contigPolisher._contigToPartition.find(contigIndex) != _contigPolisher._contigToPartition.end()) << endl;
-			u_int32_t partition = _contigPolisher._contigToPartition[contigIndex];
+			u_int32_t partition = _contigPolisher._contigToPartition[contigName];
 
 			//if(writtenPartitions.find(partition) != writtenPartitions.end()) return;
 			//writtenPartitions.insert(partition);
@@ -840,7 +868,8 @@ public:
 			u_int32_t readSize = read._seq.size();
 
 			if(isFastq){
-				string header = '@' + to_string(read._index) + '\n';
+				//string header = '@' + to_string(read._index) + '\n';
+				string header = '@' + readName + '\n';
 				string seq = read._seq + '\n';
 				gzwrite(partitionFile->_file, (const char*)&header[0], header.size());
 				gzwrite(partitionFile->_file, (const char*)&seq[0], seq.size());
@@ -850,7 +879,8 @@ public:
 				gzwrite(partitionFile->_file, (const char*)&qual[0], qual.size());
 			}
 			else{
-				string header = '>' + to_string(read._index) + '\n';
+				//string header = '>' + to_string(read._index) + '\n';
+				string header = '>' + readName + '\n';
 				string seq = read._seq + '\n';
 				gzwrite(partitionFile->_file, (const char*)&header[0], header.size());
 				gzwrite(partitionFile->_file, (const char*)&seq[0], seq.size());
@@ -896,19 +926,20 @@ public:
 	
 	void loadContigs_read(const Read& read){
 
-		u_int32_t contigIndex = read._index;
-		u_int32_t contigPartition = _contigToPartition[contigIndex];
+		//u_int32_t contigIndex = read._index;
+		const string& contigName = Utils::shortenHeader(read._header);
+		u_int32_t contigPartition = _contigToPartition[contigName];
 
 		if(contigPartition != _currentPartition) return;
 		
 
 		//if(_currentPartition == 0) cout << "Loading contig in partition 0: " << contigIndex << endl;
-		_contigSequences[contigIndex] = read._seq;
+		_contigSequences[contigName] = read._seq;
 		size_t nbWindows = ceil((double)read._seq.size() / (double)_windowLength);
 		vector<vector<Window>> windows(nbWindows);
 
-		_contigWindowSequences[contigIndex] = windows;
-		//_contigHeaders[contigIndex] = read._header;
+		_contigWindowSequences[contigName] = windows;
+		_contigHeaders[contigName] = read._header;
 	}
 
 	//_validContigIndexes.insert(contigIndex);
@@ -929,7 +960,7 @@ public:
 		_contigSequences.clear();
 		//_validContigIndexes.clear();
 		_contigWindowSequences.clear();
-		//_contigHeaders.clear();
+		_contigHeaders.clear();
 		//_alignments.clear();
 	}
 	/*
@@ -950,14 +981,18 @@ public:
 		}
 
 		string command = "minimap2 -c -H -I 2G -t " + to_string(_nbCores) + " -x map-hifi " + _inputFilename_contigs + " " + readFilenames;
-		command += " | " + _mapperOutputExeFilename + " " + _inputFilename_contigs + " " + _inputFilename_reads + " " + _outputFilename_mapping;
+		command += " > " + _outputFilename_mapping;
+		//command += " | gzip -c - > " c;
+		//command += " | " + _mapperOutputExeFilename + " " + _inputFilename_contigs + " " + _inputFilename_reads + " " + _outputFilename_mapping;
 		Utils::executeCommand(command, _tmpDir);
 
+
 		//minimap2 -x map-hifi ~/workspace/run/overlap_test_201/contigs_47.fasta.gz ~/workspace/data/overlap_test/genome_201_50x/simulatedReads_0.fastq.gz | ./bin/mapper ~/workspace/run/overlap_test_201/contigs_47.fasta.gz ~/workspace/data/overlap_test/genome_201_50x/input.txt ~/workspace/run/overlap_test_201/align.bin
+		
 	}
 
 	struct Alignment{
-		u_int32_t _contigIndex;
+		string _contigName;
 		//u_int64_t _readIndex;
 		bool _strand;
 		u_int32_t _readStart;
@@ -974,7 +1009,7 @@ public:
 	};
 
 	struct AlignmentPartitionning{
-		u_int32_t _contigIndex;
+		string _contigName;
 		u_int32_t _length;
 	};
 
@@ -982,11 +1017,11 @@ public:
 	//unordered_map<string, u_int64_t> _readName_to_readIndex;
 	//unordered_map<u_int64_t, AlignmentPartitionning> _readToContigIndex;
 	//unordered_map<u_int64_t, vector<Alignment>> _alignments;
-	unordered_map<u_int64_t, Alignment> _alignments;
-	unordered_map<u_int32_t, string> _contigSequences;
-	unordered_map<u_int32_t, vector<vector<Window>>> _contigWindowSequences;
-	//unordered_map<u_int32_t, string> _contigHeaders;
-	unordered_map<ContigRead, u_int32_t, ContigRead_hash> _alignmentCounts;
+	unordered_map<string, Alignment> _alignments;
+	unordered_map<string, string> _contigSequences;
+	unordered_map<string, vector<vector<Window>>> _contigWindowSequences;
+	unordered_map<string, string> _contigHeaders;
+	//unordered_map<ContigRead, u_int32_t, ContigRead_hash> _alignmentCounts;
 	//u_int64_t _correctedContigIndex;
 
 
@@ -1046,8 +1081,151 @@ public:
 
 	void parseAlignments(bool indexPartitionOnly){
 
-		cout << "\tIndexing read alignments" << endl;
+		cout << "\tParsing alignments" << endl;
+		/*
+		uint32_t kChunkSize = 1024 * 1024 * 1024;
+    	std::vector<std::unique_ptr<Alignment2>> overlaps;
 
+		//auto oparser = bioparser::Create<bioparser::PafParser<Alignment2>>(_outputFilename_mapping);
+		std::unique_ptr<bioparser::Parser<Alignment2>> oparser;
+    	cout << "1" << endl;
+		overlaps = oparser->Parse(kChunkSize, true);
+    	cout << "2" << endl;
+
+		cout << overlaps.size() << endl;
+
+		return;
+		*/
+
+		double errorThreshold = 0.3;
+
+		vector<string>* fields = new vector<string>();
+		vector<string>* fields_optional = new vector<string>();
+        ifstream infile(_outputFilename_mapping);
+
+		string lineInput;
+		while (getline(infile, lineInput)) {
+			//cout << lineInput << endl;
+			//getchar();
+
+
+			GfaParser::tokenize(lineInput, fields, '\t');
+
+			//cout << line << endl;
+
+			const string& readName = Utils::shortenHeader((*fields)[0]);
+			const string& contigName = Utils::shortenHeader((*fields)[5]);
+			
+
+			u_int32_t readStart = stoull((*fields)[2]);
+			u_int32_t readEnd = stoull((*fields)[3]);
+			u_int32_t contigLength = stoull((*fields)[6]);
+			u_int32_t contigStart = stoull((*fields)[7]);
+			u_int32_t contigEnd = stoull((*fields)[8]);
+
+			u_int64_t nbMatches = stoull((*fields)[9]);
+			u_int64_t alignLength = stoull((*fields)[10]);
+			u_int64_t queryLength = stoull((*fields)[1]);
+
+			bool strand = (*fields)[4] == "-";
+			//float score = (double) nbMatches / (double) queryLength;
+			//float score2 = (double) nbMatches / (double) alignLength;
+
+			//u_int32_t contigIndex = mappingIndex._contigName_to_contigIndex[contigName];
+			//u_int64_t readIndex = mappingIndex._readName_to_readIndex[readName];
+			//u_int64_t length = std::max(readEnd - readStart, contigEnd - contigStart);
+
+
+			//cout << contigIndex << " " << readIndex << endl;
+
+			double length = max((double)(contigEnd - contigStart), (double)(readEnd - readStart));
+			double error = 1 - min((double)(contigEnd - contigStart), (double)(readEnd - readStart)) / length;
+			//cout << error << " " << errorThreshold << endl;
+			
+			if(error > errorThreshold) continue;
+
+
+			if(indexPartitionOnly && _contigSequences.find(contigName) == _contigSequences.end()) continue;
+
+
+			//u_int32_t length = std::max((u_int64_t)(readEnd - readStart), (u_int64_t)(contigEnd - contigStart));
+			Alignment align = {contigName, strand, readStart, readEnd, contigStart, contigEnd}; //, score
+
+			if(_alignments.find(readName) == _alignments.end()){
+				_alignments[readName] = align;
+			}
+			else{
+
+				if(length > align.length()){
+					_alignments[readName] = align;
+				}
+
+				/*
+				bool isUpdated = false;
+				//bool isBetter = false;
+				for(Alignment& al: _alignments[readIndex]){
+					if(al._contigIndex != contigIndex) continue;
+					
+					if(length > al.length()){
+
+						al._contigIndex = contigIndex;
+						al._strand = strand;
+						al._readStart = readStart;
+						al._readEnd = readEnd;
+						al._contigStart = contigStart;
+						al._contigEnd = contigEnd;
+
+						//isBetter = true;
+						isUpdated = true;
+						break;
+						//_alignments[readIndex] = align;
+					}
+				}
+
+				if(!isUpdated){
+					_alignments[readIndex].push_back(align);
+				}
+				*/
+
+				//if(length > _alignments[readIndex].length()){
+				//	_alignments[readIndex] = align;
+				//}
+				
+			}
+
+			/*
+			float divergence = 0;
+			//cout << error << endl;
+			//getchar();
+			//cout << contigIndex << " " << readIndex << endl;
+
+			for(size_t i=12; i<fields->size(); i++){
+
+				//cout << (*fields)[i] << endl;
+
+				GfaParser::tokenize((*fields)[i], fields_optional, ':');
+
+				if((*fields_optional)[0] == "dv"){
+					divergence = std::stof((*fields_optional)[2]);
+				}
+
+			}
+
+
+			float score = divergence; //nbMatches /
+			*/
+
+		}
+
+		infile.close();
+
+		delete fields;
+		delete fields_optional;
+
+
+
+
+		/*
         ifstream infile(_outputFilename_mapping);
 
         std::string line;
@@ -1055,32 +1233,7 @@ public:
         //vector<string>* fields_optional = new vector<string>();
 
 		while(true){
-        	/*
-			//while (std::getline(infile, line)){
 
-            //GfaParser::tokenize(line, fields, '\t');
-
-			//cout << line << endl;
-
-			const string& readName = (*fields)[0];
-			const string& contigName = (*fields)[5];
-
-			u_int32_t readStart = stoull((*fields)[2]);
-			u_int32_t readEnd = stoull((*fields)[3]);
-			u_int64_t contigStart = stoull((*fields)[7]);
-			u_int64_t contigEnd = stoull((*fields)[8]);
-
-			u_int64_t nbMatches = stoull((*fields)[9]);
-			u_int64_t alignLength = stoull((*fields)[10]);
-        	u_int64_t queryLength = stoull((*fields)[1]);
-
-			bool strand = (*fields)[4] == "-";
-			float score = (double) nbMatches / (double) queryLength;
-			float score2 = (double) nbMatches / (double) alignLength;
-
-			u_int32_t contigIndex = _contigName_to_contigIndex[contigName];
-			u_int64_t readIndex = _readName_to_readIndex[readName];
-			*/
 
 			u_int32_t contigIndex;
 			u_int32_t contigLength;
@@ -1123,32 +1276,7 @@ public:
 					_alignments[readIndex] = align;
 				}
 
-				/*
-				bool isUpdated = false;
-				//bool isBetter = false;
-				for(Alignment& al: _alignments[readIndex]){
-					if(al._contigIndex != contigIndex) continue;
-					
-					if(length > al.length()){
-
-						al._contigIndex = contigIndex;
-						al._strand = strand;
-						al._readStart = readStart;
-						al._readEnd = readEnd;
-						al._contigStart = contigStart;
-						al._contigEnd = contigEnd;
-
-						//isBetter = true;
-						isUpdated = true;
-						break;
-						//_alignments[readIndex] = align;
-					}
-				}
-
-				if(!isUpdated){
-					_alignments[readIndex].push_back(align);
-				}
-				*/
+			
 
 				//if(length > _alignments[readIndex].length()){
 				//	_alignments[readIndex] = align;
@@ -1156,103 +1284,14 @@ public:
 				
 			}
 
-			/*
-			if(_alignments.find(readIndex) == _alignments.end()){
-				_alignments[readIndex] = align;
-			}
-			else{
-				if(length > _alignments[readIndex].length()){
-					_alignments[readIndex] = align;
-				}
-				
-			}
-			*/
-			//ContigRead alignKey = {_contigName_to_contigIndex[contigName], _readName_to_readIndex[readName]};
-			/*
-			if(indexOnlyContigIndex){
-
-				if(_readToContigIndex.find(readIndex) == _readToContigIndex.end()){
-					_readToContigIndex[readIndex] = {contigIndex, length};
-				}
-				else{
-					if(length > _readToContigIndex[readIndex]._length){
-						_readToContigIndex[readIndex] = {contigIndex, length};
-					}
-					
-				}
-
-			}
-			else{
-				if(_alignments.find(readIndex) == _alignments.end()){
-					_alignments[readIndex] = align;
-				}
-				else{
-					if(length > _alignments[readIndex].length()){
-						_alignments[readIndex] = align;
-					}
-					
-				}
-
-			}
-			*/
 			
 
         }
-
-		/*
-		if(!isPartionning){
-			for(auto& it : _alignments){
-
-				auto& als = it.second;
-				vector<u_int64_t> removedIndex;
-
-				if(als.size() == 1) continue;
-				
-				for(size_t i=0; i<als.size(); i++){
-					
-					if(std::find(removedIndex.begin(), removedIndex.end(), i) != removedIndex.end()) continue;
-
-					for(size_t j=i+1; j<als.size(); j++){
-
-						//if(als[i]._contigIndex != als[j]._contigIndex) continue;
-
-						if(std::find(removedIndex.begin(), removedIndex.end(), j) != removedIndex.end()) continue;
-
-						//cout << als[i]._score << " " << als[j]._score << endl;
-						if(als[i].length() > als[j].length()){
-							//if(als[i]._score < als[j]._score){
-							removedIndex.push_back(j);
-							//alsFiltered.push_back(als[i]);
-						}
-						else{
-							removedIndex.push_back(i);
-							//alsFiltered.push_back(als[j]);
-						}
-						
-		
-						//if(als[i]._contigIndex == 0 && als[i]._readIndex == 705){
-						//	cout << endl;
-						//	cout << i << " " << als[i]._contigIndex << " " << als[i]._readIndex << " " << als[i]._length << endl;
-						//	cout << j << " " << als[j]._contigIndex << " " << als[j]._readIndex << " " << als[j]._length << endl;
-						//	//getchar();
-						//}
-					}
-				}
-				
-				vector<Alignment> alsFiltered;
-				for(size_t i=0; i<als.size(); i++){
-					if(std::find(removedIndex.begin(), removedIndex.end(), i) != removedIndex.end()) continue;
-					alsFiltered.push_back(als[i]);
-				}
-
-				als = alsFiltered;
-			}
-		}
 		*/
 
 	}
 
-	
+	/*
 	void writeAlignmentBestHits(){
 
         ofstream outputFile(_outputFilename_mapping);
@@ -1283,6 +1322,7 @@ public:
 
 		//_isReadCircular.clear();
 	}
+	*/
 
 
 	void collectWindowSequences(u_int32_t partition){
@@ -1307,9 +1347,9 @@ public:
 		//unordered_map<string, u_int32_t>& _contigName_to_contigIndex;
 		//unordered_map<string, u_int64_t>& _readName_to_readIndex;
 		//unordered_map<u_int64_t, vector<Alignment>>& _alignments;
-		unordered_map<u_int64_t, Alignment>& _alignments;
-		unordered_map<u_int32_t, string>& _contigSequences;
-		unordered_map<u_int32_t, vector<vector<Window>>>& _contigWindowSequences;
+		unordered_map<string, Alignment>& _alignments;
+		unordered_map<string, string>& _contigSequences;
+		unordered_map<string, vector<vector<Window>>>& _contigWindowSequences;
 		size_t _windowLength;
 
 
@@ -1325,26 +1365,27 @@ public:
 
 		void operator () (const Read& read) {
 
-			u_int64_t readIndex = stoull(read._header);
+			const string& readName = Utils::shortenHeader(read._header);
+			//u_int64_t readIndex = stoull(read._header);
 
 			//if(_contigPolisher._currentPartition == 0) cout << readIndex << " " << (_alignments.find(readIndex) != _alignments.end()) << endl;
 			
 			//if(readIndex % 100000 == 0) cout << "\t" << readIndex << endl;
 
-			if(_alignments.find(readIndex) == _alignments.end()) return;
+			if(_alignments.find(readName) == _alignments.end()) return;
 
 			//const vector<Alignment>& als = _alignments[readIndex];
-			const Alignment& al = _alignments[readIndex];
+			const Alignment& al = _alignments[readName];
 			//for(const Alignment& al : _alignments[readIndex]){
-			u_int64_t contigIndex = al._contigIndex;
+			const string& contigName = al._contigName;
 
-			if(_contigSequences.find(contigIndex) == _contigSequences.end()) return;
+			if(_contigSequences.find(contigName) == _contigSequences.end()) return;
 
 			//cout << read._seq.size() << " " << read._qual.size() << " " << _contigSequences[contigIndex].size() << " " << al._readStart << " " << al._readEnd << " " << al._contigStart << " " << al._contigEnd << endl;
 			string readSeq = read._seq;
 			string qualSeq = read._qual;
 			string readSequence = readSeq.substr(al._readStart, al._readEnd-al._readStart);
-			string contigSequence = _contigSequences[contigIndex].substr(al._contigStart, al._contigEnd-al._contigStart);
+			string contigSequence = _contigSequences[contigName].substr(al._contigStart, al._contigEnd-al._contigStart);
 
 
 
@@ -1633,7 +1674,7 @@ public:
 			{
 				
 				//size_t contigWindowIndex = contigWindowStart / _windowLength;
-				vector<Window>& windows = _contigWindowSequences[al._contigIndex][windowIndex];
+				vector<Window>& windows = _contigWindowSequences[al._contigName][windowIndex];
 				
 				/*
 				if(contigWindowIndex == 0){
@@ -1758,16 +1799,17 @@ public:
 		cout << "\tPerform correction" << endl;
 
 
-		vector<u_int32_t> contigIndexes;
-		for(const auto& it : _contigWindowSequences){
-			contigIndexes.push_back(it.first);
-		}
-		std::sort(contigIndexes.begin(), contigIndexes.end());
+		//vector<u_int32_t> contigIndexes;
+		//for(const auto& it : _contigWindowSequences){
+		//	contigIndexes.push_back(it.first);
+		//}
+		//std::sort(contigIndexes.begin(), contigIndexes.end());
 
-		for(u_int32_t contigIndex : contigIndexes){
+		for(auto& it : _contigWindowSequences){
 
+			const string& contigName = it.first;
 
-			vector<vector<Window>>& windows = _contigWindowSequences[contigIndex];
+			vector<vector<Window>>& windows = it.second;
 			u_int64_t nbCorrectedWindows = 0;
 			vector<DnaBitset2*> correctedWindows(windows.size());
 		
@@ -1783,8 +1825,8 @@ public:
 					vector<Window>& sequences = windows[w];
 					
 					u_int64_t wStart = w*_windowLength;
-					u_int64_t wEnd = min(_contigSequences[contigIndex].size(), wStart+_windowLength);
-					string contigOriginalSequence = _contigSequences[contigIndex].substr(wStart, wEnd-wStart);
+					u_int64_t wEnd = min(_contigSequences[contigName].size(), wStart+_windowLength);
+					string contigOriginalSequence = _contigSequences[contigName].substr(wStart, wEnd-wStart);
 
 					checksum += sequences.size()+1;
 					//cout << w << ": " << (sequences.size()+1) << endl;
@@ -2113,6 +2155,7 @@ public:
 			//cout << contigSequence.size() << " " << nbCorrectedWindows << endl;
 			
 			//string header = _contigHeaders[contigIndex];
+			/*
 			string header = ">ctg" + to_string(contigIndex);
 			//header.pop_back(); //remove circular indicator
 
@@ -2122,9 +2165,20 @@ public:
 			else{
 				header += 'c';
 			}
+			*/
 
-			//header = ">" + header + '\n';// ">ctg" + to_string(contigIndex) + '\n';
-			header += '\n';
+			string header = _contigHeaders[contigName];
+			if(_circularize){
+				if(_isContigCircular.find(contigName) == _isContigCircular.end()){
+					header += 'l';
+				}
+				else{
+					header += 'c';
+				}
+			}
+
+			header = ">" + header + '\n';// ">ctg" + to_string(contigIndex) + '\n';
+			//header += '\n';
 			gzwrite(_outputContigFile, (const char*)&header[0], header.size());
 			contigSequence +=  '\n';
 			gzwrite(_outputContigFile, (const char*)&contigSequence[0], contigSequence.size());

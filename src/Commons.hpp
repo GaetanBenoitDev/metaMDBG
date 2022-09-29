@@ -23,6 +23,8 @@ GenerateContigs:
 
 ContigPolisher:
 	- determiner le coverage d'un contig, utiliser cette valeur pour estimater la memory total du contig _windowByteSize = (contigLength*windowLength*NbWindows) (puis _windowByteSize a enelever)
+	- flag "c" rempalcer par "l" parfois a check
+
 */
 
 #ifndef MDBG_METAG_COMMONS
@@ -585,6 +587,21 @@ class Utils{
 
 
 public:
+
+	static string shortenHeader(const string& header){
+
+		string shortenName;
+
+		auto find = header.find(' ');
+		if(find == std::string::npos){
+			shortenName = header;
+		}
+		else{
+			shortenName = header.substr(0, find);
+		}
+
+		return shortenName;
+	}
 
 	static u_int64_t contigName_to_contigIndex(const string& header){
 		string name = header;
