@@ -367,15 +367,14 @@ public:
 		abpoa_post_set_para(abpt);
 		*/
 		
+		
 		//mapReads();
 		executeCircularize();
 		
-		loadContigsPre();
 		parseAlignments(false);
 		//writeAlignmentBestHits();
 		//parseAlignments(true, false);
 		partitionReads();
-		_contigSequences.clear();
 		
 
 		/*
@@ -700,7 +699,7 @@ public:
 
 		for(u_int32_t i=0; i<_nbPartitions; i++){
 			_partitionNbReads[i] = 0;
-			//_partitionFiles.push_back(new PartitionFile(i, _tmpDir));
+			_partitionFiles.push_back(new PartitionFile(i, _tmpDir));
 		}
 
 		u_int32_t partition = 0;
@@ -782,16 +781,16 @@ public:
 
 
 
-		//writeReadPartitions();
+		writeReadPartitions();
 
 		//readToContigIndex.clear();
 		//_contigToPartition.clear();
 		_alignments.clear();
-		_partitionNbReads[0] = 1;
-		//for(PartitionFile* partitionFile : _partitionFiles){
-		//	delete partitionFile;
-		//}
-		//_partitionFiles.clear();
+
+		for(PartitionFile* partitionFile : _partitionFiles){
+			delete partitionFile;
+		}
+		_partitionFiles.clear();
 	}
 
 
@@ -917,19 +916,6 @@ public:
 		collectWindowSequences(_currentPartition);
 		performCorrection();
 		//if(fs::exists(_outputFilename_mapping)) fs::remove(_outputFilename_mapping);
-	}
-
-	void loadContigsPre(){
-		auto fp = std::bind(&ContigPolisher::loadContigsPre_read, this, std::placeholders::_1);
-		ReadParser readParser(_inputFilename_contigs, true, false);
-		readParser.parse(fp);
-	}
-	
-	void loadContigsPre_read(const Read& read){
-
-		//u_int32_t contigIndex = read._index;
-		const string& contigName = Utils::shortenHeader(read._header);
-		_contigSequences[contigName] = "";
 	}
 
 	void loadContigs(){
@@ -1159,7 +1145,7 @@ public:
 			if(error > errorThreshold) continue;
 
 
-			if(_contigSequences.find(contigName) == _contigSequences.end()) continue;
+			if(indexPartitionOnly && _contigSequences.find(contigName) == _contigSequences.end()) continue;
 
 
 			//u_int32_t length = std::max((u_int64_t)(readEnd - readStart), (u_int64_t)(contigEnd - contigStart));
@@ -1690,17 +1676,16 @@ public:
 				//size_t contigWindowIndex = contigWindowStart / _windowLength;
 				vector<Window>& windows = _contigWindowSequences[al._contigName][windowIndex];
 				
-				
-				if(windowIndex == 0){
+				/*
+				if(contigWindowIndex == 0){
 					//cout << contigWindowStart << endl;
-					cout << posStart << " " << posEnd << endl;
 					cout << windowSequence << endl;
 					//cout << windows.size() << endl;
-					//cout << readWindowStart << " " << readWindowEnd << endl;
-					//getchar();
+					cout << readWindowStart << " " << readWindowEnd << endl;
+					getchar();
 					//cout << windowQualities << endl;
 				}
-				
+				*/
 				
 				bool interrupt = false;
 				if(windows.size() < (_contigPolisher._maxWindowCopies-1)){
