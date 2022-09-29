@@ -374,7 +374,7 @@ public:
 		parseAlignments(false);
 		//writeAlignmentBestHits();
 		//parseAlignments(true, false);
-		//partitionReads();
+		partitionReads();
 		_contigSequences.clear();
 		
 
