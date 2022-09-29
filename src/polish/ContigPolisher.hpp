@@ -367,14 +367,15 @@ public:
 		abpoa_post_set_para(abpt);
 		*/
 		
-		
 		//mapReads();
 		executeCircularize();
 		
+		loadContigsPre();
 		parseAlignments(false);
 		//writeAlignmentBestHits();
 		//parseAlignments(true, false);
 		partitionReads();
+		_contigSequences.clear();
 		
 
 		/*
@@ -918,6 +919,19 @@ public:
 		//if(fs::exists(_outputFilename_mapping)) fs::remove(_outputFilename_mapping);
 	}
 
+	void loadContigsPre(){
+		auto fp = std::bind(&ContigPolisher::loadContigsPre_read, this, std::placeholders::_1);
+		ReadParser readParser(_inputFilename_contigs, true, false);
+		readParser.parse(fp);
+	}
+	
+	void loadContigsPre_read(const Read& read){
+
+		//u_int32_t contigIndex = read._index;
+		const string& contigName = Utils::shortenHeader(read._header);
+		_contigSequences[contigName] = "";
+	}
+
 	void loadContigs(){
 		auto fp = std::bind(&ContigPolisher::loadContigs_read, this, std::placeholders::_1);
 		ReadParser readParser(_inputFilename_contigs, true, false);
@@ -1145,7 +1159,7 @@ public:
 			if(error > errorThreshold) continue;
 
 
-			if(indexPartitionOnly && _contigSequences.find(contigName) == _contigSequences.end()) continue;
+			if(_contigSequences.find(contigName) == _contigSequences.end()) continue;
 
 
 			//u_int32_t length = std::max((u_int64_t)(readEnd - readStart), (u_int64_t)(contigEnd - contigStart));
