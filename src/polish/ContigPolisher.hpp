@@ -1830,7 +1830,7 @@ public:
 					u_int64_t wEnd = min(_contigSequences[contigName].size(), wStart+_windowLength);
 					string contigOriginalSequence = _contigSequences[contigName].substr(wStart, wEnd-wStart);
 
-					checksum += sequences.size()+1;
+					//checksum += sequences.size()+1;
 					//cout << w << ": " << (sequences.size()+1) << endl;
 					//continue;
 					//cout << contigOriginalSequence << endl;
@@ -2135,9 +2135,17 @@ public:
 						correctedSequence = correctedSequence.substr(begin, end - begin + 1);
 					}
 
+					for(char letter : correctedSequence){
+						checksum += letter;
+					}
 					//cout << "3" << endl;
-					//cout << correctedSequence << endl;
-					//getchar();
+
+					#pragma omp critical
+					{
+					cout << w << " " << sequences.size() << " " << correctedSequence.size() << " " << checksum << endl;
+					getchar();
+					}
+
 					correctedWindows[w] = new DnaBitset2(correctedSequence);
 				}
 			}
