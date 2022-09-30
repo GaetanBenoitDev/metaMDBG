@@ -840,11 +840,13 @@ public:
 			
 			if(_contigPolisher._alignments.find(readName) == _contigPolisher._alignments.end()) return;
 
+
 			//unordered_set<u_int32_t> writtenPartitions;
 
 			//for(const Alignment& al : _contigPolisher._alignments[readIndex]){
 			const Alignment& al = _contigPolisher._alignments[readName];
 			const string& contigName = al._contigName;
+			if(contigName != "ctg90297c") return;
 			//u_int32_t contigIndex = al._contigIndex; //_contigPolisher._alignments[readIndex]._contigIndex;
 			//cout << contigIndex << " " << (_contigPolisher._contigToPartition.find(contigIndex) != _contigPolisher._contigToPartition.end()) << endl;
 			u_int32_t partition = _contigPolisher._contigToPartition[contigName];
