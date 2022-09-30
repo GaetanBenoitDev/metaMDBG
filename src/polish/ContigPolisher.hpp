@@ -125,6 +125,7 @@ public:
 	bool _useQual;
 	string _outputDir;
 	string _tmpDir;
+	string _readPartitionDir;
 	bool _circularize;
 	u_int64_t _minContigLength;
 	
@@ -313,6 +314,11 @@ public:
 			fs::create_directories(_tmpDir);
 		}
 
+		_readPartitionDir = _tmpDir + "/_polish_readPartitions/";
+		if(!fs::exists(_readPartitionDir)){
+			fs::create_directories(_readPartitionDir);
+		}
+
 		_inputFilename_reads = _tmpDir + "/input_polish.txt";
 		Commons::createInputFile(args::get(arg_readFilenames), _inputFilename_reads);
 
@@ -330,7 +336,7 @@ public:
 		//_outputFilename_contigs = p.string() + "_corrected.fasta.gz";
 		//_outputFilename_mapping = p.string() + "_tmp_mapping__.paf";
 		_outputFilename_contigs = _outputDir + "/contigs_polished.fasta.gz";
-		_outputFilename_mapping = _tmpDir + "/polish_mapping.paf.gz";
+		_outputFilename_mapping = _readPartitionDir + "/polish_mapping.paf.gz";
 		//_outputFilename_mapping = "/mnt/gpfs/gaetan/tmp/debug_polish/racon_align.paf";
 
 		_maxMemory = 4000000000ull;
@@ -425,7 +431,7 @@ public:
 		gzclose(fp);
 		*/
 		gzclose(_outputContigFile);
-		//fs::remove_all(_tmpDir);
+		fs::remove_all(_readPartitionDir);
 
 	}
 
@@ -700,7 +706,7 @@ public:
 
 		for(u_int32_t i=0; i<_nbPartitions; i++){
 			_partitionNbReads[i] = 0;
-			_partitionFiles.push_back(new PartitionFile(i, _tmpDir));
+			_partitionFiles.push_back(new PartitionFile(i, _readPartitionDir));
 		}
 
 		u_int32_t partition = 0;
@@ -1359,7 +1365,7 @@ public:
 		//readParser.parse(fp);
 
 
-		const string& partitionFilename = _tmpDir + "/part_" + to_string(partition) + ".gz";
+		const string& partitionFilename = _readPartitionDir + "/part_" + to_string(partition) + ".gz";
 		ReadParserParallel readParser(partitionFilename, true, false, _nbCores);
 		readParser.parse(CollectWindowSequencesFunctor(*this));
 	}
