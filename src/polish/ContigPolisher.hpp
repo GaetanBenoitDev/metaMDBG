@@ -1010,7 +1010,7 @@ public:
 		//float _score;
 		//u_int64_t _length;
 		
-		u_int64_t length(){
+		u_int64_t length() const{
 			return std::max((u_int64_t)(_readEnd - _readStart), (u_int64_t)(_contigEnd - _contigStart));
 		}
 		
@@ -1155,7 +1155,7 @@ public:
 			if(error > errorThreshold) continue;
 
 
-			if(indexPartitionOnly && _contigSequences.find(contigName) == _contigSequences.end()) continue;
+			//if(indexPartitionOnly && _contigSequences.find(contigName) == _contigSequences.end()) continue;
 
 
 			//u_int32_t length = std::max((u_int64_t)(readEnd - readStart), (u_int64_t)(contigEnd - contigStart));
@@ -1166,7 +1166,9 @@ public:
 			}
 			else{
 
-				if(length > align.length()){
+				const Alignment& existingAlign = _alignments[readName];
+
+				if(length >= existingAlign.length()){
 					_alignments[readName] = align;
 				}
 
@@ -1232,7 +1234,20 @@ public:
 		delete fields;
 		delete fields_optional;
 
+		if(indexPartitionOnly){
+			auto it = _alignments.begin();
+			while (it != _alignments.end()) {
 
+				const string& contigName = it->second._contigName;
+
+				if(_contigSequences.find(contigName) == _contigSequences.end()){
+					it = _alignments.erase(it);
+				}
+				else{
+					it++;
+				}
+			}
+		}
 
 
 		/*
