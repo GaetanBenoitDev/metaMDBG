@@ -369,7 +369,7 @@ public:
 		*/
 		
 		
-		//mapReads();
+		mapReads();
 		if(_circularize) executeCircularize();
 		
 		parseAlignments(false);
@@ -988,7 +988,7 @@ public:
 			readFilenames += filename + " ";
 		}
 
-		string command = "minimap2 -I 2G -t " + to_string(_nbCores) + " -x map-hifi " + _inputFilename_contigs + " " + readFilenames;
+		string command = "minimap2 -I 1G -t " + to_string(_nbCores) + " -x map-hifi " + _inputFilename_contigs + " " + readFilenames;
 		command += " > " + _outputFilename_mapping;
 		//command += " | gzip -c - > " c;
 		//command += " | " + _mapperOutputExeFilename + " " + _inputFilename_contigs + " " + _inputFilename_reads + " " + _outputFilename_mapping;
