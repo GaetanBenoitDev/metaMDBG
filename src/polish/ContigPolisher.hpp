@@ -335,10 +335,10 @@ public:
 		_maxMemory = 4000000000ull;
 
 		if(_useQual){
-			_windowByteSize = _maxWindowCopies  * ((_windowLength/4) + _windowLength);
+			_windowByteSize = 20  * ((_windowLength/4) + _windowLength);
 		}
 		else{
-			_windowByteSize = _maxWindowCopies  * (_windowLength/4);
+			_windowByteSize = 20  * (_windowLength/4);
 		}
 
 
@@ -368,7 +368,7 @@ public:
 		*/
 		
 		
-		mapReads();
+		//mapReads();
 		executeCircularize();
 		
 		parseAlignments(false);
