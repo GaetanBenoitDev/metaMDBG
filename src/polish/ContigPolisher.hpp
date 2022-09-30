@@ -143,6 +143,7 @@ public:
 	unordered_map<u_int64_t, vector<u_int64_t>> _contigMapRight;
 
 
+	u_int64_t _checksumWrittenReads;
 
 	struct ContigRead{
 		u_int32_t _contigIndex;
@@ -369,7 +370,7 @@ public:
 		
 		
 		//mapReads();
-		executeCircularize();
+		if(_circularize) executeCircularize();
 		
 		parseAlignments(false);
 		//writeAlignmentBestHits();
@@ -811,6 +812,7 @@ public:
 
 
 	void writeReadPartitions(){
+		_checksumWrittenReads = 0;
 		ReadParserParallel readParser(_inputFilename_reads, false, false, _nbCores);
 		readParser.parse(ReadPartitionFunctor(*this));
 	}
@@ -888,6 +890,10 @@ public:
 				gzwrite(partitionFile->_file, (const char*)&seq[0], seq.size());
 			}
 
+			for(char letter : readName){
+				_contigPolisher._checksumWrittenReads += letter;
+			}
+			cout << readName << " " << _contigPolisher._checksumWrittenReads << endl;
 
 			//gzwrite(partitionFile->_file, (const char*)&readIndex, sizeof(readIndex));
 			//gzwrite(partitionFile->_file, (const char*)&readSize, sizeof(readSize));
@@ -1082,6 +1088,8 @@ public:
 	*/
 
 	void parseAlignments(bool indexPartitionOnly){
+
+		_alignments.clear();
 
 		cout << "\tParsing alignments" << endl;
 		/*
