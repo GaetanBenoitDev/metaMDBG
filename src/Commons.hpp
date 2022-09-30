@@ -23,10 +23,10 @@ GenerateContigs:
 
 ContigPolisher:
 	- determiner le coverage d'un contig, utiliser cette valeur pour estimater la memory total du contig _windowByteSize = (contigLength*windowLength*NbWindows) (puis _windowByteSize a enelever)
-	- flag "c" rempalcer par "l" parfois a check
-	- supprimer les fichier temporaire (read partition) quand tout est debug
 	- compress paf (gzip)
 	- read mal mapper sur les bord des contig circulaire (double mapping)
+	- nb windows en paramètre
+	- refaire fonctionner le circularize
 
 - logs:
 	- écrire les logs debug dans un fichier dans tmpDir

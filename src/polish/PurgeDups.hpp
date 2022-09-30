@@ -35,6 +35,23 @@ public:
 	//u_int64_t _maxMemory;
 
 	struct Alignment{
+		string _contigName;
+		//u_int64_t _readIndex;
+		bool _strand;
+		u_int32_t _readStart;
+		u_int32_t _readEnd;
+		u_int32_t _contigStart;
+		u_int32_t _contigEnd;
+		//float _score;
+		//u_int64_t _length;
+		
+		u_int64_t length() const{
+			return std::max((u_int64_t)(_readEnd - _readStart), (u_int64_t)(_contigEnd - _contigStart));
+		}
+		
+	};
+	/*
+	struct Alignment{
 		u_int32_t _contigIndex;
 		//u_int64_t _readIndex;
 		bool _strand;
@@ -50,6 +67,7 @@ public:
 		}
 		
 	};
+	*/
 
 	PurgeDups(): Tool (){
 
@@ -138,7 +156,7 @@ public:
 		_minDuplicationLength_internal = 30000;
 		_minDuplicationIdentity_internal = 0.95;
 		//_outputFilename_contigs = p.string() + "_corrected.fasta.gz";
-		_outputFilename_mapping = _tmpDir + "/_tmp_mapping_derep__.paf";
+		_outputFilename_mapping = _tmpDir + "/_tmp_mapping_derep__.paf.gz";
 		//_maxMemory = 4000000000ull;
 
 		_file_duplicatedContigs = ofstream(_outputDir + "/duplicatedContigs.txt");
@@ -150,10 +168,11 @@ public:
 	}
 
 	gzFile _outputContigFile;
-	unordered_map<u_int32_t, string> _contigSequences;
-	unordered_map<u_int32_t, vector<Alignment>> _alignments;
+	unordered_map<string, string> _contigSequences;
+	unordered_map<string, vector<Alignment>> _alignments;
 
-	unordered_map<u_int32_t, string> _debug_contigIndex_to_contigName;
+	/*
+	//unordered_map<string, string> _debug_contigIndex_to_contigName;
 
 	void debug_indexContigName(){
 		
@@ -165,10 +184,11 @@ public:
 	void indexContigName_read(const Read& read){
 		_debug_contigIndex_to_contigName[read._index] = read._header;
 	}
+	*/
 
     void execute (){
 
-		debug_indexContigName();
+		//debug_indexContigName();
 		mapReads();
 		processContigs();
 		
@@ -185,13 +205,14 @@ public:
 		input.close();
 
 		string command = "minimap2 -m 900 -H -DP --dual=no -I 2G -t " + to_string(_nbCores) + " -x map-hifi " + _inputFilename_contigs + " " + _inputFilename_contigs;
-		command += " | " + _mapperOutputExeFilename + " " + _inputFilename_contigs + " " + inputContigsFilename + " " + _outputFilename_mapping;
+		command += " > " + _outputFilename_mapping;
+		//command += " | " + _mapperOutputExeFilename + " " + _inputFilename_contigs + " " + inputContigsFilename + " " + _outputFilename_mapping;
 		Utils::executeCommand(command, _outputDir);
 	}
 
 	u_int64_t _currentLoadedBases;
-	unordered_map<u_int32_t, vector<DbgEdge>> _duplicationEnds;
-	unordered_map<u_int32_t, vector<DbgEdge>> _duplicationInternal;
+	unordered_map<string, vector<DbgEdge>> _duplicationEnds;
+	unordered_map<string, vector<DbgEdge>> _duplicationInternal;
 	//unordered_set<DbgEdge, hash_pair> _performedPairs;
 
 	void processContigs(){
@@ -208,9 +229,10 @@ public:
 	
 	void processContigs_read(const Read& read){
 
-		u_int32_t contigIndex = read._index;
+		const string& contigName = Utils::shortenHeader(read._header);
+		//u_int32_t contigIndex = read._index;
 
-		_contigSequences[contigIndex] = read._seq;
+		_contigSequences[contigName] = read._seq;
 		_currentLoadedBases += read._seq.size();
 
 		if(_currentLoadedBases > _maxBases){
@@ -237,41 +259,46 @@ public:
 
 		cout << "\tIndexing alignments" << endl;
 
+		double errorThreshold = 0.3;
+
+		vector<string>* fields = new vector<string>();
+		vector<string>* fields_optional = new vector<string>();
         ifstream infile(_outputFilename_mapping);
 
-        std::string line;
+		string lineInput;
+		while (getline(infile, lineInput)) {
+			//cout << lineInput << endl;
+			//getchar();
 
-		while(true){
 
-			u_int32_t contigIndex;
-			u_int32_t contigLength;
-			u_int64_t readIndex;
-			u_int32_t readStart;
-			u_int32_t readEnd;
-			u_int32_t contigStart;
-			u_int32_t contigEnd;
-			float score;
-			bool strand;
+			GfaParser::tokenize(lineInput, fields, '\t');
 
-			infile.read((char*)&contigIndex, sizeof(contigIndex));
-			if(infile.eof()) break;
-			infile.read((char*)&contigLength, sizeof(contigLength));
-			infile.read((char*)&contigStart, sizeof(contigStart));
-			infile.read((char*)&contigEnd, sizeof(contigEnd));
-			infile.read((char*)&readIndex, sizeof(readIndex));
-			infile.read((char*)&readStart, sizeof(readStart));
-			infile.read((char*)&readEnd, sizeof(readEnd));
-			infile.read((char*)&strand, sizeof(strand));
-			infile.read((char*)&score, sizeof(score));
+			//cout << line << endl;
 
-			if(contigIndex == readIndex) continue;
-			if(_contigSequences.find(contigIndex) == _contigSequences.end() && _contigSequences.find(readIndex) == _contigSequences.end()) continue;
+			const string& readName = Utils::shortenHeader((*fields)[0]);
+			const string& contigName = Utils::shortenHeader((*fields)[5]);
+			
+
+			u_int32_t readStart = stoull((*fields)[2]);
+			u_int32_t readEnd = stoull((*fields)[3]);
+			u_int32_t contigLength = stoull((*fields)[6]);
+			u_int32_t contigStart = stoull((*fields)[7]);
+			u_int32_t contigEnd = stoull((*fields)[8]);
+
+			u_int64_t nbMatches = stoull((*fields)[9]);
+			u_int64_t alignLength = stoull((*fields)[10]);
+			u_int64_t queryLength = stoull((*fields)[1]);
+
+			bool strand = (*fields)[4] == "-";
+
+			if(readName == contigName) continue;
+			if(_contigSequences.find(contigName) == _contigSequences.end() && _contigSequences.find(readName) == _contigSequences.end()) continue;
 
 			u_int32_t length = std::max((u_int64_t)(readEnd - readStart), (u_int64_t)(contigEnd - contigStart));
 			if(length < 1000) continue;
 
-			Alignment align = {contigIndex, strand, readStart, readEnd, contigStart, contigEnd}; //, score
-			_alignments[readIndex].push_back(align);
+			Alignment align = {contigName, strand, readStart, readEnd, contigStart, contigEnd}; //, score
+			_alignments[readName].push_back(align);
 			/*
 			u_int32_t length = std::max((u_int64_t)(readEnd - readStart), (u_int64_t)(contigEnd - contigStart));
 
@@ -287,6 +314,11 @@ public:
 			}
 			*/
         }
+
+		delete fields;
+		delete fields_optional;
+		infile.close();
+		
 	}
 
 	void detectDuplication(){
@@ -312,8 +344,8 @@ public:
 		//unordered_map<string, u_int32_t>& _contigName_to_contigIndex;
 		//unordered_map<string, u_int64_t>& _readName_to_readIndex;
 		//unordered_map<u_int64_t, vector<Alignment>>& _alignments;
-		unordered_map<u_int32_t, vector<Alignment>>& _alignments;
-		unordered_map<u_int32_t, string>& _contigSequences;
+		unordered_map<string, vector<Alignment>>& _alignments;
+		unordered_map<string, string>& _contigSequences;
 		//unordered_map<u_int32_t, vector<vector<Window>>>& _contigWindowSequences;
 		//size_t _windowLength;
 
@@ -331,6 +363,8 @@ public:
 		void operator () (const Read& read) {
 
 			
+			const string& readName = Utils::shortenHeader(read._header);
+
 			//u_int64_t readIndex = stoull(read._header);
 
 			//#pragma omp critical
@@ -338,10 +372,10 @@ public:
 				//cout << read._index << endl;
 			//}
 
-			if(_alignments.find(read._index) == _alignments.end()) return;
+			if(_alignments.find(readName) == _alignments.end()) return;
 
 			//cout << "\t" << _alignments[read._index].size() << endl;
-			for(const Alignment& al : _alignments[read._index]){
+			for(const Alignment& al : _alignments[readName]){
 
 				//if(read._index == al._contigIndex){
 
@@ -349,7 +383,7 @@ public:
 				//	continue;
 				//}
 				
-				if(_contigSequences.find(al._contigIndex) == _contigSequences.end()) continue;
+				if(_contigSequences.find(al._contigName) == _contigSequences.end()) continue;
 
 				//cout << al._readStart << " " << al._readEnd << endl;
 				processAlignment(read, al);
@@ -421,17 +455,20 @@ public:
 
 		void processAlignment(const Read& read, const Alignment& al){
 
-			u_int32_t readIndex = read._index;
-			u_int32_t contigIndex = al._contigIndex;
+			const string& readIndex = Utils::shortenHeader(read._header);
+			const string& contigIndex = al._contigName;
+
+			//u_int32_t readIndex = read._index;
+			//u_int32_t contigIndex = al._contigIndex;
 
 
 			const string& contigSequenceComplete = _contigSequences[contigIndex];
 
 
-			#pragma omp critical
-			{
-				cout << readIndex << " " << read._seq.size() << " " << al._readStart << " " << al._readEnd << "    " << contigIndex << " " << contigSequenceComplete.size() << " " << al._contigStart << " " << al._contigEnd << endl;
-			}
+			//#pragma omp critical
+			//{
+			//	cout << readName << " " << read._seq.size() << " " << al._readStart << " " << al._readEnd << "    " << contigIndex << " " << contigSequenceComplete.size() << " " << al._contigStart << " " << al._contigEnd << endl;
+			//}
 
 			if(al.length() > 400000) return;
 
@@ -645,7 +682,7 @@ public:
 			free(cigar);
 		}
 
-		void checkInternalDuplication(u_int32_t targetIndex, u_int32_t alignStart, u_int32_t alignEnd, const vector<u_int8_t>& isMatches){
+		void checkInternalDuplication(const string& targetIndex, u_int32_t alignStart, u_int32_t alignEnd, const vector<u_int8_t>& isMatches){
 
 			size_t alignLength = alignEnd - alignStart;
 			if(alignLength < _purgeDups._minDuplicationLength_internal) return;
@@ -766,7 +803,7 @@ public:
 			return identity;
 		}
 
-		bool checkOverlap(u_int32_t targetIndex, u_int32_t alignStart, u_int32_t alignEnd, u_int32_t seqLength, const vector<u_int8_t>& isMatches, bool& allowOverlapLeft, bool& allowOverlapRight){
+		bool checkOverlap(const string& targetIndex, u_int32_t alignStart, u_int32_t alignEnd, u_int32_t seqLength, const vector<u_int8_t>& isMatches, bool& allowOverlapLeft, bool& allowOverlapRight){
 
 			u_int64_t hangLeft = alignStart;
 			u_int64_t hangRight = seqLength - alignEnd;
@@ -789,7 +826,7 @@ public:
 					#pragma omp critical(dup)
 					{
 						//cout << "\tleft overlap: " << overlapLength << " " << alignStart << " " << alignEnd << endl;
-						cout << "\tleft overlap: " << _purgeDups._debug_contigIndex_to_contigName[targetIndex] << " " << alignStart << " " << alignEnd << endl;
+						cout << "\tleft overlap: " << targetIndex << " " << alignStart << " " << alignEnd << endl;
 						_purgeDups._duplicationEnds[targetIndex].push_back({alignStart, alignEnd});
 					}
 				}
@@ -804,7 +841,7 @@ public:
 					#pragma omp critical(dup)
 					{
 						//cout << "\tright overlap: " << overlapLength << " " << alignStart << " " << alignEnd << endl;
-						cout << "\tright overlap: " << _purgeDups._debug_contigIndex_to_contigName[targetIndex] << " " << alignStart << " " << alignEnd << endl;
+						cout << "\tright overlap: " << targetIndex << " " << alignStart << " " << alignEnd << endl;
 						_purgeDups._duplicationEnds[targetIndex].push_back({alignStart, alignEnd});
 					}
 				}
@@ -975,7 +1012,8 @@ public:
 
 	void dumpDereplicatedContigs_read(const Read& read){
 
-		u_int64_t contigIndex = read._index; //Utils::contigName_to_contigIndex(read._header);
+		const string& contigName = Utils::shortenHeader(read._header);
+		//u_int64_t contigIndex = read._index; //Utils::contigName_to_contigIndex(read._header);
 
 		string seq = read._seq;
 
@@ -985,12 +1023,12 @@ public:
 			//cout << "-----" << endl;
 		vector<bool> isDuplicated(seq.size(), false);
 
-		for(const DbgEdge& duplicatedBound : _duplicationEnds[contigIndex]){
+		for(const DbgEdge& duplicatedBound : _duplicationEnds[contigName]){
 			for(size_t i=duplicatedBound._from; i<duplicatedBound._to; i++){
 				isDuplicated[i] = true;
 			}
 		}
-		for(const DbgEdge& duplicatedBound : _duplicationInternal[contigIndex]){
+		for(const DbgEdge& duplicatedBound : _duplicationInternal[contigName]){
 			for(size_t i=duplicatedBound._from; i<duplicatedBound._to; i++){
 				isDuplicated[i] = true;
 			}
@@ -1023,13 +1061,13 @@ public:
 
 		isDuplicated.clear();
 
-		for(const DbgEdge& duplicatedBound : _duplicationEnds[contigIndex]){
+		for(const DbgEdge& duplicatedBound : _duplicationEnds[contigName]){
 			for(size_t i=duplicatedBound._from; i<duplicatedBound._to; i++){
 				isDuplicated[i] = true;
 			}
 		}
 		if(_cut_contigInternal){
-			for(const DbgEdge& duplicatedBound : _duplicationInternal[contigIndex]){
+			for(const DbgEdge& duplicatedBound : _duplicationInternal[contigName]){
 				for(size_t i=duplicatedBound._from; i<duplicatedBound._to; i++){
 					isDuplicated[i] = true;
 				}

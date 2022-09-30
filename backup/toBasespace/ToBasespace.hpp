@@ -249,6 +249,7 @@ public:
 	vector<vector<u_int64_t>> _unitigDatas;
 	ofstream _contigFileSupported;
 	ifstream _contigFileSupported_input;
+	//abpoa_para_t *abpt;
 
 	u_int64_t _bestSupportChecksum;
 
@@ -257,7 +258,16 @@ public:
 		_checksum = 0;
 		_bestSupportChecksum = 0;
 
+		/*
+		abpt = abpoa_init_para();
+		abpt->out_msa = 1; // generate Row-Column multiple sequence alignment(RC-MSA), set 0 to disable
+		abpt->out_cons = 0; // generate consensus sequence, set 0 to disable
+		abpt->w = 6, abpt->k = 9; abpt->min_w = 10; // minimizer-based seeding and partition
+		abpt->progressive_poa = 1;
+		abpt->max_n_cons = 2;
 
+		abpoa_post_set_para(abpt);
+		*/
 		//_kminmerSize = 4;
 
 		cout << "Loading mdbg" << endl;
@@ -1147,12 +1157,17 @@ public:
 		MinimizerParser* _minimizerParser;
 		size_t _minimizerSize;
 		float _minimizerDensity;
+		
+		//spoa::Graph _graph;
+		//std::unique_ptr<spoa::AlignmentEngine> _alignementEngine;
+		//abpoa_t *ab;
 
 		ExtractKminmerSequenceFunctor(size_t minimizerSize, float minimizerDensity, ToBasespace& toBasespace, bool collectModel) : _toBasespace(toBasespace){
 			_minimizerSize = minimizerSize;
 			_minimizerDensity = minimizerDensity;
 			_minimizerParser = new MinimizerParser(minimizerSize, minimizerDensity);
 			
+			_alignementEngine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kNW, 3, -5, -3);  // linear gaps
 			_collectModel = collectModel;
 		}
 
@@ -1161,6 +1176,7 @@ public:
 			_minimizerDensity = copy._minimizerDensity;
 			_minimizerParser = new MinimizerParser(_minimizerSize, _minimizerDensity);
 
+			_alignementEngine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kNW, 3, -5, -3);  // linear gaps
 			_collectModel = copy._collectModel;
 
 
@@ -1337,7 +1353,7 @@ public:
 
 		void addKminmerSequenceVariant_add_all(u_int32_t nodeName, u_int64_t readIndex, auto& variants, const string& sequence, auto& isDoneNodeName, auto& correctedSequences, auto& repeatedKminmers){
 			
-			//static EdlibAlignConfig config = edlibNewAlignConfig(-1, EDLIB_MODE_NW, EDLIB_TASK_DISTANCE, NULL, 0);
+			static EdlibAlignConfig config = edlibNewAlignConfig(-1, EDLIB_MODE_NW, EDLIB_TASK_DISTANCE, NULL, 0);
 
 			//cout << (isDoneNodeName.find(nodeName) != isDoneNodeName.end()) << endl;
 			//if(sequenceModel == nullptr){
@@ -1426,6 +1442,55 @@ public:
 
 			}
 
+			if(!_collectModel && isRepeated && readSequences != nullptr){
+
+				//if(nodeName == 3114) cout << "OOOOOOOOOO " << nodeName << endl;
+				for(ReadSequence& readSequence : *readSequences){
+					if(readSequence._sequence == nullptr){
+						//cout << "No model sequence" << endl;
+						continue;
+					}
+					char* dnaSeq_model_str = readSequence._sequence->to_string();
+
+					EdlibAlignResult result = edlibAlign(dnaSeq_model_str, strlen(dnaSeq_model_str), sequence.c_str(), sequence.size(), config);
+					free(dnaSeq_model_str);
+
+					if (result.status != EDLIB_STATUS_OK){
+						cout << "Invalid edlib status" << endl;
+						//continue;
+					}
+					else{
+						
+						#pragma omp critical
+						{
+
+							if(readSequence._variants.size() < 19){
+								readSequence._variants.push({result.editDistance, new DnaBitset(sequence)});
+							}
+							else{
+								if(result.editDistance < readSequence._variants.top()._editDistance){
+
+									KminmerSequenceVariant variant = readSequence._variants.top();
+									delete variant._sequence;
+
+									readSequence._variants.pop();
+									readSequence._variants.push({result.editDistance, new DnaBitset(sequence)});
+								}
+							}
+
+							//if(nodeName == 3114) cout << readSequence._variants.size() << endl;
+						}
+
+					}
+				
+
+					edlibFreeAlignResult(result);
+
+				}
+
+
+				return;
+			}
 
 			if(cancel) return;
 
@@ -1438,10 +1503,379 @@ public:
 			}
 
 
+
+			//variants.erase(nodeName);
+
+			//if(queue.size() < 20){
+			//	queue.push({0, new DnaBitset(sequence)});
+			//}
+
+			/*
+			return;
+			
+			
+
+
+			char* sequenceModelStr = sequenceModel->to_string();
+
+			EdlibAlignResult result = edlibAlign(sequenceModelStr, sequenceModel->m_len, sequence.c_str(), sequence.size(), config);
+			free(sequenceModelStr);
+
+			if (result.status != EDLIB_STATUS_OK){
+				edlibFreeAlignResult(result);
+				return;
+			}
+			
+			
+			if(queue.size() < 20){
+				queue.push({result.editDistance, new DnaBitset(sequence)});
+			}
+			else{
+				if(result.editDistance < queue.top()._editDistance){
+
+					const KminmerSequenceVariant& variant = queue.top();
+					delete variant._sequence;
+
+					queue.pop();
+					queue.push({result.editDistance, new DnaBitset(sequence)});
+				}
+			}
+			
+			edlibFreeAlignResult(result);
+			*/
 		}
 
 
+		/*
+				for(DnaBitset* dnaSeq : kminmerCopies){
+
+					static EdlibAlignConfig config = edlibNewAlignConfig(-1, EDLIB_MODE_NW, EDLIB_TASK_DISTANCE, NULL, 0);
+
+					//cout << (dnaSeq != nullptr) << " " << dnaSeq->m_len << endl;
+					char* dnaSeqStr = dnaSeq->to_string();
+					string sequence = string(dnaSeqStr, dnaSeq->m_len);
+					//cout << string(sequenceModelStr).size() << " " << sequence.size() << endl;
+
+					EdlibAlignResult result = edlibAlign(sequenceModelStr, sequenceModel->m_len, sequence.c_str(), sequence.size(), config);
+					free(dnaSeqStr);
+
+					if (result.status != EDLIB_STATUS_OK){
+						edlibFreeAlignResult(result);
+						cout << "Invalid edlib status" << endl;
+						continue;
+					}
+				
+					if(queue.size() < 20){
+						queue.push({result.editDistance, sequence});
+					}
+					else{
+						if(result.editDistance < queue.top()._editDistance){
+
+							const KminmerSequenceVariant& variant = queue.top();
+							//delete variant._sequence;
+
+							queue.pop();
+							queue.push({result.editDistance, sequence});
+						}
+					}
+					
+					edlibFreeAlignResult(result);
+
+				}
+		*/
+
 		void performErrorCorrection_all(u_int32_t nodeName, const vector<DnaBitset*>& sequences, string& correctedSequence){
+			
+
+			if(sequences.size() == 0){
+				cout << "pas normal" << endl;
+				//getchar();
+				correctedSequence = "";
+				return;
+			}
+			
+			/*
+			DnaBitset* dna = sequences[0];
+			char* dnaStr = dna->to_string();
+			correctedSequence = string(dnaStr);
+			free(dnaStr);
+			return;
+			*/
+			
+			ab = abpoa_init();
+
+
+			/*
+			vector<string> seqSorted;
+			for(size_t i=1; i<sequences.size(); i++){
+				DnaBitset* dna = sequences[i];
+				//const DnaBitset* dna = variant._sequence; //sequenceCopies[s._sequenceIndex];
+				char* dnaStr = dna->to_string();
+				seqSorted.push_back(string(dnaStr));
+				free(dnaStr);
+			}
+
+
+			std::sort(seqSorted.begin(), seqSorted.end());
+
+			DnaBitset* dnaModel = sequences[0];
+			//const DnaBitset* dna = variant._sequence; //sequenceCopies[s._sequenceIndex];
+			char* dnaStrModel = dnaModel->to_string();
+			seqSorted.insert(seqSorted.begin(), string(dnaStrModel));
+			free(dnaStrModel);
+			*/
+
+			//cout << "1" << endl;
+			int n_seqs = sequences.size();
+			int *seq_lens = (int*)malloc(sizeof(int) * n_seqs);
+			uint8_t **bseqs = (uint8_t**)malloc(sizeof(uint8_t*) * n_seqs);
+			
+			for(size_t i=0; i<sequences.size(); i++){ //&& processedSequences < 5
+
+				DnaBitset* dna = sequences[i];
+				//const DnaBitset* dna = variant._sequence; //sequenceCopies[s._sequenceIndex];
+				char* dnaStr = dna->to_string();
+
+				seq_lens[i] = strlen(dnaStr);
+				bseqs[i] = (uint8_t*)malloc(sizeof(uint8_t) * seq_lens[i]);
+
+				for (int j = 0; j < seq_lens[i]; ++j){
+					bseqs[i][j] = nt4_table2[(int)(dnaStr[j])];
+					//cout << dnaStr[j] << " " << bseqs[i][j] << endl;
+				}
+
+				//cout << s._sequenceIndex << " " << s._editDistance << endl;
+
+				//auto alignment = _alignementEngine->Align(dnaStr, dna->m_len, _graph);
+				//_graph.AddAlignment(alignment, dnaStr, dna->m_len);
+				//sequencesStr.push_back()
+				free(dnaStr);
+
+				//processedSequences += 1;
+			}
+
+			
+			abpoa_msa(ab, _toBasespace.abpt, n_seqs, NULL, seq_lens, bseqs, NULL);
+
+
+			
+			abpoa_cons_t *abc = ab->abc;
+			vector<vector<u_int32_t>> counts(abc->msa_len, vector<u_int32_t>(4, 0));
+
+			for (int i = 0; i < abc->n_seq; ++i) {
+				for (int j = 0; j < abc->msa_len; ++j) {
+
+					char c = nt256_table2[abc->msa_base[i][j]];
+					if(c == 'A'){
+						counts[j][0] += 1;
+					}
+					else if(c == 'C'){
+						counts[j][1] += 1;
+					}
+					else if(c == 'G'){
+						counts[j][2] += 1;
+					}
+					else if(c == 'T'){
+						counts[j][3] += 1;
+					}
+
+					//cout << (int) nt256_table2[abc->msa_base[i][j]];
+					//fprintf(stdout, "%c", nt256_table2[abc->msa_base[i][j]]);
+				}
+				//cout << endl;
+				//fprintf(stdout, "\n");
+			}
+
+			float t = n_seqs * 0.5;
+
+			correctedSequence.clear();
+
+			for(size_t i=0; i<counts.size(); i++){
+				for(size_t j=0; j<4; j++){
+					if(counts[i][j] > t){
+
+						if(j == 0){
+							correctedSequence += 'A';
+						}
+						else if(j == 1){
+							correctedSequence += 'C';
+						}
+						else if(j == 2){
+							correctedSequence += 'G';
+						}
+						else if(j == 3){
+							correctedSequence += 'T';
+						}
+						
+						break;
+					}
+				}
+			}
+
+			for (int i = 0; i < n_seqs; ++i) free(bseqs[i]); free(bseqs); free(seq_lens);
+			abpoa_free(ab);
+			
+
+			//cout << "3" << endl;
+			//cout << correctedSequence << endl;
+			//return;
+			
+			/*
+			if(sequences.size() == 1){
+				char* seq = sequences[0]->to_string();
+				correctedSequence = string(seq);
+				free(seq);
+				return;
+			}*/
+
+
+
+			
+			//static EdlibAlignConfig config = edlibNewAlignConfig(-1, EDLIB_MODE_NW, EDLIB_TASK_DISTANCE, NULL, 0);
+
+
+
+
+
+
+			
+			/*
+			u_int32_t processedSequences = 0;
+
+			vector<DnaBitset*> sequences;
+
+			while(!sequenceCopies.empty()){
+			//for(size_t i=0; i<variant_reversed.size() && processedSequences < 5; i++){
+				//const KminmerSequenceVariant& variant = variant_reversed[i]; //sequenceCopies.top();
+				const KminmerSequenceVariant& variant = sequenceCopies.top();
+				
+				//if(nodeName == 17326){
+				//	cout << variant._editDistance << endl;
+					//cout << variant._sequence << endl;
+				//}
+
+				
+				//if(nodeName == 17326){
+				//	cout << variant._sequence << endl;
+				//}
+				sequences.push_back(variant._sequence);
+				
+				sequenceCopies.pop();
+				//processedSequences += 1;
+			}
+			*/
+
+			/*
+			#pragma omp critical
+			{
+				cout << "-----" << endl;
+				for(size_t i=0; i<sequences.size(); i++){ //&& processedSequences < 5
+
+					DnaBitset* dna = sequences[i];
+					//const DnaBitset* dna = variant._sequence; //sequenceCopies[s._sequenceIndex];
+					char* dnaStr = dna->to_string();
+
+					cout << dnaStr << endl;
+
+					free(dnaStr);
+
+					//processedSequences += 1;
+				}
+				getchar();
+			}
+			*/
+
+			//std::reverse(sequences.begin(), sequences.end());
+			
+			/*
+			_graph.Clear();
+			
+			vector<string> seqSorted;
+			for(size_t i=1; i<sequences.size(); i++){
+				DnaBitset* dna = sequences[i];
+				//const DnaBitset* dna = variant._sequence; //sequenceCopies[s._sequenceIndex];
+				char* dnaStr = dna->to_string();
+				seqSorted.push_back(string(dnaStr));
+				free(dnaStr);
+			}
+
+
+			std::sort(seqSorted.begin(), seqSorted.end());
+
+			DnaBitset* dnaModel = sequences[0];
+			//const DnaBitset* dna = variant._sequence; //sequenceCopies[s._sequenceIndex];
+			char* dnaStrModel = dnaModel->to_string();
+			seqSorted.insert(seqSorted.begin(), string(dnaStrModel));
+			free(dnaStrModel);
+
+
+			for(size_t i=0; i<seqSorted.size(); i++){ //&& processedSequences < 5
+
+				//DnaBitset* dna = sequences[i];
+				//const DnaBitset* dna = variant._sequence; //sequenceCopies[s._sequenceIndex];
+				//char* dnaStr = dna->to_string();
+
+				//cout << s._sequenceIndex << " " << s._editDistance << endl;
+
+				auto alignment = _alignementEngine->Align(seqSorted[i].c_str(), seqSorted[i].size(), _graph);
+				_graph.AddAlignment(alignment, seqSorted[i].c_str(), seqSorted[i].size());
+
+				//free(dnaStr);
+
+				//processedSequences += 1;
+			}
+
+			//string consensus = _graph.GenerateConsensus();
+			//correctedSequence = consensus;
+			//return;
+
+			//cout << endl;
+			const vector<string>& msa = _graph.GenerateMultipleSequenceAlignment();
+			vector<vector<u_int32_t>> counts(msa[0].size(), vector<u_int32_t>(4, 0));
+
+
+			for(const string& seq : msa){
+				for(size_t i=0; i<seq.size(); i++){
+					if(seq[i] == 'A'){
+						counts[i][0] += 1;
+					}
+					else if(seq[i] == 'C'){
+						counts[i][1] += 1;
+					}
+					else if(seq[i] == 'G'){
+						counts[i][2] += 1;
+					}
+					else if(seq[i] == 'T'){
+						counts[i][3] += 1;
+					}
+				}
+			}
+
+
+			float t = msa.size() * 0.5;
+
+			correctedSequence.clear();
+
+			for(size_t i=0; i<counts.size(); i++){
+				for(size_t j=0; j<4; j++){
+					if(counts[i][j] > t){
+
+						if(j == 0){
+							correctedSequence += 'A';
+						}
+						else if(j == 1){
+							correctedSequence += 'C';
+						}
+						else if(j == 2){
+							correctedSequence += 'G';
+						}
+						else if(j == 3){
+				seqSorted		break;
+					}
+				}
+			}
+			*/
+			
 			
 		}
 

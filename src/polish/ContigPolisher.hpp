@@ -44,7 +44,7 @@
 #include "../utils/edlib.h"
 #include "../utils/spoa/include/spoa/spoa.hpp"
 #include "../utils/DnaBitset.hpp"
-#include "../utils/abPOA2/include/abpoa.h"
+//#include "../utils/abPOA2/include/abpoa.h"
 //#include "../utils/pafParser/paf_parser.hpp"
 
 /*
@@ -93,26 +93,7 @@ class ContigPolisher : public Tool{
     
 public:
 
-	class Alignment2{
-		public:
-		std::string q_name_;
-		uint64_t q_id_;
-		uint32_t q_begin_;
-		uint32_t q_end_;
-		uint32_t q_length_;
 
-		std::string t_name_;
-		uint64_t t_id_;
-		uint32_t t_begin_;
-		uint32_t t_end_;
-		uint32_t t_length_;
-
-		uint32_t strand_;
-		uint32_t length_;
-		double error_;
-		std::string cigar_;
-
-	};
 
 
 
@@ -185,7 +166,8 @@ public:
 	void parseArgs(int argc, char* argv[]){
 
 
-		string ARG_USE_QUAL = "qual";
+		char ARG_NB_WINDOWS = 'n';
+		string ARG_NO_QUAL = "noqual";
 		string ARG_CIRCULARIZE = "circ";
 		string filenameExe = argv[0];
 		//cout << filenameExe << endl;
@@ -246,8 +228,9 @@ public:
 		args::Positional<std::string> arg_contigs(parser, "contigs", "Contig filename to be corrected", args::Options::Required);
 		args::Positional<std::string> arg_outputDir(parser, "outputDir", "Output dir for contigs and temporary files", args::Options::Required);
 		args::PositionalList<std::string> arg_readFilenames(parser, "reads", "Read filename(s) used for correction (separated by space)", args::Options::Required);
+		args::ValueFlag<int> arg_nbWindows(parser, "", "Max window variants to use for correction (increase for better results) (0=best results but slow, 20=good result and fast)", {ARG_NB_WINDOWS}, 0);
 		args::ValueFlag<int> arg_nbCores(parser, "", "Number of cores", {ARG_NB_CORES2}, NB_CORES_DEFAULT_INT);
-		args::Flag arg_useQual(parser, "", "Use quality during correction (recommanded)", {ARG_USE_QUAL});
+		args::Flag arg_noQual(parser, "", "Do not use qualities during correction", {ARG_NO_QUAL});
 		args::Flag arg_useCirculize(parser, "", "Check if contigs are circular and add a flag in contig header (l: linear, c: circular)", {ARG_CIRCULARIZE});
 		args::Flag arg_help(parser, "", "", {'h', "help"}, args::Options::Hidden);
 		//args::HelpFlag help(parser, "help", "Display this help menu", {'h'});
@@ -288,14 +271,9 @@ public:
 		_outputDir = args::get(arg_outputDir);
 		_nbCores = args::get(arg_nbCores);
 
-		_useQual = false;
-		if(arg_useQual){
-			_useQual = true;
-		}
-
-		_useQual = false;
-		if(arg_useQual){
-			_useQual = true;
+		_useQual = true;
+		if(arg_noQual){
+			_useQual = false;
 		}
 
 		_circularize = false;
@@ -305,7 +283,7 @@ public:
 
 
 		_windowLength = 500;
-		_maxWindowCopies = 10000; //21;
+		_maxWindowCopies = args::get(arg_nbWindows);; //21;
 		_qualityThreshold = 10.0;
 		_minContigLength = 1000000;
 
@@ -325,6 +303,7 @@ public:
 		cout << "Contigs: " << _inputFilename_contigs << endl;
 		cout << "Reads: " << _inputFilename_reads << endl;
 		cout << "Use quality: " << _useQual << endl;
+		cout << "Max window variants: " << _maxWindowCopies << endl;
 
 		//fs::path p(_inputFilename_contigs);
 		//while(p.has_extension()){
@@ -1719,7 +1698,7 @@ public:
 				*/
 				
 				bool interrupt = false;
-				if(windows.size() < (_contigPolisher._maxWindowCopies-1)){
+				if(_contigPolisher._maxWindowCopies == 0 || windows.size() < (_contigPolisher._maxWindowCopies-1)){
 
 
 					windows.push_back({new DnaBitset2(windowSequence), windowQualities, posStart, posEnd});

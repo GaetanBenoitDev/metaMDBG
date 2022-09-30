@@ -439,7 +439,7 @@ public:
 			executeCommand(command);
 			*/
 
-			const string contigFilename_uncorrected = _outputDir + "/contigs_uncorrected.fasta.gz";
+			const string contigFilename_uncorrected = _tmpDir + "/contigs_uncorrected.fasta.gz";
 			command = _filename_exe + " toBasespace " + " -o " + _tmpDir + " -i " + _inputFilename + " -c " + _tmpDir + "/contig_data.txt " + " -f " + contigFilename_uncorrected + " --fasta"  + " -t " + to_string(_nbCores);
 			if(pass == 0) command += " --firstpass";
 			executeCommand(command);
@@ -454,9 +454,13 @@ public:
 
 			//./bin/metaMDBG polish ~/workspace/run/overlap_test_201/contigs_uncorrected.fasta.gz ~/workspace/run/overlap_test_201/ ~/workspace/data/overlap_test/genome_201_50x/simulatedReads_0.fastq.gz ~/workspace/data/overlap_test/genome_201_50x/simulatedReads_0.fastq.gz -t 15 --qual
 			//getchar();
-			command = _filename_exe + " polish " + contigFilename_uncorrected + " " + _outputDir + " " + readFilenames + " " + " -t " + to_string(_nbCores) + " --qual --circ";
+			command = _filename_exe + " polish " + contigFilename_uncorrected + " " + _outputDir + " " + readFilenames + " " + " -t " + to_string(_nbCores) + " --circ";
 			executeCommand(command);
 			//generatedContigs = true;
+
+			cout << endl;
+			cout << "Contig filename: " << _outputDir + "/contigs_polished.fasta.gz";
+			cout << "done!" << endl;
 		}
 		else{
 
