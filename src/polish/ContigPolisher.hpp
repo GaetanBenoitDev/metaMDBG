@@ -848,7 +848,7 @@ public:
 			//for(const Alignment& al : _contigPolisher._alignments[readIndex]){
 			const Alignment& al = _contigPolisher._alignments[readName];
 			const string& contigName = al._contigName;
-			if(contigName != "ctg90297c") return;
+			//if(contigName != "ctg90297c") return;
 			//u_int32_t contigIndex = al._contigIndex; //_contigPolisher._alignments[readIndex]._contigIndex;
 			//cout << contigIndex << " " << (_contigPolisher._contigToPartition.find(contigIndex) != _contigPolisher._contigToPartition.end()) << endl;
 			u_int32_t partition = _contigPolisher._contigToPartition[contigName];
@@ -893,7 +893,7 @@ public:
 			for(char letter : readName){
 				_contigPolisher._checksumWrittenReads += letter;
 			}
-			cout << readName << " " << _contigPolisher._checksumWrittenReads << endl;
+			//cout << readName << " " << _contigPolisher._checksumWrittenReads << endl;
 
 			//gzwrite(partitionFile->_file, (const char*)&readIndex, sizeof(readIndex));
 			//gzwrite(partitionFile->_file, (const char*)&readSize, sizeof(readSize));
@@ -2163,11 +2163,11 @@ public:
 					}
 					//cout << "3" << endl;
 
-					#pragma omp critical
-					{
-					cout << w << " " << sequences.size() << " " << correctedSequence.size() << " " << checksum << endl;
-					getchar();
-					}
+					//#pragma omp critical
+					//{
+					//cout << w << " " << sequences.size() << " " << correctedSequence.size() << " " << checksum << endl;
+					//getchar();
+					//}
 
 					correctedWindows[w] = new DnaBitset2(correctedSequence);
 				}
