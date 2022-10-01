@@ -5,9 +5,9 @@
 
 #include "../Commons.hpp"
 #include "../utils/edlib.h"
-#include "../utils/spoa/include/spoa/spoa.hpp"
+//#include "../utils/spoa/include/spoa/spoa.hpp"
 #include "../utils/DnaBitset.hpp"
-#include "../utils/abPOA2/include/abpoa.h"
+//#include "../utils/abPOA2/include/abpoa.h"
 
 
 class PurgeGraph : public Tool{

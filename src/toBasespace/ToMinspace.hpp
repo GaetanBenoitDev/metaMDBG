@@ -62,11 +62,50 @@ public:
 	}
 
 	void parseArgs(int argc, char* argv[]){
-		/*
-		//_inputFilename = getInput()->getStr(STR_INPUT);
-		_inputDir = getInput()->getStr(STR_INPUT_DIR);
-		*/
+
+
+		args::ArgumentParser parser("toMinspace", ""); //"This is a test program.", "This goes after the options."
+		args::Positional<std::string> arg_outputDir(parser, "outputDir", "", args::Options::Required);
+		args::Positional<std::string> arg_inputContigFilename(parser, "inputContigFilename", "", args::Options::Required);
+		args::Positional<std::string> arg_outputContigFilename(parser, "outputContigFilename", "", args::Options::Required);
+		//args::Positional<std::string> arg_contigs(parser, "contigs", "", args::Options::Required);
+		//args::PositionalList<std::string> arg_readFilenames(parser, "reads", "Input filename(s) (separated by space)", args::Options::Required);
+		//args::ValueFlag<int> arg_l(parser, "", "Minimizer length", {ARG_MINIMIZER_LENGTH2}, 13);
+		//args::ValueFlag<float> arg_d(parser, "", "Minimizer density", {ARG_MINIMIZER_DENSITY2}, 0.005f);
+		//args::ValueFlag<std::string> arg_contigs(parser, "", "", {ARG_INPUT_FILENAME_CONTIG}, "");
+		args::ValueFlag<int> arg_nbCores(parser, "", "Number of cores", {ARG_NB_CORES2}, NB_CORES_DEFAULT_INT);
+		//args::Flag arg_isFinalAssembly(parser, "", "Is final multi-k pass", {ARG_FINAL});
+		//args::Flag arg_firstPass(parser, "", "Is first pass of multi-k", {ARG_FIRST_PASS});
+		args::Flag arg_help(parser, "", "", {'h', "help"}, args::Options::Hidden);
+		//args::HelpFlag help(parser, "help", "Display this help menu", {'h'});
+		//args::CompletionFlag completion(parser, {"complete"});
+
 		
+
+		try
+		{
+			parser.ParseCLI(argc, argv);
+		}
+		catch (const std::exception& e)
+		{
+			std::cout << parser;
+			std::cout << e.what() << endl;
+			exit(0);
+		}
+
+		if(arg_help){
+			std::cout << parser;
+			exit(0);
+		}
+
+		_inputDir = args::get(arg_outputDir);
+		_filename_inputContigs = args::get(arg_inputContigFilename);
+		_filename_output = args::get(arg_outputContigFilename);
+		//_filename_inputContigs = args::get(arg_contigs);
+
+		//_nbCores = args::get(arg_nbCores);
+
+		/*
 		cxxopts::Options options("ToMinspace", "");
 		options.add_options()
 		//(ARG_INPUT_FILENAME, "", cxxopts::value<string>())
@@ -99,6 +138,7 @@ public:
 			std::cerr << e.what() << std::endl;
 			std::exit(EXIT_FAILURE);
 		}
+		*/
 
 		string filename_parameters = _inputDir + "/parameters.gz";
 		gzFile file_parameters = gzopen(filename_parameters.c_str(),"rb");

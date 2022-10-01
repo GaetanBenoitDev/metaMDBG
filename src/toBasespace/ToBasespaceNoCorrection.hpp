@@ -24,8 +24,8 @@ public:
     size_t _minimizerSize;
     size_t _kminmerSize;
 	size_t _kminmerSizeFirst;
-	bool _isFirstPass;
-	bool _isOutputFasta;
+	//bool _isFirstPass;
+	//bool _isOutputFasta;
 	int _nbCores;
 
 	float _minimizerSpacingMean;
@@ -63,7 +63,52 @@ public:
 
 	void parseArgs(int argc, char* argv[]){
 
+		args::ArgumentParser parser("toBasespaceFast", ""); //"This is a test program.", "This goes after the options."
+		args::Positional<std::string> arg_outputDir(parser, "outputDir", "", args::Options::Required);
+		args::Positional<std::string> arg_inputContigFilename(parser, "inputContigFilename", "", args::Options::Required);
+		args::Positional<std::string> arg_outputContigFilename(parser, "outputContigFilename", "", args::Options::Required);
+		args::Positional<std::string> arg_inputReadFilename(parser, "inputReadFilename", "", args::Options::Required);
+		//args::Positional<std::string> arg_contigs(parser, "contigs", "", args::Options::Required);
+		//args::PositionalList<std::string> arg_readFilenames(parser, "reads", "Input filename(s) (separated by space)", args::Options::Required);
+		//args::ValueFlag<int> arg_l(parser, "", "Minimizer length", {ARG_MINIMIZER_LENGTH2}, 13);
+		//args::ValueFlag<float> arg_d(parser, "", "Minimizer density", {ARG_MINIMIZER_DENSITY2}, 0.005f);
+		//args::ValueFlag<std::string> arg_contigs(parser, "", "", {ARG_INPUT_FILENAME_CONTIG}, "");
+		args::ValueFlag<int> arg_nbCores(parser, "", "Number of cores", {ARG_NB_CORES2}, NB_CORES_DEFAULT_INT);
+		//args::Flag arg_firstPass(parser, "", "Is first pass of multi-k", {ARG_FIRST_PASS});
+		//args::Flag arg_isFinalAssembly(parser, "", "Is final multi-k pass", {ARG_FINAL});
+		//args::Flag arg_firstPass(parser, "", "Is first pass of multi-k", {ARG_FIRST_PASS});
+		args::Flag arg_help(parser, "", "", {'h', "help"}, args::Options::Hidden);
+		//args::HelpFlag help(parser, "help", "Display this help menu", {'h'});
+		//args::CompletionFlag completion(parser, {"complete"});
 
+		try
+		{
+			parser.ParseCLI(argc, argv);
+		}
+		catch (const std::exception& e)
+		{
+			std::cout << parser;
+			std::cout << e.what() << endl;
+			exit(0);
+		}
+
+		if(arg_help){
+			std::cout << parser;
+			exit(0);
+		}
+
+		_inputDir = args::get(arg_outputDir);
+		_inputFilenameContig = args::get(arg_inputContigFilename);
+		_filename_outputContigs = args::get(arg_outputContigFilename);
+		_inputFilename = args::get(arg_inputReadFilename);
+		_nbCores = args::get(arg_nbCores);
+
+		//_isFirstPass = false;
+		//if(arg_firstPass){
+		//	_isFirstPass = true;
+		//}
+
+		/*
 		cxxopts::Options options("ToBasespace", "");
 		options.add_options()
 		(ARG_INPUT_FILENAME, "", cxxopts::value<string>())
@@ -104,7 +149,7 @@ public:
 			std::cerr << e.what() << std::endl;
 			std::exit(EXIT_FAILURE);
 		}
-
+		*/
 		/*
 		_inputFilename = getInput()->getStr(STR_INPUT);
 		_inputDir = getInput()->getStr(STR_INPUT_DIR);
@@ -515,23 +560,27 @@ public:
 		cout << "Creating basespace contigs: " << contigFilename << " " << outputFilename << endl;
 
 		_contigIndex = 0;
-		if(_isOutputFasta){
-			_basespaceContigFile = gzopen(outputFilename.c_str(),"wb");
-		}
-		else{
-			_contigFile_bitset = ofstream(contigFilename + ".bitset");
-		}
+		
+		_basespaceContigFile = gzopen(outputFilename.c_str(),"wb");
+		//if(_isOutputFasta){
+		//	_basespaceContigFile = gzopen(outputFilename.c_str(),"wb");
+		//}
+		//else{
+		//	_contigFile_bitset = ofstream(contigFilename + ".bitset");
+		//}
 
 		KminmerParser parser(contigFilename, _minimizerSize, _kminmerSize, false, false);
 		auto fp = std::bind(&ToBasespaceNoCorrection::createBaseContigs_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
 		parser.parseMinspace(fp);
 
-		if(_isOutputFasta){
-			gzclose(_basespaceContigFile);
-		}
-		else{
-			_contigFile_bitset.close();
-		}
+		gzclose(_basespaceContigFile);
+
+		//if(_isOutputFasta){
+		//	gzclose(_basespaceContigFile);
+		//}
+		//else{
+		//	_contigFile_bitset.close();
+		//}
 		
 
 	}

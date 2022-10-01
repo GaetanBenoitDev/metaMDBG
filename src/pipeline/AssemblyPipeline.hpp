@@ -45,6 +45,9 @@ public:
 		outfile << "Duration (s): " << duration_cast<seconds>(stop - start).count() << endl;
 		outfile.close();
 
+		cout << endl;
+		cout << "Contig filename: " << _outputDir + "/contigs_polished.fasta.gz" << endl;
+		cout << "done!" << endl;
 	}
 
 	void parseArgs(int argc, char* argv[]){
@@ -405,22 +408,22 @@ public:
 
 			
 			//Generate contigs
-			command = _filename_exe + " contig " + " -o " + _tmpDir + " --final " + " -t " + to_string(_nbCores);
+			command = _filename_exe + " contig " + " " + _tmpDir + " --final " + " -t " + to_string(_nbCores);
 			if(!_truthInputFilename.empty()) command += " --itruth " + _truthInputFilename;
 			//if(pass == 0) command += " --firstpass";
 			executeCommand(command);
 
 			//getchar();
 
-			command = _filename_exe + " toMinspace " + " -o " + _tmpDir + " -c " + _tmpDir + "/contigs.nodepath" + " -f " + _tmpDir + "/contig_data.txt";
+			command = _filename_exe + " toMinspace " + " " + _tmpDir + " " + _tmpDir + "/contigs.nodepath" + " " + _tmpDir + "/contig_data.txt";
 			executeCommand(command);
 			
 			appendSmallContigs();
 
 			string contigFilenameCompressed = _tmpDir + "/contigs_H_" + to_string(k) + ".fasta.gz ";
 			//getchar();
-			command = _filename_exe + " toBasespaceFast " + " -o " + _tmpDir + " -i " + _inputFilename + " -c " + _tmpDir + "/contig_data.txt " + " -f " + contigFilenameCompressed + " --fasta"  + " -t " + to_string(_nbCores);
-			if(pass == 0) command += " --firstpass";
+			command = _filename_exe + " toBasespaceFast " + " " + _tmpDir + " " + _tmpDir + "/contig_data.txt " + " " + contigFilenameCompressed + " " + _inputFilename + " -t " + to_string(_nbCores);
+			//if(pass == 0) command += " --firstpass";
 			executeCommand(command);
 
 			string contigFilenameCompressed_derep = _tmpDir + "/contigs_H_" + to_string(k) + "_derep.fasta.gz ";
@@ -438,10 +441,10 @@ public:
 			command = _filename_exe + " readSelection -i " + _tmpDir + "/input_contig.txt" + " -o " + _tmpDir + " -f " + _tmpDir + "/contig_data.txt" + " -t " + to_string(_nbCores) + " --contig";
 			executeCommand(command);
 			*/
-
+		
 			const string contigFilename_uncorrected = _tmpDir + "/contigs_uncorrected.fasta.gz";
-			command = _filename_exe + " toBasespace " + " -o " + _tmpDir + " -i " + _inputFilename + " -c " + _tmpDir + "/contig_data.txt " + " -f " + contigFilename_uncorrected + " --fasta"  + " -t " + to_string(_nbCores);
-			if(pass == 0) command += " --firstpass";
+			command = _filename_exe + " toBasespace " + " " + _tmpDir + " " + _tmpDir + "/contig_data.txt " + " " + contigFilename_uncorrected + " " + _inputFilename  + " -t " + to_string(_nbCores);
+			//if(pass == 0) command += " --firstpass";
 			executeCommand(command);
 			//getchar();
 
@@ -458,20 +461,18 @@ public:
 			executeCommand(command);
 			//generatedContigs = true;
 
-			cout << endl;
-			cout << "Contig filename: " << _outputDir + "/contigs_polished.fasta.gz";
-			cout << "done!" << endl;
+
 		}
 		else{
 
-			command = _filename_exe + " contig " + " -o " + _tmpDir + " -t " + to_string(_nbCores);;
+			command = _filename_exe + " contig " + " " + _tmpDir + " -t " + to_string(_nbCores);;
 			if(!_truthInputFilename.empty()) command += " --itruth " + _truthInputFilename;
 			//if(pass == 0) command += " --firstpass";
 			executeCommand(command);
 			//getchar();
 			
 
-			command = _filename_exe + " toMinspace " + " -o " + _tmpDir + " -c " + _tmpDir + "/contigs.nodepath" + " -f " + _tmpDir + "/unitig_data.txt";
+			command = _filename_exe + " toMinspace " + " " + _tmpDir + " " + _tmpDir + "/contigs.nodepath" + " " + _tmpDir + "/unitig_data.txt";
 			executeCommand(command);
 
 			//getchar();

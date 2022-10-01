@@ -2,6 +2,8 @@
 
 - add "polish" dans les commandes du tool si ça fonctionne bien
 - tester les différents paramètres (surtout minimizer size)
+- dependency: openmp dans readme
+- afficher performances (time, memory) à la fin de l'execution
 
 TODO:
 - toBasespace: il faudrait utiliser le processus de mapping pour tous les kminmer en fait, pas seulement ceux repeter (ne aps etre repeter dasn les contigs ne veux pas dire que la sequence du kminmer n'est pas ambigue dans les reads)
@@ -17,7 +19,6 @@ GenerateContigs:
 - ajuster valeur par defaut de l (minimizer size, 13 ou 21 a test)
 
 - Polisher:  si on a plus besoin de low mmeory correction, enlever l'exe "mapper" eventuellement, et utiliser gzip pour compresser els sortie de minimap2 (on en aura besoin dans derep je pense) 
-- enelever tous els code de abpoa et spoa, et sortir tous ce qui est contigpolisher
 - Add tool version in program help
 - enelever cxxopts (old arg system)
 

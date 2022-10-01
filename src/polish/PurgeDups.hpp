@@ -16,7 +16,7 @@ public:
 	//string _inputFilename_reads;
 	string _inputFilename_contigs;
 	int _nbCores;
-	string _mapperOutputExeFilename;
+	//string _mapperOutputExeFilename;
 	string _outputDir;
 	string _tmpDir;
 	//bool _cut_contigEnds;
@@ -77,15 +77,73 @@ public:
 	void parseArgs(int argc, char* argv[]){
 
 
+		string ARG_CUT_INTERNAL = "cutinternal";
+		string ARG_NO_DUMP= "nodump";
+
+
+		args::ArgumentParser parser("derep", ""); //"This is a test program.", "This goes after the options."
+		args::Positional<std::string> arg_contigs(parser, "contigs", "", args::Options::Required);
+		args::Positional<std::string> arg_outputFilename(parser, "outputFilename", "", args::Options::Required);
+		args::Positional<std::string> arg_outputDir(parser, "outputDir", "", args::Options::Required);
+		//args::Positional<std::string> arg_contigs(parser, "contigs", "", args::Options::Required);
+		//args::PositionalList<std::string> arg_readFilenames(parser, "reads", "Input filename(s) (separated by space)", args::Options::Required);
+		//args::ValueFlag<int> arg_l(parser, "", "Minimizer length", {ARG_MINIMIZER_LENGTH2}, 13);
+		//args::ValueFlag<float> arg_d(parser, "", "Minimizer density", {ARG_MINIMIZER_DENSITY2}, 0.005f);
+		//args::ValueFlag<std::string> arg_contigs(parser, "", "", {ARG_INPUT_FILENAME_CONTIG}, "");
+		args::ValueFlag<int> arg_nbCores(parser, "", "Number of cores", {ARG_NB_CORES2}, NB_CORES_DEFAULT_INT);
+		args::Flag arg_cutInternal(parser, "", "", {ARG_CUT_INTERNAL});
+		args::Flag arg_noDump(parser, "", "", {ARG_NO_DUMP});
+		//args::Flag arg_isFinalAssembly(parser, "", "Is final multi-k pass", {ARG_FINAL});
+		//args::Flag arg_firstPass(parser, "", "Is first pass of multi-k", {ARG_FIRST_PASS});
+		args::Flag arg_help(parser, "", "", {'h', "help"}, args::Options::Hidden);
+		//args::HelpFlag help(parser, "help", "Display this help menu", {'h'});
+		//args::CompletionFlag completion(parser, {"complete"});
+
+
+
+
+		try
+		{
+			parser.ParseCLI(argc, argv);
+		}
+		catch (const std::exception& e)
+		{
+			std::cout << parser;
+			std::cout << e.what() << endl;
+			exit(0);
+		}
+
+		if(arg_help){
+			std::cout << parser;
+			exit(0);
+		}
+
+		_outputDir = args::get(arg_outputDir);
+		_inputFilename_contigs = args::get(arg_contigs);
+		_outputFilename_contigs = args::get(arg_outputFilename);
+		_nbCores = args::get(arg_nbCores);
+
+		_dontOuputContigs = false;
+		if(arg_noDump){
+			_dontOuputContigs = true;
+		}
+
+		_cut_contigInternal = false;
+		if(arg_cutInternal){
+			_cut_contigInternal = true;
+		}
+
+
+		/*
 		//string ARG_CUT_ENDS = "cutends";
 		string ARG_CUT_INTERNAL = "cutinternal";
 		string ARG_NO_DUMP= "nodump";
 
-		string filenameExe = argv[0];
+		//string filenameExe = argv[0];
 		//cout << filenameExe << endl;
 
-		fs::path pa(filenameExe);
-		_mapperOutputExeFilename = pa.parent_path().string() + "/mapper";
+		//fs::path pa(filenameExe);
+		//_mapperOutputExeFilename = pa.parent_path().string() + "/mapper";
 		//cout << _mapperOutputExeFilename << endl;
 		//exit(1);
 
@@ -133,6 +191,7 @@ public:
 			std::cerr << e.what() << std::endl;
 			std::exit(EXIT_FAILURE);
 		}
+		*/
 
 
 		if (_outputFilename_contigs.find(".gz") == std::string::npos) {

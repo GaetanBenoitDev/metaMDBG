@@ -28,7 +28,8 @@ void displayHelp(string programName){
 	cout << "Usage: " + programName + " [command]" << endl;
 	cout << endl;
 	cout << "command:" << endl;
-	cout << "\tasm      : perform assembly" << endl;
+	cout << "\tasm      : perform read assembly" << endl;
+	cout << "\tpolish   : polish contigs" << endl;
 	//cout << "\treadSelection      : transform readset into its minimizer reprentation" << endl;
 	//cout << "\tdgraph   : create minimizer de-bruijn graph" << endl;
 

@@ -83,7 +83,63 @@ public:
 
 	void parseArgs(int argc, char* argv[]){
 
+		args::ArgumentParser parser("contig", ""); //"This is a test program.", "This goes after the options."
+		args::Positional<std::string> arg_outputDir(parser, "outputDir", "", args::Options::Required);
+		//args::Positional<std::string> arg_contigs(parser, "contigs", "", args::Options::Required);
+		//args::PositionalList<std::string> arg_readFilenames(parser, "reads", "Input filename(s) (separated by space)", args::Options::Required);
+		//args::ValueFlag<int> arg_l(parser, "", "Minimizer length", {ARG_MINIMIZER_LENGTH2}, 13);
+		//args::ValueFlag<float> arg_d(parser, "", "Minimizer density", {ARG_MINIMIZER_DENSITY2}, 0.005f);
+		//args::ValueFlag<std::string> arg_contigs(parser, "", "", {ARG_INPUT_FILENAME_CONTIG}, "");
+		args::ValueFlag<int> arg_nbCores(parser, "", "Number of cores", {ARG_NB_CORES2}, NB_CORES_DEFAULT_INT);
+		args::Flag arg_isFinalAssembly(parser, "", "Is final multi-k pass", {ARG_FINAL});
+		args::Flag arg_firstPass(parser, "", "Is first pass of multi-k", {ARG_FIRST_PASS});
+		args::Flag arg_help(parser, "", "", {'h', "help"}, args::Options::Hidden);
+		//args::HelpFlag help(parser, "help", "Display this help menu", {'h'});
+		//args::CompletionFlag completion(parser, {"complete"});
 
+		//(ARG_INPUT_FILENAME_TRUTH, "", cxxopts::value<string>()->default_value(""))
+		//(ARG_MINIMIZER_LENGTH, "", cxxopts::value<int>()->default_value("13"))
+		//(ARG_MINIMIZER_DENSITY, "", cxxopts::value<float>()->default_value("0.005"))
+		//(ARG_NB_CORES, "", cxxopts::value<int>()->default_value(NB_CORES_DEFAULT))
+		//(ARG_BLOOM_FILTER, "", cxxopts::value<bool>()->default_value("false"));
+
+		try
+		{
+			parser.ParseCLI(argc, argv);
+		}
+		catch (const std::exception& e)
+		{
+			std::cout << parser;
+			std::cout << e.what() << endl;
+			exit(0);
+		}
+
+		if(arg_help){
+			std::cout << parser;
+			exit(0);
+		}
+
+		_inputDir = args::get(arg_outputDir);
+		//_filename_inputContigs = args::get(arg_contigs);
+
+		_nbCores = args::get(arg_nbCores);
+
+		_isFinalAssembly = false;
+		if(arg_isFinalAssembly){
+			_isFinalAssembly = true;
+		}
+
+		//_truthInputFilename = result[ARG_INPUT_FILENAME_TRUTH].as<string>();
+		//_inputFilename_unitigNt = result[ARG_INPUT_FILENAME_UNITIG_NT].as<string>();
+		//_inputFilename_unitigCluster = result[ARG_INPUT_FILENAME_UNITIG_CLUSTER].as<string>();
+		//_debug = result[ARG_DEBUG].as<bool>();
+		//_isFinalAssembly = result[ARG_FINAL].as<bool>();
+		//_nbCores = result[ARG_NB_CORES].as<int>();
+		//_nbCores = 1;
+		//_filename_abundance = result[ARG_INPUT_FILENAME_ABUNDANCE].as<string>();
+
+
+		/*
 		cxxopts::Options options("Assembly", "");
 		options.add_options()
 		(ARG_OUTPUT_DIR, "", cxxopts::value<string>())
@@ -124,6 +180,7 @@ public:
 			std::cerr << e.what() << std::endl;
 			std::exit(EXIT_FAILURE);
 		}
+		*/
 
 
 		string filename_parameters = _inputDir + "/parameters.gz";
