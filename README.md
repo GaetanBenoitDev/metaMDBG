@@ -1,4 +1,5 @@
-metaMDBG is a lightweight assembler for long and accurate metagenomics reads.  
+metaMDBG is a lightweight assembler for long and accurate metagenomics reads.
+
 Developper: Gaëtan Benoit  
 Contact: gaetanbenoitdev at gmail dot com
 
