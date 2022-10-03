@@ -10,6 +10,7 @@ Contact: gaetanbenoitdev at gmail dot com
 - gcc 9.4+
 - cmake 3.10+
 - zlib
+- openmp
 - minimap2
 ```
 
@@ -37,7 +38,7 @@ After successful installation, an executable named metaMDBG will appear in build
 	-t            Number of cores [3]
 ```
 
-The resulting contig file, named contigs_uncorrected.fasta.gz, will appear in outputDir.
+MetaMDBG will generate polished contigs in outputDir ("contigs_polished.fasta.gz").
 
-## Polishing contigs
-Polishing contigs is necessary to enable accurate gene identification.
+## Purging strain duplication (experimental)
+

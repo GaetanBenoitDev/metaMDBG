@@ -27,6 +27,14 @@ ContigPolisher:
 	- écrire les logs debug dans un fichier dans tmpDir
 	- ajouter une progress bar global
 
+%TODO: check le papier hifiasm_meta, human samples co-assembly, running metabat only with composition or not
+%Hifiasm: meilleur contiguity et assemble mieux les strains, mais trop de memory et time sur gros jeux. Une autre approche bin par species avec MDBG, puis strain deconvolution
+%Mock communities: pas representatif de données réelles niveau composition (strain abondante), grosse couverture
+%MAG: essayer de lancer drep sans clustering des strains ou juste checkm en gros
+%MDBG: beaucoup de contamination à investiguer
+%Metagenome: essayer assemblage d'un jeu simple, puis binning avec tous les jeu HiFi
+%MDBG: detecter circular contigs et indiquer dans header, utiliser le format de header de hifiasm: >s119.ctg000185c, >s2.ctg000186l
+
 */
 
 #ifndef MDBG_METAG_COMMONS
