@@ -186,7 +186,7 @@ public:
 			//u_int64_t ml = nbMatches;
 			//u_int64_t bl = alignLength;
 
-			cout << nbMatches / alignLength << " " << alignLength << endl;
+			//cout << nbMatches / alignLength << " " << alignLength << endl;
 			if(nbMatches / alignLength < 0.8) continue;
 			if(alignLength < 1000) continue;
 

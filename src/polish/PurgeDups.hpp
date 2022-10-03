@@ -263,7 +263,7 @@ public:
 		input << _inputFilename_contigs << endl;
 		input.close();
 
-		string command = "minimap2 -m 900 -H -DP --dual=no -I 2G -t " + to_string(_nbCores) + " -x map-hifi " + _inputFilename_contigs + " " + _inputFilename_contigs;
+		string command = "minimap2 -m 900 -H -DP --dual=no -I 1G -t " + to_string(_nbCores) + " -x map-hifi " + _inputFilename_contigs + " " + _inputFilename_contigs;
 		command += " > " + _outputFilename_mapping;
 		//command += " | " + _mapperOutputExeFilename + " " + _inputFilename_contigs + " " + inputContigsFilename + " " + _outputFilename_mapping;
 		Utils::executeCommand(command, _outputDir);

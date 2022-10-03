@@ -102,7 +102,7 @@ public:
 	int _nbCores;
 	size_t _windowLength;
 	size_t _maxWindowCopies;
-	string _mapperOutputExeFilename;
+	//string _mapperOutputExeFilename;
 	bool _useQual;
 	string _outputDir;
 	string _tmpDir;
@@ -121,8 +121,8 @@ public:
 	unordered_set<string> _isContigCircular;
 	//unordered_set<u_int32_t> _isReadCircular;
 	//unordered_map<u_int64_t, u_int64_t> _contigLength;
-	unordered_map<u_int64_t, vector<u_int64_t>> _contigMapLeft;
-	unordered_map<u_int64_t, vector<u_int64_t>> _contigMapRight;
+	unordered_map<string, vector<string>> _contigMapLeft;
+	unordered_map<string, vector<string>> _contigMapRight;
 
 
 	u_int64_t _checksumWrittenReads;
@@ -172,8 +172,8 @@ public:
 		string filenameExe = argv[0];
 		//cout << filenameExe << endl;
 
-		fs::path pa(filenameExe);
-		_mapperOutputExeFilename = pa.parent_path().string() + "/mapper";
+		//fs::path pa(filenameExe);
+		//_mapperOutputExeFilename = pa.parent_path().string() + "/mapper";
 		//cout << _mapperOutputExeFilename << endl;
 		//exit(1);
 
@@ -454,6 +454,97 @@ public:
 
 	void indexMappingOnContigEnds(){
 
+		cout << "\tParsing alignments" << endl;
+
+    	long maxHang = 100;
+		
+		/*
+		uint32_t kChunkSize = 1024 * 1024 * 1024;
+    	std::vector<std::unique_ptr<Alignment2>> overlaps;
+
+		//auto oparser = bioparser::Create<bioparser::PafParser<Alignment2>>(_outputFilename_mapping);
+		std::unique_ptr<bioparser::Parser<Alignment2>> oparser;
+    	cout << "1" << endl;
+		overlaps = oparser->Parse(kChunkSize, true);
+    	cout << "2" << endl;
+
+		cout << overlaps.size() << endl;
+
+		return;
+		*/
+
+		double errorThreshold = 0.3;
+
+		vector<string>* fields = new vector<string>();
+		vector<string>* fields_optional = new vector<string>();
+        ifstream infile(_outputFilename_mapping);
+
+		string lineInput;
+		while (getline(infile, lineInput)) {
+			//cout << lineInput << endl;
+			//getchar();
+
+
+			GfaParser::tokenize(lineInput, fields, '\t');
+
+			//cout << line << endl;
+
+			const string& readName = Utils::shortenHeader((*fields)[0]);
+			const string& contigName = Utils::shortenHeader((*fields)[5]);
+			
+
+			u_int32_t readStart = stoull((*fields)[2]);
+			u_int32_t readEnd = stoull((*fields)[3]);
+			u_int32_t contigLength = stoull((*fields)[6]);
+			u_int32_t contigStart = stoull((*fields)[7]);
+			u_int32_t contigEnd = stoull((*fields)[8]);
+
+			u_int64_t nbMatches = stoull((*fields)[9]);
+			u_int64_t alignLength = stoull((*fields)[10]);
+			u_int64_t queryLength = stoull((*fields)[1]);
+
+			bool strand = (*fields)[4] == "-";
+			//float score = (double) nbMatches / (double) queryLength;
+			//float score2 = (double) nbMatches / (double) alignLength;
+
+			//u_int32_t contigIndex = mappingIndex._contigName_to_contigIndex[contigName];
+			//u_int64_t readIndex = mappingIndex._readName_to_readIndex[readName];
+			//u_int64_t length = std::max(readEnd - readStart, contigEnd - contigStart);
+
+			if(alignLength < 3000) continue;
+			if (contigLength < _minContigLength) continue;
+			//cout << contigIndex << " " << readIndex << endl;
+
+			double length = max((double)(contigEnd - contigStart), (double)(readEnd - readStart));
+			double error = 1 - min((double)(contigEnd - contigStart), (double)(readEnd - readStart)) / length;
+			//cout << error << " " << errorThreshold << endl;
+			
+			if(error > errorThreshold) continue;
+
+
+
+
+			long hangLeft = contigStart;
+			long hangRight = contigLength - contigEnd;
+
+			if (hangLeft < maxHang){
+				_contigMapLeft[contigName].push_back(readName);
+				//cout << lineInput << endl;
+			}
+			if (hangRight < maxHang){
+				_contigMapRight[contigName].push_back(readName);
+				//cout << lineInput << endl;
+			}
+
+
+
+		}
+
+		infile.close();
+		delete fields;
+		delete fields_optional;
+
+		/*
 		cout << "\tIndexing read alignments" << endl;
 
     	long maxHang = 100;
@@ -505,7 +596,7 @@ public:
 		}
 
 		infile.close();
-
+		*/
 	}
 
 	
@@ -524,7 +615,7 @@ public:
 		//u_int64_t contigIndex = read._index; //Utils::contigName_to_contigIndex(read._header);
 
 		bool isCircular = false;
-		u_int64_t nbSupportingReads = countCircularReads(read._index);
+		u_int64_t nbSupportingReads = countCircularReads(contigName);
 
 		//char lastChar = read._header[read._header.size()-1];
 
@@ -556,7 +647,7 @@ public:
 			//isCircular = true;
 		}
 		else{
-			if(nbSupportingReads >= 2){
+			if(nbSupportingReads >= 3){
 				//isCircular = true;
 				_isContigCircular.insert(contigName);
 			}
@@ -567,7 +658,7 @@ public:
 
 
 
-	u_int64_t countCircularReads(u_int64_t contigIndex){
+	u_int64_t countCircularReads(const string& contigIndex){
 
 		if((_contigMapLeft.find(contigIndex) == _contigMapLeft.end()) || (_contigMapRight.find(contigIndex) == _contigMapRight.end())) return 0;
 
@@ -575,16 +666,17 @@ public:
 		u_int64_t nbSupportingReads = 0;
 
 
-		const vector<u_int64_t>& leftReads = _contigMapLeft[contigIndex];
-		const vector<u_int64_t>& rightReads = _contigMapRight[contigIndex];
+		const vector<string>& leftReads = _contigMapLeft[contigIndex];
+		const vector<string>& rightReads = _contigMapRight[contigIndex];
 
 		//cout << leftReads.size() << endl;
 		//cout << rightReads.size() << endl;
 
-		for(u_int64_t readIndex : leftReads){
+		for(const string& readIndex : leftReads){
 			//cout << readIndex << endl;
 			if(std::find(rightReads.begin(), rightReads.end(), readIndex) != rightReads.end()){
 				nbSupportingReads += 1;
+				//cout << readIndex << endl;
 				//_isReadCircular.insert(readIndex);
 			}
 		}
@@ -2187,6 +2279,12 @@ public:
 
 			string header = _contigHeaders[contigName];
 			if(_circularize){
+				
+				char lastChar = header[header.size()-1];
+				if(lastChar == 'c' || lastChar == 'l'){
+					header.pop_back();
+				}
+
 				if(_isContigCircular.find(contigName) == _isContigCircular.end()){
 					header += 'l';
 				}
@@ -2194,6 +2292,7 @@ public:
 					header += 'c';
 				}
 			}
+
 
 			header = ">" + header + '\n';// ">ctg" + to_string(contigIndex) + '\n';
 			//header += '\n';

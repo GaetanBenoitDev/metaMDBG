@@ -7,26 +7,20 @@
 
 TODO:
 - toBasespace: il faudrait utiliser le processus de mapping pour tous les kminmer en fait, pas seulement ceux repeter (ne aps etre repeter dasn les contigs ne veux pas dire que la sequence du kminmer n'est pas ambigue dans les reads)
-- Argument a changer dans ContigPolisheer (liste de read en argument, fichier de sortie en argument)
 
 Paralelisation:
 	- ToBasespace: read indexing phmap
 	- ToMinsapce: phmap
 
-GenerateContigs:
-	- a test: pas besoin de générer le graph initial (t=1), de le compacter et générer les contigs (normalement on veut pas générer les side des bubbles enlevé etc)
-
 - ajuster valeur par defaut de l (minimizer size, 13 ou 21 a test)
 
-- Polisher:  si on a plus besoin de low mmeory correction, enlever l'exe "mapper" eventuellement, et utiliser gzip pour compresser els sortie de minimap2 (on en aura besoin dans derep je pense) 
-- Add tool version in program help
-- enelever cxxopts (old arg system)
+- Polisher:  utiliser gzip pour compresser els sortie de minimap2 (on en aura besoin dans derep je pense) 
+- enlever cxxopts (old arg system)
 
 ContigPolisher:
 	- determiner le coverage d'un contig, utiliser cette valeur pour estimater la memory total du contig _windowByteSize = (contigLength*windowLength*NbWindows) (puis _windowByteSize a enelever)
 	- compress paf (gzip)
 	- read mal mapper sur les bord des contig circulaire (double mapping)
-	- nb windows en paramètre
 	- refaire fonctionner le circularize
 
 - logs:
