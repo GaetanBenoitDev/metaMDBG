@@ -87,13 +87,13 @@ public:
 		}
 		catch (const std::exception& e)
 		{
-			std::cout << parser;
-			std::cout << e.what() << endl;
+			cerr << parser;
+			cerr << e.what() << endl;
 			exit(0);
 		}
 
 		if(arg_help){
-			std::cout << parser;
+			cerr << parser;
 			exit(0);
 		}
 
@@ -125,7 +125,7 @@ public:
 		//;
 
 		if(argc <= 1){
-			cout << options.help() << endl;
+			_logFile << options.help() << endl;
 			exit(0);
 		}
 
@@ -145,7 +145,7 @@ public:
 			//_nbCores = 1;
 		}
 		catch (const std::exception& e){
-			std::cout << options.help() << std::endl;
+			std::_logFile << options.help() << std::endl;
 			std::cerr << e.what() << std::endl;
 			std::exit(EXIT_FAILURE);
 		}
@@ -171,13 +171,15 @@ public:
 
 		_kminmerSize = _kminmerSizeFirst;
 
-		cout << endl;
-		cout << "Input dir: " << _inputDir << endl;
-		//cout << "Output filename: " << _outputFilename << endl;
-		cout << "Minimizer length: " << _minimizerSize << endl;
-		cout << "Kminmer length: " << _kminmerSize << endl;
-		cout << "Density: " << _minimizerDensity << endl;
-		cout << endl;
+		openLogFile(_inputDir);
+
+		_logFile << endl;
+		_logFile << "Input dir: " << _inputDir << endl;
+		//_logFile << "Output filename: " << _outputFilename << endl;
+		_logFile << "Minimizer length: " << _minimizerSize << endl;
+		_logFile << "Kminmer length: " << _kminmerSize << endl;
+		_logFile << "Density: " << _minimizerDensity << endl;
+		_logFile << endl;
 
 		//_filename_outputContigs = _inputFilenameContig + ".fasta.gz"; //_inputDir + "/tmpContigs.fasta.gz";
 		//_minimizerParser = new MinimizerParser(_minimizerSize, _minimizerDensity);
@@ -186,14 +188,14 @@ public:
 
     void execute (){
 		
-		cout << "Loading mdbg" << endl;
+		_logFile << "Loading mdbg" << endl;
 		string mdbg_filename = _inputDir + "/kminmerData_min_init.txt";
 		_mdbg = new MDBG(_kminmerSize);
 		_mdbg->load(mdbg_filename, false);
-		cout << "MDBG nodes: " << _mdbg->_dbg_nodes.size() << endl;
+		_logFile << "MDBG nodes: " << _mdbg->_dbg_nodes.size() << endl;
 
-		//cout << _inputFilenameContig_fasta << endl;
-		OverlapRemover overlapRemover(_inputDir, _inputFilenameContig, _kminmerSize);
+		//_logFile << _inputFilenameContig_fasta << endl;
+		OverlapRemover overlapRemover(_inputDir, _inputFilenameContig, _kminmerSize, _logFile);
 		overlapRemover.execute();
 		
 		//removeOverlaps();
@@ -210,13 +212,15 @@ public:
 		//createBaseContigs(_inputDir + "/eval/composition//22//debug_longUnitigs.gz", _inputDir + "/eval/composition//22//debug_longUnitigs.fasta.gz");
 		//createBaseContigs(_inputDir + "/eval/composition//3//debug_longUnitigsNeighbors.gz", _inputDir + "/eval/composition//3/debug_longUnitigsNeighbors.fasta.gz");
 
-		cout << endl << "Contig filename: " << _filename_outputContigs << endl;
+		_logFile << endl << "Contig filename: " << _filename_outputContigs << endl;
 		delete _mdbg;
 
 		//removeDuplicatePost();
 
-		cout << "Checksum: " << _checksum << endl;
-		//cout << "Nb contigs (no duplicate): " << _nbContigsPost << endl;
+		_logFile << "Checksum: " << _checksum << endl;
+		//_logFile << "Nb contigs (no duplicate): " << _nbContigsPost << endl;
+
+		closeLogFile();
 	}
 
 
@@ -270,12 +274,12 @@ public:
 		_nbContigs = 0;
 
 		/*
-		cout << "Extracting kminmers: " << contigFilename << endl;
+		_logFile << "Extracting kminmers: " << contigFilename << endl;
 		KminmerParser parser(contigFilename, _minimizerSize, _kminmerSize, false, false);
 		auto fp = std::bind(&ToBasespaceNoCorrection::loadContigs_min_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 		parser.parseMinspace(fp);
 
-		cout << "Nb contigs: " << _nbContigs << endl;
+		_logFile << "Nb contigs: " << _nbContigs << endl;
 
 		double nbRepeatedKminmers = 0;
 		for(auto& it : _kminmerCounts){
@@ -283,9 +287,9 @@ public:
 				nbRepeatedKminmers += 1;
 			}
 		}
-		cout << "Nb kminmer: " << _kminmerCounts.size() << endl;
-		cout << "Repeated kminmer: " << nbRepeatedKminmers << endl;
-		cout << "Repeated kminmer rate: " << (nbRepeatedKminmers / _kminmerCounts.size()) << endl;
+		_logFile << "Nb kminmer: " << _kminmerCounts.size() << endl;
+		_logFile << "Repeated kminmer: " << nbRepeatedKminmers << endl;
+		_logFile << "Repeated kminmer rate: " << (nbRepeatedKminmers / _kminmerCounts.size()) << endl;
 
 		
 		std::sort(_contigs.begin(), _contigs.end(), ContigComparator_ByLength);
@@ -304,7 +308,7 @@ public:
 
 				if(sharedRate_1 > 0.33 || sharedRate_2 > 0.33){
 
-					cout << _contigs[j]._nodepath_sorted.size() << " " << sharedRate_1 << " " << sharedRate_2 << endl;
+					_logFile << _contigs[j]._nodepath_sorted.size() << " " << sharedRate_1 << " " << sharedRate_2 << endl;
 					_invalidContigIndex.insert(_contigs[j]._readIndex);
 					//break;
 
@@ -317,10 +321,10 @@ public:
 
 		_kminmerCounts.clear();
 
-		cout << _nbContigs << " " << _invalidContigIndex.size() << endl;
- 		cout << "Nb contigs (no duplicate): " << (_nbContigs-_invalidContigIndex.size()) << endl;
+		_logFile << _nbContigs << " " << _invalidContigIndex.size() << endl;
+ 		_logFile << "Nb contigs (no duplicate): " << (_nbContigs-_invalidContigIndex.size()) << endl;
 		*/
-		cout << "Extracting kminmers: " << contigFilename << endl;
+		_logFile << "Extracting kminmers: " << contigFilename << endl;
 		KminmerParser parser2(contigFilename, _minimizerSize, _kminmerSize, false, false);
 		auto fp2 = std::bind(&ToBasespaceNoCorrection::loadContigs_min_read2, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
 		parser2.parseMinspace(fp2);
@@ -332,9 +336,9 @@ public:
 				nbRepeatedKminmers += 1;
 			}
 		}
-		cout << "Nb kminmer: " << _kminmerCounts.size() << endl;
-		cout << "Repeated kminmer: " << nbRepeatedKminmers << endl;
-		cout << "Repeated kminmer rate: " << (nbRepeatedKminmers / _kminmerCounts.size()) << endl;
+		_logFile << "Nb kminmer: " << _kminmerCounts.size() << endl;
+		_logFile << "Repeated kminmer: " << nbRepeatedKminmers << endl;
+		_logFile << "Repeated kminmer rate: " << (nbRepeatedKminmers / _kminmerCounts.size()) << endl;
 
 		_contigs.clear();
 		_kminmerCounts.clear();
@@ -353,7 +357,7 @@ public:
 			KmerVec vec = kminmerInfo._vec;
 			
 			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
-				cout << "Not found kminmer" << endl;
+				_logFile << "Not found kminmer" << endl;
 				//getchar();
 				continue;
 			}
@@ -387,7 +391,7 @@ public:
 			KmerVec vec = kminmerInfo._vec;
 			
 			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
-				cout << "Not found kminmer" << endl;
+				_logFile << "Not found kminmer" << endl;
 				//getchar();
 				continue;
 			}
@@ -424,8 +428,8 @@ public:
 
 	void extractKminmerSequences (){
 
-		cout << "Extracting kminmer sequences" << endl;
-		ReadParserParallel readParser(_inputFilename, false, false, _nbCores);
+		_logFile << "Extracting kminmer sequences" << endl;
+		ReadParserParallel readParser(_inputFilename, false, false, _nbCores, _logFile);
 		readParser.parse(ExtractKminmerSequenceFunctor(_minimizerSize, _minimizerDensity, *this));
 	}
 
@@ -461,7 +465,7 @@ public:
 			u_int64_t readIndex = read._index;
 
 			//if(readIndex % 1000 == 0){
-			//	cout << "Correcting kminmer " << readIndex << endl;
+			//	_logFile << "Correcting kminmer " << readIndex << endl;
 			//}
 			//ottalSize += strlen(read->seq.s);
 						
@@ -540,7 +544,7 @@ public:
 			else if(loadType == LoadType::Left){
 				startPosition = 0; //kminmerInfo._read_pos_start;
 				len = kminmerInfo._seq_length_start; //kminmerInfo._position_of_second_minimizer_seq - kminmerInfo._read_pos_start;
-				//cout << kminmerInfo._read_pos_start << " " << kminmerInfo._position_of_second_minimizer << endl;
+				//_logFile << kminmerInfo._read_pos_start << " " << kminmerInfo._position_of_second_minimizer << endl;
 			}
 			else if(loadType == LoadType::Right){
 				//return;
@@ -557,7 +561,7 @@ public:
 
 	void createBaseContigs(const string& contigFilename, const string& outputFilename){
 
-		cout << "Creating basespace contigs: " << contigFilename << " " << outputFilename << endl;
+		_logFile << "Creating basespace contigs: " << contigFilename << " " << outputFilename << endl;
 
 		_contigIndex = 0;
 		
@@ -593,19 +597,19 @@ public:
 
 
 		//if(_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) return;
-		//cout << readIndex << " " << kminmersInfos.size() << endl;
+		//_logFile << readIndex << " " << kminmersInfos.size() << endl;
 		
 		string contigSequence = "";
 
 		for(size_t i=0; i<kminmersInfos.size(); i++){
 			
-			//cout << i << endl;
+			//_logFile << i << endl;
 			const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
 
 			KmerVec vec = kminmerInfo._vec;
 			
 			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
-				cout << "Not found" << endl;
+				_logFile << "Not found" << endl;
 				continue;
 			}
 
@@ -625,14 +629,14 @@ public:
 			bool orientation = !kminmerInfo._isReversed;
 
 			if(i == 0){
-				//cout << nodeName << " " << orientation << endl;
+				//_logFile << nodeName << " " << orientation << endl;
 				if(orientation){ //+
-					//cout << "Entire" << endl;
+					//_logFile << "Entire" << endl;
 
 					//string seq = _nodeName_entire[contigNode];
 					//string correctedSequence;
 					if(_nodeName_entire.find(nodeName) == _nodeName_entire.end() || _nodeName_entire[nodeName] == nullptr){
-						cout << "not found entire " << nodeName << endl;
+						_logFile << "not found entire " << nodeName << endl;
 						continue;
 					}
 					
@@ -645,16 +649,16 @@ public:
 					
 
 					contigSequence += kminmerSequence;
-					//cout << contigSequence << endl;
+					//_logFile << contigSequence << endl;
 				}
 				else{
-					//cout << "Entire RC" << endl;
+					//_logFile << "Entire RC" << endl;
 					//string seq = ;
 					//string correctedSequence;
 					//performErrorCorrection(nodeName, getKminmerSequence(nodeName, readIndex, _nodeName_entire, _nodeName_entire_multi), _kminmerSequenceCopies_entire[contigNode], correctedSequence, alignment_engine, graph);
 					
 					if(_nodeName_entire.find(nodeName) == _nodeName_entire.end() || _nodeName_entire[nodeName] == nullptr){
-						cout << "not found entire RC " << nodeName << endl;
+						_logFile << "not found entire RC " << nodeName << endl;
 						continue;
 					}
 
@@ -664,19 +668,19 @@ public:
 
 					Utils::revcomp(kminmerSequence);
 					contigSequence += kminmerSequence;
-					//cout << contigSequence << endl;
+					//_logFile << contigSequence << endl;
 				}
 			}
 			else {
 				if(orientation){
 					
 					if(_nodeName_right.find(nodeName) == _nodeName_right.end() || _nodeName_right[nodeName] == nullptr){
-						cout << "not found right " << nodeName << endl;
+						_logFile << "not found right " << nodeName << endl;
 						continue;
 					}
-					//cout << (_nodeName_right.find(nodeName) != _nodeName_right.end()) << endl;
-					//cout << (_nodeName_right[nodeName]._sequence == nullptr) << endl;
-					//cout << nodeName << endl;
+					//_logFile << (_nodeName_right.find(nodeName) != _nodeName_right.end()) << endl;
+					//_logFile << (_nodeName_right[nodeName]._sequence == nullptr) << endl;
+					//_logFile << nodeName << endl;
 
 					char* seq = _nodeName_right[nodeName]->to_string();
 					string kminmerSequence = string(seq);
@@ -690,12 +694,12 @@ public:
 				else{
 					
 					if(_nodeName_left.find(nodeName) == _nodeName_left.end() || _nodeName_left[nodeName] == nullptr){
-						cout << "not found left " << nodeName << endl;
+						_logFile << "not found left " << nodeName << endl;
 						continue;
 					}
-					//cout << (_nodeName_left.find(nodeName) != _nodeName_left.end()) << endl;
-					//cout << (_nodeName_left[nodeName]._sequence == nullptr) << endl;
-					//cout << nodeName << endl;
+					//_logFile << (_nodeName_left.find(nodeName) != _nodeName_left.end()) << endl;
+					//_logFile << (_nodeName_left[nodeName]._sequence == nullptr) << endl;
+					//_logFile << nodeName << endl;
 
 					char* seq = _nodeName_left[nodeName]->to_string();
 					string kminmerSequence = string(seq);
@@ -721,7 +725,7 @@ public:
 		gzwrite(_basespaceContigFile, (const char*)&header[0], header.size());
 
 		if(contigSequence.size() == 0){
-			cout << "empty contig" << endl;
+			_logFile << "empty contig" << endl;
 			//return;
 		
 			string rleSequence =  "\n";
@@ -740,7 +744,7 @@ public:
 
 
 
-		//cout << rleSequence.size() << endl;
+		//_logFile << rleSequence.size() << endl;
 		/*
 		}
 		else{
@@ -830,11 +834,11 @@ public:
 		_edgeIndex = 0;
 		indexEdges();
 		indexContigs();
-		cout << _overContigs.size() << endl;
+		_logFile << _overContigs.size() << endl;
 		getchar();
 		detectOverlaps();
 
-		//cout << _overContigs.size() << endl;
+		//_logFile << _overContigs.size() << endl;
 
 		exit(1);
 
@@ -858,7 +862,7 @@ public:
 
 	void indexEdges(){
 
-		cout << "Indexing edges" << endl;
+		_logFile << "Indexing edges" << endl;
 		KminmerParser parser(_inputFilenameContig, _minimizerSize, _kminmerSize-1, false, false);
 		auto fp = std::bind(&ToBasespaceNoCorrection::indexEdges_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 		parser.parseMinspace(fp);
@@ -881,7 +885,7 @@ public:
 
 	void indexContigs(){
 
-		cout << "Loading min contigs" << endl;
+		_logFile << "Loading min contigs" << endl;
 
 		KminmerParser parser(_inputFilenameContig, _minimizerSize, _kminmerSize-1, false, false);
 		auto fp = std::bind(&ToBasespaceNoCorrection::indexContigs_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
@@ -909,12 +913,12 @@ public:
 
 	void detectOverlaps(){
 
-		cout << "detecting overlaps" << endl;
+		_logFile << "detecting overlaps" << endl;
 
 		while(true){
 
 			
-			cout << "loop" << endl;
+			_logFile << "loop" << endl;
 
 			std::sort(_overContigs.begin(), _overContigs.end(), ContigOverlapComparator_ByLength);
 			bool isModification = false;
@@ -939,17 +943,17 @@ public:
 					if(sharedElements.size() == 0) continue;
 
 					
-					cout << "-----------------------" << endl;
-					cout << _overContigs[j]._contigIndex << endl;
+					_logFile << "-----------------------" << endl;
+					_logFile << _overContigs[j]._contigIndex << endl;
 					for(u_int32_t nodeName : _overContigs[j]._nodepath){
 						if(sharedElements.find(nodeName) == sharedElements.end()){
-							cout << "0";
+							_logFile << "0";
 						}
 						else{
-							cout << "1";
+							_logFile << "1";
 						}
 					}
-					cout << endl;
+					_logFile << endl;
 
 					//if(_overContigs[j]._contigIndex == 1097) getchar();
 
@@ -971,7 +975,7 @@ public:
 		}
 		
 		u_int32_t overlapSize = computeOverlapSize(nodePath, nodePath_shorter, sharedElements);
-		//cout << overlapSize << " " << contig._minimizers.size() << " " << contig._nodepath.size() << " " << contig._nodepath_sorted.size() << endl;
+		//_logFile << overlapSize << " " << contig._minimizers.size() << " " << contig._nodepath.size() << " " << contig._nodepath_sorted.size() << endl;
 		//if(overlapSize > 0) overlapSize += 1;
 		//if(right && overlapSize > 0) 
 
@@ -1115,25 +1119,25 @@ public:
 
 			if(alignLength / queryLength < 0.9) continue;
 
-			//cout << (nbMatches / alignLength) << " " << (nbMatches / queryLength) << endl;
+			//_logFile << (nbMatches / alignLength) << " " << (nbMatches / queryLength) << endl;
 			
 			for(size_t i=12; i<fields->size(); i++){
 
-				//cout << (*fields)[i] << endl;
+				//_logFile << (*fields)[i] << endl;
 
 				GfaParser::tokenize((*fields)[i], fields_optional, ':');
 
 				if((*fields_optional)[0] == "dv"){
 					float divergence = std::stof((*fields_optional)[2]);
 
-					//cout << (*fields_optional)[2] << endl;
-					//cout << contigName << " " << readName << " " << (alignLength/queryLength*100) << " " << (divergence*100) << "     " << queryLength << " " << targetLength << endl;
+					//_logFile << (*fields_optional)[2] << endl;
+					//_logFile << contigName << " " << readName << " " << (alignLength/queryLength*100) << " " << (divergence*100) << "     " << queryLength << " " << targetLength << endl;
 					if(divergence < 0.02){
 						//string name = readName;
 						//size_t pos = name.find("ctg");
 						//name.erase(pos, 3);
 						//u_int32_t contigIndex = stoull(name);
-						//cout << "Duplicate: " << contigIndex << endl;
+						//_logFile << "Duplicate: " << contigIndex << endl;
 
 						_duplicatedContigIndex.insert(Utils::contigName_to_contigIndex(readName));
 					}
@@ -1161,7 +1165,7 @@ public:
 
 	void dumpSmallContigs_read(const Read& read){
 		
-		//cout << read._seq.size() << endl;
+		//_logFile << read._seq.size() << endl;
 		if(read._seq.size() > _meanReadLength*3) return;
 
 		string header = ">" + read._header + '\n';
@@ -1194,7 +1198,7 @@ public:
 		_outputContigFileDerep.write((const char*)&readMinimizers[0], contigSize*sizeof(u_int64_t));
 
 		_nbContigsPost += 1;
-		//cout << "Dump: " << readIndex << " " << readMinimizers.size() << endl;
+		//_logFile << "Dump: " << readIndex << " " << readMinimizers.size() << endl;
 
 		u_int64_t s = 0;
 		for(size_t i=0; i<readMinimizers.size(); i++){

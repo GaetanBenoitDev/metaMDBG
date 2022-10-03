@@ -170,11 +170,11 @@ public:
 		string ARG_NO_QUAL = "noqual";
 		string ARG_CIRCULARIZE = "circ";
 		string filenameExe = argv[0];
-		//cout << filenameExe << endl;
+		//_logFile << filenameExe << endl;
 
 		//fs::path pa(filenameExe);
 		//_mapperOutputExeFilename = pa.parent_path().string() + "/mapper";
-		//cout << _mapperOutputExeFilename << endl;
+		//_logFile << _mapperOutputExeFilename << endl;
 		//exit(1);
 
 		/*
@@ -197,7 +197,7 @@ public:
 		//;
 
 		if(argc <= 1){
-			cout << options.help() << endl;
+			_logFile << options.help() << endl;
 			exit(0);
 		}
 
@@ -219,7 +219,7 @@ public:
 			
 		}
 		catch (const std::exception& e){
-			std::cout << options.help() << std::endl;
+			std::_logFile << options.help() << std::endl;
 			std::cerr << e.what() << std::endl;
 			std::exit(EXIT_FAILURE);
 		}
@@ -248,22 +248,21 @@ public:
 		}
 		catch (const args::Help&)
 		{
-			std::cout << parser;
+			cerr << parser;
 			exit(0);
 		}
 		catch (const std::exception& e)
 		{
-			std::cout << parser;
-			//cout << endl;
-			std::cout << e.what() << endl;
+			cerr << parser;
+			//_logFile << endl;
+			cerr << e.what() << endl;
 			exit(0);
 		}
 
 		if(arg_help){
-			std::cout << parser;
+			cerr << parser;
 			exit(0);
 		}
-
 
 
 
@@ -300,10 +299,12 @@ public:
 		_inputFilename_reads = _tmpDir + "/input_polish.txt";
 		Commons::createInputFile(args::get(arg_readFilenames), _inputFilename_reads);
 
-		cout << "Contigs: " << _inputFilename_contigs << endl;
-		cout << "Reads: " << _inputFilename_reads << endl;
-		cout << "Use quality: " << _useQual << endl;
-		cout << "Max window variants: " << _maxWindowCopies << endl;
+		openLogFile(_tmpDir);
+
+		_logFile << "Contigs: " << _inputFilename_contigs << endl;
+		_logFile << "Reads: " << _inputFilename_reads << endl;
+		_logFile << "Use quality: " << _useQual << endl;
+		_logFile << "Max window variants: " << _maxWindowCopies << endl;
 
 		//fs::path p(_inputFilename_contigs);
 		//while(p.has_extension()){
@@ -392,7 +393,7 @@ public:
 		while (kseq_read(seq) >= 0){
 
 			totalByteSize += loadContig(contigIndex, string(seq->seq.s));
-			//cout << totalByteSize << " " << _windowByteSize << endl;
+			//_logFile << totalByteSize << " " << _windowByteSize << endl;
 			if(totalByteSize >= _maxMemory){
 				processPass();
 				clearPass();
@@ -412,6 +413,7 @@ public:
 		gzclose(_outputContigFile);
 		fs::remove_all(_readPartitionDir);
 
+		closeLogFile();
 	}
 
 	void executeCircularize(){
@@ -429,7 +431,7 @@ public:
 	void indexCircularContigs(){
 
 		auto fp = std::bind(&ContigPolisher::indexCircularContigs_read, this, std::placeholders::_1);
-		ReadParser readParser(_inputFilename_contigs, true, false);
+		ReadParser readParser(_inputFilename_contigs, true, false, _logFile);
 		readParser.parse(fp);
     
 	}
@@ -438,7 +440,7 @@ public:
 
 		//u_int64_t contigIndex = Utils::contigName_to_contigIndex(read._header);
 
-		//cout << "Contig: " << read._index << " " << read._seq.size() << endl;
+		//_logFile << "Contig: " << read._index << " " << read._seq.size() << endl;
 
 		if (read._seq.size() < _minContigLength) return;
 
@@ -454,7 +456,7 @@ public:
 
 	void indexMappingOnContigEnds(){
 
-		cout << "\tParsing alignments" << endl;
+		_logFile << "\tParsing alignments" << endl;
 
     	long maxHang = 100;
 		
@@ -464,11 +466,11 @@ public:
 
 		//auto oparser = bioparser::Create<bioparser::PafParser<Alignment2>>(_outputFilename_mapping);
 		std::unique_ptr<bioparser::Parser<Alignment2>> oparser;
-    	cout << "1" << endl;
+    	_logFile << "1" << endl;
 		overlaps = oparser->Parse(kChunkSize, true);
-    	cout << "2" << endl;
+    	_logFile << "2" << endl;
 
-		cout << overlaps.size() << endl;
+		_logFile << overlaps.size() << endl;
 
 		return;
 		*/
@@ -481,13 +483,13 @@ public:
 
 		string lineInput;
 		while (getline(infile, lineInput)) {
-			//cout << lineInput << endl;
+			//_logFile << lineInput << endl;
 			//getchar();
 
 
 			GfaParser::tokenize(lineInput, fields, '\t');
 
-			//cout << line << endl;
+			//_logFile << line << endl;
 
 			const string& readName = Utils::shortenHeader((*fields)[0]);
 			const string& contigName = Utils::shortenHeader((*fields)[5]);
@@ -513,11 +515,11 @@ public:
 
 			if(alignLength < 3000) continue;
 			if (contigLength < _minContigLength) continue;
-			//cout << contigIndex << " " << readIndex << endl;
+			//_logFile << contigIndex << " " << readIndex << endl;
 
 			double length = max((double)(contigEnd - contigStart), (double)(readEnd - readStart));
 			double error = 1 - min((double)(contigEnd - contigStart), (double)(readEnd - readStart)) / length;
-			//cout << error << " " << errorThreshold << endl;
+			//_logFile << error << " " << errorThreshold << endl;
 			
 			if(error > errorThreshold) continue;
 
@@ -529,11 +531,11 @@ public:
 
 			if (hangLeft < maxHang){
 				_contigMapLeft[contigName].push_back(readName);
-				//cout << lineInput << endl;
+				//_logFile << lineInput << endl;
 			}
 			if (hangRight < maxHang){
 				_contigMapRight[contigName].push_back(readName);
-				//cout << lineInput << endl;
+				//_logFile << lineInput << endl;
 			}
 
 
@@ -545,7 +547,7 @@ public:
 		delete fields_optional;
 
 		/*
-		cout << "\tIndexing read alignments" << endl;
+		_logFile << "\tIndexing read alignments" << endl;
 
     	long maxHang = 100;
         ifstream infile(_outputFilename_mapping);
@@ -586,11 +588,11 @@ public:
 
 			if (hangLeft < maxHang){
 				_contigMapLeft[contigIndex].push_back(readIndex);
-				//cout << readIndex << endl;
+				//_logFile << readIndex << endl;
 			}
 			if (hangRight < maxHang){
 				_contigMapRight[contigIndex].push_back(readIndex);
-				//cout << readIndex << endl;
+				//_logFile << readIndex << endl;
 			}
 
 		}
@@ -603,7 +605,7 @@ public:
 	void detectCircularContigs(){
 
 		auto fp = std::bind(&ContigPolisher::detectCircularContigs_read, this, std::placeholders::_1);
-		ReadParser readParser(_inputFilename_contigs, true, false);
+		ReadParser readParser(_inputFilename_contigs, true, false, _logFile);
 		readParser.parse(fp);
     
 	}
@@ -640,7 +642,7 @@ public:
 		//gzwrite(_outputContigFile, (const char*)&contigSequence[0], contigSequence.size());
 
 		if(read._seq.size() >= _minContigLength){
-			cout << read._header << " " << (_isContigCircular.find(contigName) != _isContigCircular.end()) << " " << nbSupportingReads << endl;
+			_logFile << read._header << " " << (_isContigCircular.find(contigName) != _isContigCircular.end()) << " " << nbSupportingReads << endl;
 		}
 
 		if(_isContigCircular.find(contigName) != _isContigCircular.end()){
@@ -662,21 +664,21 @@ public:
 
 		if((_contigMapLeft.find(contigIndex) == _contigMapLeft.end()) || (_contigMapRight.find(contigIndex) == _contigMapRight.end())) return 0;
 
-		//cout << "---" << endl;
+		//_logFile << "---" << endl;
 		u_int64_t nbSupportingReads = 0;
 
 
 		const vector<string>& leftReads = _contigMapLeft[contigIndex];
 		const vector<string>& rightReads = _contigMapRight[contigIndex];
 
-		//cout << leftReads.size() << endl;
-		//cout << rightReads.size() << endl;
+		//_logFile << leftReads.size() << endl;
+		//_logFile << rightReads.size() << endl;
 
 		for(const string& readIndex : leftReads){
-			//cout << readIndex << endl;
+			//_logFile << readIndex << endl;
 			if(std::find(rightReads.begin(), rightReads.end(), readIndex) != rightReads.end()){
 				nbSupportingReads += 1;
-				//cout << readIndex << endl;
+				//_logFile << readIndex << endl;
 				//_isReadCircular.insert(readIndex);
 			}
 		}
@@ -697,14 +699,14 @@ public:
 
 		_contigSequences[contigIndex] = seq;
 
-		//cout << "load contig: " << contigIndex << " " << seq.size() << endl;
+		//_logFile << "load contig: " << contigIndex << " " << seq.size() << endl;
 		size_t nbWindows = ceil((double)seq.size() / (double)_windowLength);
 		vector<vector<Window>> windows(nbWindows);
-		//cout << "Nb windows: " << nbWindows << endl;
+		//_logFile << "Nb windows: " << nbWindows << endl;
 
 		_contigWindowSequences[contigIndex] = windows;
 
-		//cout << nbWindows << " " << nbWindows * _windowByteSize << endl;
+		//_logFile << nbWindows << " " << nbWindows * _windowByteSize << endl;
 		return nbWindows * _windowByteSize;
 	}
 	*/
@@ -745,7 +747,7 @@ public:
 
 	void partitionReads(){
 
-		cout << "Partitionning reads on the disk" << endl;
+		_logFile << "Partitionning reads on the disk" << endl;
 		collectContigStats();
 
         srand(time(NULL));
@@ -772,8 +774,8 @@ public:
 		_nbPartitions = max(_nbPartitions, (u_int32_t)_nbCores);
 		_nbPartitions = min(_nbPartitions, (u_int32_t)_contigStats.size());
 		u_int64_t nbContigsPerPartition = _contigStats.size() / _nbPartitions;
-		cout << "Nb partitions: " << _nbPartitions << endl;
-		cout << "Contigs per partition: " << nbContigsPerPartition << endl;
+		_logFile << "Nb partitions: " << _nbPartitions << endl;
+		_logFile << "Contigs per partition: " << nbContigsPerPartition << endl;
 
 		for(u_int32_t i=0; i<_nbPartitions; i++){
 			_partitionNbReads[i] = 0;
@@ -788,11 +790,11 @@ public:
 
 			//totalByteSize += computeContigMemory(contigStat._length);
 			_contigToPartition[contigStat._contigName] = partition;
-			//cout << nbContigs << " " << partition << endl;
+			//_logFile << nbContigs << " " << partition << endl;
 			nbContigs += 1;
 
 			//if(partition == 0){
-			//	cout << "Contig in partition 0: " << contigStat._contigIndex << endl;
+			//	_logFile << "Contig in partition 0: " << contigStat._contigIndex << endl;
 			//}
 			
 			if(nbContigs >= nbContigsPerPartition){
@@ -832,7 +834,7 @@ public:
 			totalByteSize += computeContigMemory(strlen(seq->seq.s));
 			_contigToPartition[contigIndex] = partition;
 
-			//cout << totalByteSize << " " << _windowByteSize << endl;
+			//_logFile << totalByteSize << " " << _windowByteSize << endl;
 			if(totalByteSize >= _maxMemory){
 
 				//omp_lock_t writelock;
@@ -874,7 +876,7 @@ public:
 
 	void collectContigStats(){
 		auto fp = std::bind(&ContigPolisher::collectContigStats_read, this, std::placeholders::_1);
-		ReadParser readParser(_inputFilename_contigs, true, false);
+		ReadParser readParser(_inputFilename_contigs, true, false, _logFile);
 		readParser.parse(fp);
 	}
 	
@@ -890,7 +892,7 @@ public:
 
 	void writeReadPartitions(){
 		_checksumWrittenReads = 0;
-		ReadParserParallel readParser(_inputFilename_reads, false, false, _nbCores);
+		ReadParserParallel readParser(_inputFilename_reads, false, false, _nbCores, _logFile);
 		readParser.parse(ReadPartitionFunctor(*this));
 	}
 
@@ -915,7 +917,7 @@ public:
 			//u_int64_t readIndex = read._index;
 			const string& readName = Utils::shortenHeader(read._header);
 
-			if(read._index % 10000 == 0) cout << "\t" << read._index << endl;
+			if(read._index % 10000 == 0) _contigPolisher._logFile << "\t" << read._index << endl;
 			
 			if(_contigPolisher._alignments.find(readName) == _contigPolisher._alignments.end()) return;
 
@@ -927,19 +929,19 @@ public:
 			const string& contigName = al._contigName;
 			//if(contigName != "ctg90297c") return;
 			//u_int32_t contigIndex = al._contigIndex; //_contigPolisher._alignments[readIndex]._contigIndex;
-			//cout << contigIndex << " " << (_contigPolisher._contigToPartition.find(contigIndex) != _contigPolisher._contigToPartition.end()) << endl;
+			//_logFile << contigIndex << " " << (_contigPolisher._contigToPartition.find(contigIndex) != _contigPolisher._contigToPartition.end()) << endl;
 			u_int32_t partition = _contigPolisher._contigToPartition[contigName];
 
 			//if(writtenPartitions.find(partition) != writtenPartitions.end()) return;
 			//writtenPartitions.insert(partition);
 
-			//cout << partition << endl;
+			//_logFile << partition << endl;
 			PartitionFile* partitionFile = _contigPolisher._partitionFiles[partition];
 
 			omp_set_lock(&partitionFile->_mutex);
 			
 			//if(partition == 0){
-				//cout << "Read: " << readIndex << endl;
+				//_logFile << "Read: " << readIndex << endl;
 			//}
 
 			bool isFastq = read._qual.size() > 0 && _contigPolisher._useQual;
@@ -970,7 +972,7 @@ public:
 			for(char letter : readName){
 				_contigPolisher._checksumWrittenReads += letter;
 			}
-			//cout << readName << " " << _contigPolisher._checksumWrittenReads << endl;
+			//_logFile << readName << " " << _contigPolisher._checksumWrittenReads << endl;
 
 			//gzwrite(partitionFile->_file, (const char*)&readIndex, sizeof(readIndex));
 			//gzwrite(partitionFile->_file, (const char*)&readSize, sizeof(readSize));
@@ -986,7 +988,7 @@ public:
 	void processPartition(u_int32_t partition){
 		_currentPartition = partition;
 		//if(_contigSequences.size() == 0) return;
-		cout << "Processing partition: " << _currentPartition << endl;
+		_logFile << "Processing partition: " << _currentPartition << endl;
 
 		if(_partitionNbReads[partition] == 0) return;
 
@@ -1005,7 +1007,7 @@ public:
 
 	void loadContigs(){
 		auto fp = std::bind(&ContigPolisher::loadContigs_read, this, std::placeholders::_1);
-		ReadParser readParser(_inputFilename_contigs, true, false);
+		ReadParser readParser(_inputFilename_contigs, true, false, _logFile);
 		readParser.parse(fp);
 	}
 	
@@ -1018,7 +1020,7 @@ public:
 		if(contigPartition != _currentPartition) return;
 		
 
-		//if(_currentPartition == 0) cout << "Loading contig in partition 0: " << contigIndex << endl;
+		//if(_currentPartition == 0) _logFile << "Loading contig in partition 0: " << contigIndex << endl;
 		_contigSequences[contigName] = read._seq;
 		size_t nbWindows = ceil((double)read._seq.size() / (double)_windowLength);
 		vector<vector<Window>> windows(nbWindows);
@@ -1032,12 +1034,12 @@ public:
 	//u_int64_t totalByteSize = 0;
 
 
-	//cout << "load contig: " << contigIndex << " " << seq.size() << endl;
-	//cout << "Nb windows: " << nbWindows << endl;
+	//_logFile << "load contig: " << contigIndex << " " << seq.size() << endl;
+	//_logFile << "Nb windows: " << nbWindows << endl;
 
 	
 
-	//cout << nbWindows << " " << nbWindows * _windowByteSize << endl;
+	//_logFile << nbWindows << " " << nbWindows * _windowByteSize << endl;
 	//return nbWindows * _windowByteSize;
 
 
@@ -1059,7 +1061,7 @@ public:
 	void mapReads(){
 		
 		string readFilenames = "";
-		ReadParser readParser(_inputFilename_reads, false, false);
+		ReadParser readParser(_inputFilename_reads, false, false, _logFile);
 
 		for(const string& filename : readParser._filenames){
 			readFilenames += filename + " ";
@@ -1069,7 +1071,7 @@ public:
 		command += " > " + _outputFilename_mapping;
 		//command += " | gzip -c - > " c;
 		//command += " | " + _mapperOutputExeFilename + " " + _inputFilename_contigs + " " + _inputFilename_reads + " " + _outputFilename_mapping;
-		Utils::executeCommand(command, _tmpDir);
+		Utils::executeCommand(command, _tmpDir, _logFile);
 
 
 		//minimap2 -x map-hifi ~/workspace/run/overlap_test_201/contigs_47.fasta.gz ~/workspace/data/overlap_test/genome_201_50x/simulatedReads_0.fastq.gz | ./bin/mapper ~/workspace/run/overlap_test_201/contigs_47.fasta.gz ~/workspace/data/overlap_test/genome_201_50x/input.txt ~/workspace/run/overlap_test_201/align.bin
@@ -1113,7 +1115,7 @@ public:
 	/*
 	void indexContigName(){
 		
-		cout << "Indexing contig names" << endl;
+		_logFile << "Indexing contig names" << endl;
 
 		auto fp = std::bind(&ContigPolisher::indexContigName_read, this, std::placeholders::_1);
 		ReadParser readParser(_inputFilename_contigs, true, false);
@@ -1132,13 +1134,13 @@ public:
 		 	minimap_name = read._header.substr(0, find);
 		}
 
-		//cout << minimap_name << endl;
+		//_logFile << minimap_name << endl;
 		_contigName_to_contigIndex[minimap_name] = read._index;
 	}
 
 	void indexReadName(){
 
-		cout << "Indexing read names" << endl;
+		_logFile << "Indexing read names" << endl;
 		auto fp = std::bind(&ContigPolisher::indexReadName_read, this, std::placeholders::_1);
 		ReadParser readParser(_inputFilename_reads, false, false);
 		readParser.parse(fp);
@@ -1146,7 +1148,7 @@ public:
 	}
 	
 	void indexReadName_read(const Read& read){
-		//cout << read._index << endl;
+		//_logFile << read._index << endl;
 
 		string minimap_name;
 
@@ -1159,7 +1161,7 @@ public:
 		}
 
 		//string minimap_name = read._header.substr(0, read._header.find(' '));
-		//cout << minimap_name << endl;
+		//_logFile << minimap_name << endl;
 		_readName_to_readIndex[minimap_name] = read._index;
 	}
 	*/
@@ -1168,18 +1170,18 @@ public:
 
 		_alignments.clear();
 
-		cout << "\tParsing alignments" << endl;
+		_logFile << "\tParsing alignments" << endl;
 		/*
 		uint32_t kChunkSize = 1024 * 1024 * 1024;
     	std::vector<std::unique_ptr<Alignment2>> overlaps;
 
 		//auto oparser = bioparser::Create<bioparser::PafParser<Alignment2>>(_outputFilename_mapping);
 		std::unique_ptr<bioparser::Parser<Alignment2>> oparser;
-    	cout << "1" << endl;
+    	_logFile << "1" << endl;
 		overlaps = oparser->Parse(kChunkSize, true);
-    	cout << "2" << endl;
+    	_logFile << "2" << endl;
 
-		cout << overlaps.size() << endl;
+		_logFile << overlaps.size() << endl;
 
 		return;
 		*/
@@ -1192,13 +1194,13 @@ public:
 
 		string lineInput;
 		while (getline(infile, lineInput)) {
-			//cout << lineInput << endl;
+			//_logFile << lineInput << endl;
 			//getchar();
 
 
 			GfaParser::tokenize(lineInput, fields, '\t');
 
-			//cout << line << endl;
+			//_logFile << line << endl;
 
 			const string& readName = Utils::shortenHeader((*fields)[0]);
 			const string& contigName = Utils::shortenHeader((*fields)[5]);
@@ -1223,11 +1225,11 @@ public:
 			//u_int64_t length = std::max(readEnd - readStart, contigEnd - contigStart);
 
 
-			//cout << contigIndex << " " << readIndex << endl;
+			//_logFile << contigIndex << " " << readIndex << endl;
 
 			double length = max((double)(contigEnd - contigStart), (double)(readEnd - readStart));
 			double error = 1 - min((double)(contigEnd - contigStart), (double)(readEnd - readStart)) / length;
-			//cout << error << " " << errorThreshold << endl;
+			//_logFile << error << " " << errorThreshold << endl;
 			
 			if(error > errorThreshold) continue;
 
@@ -1284,13 +1286,13 @@ public:
 
 			/*
 			float divergence = 0;
-			//cout << error << endl;
+			//_logFile << error << endl;
 			//getchar();
-			//cout << contigIndex << " " << readIndex << endl;
+			//_logFile << contigIndex << " " << readIndex << endl;
 
 			for(size_t i=12; i<fields->size(); i++){
 
-				//cout << (*fields)[i] << endl;
+				//_logFile << (*fields)[i] << endl;
 
 				GfaParser::tokenize((*fields)[i], fields_optional, ':');
 
@@ -1429,7 +1431,7 @@ public:
 
 	void collectWindowSequences(u_int32_t partition){
 		
-		cout << "\tCollecting window sequences" << endl;
+		_logFile << "\tCollecting window sequences" << endl;
 
 		//auto fp = std::bind(&ContigPolisher::collectWindowCopies_read, this, std::placeholders::_1);
 		//ReadParser readParser(_inputFilename_reads, false, false);
@@ -1437,7 +1439,7 @@ public:
 
 
 		const string& partitionFilename = _readPartitionDir + "/part_" + to_string(partition) + ".gz";
-		ReadParserParallel readParser(partitionFilename, true, false, _nbCores);
+		ReadParserParallel readParser(partitionFilename, true, false, _nbCores, _logFile);
 		readParser.parse(CollectWindowSequencesFunctor(*this));
 	}
 	
@@ -1470,9 +1472,9 @@ public:
 			const string& readName = Utils::shortenHeader(read._header);
 			//u_int64_t readIndex = stoull(read._header);
 
-			//if(_contigPolisher._currentPartition == 0) cout << readIndex << " " << (_alignments.find(readIndex) != _alignments.end()) << endl;
+			//if(_contigPolisher._currentPartition == 0) _logFile << readIndex << " " << (_alignments.find(readIndex) != _alignments.end()) << endl;
 			
-			//if(readIndex % 100000 == 0) cout << "\t" << readIndex << endl;
+			//if(readIndex % 100000 == 0) _logFile << "\t" << readIndex << endl;
 
 			if(_alignments.find(readName) == _alignments.end()) return;
 
@@ -1483,7 +1485,7 @@ public:
 
 			if(_contigSequences.find(contigName) == _contigSequences.end()) return;
 
-			//cout << read._seq.size() << " " << read._qual.size() << " " << _contigSequences[contigIndex].size() << " " << al._readStart << " " << al._readEnd << " " << al._contigStart << " " << al._contigEnd << endl;
+			//_logFile << read._seq.size() << " " << read._qual.size() << " " << _contigSequences[contigIndex].size() << " " << al._readStart << " " << al._readEnd << " " << al._contigStart << " " << al._contigEnd << endl;
 			string readSeq = read._seq;
 			string qualSeq = read._qual;
 			string readSequence = readSeq.substr(al._readStart, al._readEnd-al._readStart);
@@ -1498,10 +1500,10 @@ public:
 			}
 			
 
-			//cout << readSequence << endl;
-			//cout << contigSequence << endl;
+			//_logFile << readSequence << endl;
+			//_logFile << contigSequence << endl;
 
-			//cout << contigSequence.size() << " "<< readSequence.size() << endl;
+			//_logFile << contigSequence.size() << " "<< readSequence.size() << endl;
 			static EdlibAlignConfig config = edlibNewAlignConfig(-1, EDLIB_MODE_NW, EDLIB_TASK_PATH, NULL, 0);
 
 
@@ -1513,11 +1515,11 @@ public:
 			if (result.status == EDLIB_STATUS_OK) {
 				cigar = edlibAlignmentToCigar(result.alignment, result.alignmentLength, EDLIB_CIGAR_STANDARD);
 			} else {
-				cout << "Invalid edlib results" << endl;
+				_contigPolisher._logFile << "Invalid edlib results" << endl;
 				exit(1);
 			}
 
-			//cout << cigar << endl;
+			//_logFile << cigar << endl;
 
 			edlibFreeAlignResult(result);
 			
@@ -1646,11 +1648,11 @@ public:
 				/*
 				if(al._contigIndex == 1 && window_id > 1 && window_id < 1000){
 					if(window_id == 192 || window_id == 193){
-						cout << readSequence << endl;
-						cout << sequence << endl;
-						if(breaking_points_[j].second > 1) cout << readSequence[breaking_points_[j].second-1] << " " << readSequence[breaking_points_[j].second] << endl;
-						if(readSequence.size() > readSequence[breaking_points_[j].second+data_length-1]) cout << readSequence[breaking_points_[j].second+data_length-1] << " " << readSequence[breaking_points_[j].second+data_length] << endl;
-						cout << window_id << endl;
+						_logFile << readSequence << endl;
+						_logFile << sequence << endl;
+						if(breaking_points_[j].second > 1) _logFile << readSequence[breaking_points_[j].second-1] << " " << readSequence[breaking_points_[j].second] << endl;
+						if(readSequence.size() > readSequence[breaking_points_[j].second+data_length-1]) _logFile << readSequence[breaking_points_[j].second+data_length-1] << " " << readSequence[breaking_points_[j].second+data_length] << endl;
+						_logFile << window_id << endl;
 						//getchar();
 					}
 					
@@ -1693,14 +1695,14 @@ public:
 				/*
 				if(al._contigIndex == 1 && window_id > 1 && window_id < 1000){
 					if(window_id == 192 || window_id == 193){
-						cout << readSequence << endl;
-						cout << sequence << endl;
+						_logFile << readSequence << endl;
+						_logFile << sequence << endl;
 						if(breaking_points_[j].second > 1){
-							cout << readSequence[breaking_points_[j].second-1] << " " << readSequence[breaking_points_[j].second] << endl;
+							_logFile << readSequence[breaking_points_[j].second-1] << " " << readSequence[breaking_points_[j].second] << endl;
 							if(readSequence[breaking_points_[j].second-1] == readSequence[breaking_points_[j].second]) getchar();
 						}
-						if(readSequence.size() > readSequence[breaking_points_[j].second+data_length-1]) cout << readSequence[breaking_points_[j].second+data_length-1] << " " << readSequence[breaking_points_[j].second+data_length] << endl;
-						cout << window_id << endl;
+						if(readSequence.size() > readSequence[breaking_points_[j].second+data_length-1]) _logFile << readSequence[breaking_points_[j].second+data_length-1] << " " << readSequence[breaking_points_[j].second+data_length] << endl;
+						_logFile << window_id << endl;
 						//getchar();
 					}
 					
@@ -1718,18 +1720,18 @@ public:
 
 				//if(al._contigIndex == 0 && window_id == 161){
 					
-					//cout << al._contigIndex << " " << al._readIndex << endl;
-					//cout << (breaking_points_[j + 1].second - breaking_points_[j].second) << " " << (0.02 * _windowLength) << endl;
-					//cout << sequence << endl;
-					//cout << quality << endl;
+					//_logFile << al._contigIndex << " " << al._readIndex << endl;
+					//_logFile << (breaking_points_[j + 1].second - breaking_points_[j].second) << " " << (0.02 * _windowLength) << endl;
+					//_logFile << sequence << endl;
+					//_logFile << quality << endl;
 					//getchar();
 				//}
 
 				//if(sequence.size() < 490) continue;
 				indexWindow(al, window_id, posStart, posEnd, sequence, quality);
 
-				//cout << window_id << " " << posStart << " " << posEnd << endl;
-				//cout << sequence << endl;
+				//_logFile << window_id << " " << posStart << " " << posEnd << endl;
+				//_logFile << sequence << endl;
 				//getchar();
 				/*
 				const char* quality = overlaps[i]->strand() ?
@@ -1749,7 +1751,7 @@ public:
 				u_int64_t readWindowStart = breaking_points_[i].second;
 				u_int64_t readWindowEnd = breaking_points_[i+1].second;
 
-				//cout << contigWindowStart << " " << contigWindowEnd  << "      " << readWindowStart << " " << readWindowEnd << endl;
+				//_logFile << contigWindowStart << " " << contigWindowEnd  << "      " << readWindowStart << " " << readWindowEnd << endl;
 
 				//if(readWindowEnd-readWindowStart < _windowLength) continue; //window sides
 				//string windowSequence = 
@@ -1765,7 +1767,7 @@ public:
 			
 
 			//for(const auto& breakPoint : breaking_points_){
-			//	cout << breakPoint.first << " " << breakPoint.second << endl;
+			//	_logFile << breakPoint.first << " " << breakPoint.second << endl;
 			//}
 		}
 
@@ -1780,12 +1782,12 @@ public:
 				
 				/*
 				if(contigWindowIndex == 0){
-					//cout << contigWindowStart << endl;
-					cout << windowSequence << endl;
-					//cout << windows.size() << endl;
-					cout << readWindowStart << " " << readWindowEnd << endl;
+					//_logFile << contigWindowStart << endl;
+					_logFile << windowSequence << endl;
+					//_logFile << windows.size() << endl;
+					_logFile << readWindowStart << " " << readWindowEnd << endl;
 					getchar();
-					//cout << windowQualities << endl;
+					//_logFile << windowQualities << endl;
 				}
 				*/
 				
@@ -1797,12 +1799,12 @@ public:
 
 					/*
 					if(al._contigIndex == 1 && windowIndex == 2){
-						cout << "1111111111111111" << endl;
-						cout  << windowSequence << endl;
+						_logFile << "1111111111111111" << endl;
+						_logFile  << windowSequence << endl;
 					}
 					if(al._contigIndex == 1 && windowIndex == 3){
-						cout << "2222222222222222" << endl;
-						cout  << windowSequence << endl;
+						_logFile << "2222222222222222" << endl;
+						_logFile  << windowSequence << endl;
 					}
 					*/
 
@@ -1817,14 +1819,14 @@ public:
 
 						if (result.status == EDLIB_STATUS_OK) {
 							cigar = edlibAlignmentToCigar(result.alignment, result.alignmentLength, EDLIB_CIGAR_STANDARD);
-							cout << strlen(cigar) << endl;
+							_logFile << strlen(cigar) << endl;
 							free(cigar);
 						} else {
-							cout << "Invalid edlib results" << endl;
+							_logFile << "Invalid edlib results" << endl;
 							exit(1);
 						}
 
-						//cout << cigar << endl;
+						//_logFile << cigar << endl;
 
 						edlibFreeAlignResult(result);
 						free(dnaStrModel);
@@ -1873,7 +1875,7 @@ public:
 
 
 			}
-			//cout << contigWindowIndex << endl;
+			//_logFile << contigWindowIndex << endl;
 
 
 			
@@ -1882,11 +1884,11 @@ public:
 			if(contigWindowIndex == _contigWindowSequences[al._contigIndex].size()-1){
 
 				for(size_t i=0; i<windowSequences.size(); i++){
-					cout << windowSequences[i]->m_len << " ";
+					_logFile << windowSequences[i]->m_len << " ";
 				}
-				cout << endl;
-				//cout << contigWindowEnd-contigWindowStart << endl;
-				//cout << windowSequence << endl;
+				_logFile << endl;
+				//_logFile << contigWindowEnd-contigWindowStart << endl;
+				//_logFile << windowSequence << endl;
 			}
 			*/
 		}
@@ -1898,7 +1900,7 @@ public:
 		
 		u_int64_t checksum = 0;
 
-		cout << "\tPerform correction" << endl;
+		_logFile << "\tPerform correction" << endl;
 
 
 		//vector<u_int32_t> contigIndexes;
@@ -1931,15 +1933,15 @@ public:
 					string contigOriginalSequence = _contigSequences[contigName].substr(wStart, wEnd-wStart);
 
 					//checksum += sequences.size()+1;
-					//cout << w << ": " << (sequences.size()+1) << endl;
+					//_logFile << w << ": " << (sequences.size()+1) << endl;
 					//continue;
-					//cout << contigOriginalSequence << endl;
+					//_logFile << contigOriginalSequence << endl;
 					//getchar();
 					if(sequences.size() < 2){
 							
 						
 						correctedWindows[w] = new DnaBitset2(contigOriginalSequence);
-						//cout << "No sequences for window" << endl;
+						//_logFile << "No sequences for window" << endl;
 						continue;
 					}
 					
@@ -1958,7 +1960,7 @@ public:
 					//for(size_t i=0; i<sequences.size(); i++){
 					//	windowLengths.push_back(sequences[i]->m_len);
 					//}
-					//cout << Utils::compute_median(windowLengths) << endl;
+					//_logFile << Utils::compute_median(windowLengths) << endl;
 
 
 					//abpoa_t *ab = abpoa_init();
@@ -1991,14 +1993,14 @@ public:
 					*/
 
 					/*
-					//cout << "1" << endl;
+					//_logFile << "1" << endl;
 					int n_seqs = sequences.size();
 					int *seq_lens = (int*)malloc(sizeof(int) * n_seqs);
 					uint8_t **bseqs = (uint8_t**)malloc(sizeof(uint8_t*) * n_seqs);
 					
-					cout << "-----" << endl;
-					cout << w << endl;
-					//cout << contigOriginalSequence << endl;
+					_logFile << "-----" << endl;
+					_logFile << w << endl;
+					//_logFile << contigOriginalSequence << endl;
 
 					for(size_t i=0; i<sequences.size(); i++){ 
 
@@ -2006,17 +2008,17 @@ public:
 						DnaBitset2* dna = sequences[i];
 						//const DnaBitset2* dna = variant._sequence; //sequenceCopies[s._sequenceIndex];
 						char* dnaStr = dna->to_string();
-						//cout << dnaStr << endl;
+						//_logFile << dnaStr << endl;
 
 						seq_lens[i] = strlen(dnaStr);
 						bseqs[i] = (uint8_t*)malloc(sizeof(uint8_t) * seq_lens[i]);
 
 						for (int j = 0; j < seq_lens[i]; ++j){
 							bseqs[i][j] = nt4_table2[(int)(dnaStr[j])];
-							//cout << dnaStr[j] << " " << bseqs[i][j] << endl;
+							//_logFile << dnaStr[j] << " " << bseqs[i][j] << endl;
 						}
 
-						//cout << s._sequenceIndex << " " << s._editDistance << endl;
+						//_logFile << s._sequenceIndex << " " << s._editDistance << endl;
 
 						//auto alignment = _alignementEngine->Align(dnaStr, dna->m_len, _graph);
 						//_graph.AddAlignment(alignment, dnaStr, dna->m_len);
@@ -2059,8 +2061,8 @@ public:
 					std::sort(sequences.begin(), sequences.end(), [&](const Window& lhs, const Window& rhs) {
 						return lhs._posStart < rhs._posStart; });
 
-					//cout << sequences.size() << endl;
-					//cout << "1" << endl;
+					//_logFile << sequences.size() << endl;
+					//_logFile << "1" << endl;
 					spoa::Graph graph{};
 
 					string backboneQuality = "";
@@ -2118,13 +2120,13 @@ public:
 								subgraph.UpdateAlignment(mapping, &alignment);
 							}
 							
-							//cout << dnaStr << endl;
-							//cout << window._quality << endl;
-							//cout << window._posStart << " " << window._posEnd << endl;
+							//_logFile << dnaStr << endl;
+							//_logFile << window._quality << endl;
+							//_logFile << window._posStart << " " << window._posEnd << endl;
 							//getchar();
 							//auto alignment = alignmentEngine->Align(dnaStr, window._sequence->m_len, graph);
 
-							//cout << dnaStr << endl;
+							//_logFile << dnaStr << endl;
 							//getchar();
 							//fprintf(stdout, "%s\n", std::string(sequences_[i].first, sequences_[i].second).c_str());
 							if (window._quality.size() == 0) {
@@ -2144,7 +2146,7 @@ public:
 					}
 
 
-					//cout << "2" << endl;
+					//_logFile << "2" << endl;
 
 
 
@@ -2169,10 +2171,10 @@ public:
 								counts[j][3] += 1;
 							}
 
-							//cout << (int) nt256_table2[abc->msa_base[i][j]];
+							//_logFile << (int) nt256_table2[abc->msa_base[i][j]];
 							//fprintf(stdout, "%c", nt256_table2[abc->msa_base[i][j]]);
 						}
-						//cout << endl;
+						//_logFile << endl;
 						//fprintf(stdout, "\n");
 					}
 
@@ -2207,7 +2209,7 @@ public:
 					*/
 
 					//if(correctedSequence.size() < _windowLength-20){
-					//	cout << correctedSequence.size() << " " << sequences.size() << " " << contigOriginalSequence.size() << endl;
+					//	_logFile << correctedSequence.size() << " " << sequences.size() << " " << contigOriginalSequence.size() << endl;
 					//}
 
 
@@ -2238,11 +2240,11 @@ public:
 					for(char letter : correctedSequence){
 						checksum += letter;
 					}
-					//cout << "3" << endl;
+					//_logFile << "3" << endl;
 
 					//#pragma omp critical
 					//{
-					//cout << w << " " << sequences.size() << " " << correctedSequence.size() << " " << checksum << endl;
+					//_logFile << w << " " << sequences.size() << " " << correctedSequence.size() << " " << checksum << endl;
 					//getchar();
 					//}
 
@@ -2262,7 +2264,7 @@ public:
 				delete correctedWindows[w];
 			}
 
-			//cout << contigSequence.size() << " " << nbCorrectedWindows << endl;
+			//_logFile << contigSequence.size() << " " << nbCorrectedWindows << endl;
 			
 			//string header = _contigHeaders[contigIndex];
 			/*
@@ -2299,10 +2301,10 @@ public:
 			gzwrite(_outputContigFile, (const char*)&header[0], header.size());
 			contigSequence +=  '\n';
 			gzwrite(_outputContigFile, (const char*)&contigSequence[0], contigSequence.size());
-			//cout << _contigHeaders[contigIndex] << " " << contigSequence.size() << endl;
+			//_logFile << _contigHeaders[contigIndex] << " " << contigSequence.size() << endl;
 		}
 
-		cout << "Checksum: " << checksum << endl;
+		_logFile << "Checksum: " << checksum << endl;
 	}
 
 };	

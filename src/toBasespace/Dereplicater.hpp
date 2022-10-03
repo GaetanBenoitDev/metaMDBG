@@ -35,7 +35,7 @@ public:
 		options.positional_help("contigs outputFilenme tmpDir");
 
 		if(argc <= 1){
-			cout << options.help() << endl;
+			_logFile << options.help() << endl;
 			exit(0);
 		}
 
@@ -50,8 +50,8 @@ public:
 			_nbCores = result[ARG_NB_CORES].as<int>();
 		}
 		catch (const std::exception& e){
-			std::cout << options.help() << std::endl;
-			std::cerr << e.what() << std::endl;
+			cerr << options.help() << std::endl;
+			cerr << e.what() << std::endl;
 			std::exit(EXIT_FAILURE);
 		}
 
@@ -64,11 +64,13 @@ public:
 			fs::create_directories(_tmpDir);
 		}
 
-		cout << endl;
-		cout << "Contigs: " << _inputFilename_contigs << endl;
-		cout << "Output contigs: " << _outputFilename_contigs << endl;
-		cout << "Tmp dir: " << _tmpDir << endl;
-		cout << endl;
+		openLogFile(_tmpDir);
+
+		_logFile << endl;
+		_logFile << "Contigs: " << _inputFilename_contigs << endl;
+		_logFile << "Output contigs: " << _outputFilename_contigs << endl;
+		_logFile << "Tmp dir: " << _tmpDir << endl;
+		_logFile << endl;
 
 	}
 
@@ -94,6 +96,7 @@ public:
 		
 
 		//fs::remove(outputMappingFilename);
+		closeLogFile();
 	}
 
 	//zFile _queryContigFile;
@@ -105,7 +108,7 @@ public:
 
 		//-N 2 -p 0 --secondary=yes -I 2GB -x map-hifi -c -x asm20
 		string command = "minimap2 --dual=no -H -DP -c -I 100M -t " + to_string(_nbCores) + " " + _inputFilename_contigs + " " + _inputFilename_contigs + " > " + mapFilename;
-		Utils::executeCommand(command, _tmpDir);
+		Utils::executeCommand(command, _tmpDir, _logFile);
 
 		//string command = "wfmash " + _inputFilename_contigs + " -t 15   > " + mapFilename; //-l 5000 -p 80
 		//Utils::executeCommand(command, _tmpDir);
@@ -148,14 +151,14 @@ public:
 
 			//continue;
 			//if((readName == search1 || contigName == search1) && (readName == search2 || contigName == search2)){
-				//cout << line << endl;
+				//_logFile << line << endl;
 			//}
 			//if((readName == "ctg89567" || contigName == "ctg89567")){
-				//cout << line << endl;
+				//_logFile << line << endl;
 			//}
 
 
-			//cout << line << endl;
+			//_logFile << line << endl;
 
 			//continue;
 
@@ -186,7 +189,7 @@ public:
 			//u_int64_t ml = nbMatches;
 			//u_int64_t bl = alignLength;
 
-			//cout << nbMatches / alignLength << " " << alignLength << endl;
+			//_logFile << nbMatches / alignLength << " " << alignLength << endl;
 			if(nbMatches / alignLength < 0.8) continue;
 			if(alignLength < 1000) continue;
 
@@ -208,13 +211,13 @@ public:
 
 				if(hangLeft < maxHang){
 					_duplicationBounds[targetIndex].push_back({targetStart, targetEnd});
-					cout << "overlap left: " << targetName << " " << targetStart << " " << targetEnd << endl;
+					_logFile << "overlap left: " << targetName << " " << targetStart << " " << targetEnd << endl;
 					isOverlap = true;
 				}
 
 				if(hangRight < maxHang){
 					_duplicationBounds[targetIndex].push_back({targetStart, targetEnd});
-					cout << "overlap right: " << targetName << " " << targetStart << " " << targetEnd << endl;
+					_logFile << "overlap right: " << targetName << " " << targetStart << " " << targetEnd << endl;
 					isOverlap = true;
 				}
 			}
@@ -224,13 +227,13 @@ public:
 
 				if(hangLeft < maxHang){
 					_duplicationBounds[queryIndex].push_back({queryStart, queryEnd});
-					cout << "overlap left: " << queryName << " " << queryStart << " " << queryEnd << endl;
+					_logFile << "overlap left: " << queryName << " " << queryStart << " " << queryEnd << endl;
 					isOverlap = true;
 				}
 
 				if(hangRight < maxHang){
 					_duplicationBounds[queryIndex].push_back({queryStart, queryEnd});
-					cout << "overlap right: " << queryName << " " << queryStart << " " << queryEnd << endl;
+					_logFile << "overlap right: " << queryName << " " << queryStart << " " << queryEnd << endl;
 					isOverlap = true;
 				}
 			}
@@ -248,11 +251,11 @@ public:
 
 			if(targetLength < queryLength){
 				_duplicationBounds[targetIndex].push_back({targetStart, targetEnd});
-				cout << "Add internal " << targetName << " " << targetStart << " " << targetEnd << endl;
+				_logFile << "Add internal " << targetName << " " << targetStart << " " << targetEnd << endl;
 			}
 			else{
 				_duplicationBounds[queryIndex].push_back({queryStart, queryEnd});
-				cout << "Add internal " << queryName <<  " " << queryStart << " " << queryEnd << endl;
+				_logFile << "Add internal " << queryName <<  " " << queryStart << " " << queryEnd << endl;
 			}
 		}
 
@@ -262,7 +265,7 @@ public:
 	
 	void dumpDereplicatedContigs(){
 		
-		cout << "Writing dereplicated contigs" << endl;
+		_logFile << "Writing dereplicated contigs" << endl;
 
 		_outputContigFile = gzopen(_outputFilename_contigs.c_str(),"wb");
 
@@ -276,7 +279,7 @@ public:
 		_file4 = gzopen(s4.c_str(),"wb");
 
 		auto fp = std::bind(&Dereplicater::dumpDereplicatedContigs_read, this, std::placeholders::_1);
-		ReadParser readParser(_inputFilename_contigs, true, false);
+		ReadParser readParser(_inputFilename_contigs, true, false, _logFile);
 		readParser.parse(fp);
 
 		gzclose(_outputContigFile);
@@ -326,7 +329,7 @@ public:
 		}
 		u_int64_t contigIndex = Utils::contigName_to_contigIndex(read._header);
 		//if(_duplicatedContigIndex.find(contigIndex) != _duplicatedContigIndex.end()){
-		//	cout << "Discard: " << read._seq.size() << endl;
+		//	_logFile << "Discard: " << read._seq.size() << endl;
 		//	return;
 		//}
 
@@ -337,26 +340,26 @@ public:
 
 			const ContigOverlap& ov = _contigOverlaps[contigIndex];
 
-			cout << contigIndex << " " << ov._leftPos << " " << ov._rightPos << endl;
+			_logFile << contigIndex << " " << ov._leftPos << " " << ov._rightPos << endl;
 			if(ov._leftPos != 0 && ov._rightPos != -1){
 				if(ov._leftPos >= ov._rightPos){
-					cout << "\tSlicing complete: " << read._seq.size() << endl;
+					_logFile << "\tSlicing complete: " << read._seq.size() << endl;
 					return;
 				}
 				else{
 					//u_int64_t rightLength = seq.size()-ov._rightPos;
 					seq = seq.substr(ov._leftPos, ov._rightPos-ov._leftPos);
-					cout << "\tSlicing both: " << read._seq.size() << endl;
+					_logFile << "\tSlicing both: " << read._seq.size() << endl;
 				}
 			}
 			else if(ov._leftPos != 0){
 				seq = seq.substr(ov._leftPos, seq.size()-ov._leftPos);
-				cout << "\tSlicing left: " << read._seq.size() << endl;
+				_logFile << "\tSlicing left: " << read._seq.size() << endl;
 			}
 			else{
 				//u_int64_t rightLength = seq.size()-ov._rightPos;
 				seq = seq.substr(ov._leftPos, ov._rightPos-ov._leftPos);
-				cout << "\tSlicing right: " << read._seq.size() << endl;
+				_logFile << "\tSlicing right: " << read._seq.size() << endl;
 			}
 		}
 
@@ -369,12 +372,12 @@ public:
 		if(_duplicationBounds.find(contigIndex) != _duplicationBounds.end()){
 
 			//if(read._header == "ctg89567") 
-			cout << "-----" << endl;
+			_logFile << "-----" << endl;
 			vector<bool> isDuplicated(seq.size(), false);
 
 			for(const DbgEdge& duplicatedBound : _duplicationBounds[contigIndex]){
 				//if(read._header == "ctg89567") 
-				cout << duplicatedBound._from << " " << duplicatedBound._to << endl;
+				_logFile << duplicatedBound._from << " " << duplicatedBound._to << endl;
 				for(size_t i=duplicatedBound._from; i<duplicatedBound._to; i++){
 					isDuplicated[i] = true;
 				}
@@ -410,7 +413,7 @@ public:
 
 
 							//if(read._header == "ctg89567")
-							cout << "Dump area: " << startPos << " " << startPos+length << endl;
+							_logFile << "Dump area: " << startPos << " " << startPos+length << endl;
 
 							subSeqIndex += 1;
 						}
@@ -443,7 +446,7 @@ public:
 					string contigSequence = subSeq + '\n';
 					gzwrite(_outputContigFile, (const char*)&contigSequence[0], contigSequence.size());
 					
-					cout << "Dump area: " << startPos << " " << startPos+length << endl;
+					_logFile << "Dump area: " << startPos << " " << startPos+length << endl;
 				}
 
 

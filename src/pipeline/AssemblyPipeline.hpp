@@ -33,6 +33,11 @@ public:
 
     void execute (){
 
+		ofstream fileLogs(_tmpDir + "/logs.txt");
+		fileLogs.close();
+
+		openLogFile(_tmpDir);
+
 		auto start = high_resolution_clock::now();
 
 		//for(size_t i=0; i<1000; i++)
@@ -45,9 +50,9 @@ public:
 		outfile << "Duration (s): " << duration_cast<seconds>(stop - start).count() << endl;
 		outfile.close();
 
-		cout << endl;
-		cout << "Contig filename: " << _outputDir + "/contigs_polished.fasta.gz" << endl;
-		cout << "done!" << endl;
+		cerr << endl;
+		cerr << "Contig filename: " << _outputDir + "/contigs_polished.fasta.gz" << endl;
+		cerr << "done!" << endl;
 	}
 
 	void parseArgs(int argc, char* argv[]){
@@ -75,19 +80,19 @@ public:
 		}
 		catch (const args::Help&)
 		{
-			std::cout << parser;
+			std::cerr << parser;
 			exit(0);
 		}
 		catch (const std::exception& e)
 		{
-			std::cout << parser;
+			std::cerr << parser;
 			//cout << endl;
-			std::cout << e.what() << endl;
+			std::cerr << e.what() << endl;
 			exit(0);
 		}
 
 		if(arg_help){
-			std::cout << parser;
+			std::cerr << parser;
 			exit(0);
 		}
 
@@ -211,13 +216,13 @@ public:
 		//if(!System::file().doesExist (_outputDir)) System::file().mkdir(_outputDir, -1);
 		//createInputFile();
 
-		cout << endl;
-		cout << "Input: " << _inputFilename << endl;
-		cout << "Dir: " << _outputDir << endl;
-		cout << "Minimizer length: " << _minimizerSize << endl;
+		cerr << endl;
+		cerr << "Input: " << _inputFilename << endl;
+		cerr << "Dir: " << _outputDir << endl;
+		cerr << "Minimizer length: " << _minimizerSize << endl;
 		//cout << "Kminmer length: " << _kminmerSize << endl;
-		cout << "Density: " << _minimizerDensity << endl;
-		cout << endl;
+		cerr << "Density: " << _minimizerDensity << endl;
+		cerr << endl;
 
 		_filename_exe = argv[0];
 		/*
@@ -258,24 +263,24 @@ public:
 		
 
 		sort(_readLengths.begin(), _readLengths.end());
-		cout << _readLengths[_readLengths.size() * 0.1] << endl;
-		cout << _readLengths[_readLengths.size() * 0.2] << endl;
-		cout << _readLengths[_readLengths.size() * 0.3] << endl;
-		cout << _readLengths[_readLengths.size() * 0.4] << endl;
-		cout << _readLengths[_readLengths.size() * 0.5] << endl;
-		cout << _readLengths[_readLengths.size() * 0.6] << endl;
-		cout << _readLengths[_readLengths.size() * 0.7] << endl;
-		cout << _readLengths[_readLengths.size() * 0.8] << endl;
-		cout << _readLengths[_readLengths.size() * 0.9] << endl;
+		_logFile << _readLengths[_readLengths.size() * 0.1] << endl;
+		_logFile << _readLengths[_readLengths.size() * 0.2] << endl;
+		_logFile << _readLengths[_readLengths.size() * 0.3] << endl;
+		_logFile << _readLengths[_readLengths.size() * 0.4] << endl;
+		_logFile << _readLengths[_readLengths.size() * 0.5] << endl;
+		_logFile << _readLengths[_readLengths.size() * 0.6] << endl;
+		_logFile << _readLengths[_readLengths.size() * 0.7] << endl;
+		_logFile << _readLengths[_readLengths.size() * 0.8] << endl;
+		_logFile << _readLengths[_readLengths.size() * 0.9] << endl;
 		_readLengths.clear();
 		//return scores[size * 0.1];
 
 
 
-		cout << "Mean read length: " << meanReadLength << endl;
-		cout << "Min k: " << _firstK << endl;
-		cout << "Max k: " << _lastK << endl;
-		cout << endl;
+		cerr << "Mean read length: " << meanReadLength << endl;
+		cerr << "Min k: " << _firstK << endl;
+		cerr << "Max k: " << _lastK << endl;
+		cerr << endl;
 
 
 		string command = "";
@@ -285,6 +290,8 @@ public:
 
 		writeParameters(_minimizerSize, _firstK, _minimizerDensity, _firstK, _firstK, _lastK);
 		//createInputFile(false);
+
+		cerr << "Converting reads to minimizers..." << endl;
 
 		//Read selection
 		command = _filename_exe + " readSelection -i " + _inputFilename + " -o " + _tmpDir + " -f " + _tmpDir + "/read_data_init.txt" + " -t " + to_string(_nbCores);
@@ -296,6 +303,8 @@ public:
 
 		for(size_t k=_firstK; k<_lastK; k+=1){
 
+
+			cerr << "Multi-k pass: " << k << "/" << _lastK << endl;
 			//cout << "Start asm: " << k << endl;
 
 
@@ -360,7 +369,7 @@ public:
 
 
 		executePass(_lastK, prevK, pass);
-		cout << "pass done" << endl;
+		_logFile << "pass done" << endl;
 
     }
 
@@ -418,6 +427,9 @@ public:
 			command = _filename_exe + " toMinspace " + " " + _tmpDir + " " + _tmpDir + "/contigs.nodepath" + " " + _tmpDir + "/contig_data.txt";
 			executeCommand(command);
 			
+
+			cerr << "Removing overlaps and duplication..." << endl;
+
 			appendSmallContigs();
 
 			string contigFilenameCompressed = _tmpDir + "/contigs_H_" + to_string(k) + ".fasta.gz ";
@@ -442,6 +454,8 @@ public:
 			executeCommand(command);
 			*/
 		
+			cerr << "Constructing base-space contigs..." << endl;
+
 			const string contigFilename_uncorrected = _tmpDir + "/contigs_uncorrected.fasta.gz";
 			command = _filename_exe + " toBasespace " + " " + _tmpDir + " " + _tmpDir + "/contig_data.txt " + " " + contigFilename_uncorrected + " " + _inputFilename  + " -t " + to_string(_nbCores);
 			//if(pass == 0) command += " --firstpass";
@@ -450,11 +464,12 @@ public:
 
 
 			string readFilenames = "";
-			ReadParser readParser(_inputFilename, false, false);
+			ReadParser readParser(_inputFilename, false, false, _logFile);
 			for(const string& filename : readParser._filenames){
 				readFilenames += filename + " ";
 			}
 
+			cerr << "Polishing contigs..." << endl;
 			//./bin/metaMDBG polish ~/workspace/run/overlap_test_201/contigs_uncorrected.fasta.gz ~/workspace/run/overlap_test_201/ ~/workspace/data/overlap_test/genome_201_50x/simulatedReads_0.fastq.gz ~/workspace/data/overlap_test/genome_201_50x/simulatedReads_0.fastq.gz -t 15 --qual
 			//getchar();
 			command = _filename_exe + " polish " + contigFilename_uncorrected + " " + _outputDir + " " + readFilenames + " " + " -t " + to_string(_nbCores) + " --circ";
@@ -492,7 +507,7 @@ public:
 		string line;
 
 		while (infile >> line){
-			cout << "Duplicate: " << line << endl;
+			_logFile << "Duplicate: " << line << endl;
 			_duplicatedContigIndex.insert(stoull(line));
 		}
 
@@ -520,11 +535,11 @@ public:
 
 	void dumpDereplicatedContigs_read(const vector<u_int64_t>& readMinimizers, bool isCircular, u_int64_t readIndex){
 		
-		cout << "contig: " << readIndex << " " << readMinimizers.size() << endl;
+		_logFile << "contig: " << readIndex << " " << readMinimizers.size() << endl;
 		if(readMinimizers.size() == 0) return;
 		if(_duplicatedContigIndex.find(readIndex) != _duplicatedContigIndex.end()) return;
 
-		cout << "dump contigs: " << readIndex << " " << readMinimizers.size() << endl;
+		_logFile << "dump contigs: " << readIndex << " " << readMinimizers.size() << endl;
 		u_int32_t contigSize = readMinimizers.size();
 		_outputContigFileDerep.write((const char*)&contigSize, sizeof(contigSize));
 		_outputContigFileDerep.write((const char*)&isCircular, sizeof(isCircular));
@@ -546,7 +561,7 @@ public:
 	ofstream _fileContigsAppend;
 
 	void appendSmallContigs(){
-		cout << "Append small contigs" << endl;
+		_logFile << "Append small contigs" << endl;
 
 		string contigFilename = _tmpDir + "/contig_data.txt";
 
@@ -674,7 +689,7 @@ public:
 		_readLengthN = 0;
 
 		auto fp = std::bind(&AssemblyPipeline::computeMeanReadLength_read, this, std::placeholders::_1);
-		ReadParser readParser(filename, false, false);
+		ReadParser readParser(filename, false, false, _logFile);
 		readParser._maxReads = 100000;
 		readParser.parse(fp);
 
@@ -692,7 +707,7 @@ public:
 		//cout << command << endl;
 		//string command2 = "time -v \"" + command + "\" 2>&1 " + _tmpDir + "/time.txt";
 
-		Utils::executeCommand(command, _tmpDir);
+		Utils::executeCommand(command, _tmpDir, _logFile);
 		//getchar();
 	}
 };	

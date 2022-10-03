@@ -689,12 +689,14 @@ public:
 	}
 
 
-	static void executeCommand(const string& command, const string& outputDir){
+	static void executeCommand(const string& command, const string& outputDir, ofstream& logFile){
 
 		static double _maxMemoryUsage = 0;
 		static string s = "Maximumresidentsetsize(kbytes):";
 
-		cout << command << endl;
+		logFile << endl;
+		logFile << endl;
+		logFile << command << endl;
 
 		string command2 = "{ time -v " + command + "; } 2> " + outputDir + "/time.txt";
 
@@ -2135,11 +2137,12 @@ public:
 	vector<string> _filenames;
 	u_int64_t _nbDatasets;
 	int _nbCores;
+	ofstream& _logFile;
 
-	ReadParserParallel(const string& inputFilename, bool isFile, bool isBitset, int nbCores){
+	ReadParserParallel(const string& inputFilename, bool isFile, bool isBitset, int nbCores, ofstream& logFile) : _logFile(logFile){
 
 		if(!fs::exists(inputFilename)){
-			cout << "File not found: " << inputFilename << endl;
+			cerr << "File not found: " << inputFilename << endl;
 			exit(1);
 		}
 
@@ -2158,7 +2161,7 @@ public:
 	}
 
 
-	ReadParserParallel(const string& inputFilename, bool isFile, size_t l, size_t k, float density){
+	ReadParserParallel(const string& inputFilename, bool isFile, size_t l, size_t k, float density, ofstream& logFile) : _logFile(logFile){
 		_inputFilename = inputFilename;
 		_isFile = isFile;
 		_l = l;
@@ -2194,7 +2197,7 @@ public:
 				_filenames.push_back(line);
 			}
 			else{
-				cout << "File not found: " << line << endl;
+				cerr << "File not found: " << line << endl;
 				exit(1);
 			}
 		}
@@ -2214,7 +2217,7 @@ public:
 
 		for(const string& filename : _filenames){
 
-			cout << filename << endl;
+			_logFile << "Parsing file: " << filename << endl;
 
 			gzFile fp = gzopen(filename.c_str(), "r");
 			kseq_t *seq;
@@ -2283,7 +2286,7 @@ public:
 
 		}
 
-		cout << readIndex << endl;
+		_logFile << "Parsing file done (nb reads: " << (readIndex+1) << ")" << endl;
 	}
 };
 
@@ -2299,8 +2302,9 @@ public:
 	vector<string> _filenames;
 	u_int64_t _nbDatasets;
 	u_int64_t _maxReads;
+	ofstream& _logFile;
 
-	ReadParser(const string& inputFilename, bool isFile, bool isBitset){
+	ReadParser(const string& inputFilename, bool isFile, bool isBitset, ofstream& logFile) : _logFile(logFile){
 		_maxReads = 0;
 		_inputFilename = inputFilename;
 		_isFile = isFile;
@@ -2316,7 +2320,7 @@ public:
 	}
 
 
-	ReadParser(const string& inputFilename, bool isFile, size_t l, size_t k, float density){
+	ReadParser(const string& inputFilename, bool isFile, size_t l, size_t k, float density, ofstream& logFile) : _logFile(logFile){
 		_maxReads = 0;
 		_inputFilename = inputFilename;
 		_isFile = isFile;
@@ -2353,7 +2357,7 @@ public:
 				_filenames.push_back(line);
 			}
 			else{
-				cout << "File not found: " << line << endl;
+				cerr << "File not found: " << line << endl;
 				exit(1);
 			}
 		}
@@ -2371,7 +2375,8 @@ public:
 
 		for(const string& filename : _filenames){
 
-			cout << filename << endl;
+			_logFile << "Parsing file: " << filename << endl;
+			//cout << filename << endl;
 
 			/*
 			if(_isBitset){
@@ -2465,7 +2470,8 @@ public:
 		u_int64_t datasetIndex = 0;
 
 		for(const string& filename : _filenames){
-			cout << filename << endl;
+			_logFile << "Parsing file: " << filename << endl;
+			//cout << filename << endl;
 
 			readIndex = 0;
 
@@ -3212,6 +3218,8 @@ class Tool{
 
 public:
 
+	ofstream _logFile;
+
 	void run(int argc, char* argv[]){
 		parseArgs(argc, argv);
 		execute();
@@ -3219,6 +3227,15 @@ public:
 
     virtual void parseArgs (int argc, char* argv[]) = 0;
     virtual void execute () = 0;
+
+	void openLogFile(const string& dir){
+		_logFile = ofstream(dir + "/logs.txt", std::ios_base::app);
+	}
+
+	void closeLogFile(){
+		_logFile.close();
+	}
+
 };
 
 

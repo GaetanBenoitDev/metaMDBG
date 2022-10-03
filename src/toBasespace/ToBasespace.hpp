@@ -200,13 +200,13 @@ public:
 		}
 		catch (const std::exception& e)
 		{
-			std::cout << parser;
-			std::cout << e.what() << endl;
+			cerr << parser;
+			cerr << e.what() << endl;
 			exit(0);
 		}
 
 		if(arg_help){
-			std::cout << parser;
+			cerr << parser;
 			exit(0);
 		}
 
@@ -233,7 +233,7 @@ public:
 		//;
 
 		if(argc <= 1){
-			cout << options.help() << endl;
+			_logFile << options.help() << endl;
 			exit(0);
 		}
 
@@ -253,7 +253,7 @@ public:
 			
 		}
 		catch (const std::exception& e){
-			std::cout << options.help() << std::endl;
+			std::_logFile << options.help() << std::endl;
 			std::cerr << e.what() << std::endl;
 			std::exit(EXIT_FAILURE);
 		}
@@ -273,13 +273,15 @@ public:
 
 		_kminmerSize = _kminmerSizeFirst;
 
-		cout << endl;
-		cout << "Input dir: " << _inputDir << endl;
-		//cout << "Output filename: " << _outputFilename << endl;
-		cout << "Minimizer length: " << _minimizerSize << endl;
-		cout << "Kminmer length: " << _kminmerSize << endl;
-		cout << "Density: " << _minimizerDensity << endl;
-		cout << endl;
+		openLogFile(_inputDir);
+
+		_logFile << endl;
+		_logFile << "Input dir: " << _inputDir << endl;
+		//_logFile << "Output filename: " << _outputFilename << endl;
+		_logFile << "Minimizer length: " << _minimizerSize << endl;
+		_logFile << "Kminmer length: " << _kminmerSize << endl;
+		_logFile << "Density: " << _minimizerDensity << endl;
+		_logFile << endl;
 
 		//_filename_outputContigs = _inputDir + "/contigs.fasta.gz";
 		//_filename_outputContigs = _inputFilenameContig + ".fasta.gz"; //_inputDir + "/tmpContigs.fasta.gz";
@@ -300,23 +302,23 @@ public:
 
 		//_kminmerSize = 4;
 
-		cout << "Loading mdbg" << endl;
+		_logFile << "Loading mdbg" << endl;
 		string mdbg_filename = _inputDir + "/kminmerData_min_init.txt";
 		_mdbg = new MDBG(_kminmerSize);
 		_mdbg->load(mdbg_filename, false);
-		cout << "MDBG nodes: " << _mdbg->_dbg_nodes.size() << endl;
+		_logFile << "MDBG nodes: " << _mdbg->_dbg_nodes.size() << endl;
 
 
 
-		cout << "Indexing reads" << endl;
+		_logFile << "Indexing reads" << endl;
 		_unitigDatas.resize(_mdbg->_dbg_nodes.size());
 		indexReads();
 
-		//cout << "Loading original mdbg" << endl;
+		//_logFile << "Loading original mdbg" << endl;
 		//string mdbg_filename = _inputDir + "/mdbg_nodes_init.gz";
 		//_mdbgInit = new MDBG(_originalKminmerSize);
 		//_mdbgInit->load(mdbg_filename);
-		//cout << "MDBG nodes: " << _mdbgInit->_dbg_nodes.size() << endl;
+		//_logFile << "MDBG nodes: " << _mdbgInit->_dbg_nodes.size() << endl;
 
 		string inputFilenameContigSmall = _inputDir + "/small_contigs.bin";
 
@@ -329,15 +331,15 @@ public:
 		_unitigDatas.clear();
 
 		//isKminmerRepeated.clear();
-		//cout << isKminmerRepeated.size() << endl;
+		//_logFile << isKminmerRepeated.size() << endl;
 		//getchar();
 
 		extractKminmerSequences_model();
 		//extractKminmerSequences_allVariants();
 
-		//cout << _nodeName_all_left.size() << " " << _nodeName_all_right.size() << endl;
+		//_logFile << _nodeName_all_left.size() << " " << _nodeName_all_right.size() << endl;
 
-		cout << "Correcting kminmer sequences" << endl;
+		_logFile << "Correcting kminmer sequences" << endl;
 
 		//auto alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kNW, 3, -5, -3);  // linear gaps
 		//spoa::Graph graph{};
@@ -409,7 +411,7 @@ public:
 		//loadContigs(_inputDir + "/eval/composition/22/debug_longUnitigs.gz");
 		//loadContigs(_inputDir + "/eval/composition//3/debug_longUnitigsNeighbors.gz");
 
-		cout << "TODO: remove ContigNode and _requiredCopiers_entire, instead use unorderedmap nodeName => vector<(ReadIndex, string)>" << endl;
+		_logFile << "TODO: remove ContigNode and _requiredCopiers_entire, instead use unorderedmap nodeName => vector<(ReadIndex, string)>" << endl;
 
 
 
@@ -425,23 +427,25 @@ public:
 		//createBaseContigs(_inputDir + "/eval/composition//22//debug_longUnitigs.gz", _inputDir + "/eval/composition//22//debug_longUnitigs.fasta.gz");
 		//createBaseContigs(_inputDir + "/eval/composition//3//debug_longUnitigsNeighbors.gz", _inputDir + "/eval/composition//3/debug_longUnitigsNeighbors.fasta.gz");
 
-		cout << endl << "Contig filename: " << _filename_outputContigs << endl;
+		_logFile << endl << "Contig filename: " << _filename_outputContigs << endl;
 		*/
+
+		closeLogFile();
 	}
 
 	void endCorrection(auto& copies, auto& isDoneNodeName, auto& correctedSequences, auto& repeatedKminmers_model, auto& repeatedKminmers_variants){
 
 		/*
-		cout << "-----" << endl;
+		_logFile << "-----" << endl;
 		for(const auto& it : repeatedKminmers){
-			cout << (it.second != nullptr) << endl;
+			_logFile << (it.second != nullptr) << endl;
 			if(it.second == nullptr){
-				cout << it.first._nodeIndex << " " << it.first._supportingReadIndex << endl;
+				_logFile << it.first._nodeIndex << " " << it.first._supportingReadIndex << endl;
 				getchar();
 			}
 
 			if(it.first._nodeIndex == 602){
-				cout << (it.second != nullptr) << endl;
+				_logFile << (it.second != nullptr) << endl;
 				getchar();
 			}
 		}
@@ -454,7 +458,7 @@ public:
 		}
 		
 		/*
-		cout << nodeNames.size() << endl;
+		_logFile << nodeNames.size() << endl;
 		#pragma omp parallel num_threads(_nbCores)
 		{
 
@@ -489,14 +493,14 @@ public:
 					//dnaSeq.clear();
 
 					//if(nodeName == 10042){
-					//	cout << "omg" << endl;
+					//	_logFile << "omg" << endl;
 					//	getchar();
 					//}
 				}
 			}
 		}
 
-		cout << correctedSequences.size() << endl;
+		_logFile << correctedSequences.size() << endl;
 		*/
 
 
@@ -508,7 +512,7 @@ public:
 		}
 		
 		//"reprise: verifier que cette partie est bien paralleliser, ça a tourner a 100% de cpu la derniere run"
-		cout << "Correcting repeated kminmers: " << readNodeNames.size() << endl;
+		_logFile << "Correcting repeated kminmers: " << readNodeNames.size() << endl;
 		#pragma omp parallel num_threads(_nbCores)
 		{
 
@@ -522,7 +526,7 @@ public:
 				for(ReadSequence& readSequence : repeatedKminmers_variants[nodeName]){
 
 					if(readSequence._sequence == nullptr){
-						//cout << "No model sequence" << endl;
+						//_logFile << "No model sequence" << endl;
 						continue;
 					}
 
@@ -558,7 +562,7 @@ public:
 					sequences.clear();
 
 				}
-				//cout << readNodeName._nodeIndex << endl;
+				//_logFile << readNodeName._nodeIndex << endl;
 
 
 
@@ -585,7 +589,7 @@ public:
 	/*
 	void loadContigs(const string& contigFilename){
 
-		cout << "Loading mContigs: " << contigFilename << endl;
+		_logFile << "Loading mContigs: " << contigFilename << endl;
 		gzFile contigFile = gzopen(contigFilename.c_str(),"rb");
 		u_int64_t nbContigs = 0;
 		
@@ -625,12 +629,12 @@ public:
 			}
 
 			nbContigs += 1;
-			//cout << nodePath.size() << endl;
+			//_logFile << nodePath.size() << endl;
 		}
 
 		gzclose(contigFile);
 
-		cout << "Nb contigs: " << nbContigs << endl;
+		_logFile << "Nb contigs: " << nbContigs << endl;
 	}
 	*/
 	//MDBG* _mdbgInit;
@@ -648,7 +652,7 @@ public:
 		ReadParser readParser(contigFilename, true, false);
 		readParser.parse(fp);
 
-		cout << "Nb contigs: " << _nbContigs << endl;
+		_logFile << "Nb contigs: " << _nbContigs << endl;
 
 		double nbRepeatedKminmers = 0;
 		for(auto& it : _kminmerCounts){
@@ -656,9 +660,9 @@ public:
 				nbRepeatedKminmers += 1;
 			}
 		}
-		cout << "Nb kminmer: " << _kminmerCounts.size() << endl;
-		cout << "Repeated kminmer: " << nbRepeatedKminmers << endl;
-		cout << "Repeated kminmer rate: " << (nbRepeatedKminmers / _kminmerCounts.size()) << endl;
+		_logFile << "Nb kminmer: " << _kminmerCounts.size() << endl;
+		_logFile << "Repeated kminmer: " << nbRepeatedKminmers << endl;
+		_logFile << "Repeated kminmer rate: " << (nbRepeatedKminmers / _kminmerCounts.size()) << endl;
 
 		_kminmerCounts.clear();
 	}
@@ -682,7 +686,7 @@ public:
 			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()) continue;
 
 			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
-			//cout << nodeName << " " << readIndex << endl;
+			//_logFile << nodeName << " " << readIndex << endl;
 			_unitigDatas[nodeName].push_back(readIndex);
 		}
 	}
@@ -717,7 +721,7 @@ public:
 	/*
 	void loadContigs_min(const string& contigFilename){
 
-		cout << "Extracting kminmers: " << contigFilename << endl;
+		_logFile << "Extracting kminmers: " << contigFilename << endl;
 		KminmerParser parser2(contigFilename, _minimizerSize, _kminmerSize, false, false);
 		auto fp2 = std::bind(&ToBasespace::loadContigs_min_read2, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
 		parser2.parseMinspace(fp2);
@@ -726,7 +730,7 @@ public:
 
 	void loadContigs_min_read2(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, bool isCircular, u_int64_t readIndex){
 
-		//cout << kminmersInfos.size() << " " << (_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) << endl;
+		//_logFile << kminmersInfos.size() << " " << (_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) << endl;
 		//if(_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) return;
 		double s = 0;
 		for(size_t i=0; i<kminmersInfos.size(); i++){
@@ -736,7 +740,7 @@ public:
 			KmerVec vec = kminmerInfo._vec;
 			
 			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
-				cout << "Not found kminmer" << endl;
+				_logFile << "Not found kminmer" << endl;
 				//getchar();
 				continue;
 			}
@@ -749,10 +753,10 @@ public:
 			//nodepath.push_back(nodeName);
 			//if(nodeName == 38376){
 
-			//	cout << "lala" << endl;
+			//	_logFile << "lala" << endl;
 			//	getchar();
 			//}
-			//cout << kminmersInfos.size() << " " << nodeName << endl;
+			//_logFile << kminmersInfos.size() << " " << nodeName << endl;
 
 			
 			_kminmerCounts[nodeName] += 1;
@@ -802,7 +806,7 @@ public:
 		_nextReadIndexWriter = 0;
 		_contigFileSupported = ofstream(contigFilename + ".tmp");
 
-		cout << "Collecting best supporting reads" << endl;
+		_logFile << "Collecting best supporting reads" << endl;
 		KminmerParserParallel parser(contigFilename, _minimizerSize, _kminmerSize, false, false, _nbCores);
 		parser.parse(CollectBestSupportingReadsFunctor(*this));
 		//KminmerParser parser(contigFilename, _minimizerSize, _kminmerSize, false, false);
@@ -850,19 +854,19 @@ public:
 		void operator () (const KminmerList& kminmerList) {
 			//if(_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) return;
 
-			//cout << "----------------------" << endl;
+			//_logFile << "----------------------" << endl;
 			vector<u_int64_t> supportingReads;
 
-			//cout << readIndex << " " << kminmersInfos.size() << endl;
+			//_logFile << readIndex << " " << kminmersInfos.size() << endl;
 			for(size_t i=0; i<kminmerList._kminmersInfo.size(); i++){
 				
-				//cout << readIndex << " " << i << endl;
+				//_logFile << readIndex << " " << i << endl;
 				const ReadKminmerComplete& kminmerInfo = kminmerList._kminmersInfo[i];
 
 				KmerVec vec = kminmerInfo._vec;
 				
 				if(_toBasespace._mdbg->_dbg_nodes.find(vec) == _toBasespace._mdbg->_dbg_nodes.end()){
-					cout << "Not found kminmer" << endl;
+					_toBasespace._logFile << "Not found kminmer" << endl;
 					supportingReads.push_back(-1);
 					//getchar();
 					continue;
@@ -875,7 +879,7 @@ public:
 
 				//_kminmerCounts.clear();
 				//if(_kminmerCounts[nodeName] > 1){
-					//cout << nodeName << endl;
+					//_logFile << nodeName << endl;
 					//isKminmerRepeated.insert(nodeName);
 					u_int64_t readIndex = getBestSupportingRead(nodeName, i, kminmerList._kminmersInfo);
 					supportingReads.push_back(readIndex);
@@ -890,12 +894,12 @@ public:
 						}
 						else {
 							if(orientation){ //+
-								//cout << "right: " << nodeName << " " << readIndex << endl;
+								//_logFile << "right: " << nodeName << " " << readIndex << endl;
 								ReadSequence rs = {readIndex, nullptr, {}};
 								_toBasespace._kminmerSequence_right_multi[nodeName].push_back(rs);
 							}
 							else{ //-
-								//cout << "left: " << nodeName << " " << readIndex << endl;
+								//_logFile << "left: " << nodeName << " " << readIndex << endl;
 								ReadSequence rs = {readIndex, nullptr, {}};
 								_toBasespace._kminmerSequence_left_multi[nodeName].push_back(rs);
 							}
@@ -909,7 +913,7 @@ public:
 			#pragma omp critical(bestSupport)
 			{
 				_toBasespace._readWriterQueue.push({kminmerList._readIndex, supportingReads});
-				//cout << _readWriterQueue.size() << " " << read._index << " " << _nextReadIndexWriter << endl;
+				//_logFile << _readWriterQueue.size() << " " << read._index << " " << _nextReadIndexWriter << endl;
 
 				while(!_toBasespace._readWriterQueue.empty()){
 
@@ -1102,11 +1106,11 @@ public:
 		}
 
 		/*
-		cout << "-------------------" << endl;
-		cout << "-------------------" << endl;
-		cout << "-------------------" << endl;
-		cout << kminmerInfo._isReversed << endl;
-		cout << sequence << endl;
+		_logFile << "-------------------" << endl;
+		_logFile << "-------------------" << endl;
+		_logFile << "-------------------" << endl;
+		_logFile << kminmerInfo._isReversed << endl;
+		_logFile << sequence << endl;
 		*/
 
 		if(loadType == LoadType::Entire){
@@ -1117,14 +1121,14 @@ public:
 		else if(loadType == LoadType::Left){
 			startPosition = 0; //kminmerInfo._read_pos_start;
 			len = kminmerInfo._seq_length_start; //kminmerInfo._position_of_second_minimizer_seq - kminmerInfo._read_pos_start;
-			//cout << kminmerInfo._read_pos_start << " " << kminmerInfo._position_of_second_minimizer << endl;
+			//_logFile << kminmerInfo._read_pos_start << " " << kminmerInfo._position_of_second_minimizer << endl;
 		}
 		else if(loadType == LoadType::Right){
 			//return;
 			startPosition = sequence.size() - kminmerInfo._seq_length_end;  //kminmerInfo._position_of_second_to_last_minimizer_seq;
 			len = kminmerInfo._seq_length_end; //kminmerInfo._read_pos_end - kminmerInfo._position_of_second_to_last_minimizer_seq;
 			//return;
-			//cout << kminmerInfo._read_pos_end << " " << kminmerInfo._position_of_second_to_last_minimizer << endl;
+			//_logFile << kminmerInfo._read_pos_end << " " << kminmerInfo._position_of_second_to_last_minimizer << endl;
 		}
 		
 		//char* seq = sequence[0];
@@ -1133,7 +1137,7 @@ public:
 		//subbuff2[len] = '\0';
 		//sequence = string(subbuff2);
 		/*
-		cout << sequence.size() << " " << startPosition << " " << len  << endl;
+		_logFile << sequence.size() << " " << startPosition << " " << len  << endl;
 		*/
 		sequence = sequence.substr(startPosition, len);
 
@@ -1150,29 +1154,29 @@ public:
 
 
 		/*
-		cout << startPosition << " " << len << endl;
-		cout << "allo" << endl;
-		cout << endl << endl;
-		//cout << 
-		cout << sequence << endl;
+		_logFile << startPosition << " " << len << endl;
+		_logFile << "allo" << endl;
+		_logFile << endl << endl;
+		//_logFile << 
+		_logFile << sequence << endl;
 		//Utils::revcomp(sequence);
-		//cout << sequence << endl;
+		//_logFile << sequence << endl;
 		*/
 	}
 
 	void extractKminmerSequences_model (){
 
-		cout << "Extracting kminmer models" << endl;
-		ReadParserParallel readParser(_inputFilename, false, false, _nbCores);
+		_logFile << "Extracting kminmer models" << endl;
+		ReadParserParallel readParser(_inputFilename, false, false, _nbCores, _logFile);
 		readParser.parse(ExtractKminmerSequenceFunctor(_minimizerSize, _minimizerDensity, *this, true));
 	}
 
 	void extractKminmerSequences_allVariants (){
 
-		cout << "Extracting kminmer sequence variants" << endl;
+		_logFile << "Extracting kminmer sequence variants" << endl;
 
 		//auto fp = std::bind(&ToBasespace::extractKminmerSequences_allVariants_read, this, std::placeholders::_1);
-		ReadParserParallel readParser(_inputFilename, false, false, _nbCores);
+		ReadParserParallel readParser(_inputFilename, false, false, _nbCores, _logFile);
 		readParser.parse(ExtractKminmerSequenceFunctor(_minimizerSize, _minimizerDensity, *this, false));
 
 	}
@@ -1214,7 +1218,7 @@ public:
 			u_int64_t readIndex = read._index;
 
 			if(readIndex % 100000 == 0){
-				cout << "Correcting kminmer " << readIndex << endl;
+				_toBasespace._logFile << "Correcting kminmer " << readIndex << endl;
 			}
 			//ottalSize += strlen(read->seq.s);
 						
@@ -1239,7 +1243,7 @@ public:
 				u_int32_t nodeName = _toBasespace._mdbg->_dbg_nodes[kminmers[i]]._index;
 				ReadKminmer& kminmerInfo = kminmersInfo[i];
 
-				//if(nodeName == 3114) cout << ">>>>>>>>>>> " << nodeName << endl;
+				//if(nodeName == 3114) _logFile << ">>>>>>>>>>> " << nodeName << endl;
 				if(_collectModel){
 					//if(_toBasespace.isKminmerRepeated.find(nodeName) == _toBasespace.isKminmerRepeated.end()) continue;
 				}
@@ -1247,10 +1251,10 @@ public:
 				//3908 7040
 				//298 8320
 				//if(readIndex == 8320){
-				//	cout << nodeName << endl;
+				//	_logFile << nodeName << endl;
 				//}
 
-				//cout << _kminmerSequenceCopies_all_entire.size() << " " << _kminmerSequenceCopies_all_left.size() << " " << _kminmerSequenceCopies_all_right.size() << " " << _kminmerSequence_entire.size() << " " << _kminmerSequence_left.size() << " " << _kminmerSequence_right.size() << endl;
+				//_logFile << _kminmerSequenceCopies_all_entire.size() << " " << _kminmerSequenceCopies_all_left.size() << " " << _kminmerSequenceCopies_all_right.size() << " " << _kminmerSequence_entire.size() << " " << _kminmerSequence_left.size() << " " << _kminmerSequence_right.size() << endl;
 
 				bool isEntire = false;
 				bool isLeft = false;
@@ -1325,7 +1329,7 @@ public:
 						}
 
 
-						//if(nodeName == 3114) cout << isEntire << " " << isLeft << " " << isRight << endl;
+						//if(nodeName == 3114) _logFile << isEntire << " " << isLeft << " " << isRight << endl;
 						//ReadNodeName readNodeName = {nodeName, readIndex};
 						//isEntire = _toBasespace._repeatedKminmerSequence_entire.find(readNodeName) != _toBasespace._repeatedKminmerSequence_entire.end();
 						//isLeft = _toBasespace._repeatedKminmerSequence_left.find(readNodeName) != _toBasespace._repeatedKminmerSequence_left.end();
@@ -1338,9 +1342,9 @@ public:
 
 				//if(nodeName==293 && readIndex==8320){
 				//	ReadNodeName readNodeName = {nodeName, readIndex};
-				//	cout << (_toBasespace._repeatedKminmerSequence_entire.find(readNodeName) != _toBasespace._repeatedKminmerSequence_entire.end()) << endl;
-				//	cout << "lol" << endl;
-				//	cout << isEntire << endl;
+				//	_logFile << (_toBasespace._repeatedKminmerSequence_entire.find(readNodeName) != _toBasespace._repeatedKminmerSequence_entire.end()) << endl;
+				//	_logFile << "lol" << endl;
+				//	_logFile << isEntire << endl;
 				//	getchar();
 				//}
 
@@ -1360,15 +1364,15 @@ public:
 
 				//if(nodeName==293 && readIndex==8320){
 				//	ReadNodeName readNodeName = {nodeName, readIndex};
-				//	//cout << (_toBasespace._repeatedKminmerSequence_left.find(readNodeName) != _toBasespace._repeatedKminmerSequence_left.end()) << " " << (_toBasespace._repeatedKminmerSequence_right.find(readNodeName) != _toBasespace._repeatedKminmerSequence_right.end()) << endl;
-				//	cout << "lol" << endl;
+				//	//_logFile << (_toBasespace._repeatedKminmerSequence_left.find(readNodeName) != _toBasespace._repeatedKminmerSequence_left.end()) << " " << (_toBasespace._repeatedKminmerSequence_right.find(readNodeName) != _toBasespace._repeatedKminmerSequence_right.end()) << endl;
+				//	_logFile << "lol" << endl;
 				//	getchar();
 				//}
 
 			}
 
 			//if(readIndex == 7210){
-			//	cout << "lal" << endl;
+			//	_logFile << "lal" << endl;
 			//	getchar();
 			//}
 
@@ -1379,13 +1383,13 @@ public:
 			
 			//static EdlibAlignConfig config = edlibNewAlignConfig(-1, EDLIB_MODE_NW, EDLIB_TASK_DISTANCE, NULL, 0);
 
-			//cout << (isDoneNodeName.find(nodeName) != isDoneNodeName.end()) << endl;
+			//_logFile << (isDoneNodeName.find(nodeName) != isDoneNodeName.end()) << endl;
 			//if(sequenceModel == nullptr){
-			//	cout << "pas normal" << endl;
+			//	_logFile << "pas normal" << endl;
 			//	return; //model not found yet
 			//}
 
-			//cout << nodeName << " " << sequence.size() << endl;
+			//_logFile << nodeName << " " << sequence.size() << endl;
 						
 
 			vector<DnaBitset*>* queue;
@@ -1412,8 +1416,8 @@ public:
 					//repeatedKminmers_model[readNodeName] = new DnaBitset(sequence);
 					cancel = true;
 
-					//cout << repeatedKminmers_model.size() << " " << _toBasespace.isKminmerRepeated.size() << endl;
-					//cout << nodeName << " " << readIndex << endl;
+					//_logFile << repeatedKminmers_model.size() << " " << _toBasespace.isKminmerRepeated.size() << endl;
+					//_logFile << nodeName << " " << readIndex << endl;
 					//if(nodeName == 24 && readIndex == 6){
 					//	getchar();
 					//}
@@ -1438,7 +1442,7 @@ public:
 					}
 					else{*/
 
-						//cout << "1" << endl;
+						//_logFile << "1" << endl;
 						cancel = true;
 						isRepeated = true;
 
@@ -1448,7 +1452,7 @@ public:
 						/*
 						ReadNodeName readNodeName = {nodeName, readIndex};
 						dnaSeq_model = repeatedKminmers_model[readNodeName];
-						//cout << nodeName << " " << readIndex << " " << (dnaSeq_model != nullptr) << " " << (_toBasespace.isKminmerRepeated.find(nodeName) != _toBasespace.isKminmerRepeated.end()) << endl;
+						//_logFile << nodeName << " " << readIndex << " " << (dnaSeq_model != nullptr) << " " << (_toBasespace.isKminmerRepeated.find(nodeName) != _toBasespace.isKminmerRepeated.end()) << endl;
 						variantQueue = &repeatedKminmers_variants[readNodeName];
 
 						for(const ReadSequence& rs : _toBasespace._kminmerSequence_right_multi){
@@ -1509,8 +1513,8 @@ public:
 		//const string& sequence = 
 		u_int16_t length = sequence.size();
 
-		//cout << "Writing: " << endl;
-		//cout << nodeName << " " << length << " " << sequence << endl;
+		//_logFile << "Writing: " << endl;
+		//_logFile << nodeName << " " << length << " " << sequence << endl;
 		gzwrite(file, (const char*)&nodeName, sizeof(nodeName));
 		gzwrite(file, (const char*)&length, sizeof(length));
 		gzwrite(file, (const char*)&sequence[0], length);
@@ -1523,7 +1527,7 @@ public:
 	/*
 	void createBaseContigs (const string& contigFilename, const string& outputFilename){
 
-		cout << "Creating basespace contigs: " << contigFilename << " " << outputFilename << endl;
+		_logFile << "Creating basespace contigs: " << contigFilename << " " << outputFilename << endl;
 
 		_basespaceContigFile = gzopen(outputFilename.c_str(),"wb");
 
@@ -1543,7 +1547,7 @@ public:
 
 		_contigFileSupported_input = ifstream(contigFilename + ".tmp");
 
-		cout << "Creating basespace contigs: " << contigFilename << endl;
+		_logFile << "Creating basespace contigs: " << contigFilename << endl;
 
 
 		KminmerParser parser(contigFilename, _minimizerSize, _kminmerSize, false, false);
@@ -1553,10 +1557,10 @@ public:
 		_contigFileSupported_input.close();
 
 
-		cout << "Nb contigs: " << (_contigIndex) << endl;
-		cout << "Nb bps: " << _nbBps << endl;
-		cout << "Checksum: " << _checksum << endl;
-		cout << "Checksum (best support): " << _bestSupportChecksum << endl;
+		_logFile << "Nb contigs: " << (_contigIndex) << endl;
+		_logFile << "Nb bps: " << _nbBps << endl;
+		_logFile << "Checksum: " << _checksum << endl;
+		_logFile << "Checksum (best support): " << _bestSupportChecksum << endl;
 
 	}
 
@@ -1570,36 +1574,36 @@ public:
 		supportingReads.resize(size);
 		_contigFileSupported_input.read((char*)&supportingReads[0], size*sizeof(u_int64_t));
 
-		//cout << readIndex << " " << kminmersInfos.size() << endl;
+		//_logFile << readIndex << " " << kminmersInfos.size() << endl;
 		
 		string contigSequence = "";
 
 		for(size_t i=0; i<kminmersInfos.size(); i++){
 			
-			//cout << i << " " << supportingReads.size() << endl;
+			//_logFile << i << " " << supportingReads.size() << endl;
 			u_int64_t readIndex = supportingReads[i];
-			//cout << readIndex << endl;
+			//_logFile << readIndex << endl;
 			if(readIndex == -1){
-				cout << "No sequence for kminmer: " << readIndex << endl;
+				_logFile << "No sequence for kminmer: " << readIndex << endl;
 				continue;
 			}
 			
-			//cout << i << endl;
+			//_logFile << i << endl;
 			const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
 
 			KmerVec vec = kminmerInfo._vec;
 			
 			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
-				cout << "Not found node name" << endl;
+				_logFile << "Not found node name" << endl;
 				continue;
 			}
 
 			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
 			//if(nodeName == 38376){
-			//	cout << "lala" << endl;
+			//	_logFile << "lala" << endl;
 			//	getchar();
 			//}
-			//cout << nodeName << endl;
+			//_logFile << nodeName << endl;
 			//vector<u_int64_t> minimizerSeq;
 			
 			//for(size_t i=kminmerInfo._read_pos_start; i<=kminmerInfo._read_pos_end; i++){
@@ -1621,7 +1625,7 @@ public:
 					if(_kminmerSequence_entire_multi.find(nodeName) != _kminmerSequence_entire_multi.end()){
 						for(const ReadSequence& rs : _kminmerSequence_entire_multi[nodeName]){
 							if(rs._readIndex == readIndex){
-								//cout << (rs._sequence != nullptr) << endl;
+								//_logFile << (rs._sequence != nullptr) << endl;
 								seq = rs._sequence->to_string();
 								break;
 							}
@@ -1629,14 +1633,14 @@ public:
 					}
 
 					if(seq == nullptr){
-						cout << "No sequence for kminmer" << endl;
+						_logFile << "No sequence for kminmer" << endl;
 						continue;
 					}
 
 					/*
 					if(_kminmerSequence_entire.find(nodeName) != _kminmerSequence_entire.end()){
 						if(_kminmerSequence_entire[nodeName] == nullptr){
-							cout << "No sequence for kminmer" << endl;
+							_logFile << "No sequence for kminmer" << endl;
 							continue;
 						}
 						seq = _kminmerSequence_entire[nodeName]->to_string();
@@ -1644,7 +1648,7 @@ public:
 					else{
 						ReadNodeName readNodeName = {nodeName, readIndex};
 						if(_kminmerSequence_entire_multi.find(readNodeName) == _kminmerSequence_entire_multi.end() || _kminmerSequence_entire_multi[readNodeName] == nullptr){
-							cout << "No sequence for kminmer" << endl;
+							_logFile << "No sequence for kminmer" << endl;
 							continue;
 						}
 						seq = _kminmerSequence_entire_multi[readNodeName]->to_string();
@@ -1657,7 +1661,7 @@ public:
 					free(seq);
 
 					contigSequence += kminmerSequence;
-					//cout << contigSequence << endl;
+					//_logFile << contigSequence << endl;
 				}
 				else{
 					
@@ -1668,7 +1672,7 @@ public:
 						for(const ReadSequence& rs : _kminmerSequence_entire_multi[nodeName]){
 							if(rs._readIndex == readIndex){
 
-								//cout << (rs._sequence != nullptr) << endl;
+								//_logFile << (rs._sequence != nullptr) << endl;
 
 								seq = rs._sequence->to_string();
 								break;
@@ -1677,7 +1681,7 @@ public:
 					}
 
 					if(seq == nullptr){
-						cout << "No sequence for kminmer" << endl;
+						_logFile << "No sequence for kminmer" << endl;
 						continue;
 					}
 
@@ -1685,7 +1689,7 @@ public:
 					/*
 					if(_kminmerSequence_entire.find(nodeName) != _kminmerSequence_entire.end()){
 						if(_kminmerSequence_entire[nodeName] == nullptr){
-							cout << "No sequence for kminmer" << endl;
+							_logFile << "No sequence for kminmer" << endl;
 							continue;
 						}
 						seq = _kminmerSequence_entire[nodeName]->to_string();
@@ -1693,7 +1697,7 @@ public:
 					else{
 						ReadNodeName readNodeName = {nodeName, readIndex};
 						if(_kminmerSequence_entire_multi.find(readNodeName) == _kminmerSequence_entire_multi.end() || _kminmerSequence_entire_multi[readNodeName] == nullptr){
-							cout << "No sequence for kminmer" << endl;
+							_logFile << "No sequence for kminmer" << endl;
 							continue;
 						}
 						seq = _kminmerSequence_entire_multi[readNodeName]->to_string();
@@ -1722,14 +1726,14 @@ public:
 					}
 
 					if(seq == nullptr){
-						cout << "No sequence for kminmer" << endl;
+						_logFile << "No sequence for kminmer" << endl;
 						continue;
 					}
 
 					/*
 					if(_kminmerSequence_right.find(nodeName) != _kminmerSequence_right.end()){
 						if(_kminmerSequence_right[nodeName] == nullptr){
-							cout << "No sequence for kminmer" << endl;
+							_logFile << "No sequence for kminmer" << endl;
 							continue;
 						}
 						seq = _kminmerSequence_right[nodeName]->to_string();
@@ -1737,7 +1741,7 @@ public:
 					else{
 						ReadNodeName readNodeName = {nodeName, readIndex};
 						if(_kminmerSequence_entire_right.find(readNodeName) == _kminmerSequence_entire_right.end() || _kminmerSequence_entire_right[readNodeName] == nullptr){
-							cout << "No sequence for kminmer" << endl;
+							_logFile << "No sequence for kminmer" << endl;
 							continue;
 						}
 						seq = _kminmerSequence_entire_right[readNodeName]->to_string();
@@ -1765,14 +1769,14 @@ public:
 					}
 
 					if(seq == nullptr){
-						cout << "No sequence for kminmer" << endl;
+						_logFile << "No sequence for kminmer" << endl;
 						continue;
 					}
 
 					/*
 					if(_kminmerSequence_left.find(nodeName) != _kminmerSequence_left.end()){
 						if(_kminmerSequence_left[nodeName] == nullptr){
-							cout << "No sequence for kminmer" << endl;
+							_logFile << "No sequence for kminmer" << endl;
 							continue;
 						}
 						seq = _kminmerSequence_left[nodeName]->to_string();
@@ -1780,7 +1784,7 @@ public:
 					else{
 						ReadNodeName readNodeName = {nodeName, readIndex};
 						if(_kminmerSequence_entire_left.find(readNodeName) == _kminmerSequence_entire_left.end() || _kminmerSequence_entire_left[readNodeName] == nullptr){
-							cout << "No sequence for kminmer" << endl;
+							_logFile << "No sequence for kminmer" << endl;
 							continue;
 						}
 						seq = _kminmerSequence_entire_left[readNodeName]->to_string();
@@ -1799,7 +1803,7 @@ public:
 		}
 
 		if(contigSequence.size() == 0){
-			cout << "Empty contig " << kminmersInfos.size() << endl;
+			_logFile << "Empty contig " << kminmersInfos.size() << endl;
 			return;
 		}
 
@@ -1812,7 +1816,7 @@ public:
 			linearOrCircular = "l";
 		}
 
-		//cout << contigSequence.size() << endl;
+		//_logFile << contigSequence.size() << endl;
 
 		string header = ">ctg" + to_string(_contigIndex) + linearOrCircular + '\n';
 		gzwrite(_basespaceContigFile, (const char*)&header[0], header.size());
@@ -1851,13 +1855,13 @@ public:
 
 		for(size_t i=0; i<kminmers.size(); i++){
 			if(_mdbg->_dbg_nodes.find(kminmers[i]) == _mdbg->_dbg_nodes.end()){
-				cout << "Unknown original kminmer" << endl;
+				_logFile << "Unknown original kminmer" << endl;
 				//exit(1);
 				continue;
 			}
 
 			u_int32_t nodeName = _mdbg->_dbg_nodes[kminmers[i]]._index;
-			//cout << nodeName << endl;
+			//_logFile << nodeName << endl;
 
 			bool orientation = true;
 			if(kminmersInfo[i]._isReversed){
@@ -1872,7 +1876,7 @@ public:
 					free(seq);
 
 					contigSequence += kminmerSequence;
-					//cout << contigSequence << endl;
+					//_logFile << contigSequence << endl;
 				}
 				else{
 					
@@ -1921,7 +1925,7 @@ public:
 		gzwrite(_basespaceContigFile, (const char*)&contigSequence[0], contigSequence.size());
 
 
-		//cout << readIndex << " " << _nodeName_left.size() << " " << _nodeName_right.size() << endl;
+		//_logFile << readIndex << " " << _nodeName_left.size() << " " << _nodeName_right.size() << endl;
 	}
 	*/
 
@@ -1959,13 +1963,13 @@ public:
 
 			}
 
-			//cout << contigSequence.substr(362170, 100) << endl;
+			//_logFile << contigSequence.substr(362170, 100) << endl;
 			if(contig_index % 100000 == 0){
-				cout << endl << endl;
-				cout << nodePath.size() << endl;
-				cout << contigSequence.size() << endl;
+				_logFile << endl << endl;
+				_logFile << nodePath.size() << endl;
+				_logFile << contigSequence.size() << endl;
 			}
-			//cout << contigSequence << endl;
+			//_logFile << contigSequence << endl;
 
 
 			if(_isOutputFasta){

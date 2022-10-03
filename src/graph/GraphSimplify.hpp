@@ -13,7 +13,7 @@
 
 #include "Commons.hpp"
 #include <limits>
-#include "contigFeatures/ContigFeature.hpp"
+//#include "contigFeatures/ContigFeature.hpp"
 //#include <experimental/filesystem>
 
 //using namespace std;
@@ -104,7 +104,7 @@ class GraphSimplify{
 public:
 
 
-
+    ofstream& _logFile;
     BiGraph* _graphSuccessors;
     //BiGraph* _graphPredecessors;
     string _outputDir;
@@ -147,7 +147,7 @@ public:
     unordered_set<u_int32_t> _isNodenameRoundabout;
     bool _isCopy;
     vector<Unitig> _cleanedLongTips;
-    ContigFeature* _contigFeature;
+    //ContigFeature* _contigFeature;
     int _nbCores;
     u_int64_t _superbubble_checksum;
     u_int64_t _tip_checksum;
@@ -158,7 +158,7 @@ public:
 	float _kminmerLengthMean;
 	float _kminmerOverlapMean;
 
-    GraphSimplify(const string& inputGfaFilename, const string& outputDir, u_int32_t nbNodes, size_t kminmerSize, int nbCores, float kminmerLengthMean, float kminmerOverlapMean){
+    GraphSimplify(const string& inputGfaFilename, const string& outputDir, u_int32_t nbNodes, size_t kminmerSize, int nbCores, float kminmerLengthMean, float kminmerOverlapMean, ofstream& logFile) : _logFile(logFile){
 
         _kminmerLengthMean = kminmerLengthMean;
         _kminmerOverlapMean = kminmerOverlapMean;
@@ -168,7 +168,7 @@ public:
         _abcutoff_checksum = 0;
         //_bubble_checksum = 0;
 
-        _contigFeature = nullptr;
+        //_contigFeature = nullptr;
         _inputGfaFilename = inputGfaFilename;
         _outputDir = outputDir;
         _kminmerSize = kminmerSize;
@@ -177,7 +177,7 @@ public:
         _graphSuccessors = GfaParser::createBiGraph_binary(inputGfaFilename, true, nbNodes, kminmerLengthMean, kminmerOverlapMean);
         _isCopy = false;
 
-        //cout << "lala " << _graphSuccessors->_nodeAbundances.size() << " " << _graphSuccessors->_nodeLengths.size() << endl;
+        //_logFile << "lala " << _graphSuccessors->_nodeAbundances.size() << " " << _graphSuccessors->_nodeLengths.size() << endl;
 	    //_graphPredecessors = GfaParser::createBiGraph_lol(inputGfaFilename, false);
         //clear(0);
         //_isNodeValid = vector<bool>(_graphSuccessors->_nbNodes, true);
@@ -187,7 +187,8 @@ public:
 
     }
 
-     GraphSimplify(GraphSimplify* graph, const unordered_set<u_int32_t>& validNodeNames){
+    /*
+    GraphSimplify(GraphSimplify* graph, const unordered_set<u_int32_t>& validNodeNames){
 
          _isCopy = true;
         _inputGfaFilename = "";
@@ -198,8 +199,8 @@ public:
         //_nodeLengths = graph->_nodeLengths;
 
 
-        //cout << _graphSuccessors->_nodeAbundances.size() << " " << _graphSuccessors->_nodeLengths.size() << endl;
-        //cout << _nodeAbundances.size() << " " << _nodeLengths.size() << endl;
+        //_logFile << _graphSuccessors->_nodeAbundances.size() << " " << _graphSuccessors->_nodeLengths.size() << endl;
+        //_logFile << _nodeAbundances.size() << " " << _nodeLengths.size() << endl;
         //getchar();
 
         //for(u_int32_t validNodeName : validNodeNames){
@@ -220,7 +221,7 @@ public:
         
 
 
-        //cout << "getSuccessors 564 debug to remove" << endl;
+        //_logFile << "getSuccessors 564 debug to remove" << endl;
 
 
 	    //_graphPredecessors = GfaParser::createBiGraph_lol(inputGfaFilename, false);
@@ -231,6 +232,7 @@ public:
         //_isBubble = vector<bool>(_graphSuccessors->_nbNodes, false);
 
     }
+    */
 
     ~GraphSimplify(){
         if(!_isCopy) delete _graphSuccessors;
@@ -390,7 +392,7 @@ public:
         //_complexAreas_sink.clear();
         
         //_isEdgeRemoved = _isEdgeUnsupported;
-        //cout << _isEdgeRemoved.size() << endl;
+        //_logFile << _isEdgeRemoved.size() << endl;
         //_isNodeValid2.erase(BiGraph::nodeName_to_nodeIndex(1009227, false));
         //_isNodeValid2.erase(BiGraph::nodeName_to_nodeIndex(1009227, true));
     }
@@ -419,7 +421,7 @@ public:
         bool dummy;
         unordered_set<u_int32_t> removedNodes;
 
-        //cout << "to remove" << endl;
+        //_logFile << "to remove" << endl;
         //abundanceCutoff_min = 12;
         
         while(true){
@@ -432,15 +434,15 @@ public:
 
             bool isModification = false;
 
-            cout << "1" << endl;
+            _logFile << "1" << endl;
             while(true){
-                cout << "lala" << endl;
+                _logFile << "lala" << endl;
                 compact(true);
-                cout << "loulou" << endl;
+                _logFile << "loulou" << endl;
                 nbErrorRemoved = removeLowAbundantNodes(abundanceCutoff_min);
-                cout << "lili" << endl;
+                _logFile << "lili" << endl;
                 #ifdef PRINT_DEBUG_SIMPLIFICATION
-                    cout << "Nb error removed: " << nbErrorRemoved << endl;
+                    _logFile << "Nb error removed: " << nbErrorRemoved << endl;
                 #endif
                 if(nbErrorRemoved == 0) break;
                 isModification = true;
@@ -449,20 +451,20 @@ public:
             
             
             while(true){
-                cout << "lala" << endl;
+                _logFile << "lala" << endl;
                 compact(true);
-                cout << "loulou" << endl;
+                _logFile << "loulou" << endl;
                 unordered_set<u_int32_t> isTips;
                 nbTipsRemoved = tip(4*k, true, isTips);
                 nbTipsRemoved = tip(4*k, false, isTips);
-                cout << "lili" << endl;
+                _logFile << "lili" << endl;
                 #ifdef PRINT_DEBUG_SIMPLIFICATION
-                    cout << "Nb tip removed: " << nbTipsRemoved << endl;
+                    _logFile << "Nb tip removed: " << nbTipsRemoved << endl;
                 #endif
                 if(nbTipsRemoved == 0) break;
                 isModification = true;
             }
-            cout << "3" << endl;
+            _logFile << "3" << endl;
 
             
             while(true){
@@ -473,7 +475,7 @@ public:
 
                 for(Unitig& unitig : _unitigs){
                     
-                    cout << unitig._index << " " << unitig._nbNodes << endl;
+                    _logFile << unitig._index << " " << unitig._nbNodes << endl;
                     if(unitig._nbNodes >= 2*k) continue;
 
                     vector<u_int32_t> successors;
@@ -499,12 +501,12 @@ public:
                     
                     if(unitig._abundance < neighborAbundanceMin*0.5){
                         vector<u_int32_t> unitigNodes;
-                        cout << "lala" << endl;
+                        _logFile << "lala" << endl;
                         getUnitigNodes(unitig, unitigNodes);
                         for(u_int32_t node : unitigNodes){
                             _isNodeValid2.erase(node);
                         }
-                        cout << "loulou" << endl;
+                        _logFile << "loulou" << endl;
                         isModification = true;
                         nbErrorRemoved += 1;
                     }
@@ -520,7 +522,7 @@ public:
                 compact();
                 nbSuperbubblesRemoved = superbubble(50000);
                 #ifdef PRINT_DEBUG_SIMPLIFICATION
-                    cout << "Nb superbubble removed: " << nbSuperbubblesRemoved << endl;
+                    _logFile << "Nb superbubble removed: " << nbSuperbubblesRemoved << endl;
                 #endif
                 if(nbSuperbubblesRemoved == 0) break;
                 isModification = true;
@@ -531,7 +533,7 @@ public:
                 compact();
                 nbBubblesRemoved = bubble(50000);
                 #ifdef PRINT_DEBUG_SIMPLIFICATION
-                    cout << "Nb bubble removed: " << nbBubblesRemoved << endl;
+                    _logFile << "Nb bubble removed: " << nbBubblesRemoved << endl;
                 #endif
                 if(nbBubblesRemoved == 0) break;
                 isModification = true;
@@ -540,13 +542,13 @@ public:
 
 
 
-            cout << "4" << endl;
+            _logFile << "4" << endl;
             
             while(true){
                 compact(true);
                 nbSmallLoopRemoved = removeSmallLoop(10000);
                 #ifdef PRINT_DEBUG_SIMPLIFICATION
-                    cout << "Nb small loop removed: " << nbSmallLoopRemoved << endl;
+                    _logFile << "Nb small loop removed: " << nbSmallLoopRemoved << endl;
                 #endif
                 if(nbSmallLoopRemoved == 0) break;
                 isModification = true;
@@ -571,7 +573,7 @@ public:
             removedNodes.insert(nodeName);
         }
 
-        cout << "REWRITE GFA WITHOUT NODe: faire l'inverse rewrite gfa WITH node et utiliser _isNodeValid2 direct" << endl;
+        _logFile << "REWRITE GFA WITHOUT NODe: faire l'inverse rewrite gfa WITH node et utiliser _isNodeValid2 direct" << endl;
         GfaParser::rewriteGfa_withoutNodes(_inputGfaFilename, _inputGfaFilename + "_tmp.gfa", removedNodes, _isEdgeRemoved, _graphSuccessors);
         
 
@@ -664,11 +666,11 @@ public:
 
         for(const UnitigTip& unitigTip : unitigTips){
 
-            //cout << unitigTip._length << endl;
+            //_logFile << unitigTip._length << endl;
 
             const Unitig& unitig = _unitigs[unitigTip._unitigIndex];
 
-            //cout << unitig._startNode << endl;
+            //_logFile << unitig._startNode << endl;
         
 
             //if(removeLongTips){
@@ -689,7 +691,7 @@ public:
 
             getPredecessors(unitig._startNode, 0, neighbors);
             //if(unitig._index == 116){
-            //    cout << neighbors.size() << endl;
+            //    _logFile << neighbors.size() << endl;
             //}
 
             //if(neighbors.size() == 0) continue;
@@ -729,7 +731,7 @@ public:
 
 
             //if(unitig._index == 116){
-            //    cout << neighbors.size() << endl;
+            //    _logFile << neighbors.size() << endl;
             //}
 
             //isVisited[unitig._startNode] = true;
@@ -746,9 +748,9 @@ public:
           
 
             //if(unitig._index == 116){
-            //    cout << "omg" << endl;
+            //    _logFile << "omg" << endl;
             //}
-            //cout << "blabla2" << endl;
+            //_logFile << "blabla2" << endl;
 
             //removedUnitigs.insert(unitig._index);
             //removedUnitigs.insert(unitigIndex_toReverseDirection(unitig._index));
@@ -756,7 +758,7 @@ public:
             
 
             #ifdef PRINT_DEBUG_SIMPLIFICATION
-                cout << "\tTip: " << _graphSuccessors->nodeIndex_to_nodeName(unitig._endNode, dummy) << " " << unitig._length << endl;
+                _logFile << "\tTip: " << _graphSuccessors->nodeIndex_to_nodeName(unitig._endNode, dummy) << " " << unitig._length << endl;
             #endif 
 
             nbRemoved += 1;
@@ -768,7 +770,7 @@ public:
         unordered_set<u_int32_t> removedUnitigs;
         for(u_int32_t nodeIndex : removedNodes){
             //if(_nodeToUnitig.find(nodeIndex) == _nodeToUnitig.end()){
-            //    cout << "KOUERK" << endl;
+            //    _logFile << "KOUERK" << endl;
             //}
             removedUnitigs.insert(nodeIndex_to_unitigIndex(nodeIndex));
             removedUnitigs.insert(nodeIndex_to_unitigIndex(GraphSimplify::nodeIndex_toReverseDirection(nodeIndex)));
@@ -780,7 +782,7 @@ public:
             getPredecessors(nodeIndexTo, 0, predecessors);
 
             for(u_int32_t nodeIndexFrom : predecessors){
-                //cout << nodeIndexFrom << " -> " << nodeIndexTo << endl;
+                //_logFile << nodeIndexFrom << " -> " << nodeIndexTo << endl;
 			    _graphSuccessors->removeEdge(nodeIndexFrom, nodeIndexTo);
 			    _graphSuccessors->removeEdge(GraphSimplify::nodeIndex_toReverseDirection(nodeIndexTo), GraphSimplify::nodeIndex_toReverseDirection(nodeIndexFrom));
             }
@@ -894,11 +896,11 @@ public:
         /*
         for(const UnitigTip& unitigTip : unitigTips){
 
-            //cout << unitigTip._length << endl;
+            //_logFile << unitigTip._length << endl;
 
             const Unitig& unitig = _unitigs[unitigTip._unitigIndex];
 
-            //cout << unitig._startNode << endl;
+            //_logFile << unitig._startNode << endl;
         
 
             //if(removeLongTips){
@@ -919,7 +921,7 @@ public:
 
             getPredecessors(unitig._startNode, 0, neighbors);
             //if(unitig._index == 116){
-            //    cout << neighbors.size() << endl;
+            //    _logFile << neighbors.size() << endl;
             //}
 
             //if(neighbors.size() == 0) continue;
@@ -959,7 +961,7 @@ public:
 
 
             //if(unitig._index == 116){
-            //    cout << neighbors.size() << endl;
+            //    _logFile << neighbors.size() << endl;
             //}
 
             //isVisited[unitig._startNode] = true;
@@ -994,13 +996,13 @@ public:
             getUnitigNodes(unitig, unitigNodes);
             for(u_int32_t node : unitigNodes){
                 //if(_isNodeValid2.find(node) == _isNodeValid2.end()){
-                //    cout << "omg1" << endl;
+                //    _logFile << "omg1" << endl;
                 //    getchar();
                 //}
                 //if(_isNodeValid2.find(nodeIndex_toReverseDirection(node)) == _isNodeValid2.end()){
-                //    cout << (_removedFrom.find(nodeIndex_toReverseDirection(node)) != _removedFrom.end()) << endl;
-                //    cout << _removedFrom[nodeIndex_toReverseDirection(node)] << endl;
-                //    cout << "omg2" << endl;
+                //    _logFile << (_removedFrom.find(nodeIndex_toReverseDirection(node)) != _removedFrom.end()) << endl;
+                //    _logFile << _removedFrom[nodeIndex_toReverseDirection(node)] << endl;
+                //    _logFile << "omg2" << endl;
                 //    getchar();
                 //}
                 removedNodes.insert(node);
@@ -1010,9 +1012,9 @@ public:
             */
 
             //if(unitig._index == 116){
-            //    cout << "omg" << endl;
+            //    _logFile << "omg" << endl;
             //}
-            //cout << "blabla2" << endl;
+            //_logFile << "blabla2" << endl;
 
             //removedUnitigs.insert(unitig._index);
             //removedUnitigs.insert(unitigIndex_toReverseDirection(unitig._index));
@@ -1035,7 +1037,7 @@ public:
             
 
             //#ifdef PRINT_DEBUG_SIMPLIFICATION
-            //    cout << "\tTip: " << _graphSuccessors->nodeIndex_to_nodeName(unitig._endNode, dummy) << " " << unitig._length << endl;
+            //    _logFile << "\tTip: " << _graphSuccessors->nodeIndex_to_nodeName(unitig._endNode, dummy) << " " << unitig._length << endl;
             //#endif 
 
             //nbRemoved += 1;
@@ -1066,7 +1068,7 @@ public:
                     }
                     else{
                         unitigIndex = unitigTips[i]._unitigIndex;
-                        //cout << nodeIndex << endl;
+                        //_logFile << nodeIndex << endl;
                     }
 
                     i += 1;
@@ -1089,7 +1091,7 @@ public:
         unordered_set<u_int32_t> removedUnitigs;
         for(u_int32_t nodeIndex : removedNodes){
             //if(_nodeToUnitig.find(nodeIndex) == _nodeToUnitig.end()){
-            //    cout << "KOUERK" << endl;
+            //    _logFile << "KOUERK" << endl;
             //}
             removedUnitigs.insert(nodeIndex_to_unitigIndex(nodeIndex));
             removedUnitigs.insert(nodeIndex_to_unitigIndex(GraphSimplify::nodeIndex_toReverseDirection(nodeIndex)));
@@ -1099,7 +1101,7 @@ public:
         if(!removeTip){
             for(u_int32_t nodeIndexTo : removedNodes){
 
-                //cout << "Removed: " << BiGraph::nodeIndex_to_nodeName(nodeIndexTo) << endl;
+                //_logFile << "Removed: " << BiGraph::nodeIndex_to_nodeName(nodeIndexTo) << endl;
 
                 vector<u_int32_t> predecessors;
                 getPredecessors(nodeIndexTo, 0, predecessors);
@@ -1120,11 +1122,11 @@ public:
                     _tip_checksum += BiGraph::nodeIndex_to_nodeName(nodeIndexFrom) + BiGraph::nodeIndex_to_nodeName(nodeIndexTo);
                     
 
-                    //cout << nodeIndexFrom << " -> " << nodeIndexTo << endl;
+                    //_logFile << nodeIndexFrom << " -> " << nodeIndexTo << endl;
                     _graphSuccessors->setEdgeRemoved(nodeIndexFrom, nodeIndexTo, true);
                     _graphSuccessors->setEdgeRemoved(GraphSimplify::nodeIndex_toReverseDirection(nodeIndexTo), GraphSimplify::nodeIndex_toReverseDirection(nodeIndexFrom), true);
                     //if(!found || !found2){
-                    //    cout << "HAAAAA" << endl;
+                    //    _logFile << "HAAAAA" << endl;
                     //    getchar();
                     //}
                 }
@@ -1140,7 +1142,7 @@ public:
 
                 _isNodeRemoved[nodeIndex] = true;
                 _isNodeRemoved[nodeIndex_toReverseDirection(nodeIndex)] = true;
-                //cout << (_isNodeValid2.find(nodeIndex) != _isNodeValid2.end()) << " " << (_isNodeValid2.find(nodeIndex_toReverseDirection(nodeIndex)) != _isNodeValid2.end()) << endl;
+                //_logFile << (_isNodeValid2.find(nodeIndex) != _isNodeValid2.end()) << " " << (_isNodeValid2.find(nodeIndex_toReverseDirection(nodeIndex)) != _isNodeValid2.end()) << endl;
                 //_isNodeValid2.erase(nodeIndex);
                 //_isNodeValid2.erase(nodeIndex_toReverseDirection(nodeIndex));
                 saveState._nodeNameRemoved_tmp.insert(BiGraph::nodeIndex_to_nodeName(nodeIndex));
@@ -1217,7 +1219,7 @@ public:
 
             _graph->getPredecessors(unitig._startNode, 0, neighbors);
             //if(unitig._index == 116){
-            //    cout << neighbors.size() << endl;
+            //    _logFile << neighbors.size() << endl;
             //}
 
             //if(neighbors.size() == 0) continue;
@@ -1257,7 +1259,7 @@ public:
 
 
             //if(unitig._index == 116){
-            //    cout << neighbors.size() << endl;
+            //    _logFile << neighbors.size() << endl;
             //}
 
             //isVisited[unitig._startNode] = true;
@@ -1307,13 +1309,13 @@ public:
             getUnitigNodes(unitig, unitigNodes);
             for(u_int32_t node : unitigNodes){
                 //if(_isNodeValid2.find(node) == _isNodeValid2.end()){
-                //    cout << "omg1" << endl;
+                //    _logFile << "omg1" << endl;
                 //    getchar();
                 //}
                 //if(_isNodeValid2.find(nodeIndex_toReverseDirection(node)) == _isNodeValid2.end()){
-                //    cout << (_removedFrom.find(nodeIndex_toReverseDirection(node)) != _removedFrom.end()) << endl;
-                //    cout << _removedFrom[nodeIndex_toReverseDirection(node)] << endl;
-                //    cout << "omg2" << endl;
+                //    _logFile << (_removedFrom.find(nodeIndex_toReverseDirection(node)) != _removedFrom.end()) << endl;
+                //    _logFile << _removedFrom[nodeIndex_toReverseDirection(node)] << endl;
+                //    _logFile << "omg2" << endl;
                 //    getchar();
                 //}
                 removedNodes.insert(node);
@@ -1323,9 +1325,9 @@ public:
             */
 
             //if(unitig._index == 116){
-            //    cout << "omg" << endl;
+            //    _logFile << "omg" << endl;
             //}
-            //cout << "blabla2" << endl;
+            //_logFile << "blabla2" << endl;
 
             //removedUnitigs.insert(unitig._index);
             //removedUnitigs.insert(unitigIndex_toReverseDirection(unitig._index));
@@ -1436,7 +1438,7 @@ public:
             
 
             #ifdef PRINT_DEBUG_SIMPLIFICATION
-                cout << "\tSelf loop: " << BiGraph::nodeIndex_to_nodeName(unitig._endNode, dummy) << endl;
+                _logFile << "\tSelf loop: " << BiGraph::nodeIndex_to_nodeName(unitig._endNode, dummy) << endl;
             #endif 
 
             nbRemoved += 1;
@@ -1470,7 +1472,7 @@ public:
                 saveState._isEdgeRemoved.push_back(edgeRC);
                 
 
-                //cout << nodeIndexFrom << " -> " << nodeIndexTo << endl;
+                //_logFile << nodeIndexFrom << " -> " << nodeIndexTo << endl;
 			    //_graphSuccessors->removeEdge(nodeIndexFrom, nodeIndexTo);
 			    //_graphSuccessors->removeEdge(GraphSimplify::nodeIndex_toReverseDirection(nodeIndexTo), GraphSimplify::nodeIndex_toReverseDirection(nodeIndexFrom));
             }
@@ -1508,7 +1510,7 @@ public:
             if(removedUnitigs.find(unitig._index) != removedUnitigs.end()) continue;
             if(validUnitigs.find(unitig._index) != validUnitigs.end()) continue;
 
-            cout << unitig._index << endl;
+            _logFile << unitig._index << endl;
 
             vector<vector<u_int32_t>> components;
             getStronglyConnectedComponents(unitig._index, true, components);
@@ -1571,7 +1573,7 @@ public:
         }
 
         //auto stop = high_resolution_clock::now();
-        //cout << "Duration: " << duration_cast<seconds>(stop - start).count() << endl;
+        //_logFile << "Duration: " << duration_cast<seconds>(stop - start).count() << endl;
 
         for(u_int32_t unitigIndex : allInvalidUnitigs){
             disableUnitig(unitigIndex);
@@ -1619,8 +1621,8 @@ public:
     }
 
     void disableUnitig(u_int32_t unitigIndex){
-        //cout << _unitigs[unitigIndex]._startNode << endl;
-        //cout << _unitigs[unitigIndex]._endNode << endl;
+        //_logFile << _unitigs[unitigIndex]._startNode << endl;
+        //_logFile << _unitigs[unitigIndex]._endNode << endl;
         //if(_unitigs[unitigIndex]._startNode == -1) return;
         //_rebuildInvalidUnitigs.insert(unitigIndex);
         //_availableUnitigIndexes.insert(unitigIndex);
@@ -1633,7 +1635,7 @@ public:
             _nodeToUnitig[nodeIndex_toReverseDirection(nodeIndex)] = -1;
 
             //if(nodeIndex == 7294223){
-                //cout << "Disabled: " << unitigIndex << endl;
+                //_logFile << "Disabled: " << unitigIndex << endl;
                 //getchar();
             //}
 
@@ -1666,7 +1668,7 @@ public:
         //unordered_set<u_int32_t> removedUnitigs;
 
         #ifdef PRINT_DEBUG_SIMPLIFICATION
-            cout << "\tStart superbubble" << endl;
+            _logFile << "\tStart superbubble" << endl;
         #endif 
 
         u_int64_t nbRemoved = 0;
@@ -1731,12 +1733,12 @@ public:
                     }
                     else{
                         unitigIndex = unitigTips[i]._unitigIndex;
-                        //cout << _unitigs[unitigIndex]._nbNodes << endl;
-                        //cout << nodeIndex << endl;
+                        //_logFile << _unitigs[unitigIndex]._nbNodes << endl;
+                        //_logFile << nodeIndex << endl;
                     }
                     sw = {i, unitigIndex, {}};
                     i += 1;
-                    //cout << sw._readIndex << endl;
+                    //_logFile << sw._readIndex << endl;
                 }
 
                 if(isEof) break;
@@ -1755,11 +1757,11 @@ public:
 
 
             const Unitig& unitig = _unitigs[unitigTip._unitigIndex];
-        //cout << "Super bubble!" << endl;
+        //_logFile << "Super bubble!" << endl;
         //for(Unitig& unitig : _unitigs){
             //if(unitig._startNode == -1) continue;
             //if(BiGraph::nodeIndex_to_nodeName(unitig._endNode) != 1307) continue;
-            //cout << BiGraph::nodeIndex_to_nodeName(unitig._endNode) << endl;
+            //_logFile << BiGraph::nodeIndex_to_nodeName(unitig._endNode) << endl;
             
             if(isBubble[unitig._endNode]) continue;
             if(isBubble[nodeIndex_toReverseDirection(unitig._endNode)]) continue;
@@ -1784,15 +1786,15 @@ public:
             if(isBubble[_unitigs[unitigIndex_exit]._startNode]) continue;
             if(isBubble[nodeIndex_toReverseDirection(_unitigs[unitigIndex_exit]._startNode)]) continue;
 
-            //cout << unitig._startNode << endl;
+            //_logFile << unitig._startNode << endl;
 
             #ifdef PRINT_DEBUG_SIMPLIFICATION
-                cout << "\tSuperbubble: " << BiGraph::nodeToString(unitig._endNode) << " " << BiGraph::nodeToString(_unitigs[unitigIndex_exit]._startNode) << endl;
-                cout << "\tSuperbubble: " << BiGraph::nodeToString(nodeIndex_toReverseDirection(unitig._endNode)) << " " << BiGraph::nodeToString(nodeIndex_toReverseDirection(_unitigs[unitigIndex_exit]._startNode)) << endl;
+                _logFile << "\tSuperbubble: " << BiGraph::nodeToString(unitig._endNode) << " " << BiGraph::nodeToString(_unitigs[unitigIndex_exit]._startNode) << endl;
+                _logFile << "\tSuperbubble: " << BiGraph::nodeToString(nodeIndex_toReverseDirection(unitig._endNode)) << " " << BiGraph::nodeToString(nodeIndex_toReverseDirection(_unitigs[unitigIndex_exit]._startNode)) << endl;
                 //getchar();
             #endif
 
-            //cout << "Found superbubble: " << BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex_exit]._startNode) << endl;
+            //_logFile << "Found superbubble: " << BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex_exit]._startNode) << endl;
             simplifySuperbubble(unitig._index, unitigIndex_exit, removedNodes, isBubble, saveState);
             
 
@@ -1800,7 +1802,7 @@ public:
         }
         */
 
-        //cout << removedNodes.size() << endl;
+        //_logFile << removedNodes.size() << endl;
         //getchar();
 
         unordered_set<u_int32_t> removedUnitigs;
@@ -1815,12 +1817,12 @@ public:
             //_isNodeValid2.erase(nodeIndex);
             //file_debug << BiGraph::nodeIndex_to_nodeName(nodeIndex) << "," << "green" << endl;
             //if(395881 == BiGraph::nodeIndex_to_nodeName(nodeIndex)){
-              //      cout << "lala5" << endl;
+              //      _logFile << "lala5" << endl;
                //     getchar();
                 //}
         }
 
-        //cout << removedNodes.size() << " " << removedUnitigs.size() << endl;
+        //_logFile << removedNodes.size() << " " << removedUnitigs.size() << endl;
         //getchar();
         //exit(1);
         return removedUnitigs.size();
@@ -1874,7 +1876,7 @@ public:
             bool exist = false;
             #pragma omp critical(superbubble)
             {
-                //cout << "Try: " << unitig._startNode << endl;
+                //_logFile << "Try: " << unitig._startNode << endl;
                 if(_isBubble[unitig._endNode]) exist = true;
                 if(_isBubble[nodeIndex_toReverseDirection(unitig._endNode)]) exist = true;
             }
@@ -1898,7 +1900,7 @@ public:
             //    continue;
             //}
             //else{
-            //cout << "Try2: " << unitig._startNode << endl;
+            //_logFile << "Try2: " << unitig._startNode << endl;
             unitigIndex_exit = detectSuperbubble(unitig._index, _maxLength, _isBubble);
             //}
 
@@ -1923,15 +1925,15 @@ public:
                 return;
             }
 
-            //cout << unitig._startNode << endl;
+            //_logFile << unitig._startNode << endl;
 
             #ifdef PRINT_DEBUG_SIMPLIFICATION
-                cout << "\tSuperbubble: " << BiGraph::nodeToString(unitig._endNode) << " " << BiGraph::nodeToString(_unitigs[unitigIndex_exit]._startNode) << endl;
-                cout << "\tSuperbubble: " << BiGraph::nodeToString(nodeIndex_toReverseDirection(unitig._endNode)) << " " << BiGraph::nodeToString(nodeIndex_toReverseDirection(_unitigs[unitigIndex_exit]._startNode)) << endl;
+                _logFile << "\tSuperbubble: " << BiGraph::nodeToString(unitig._endNode) << " " << BiGraph::nodeToString(_unitigs[unitigIndex_exit]._startNode) << endl;
+                _logFile << "\tSuperbubble: " << BiGraph::nodeToString(nodeIndex_toReverseDirection(unitig._endNode)) << " " << BiGraph::nodeToString(nodeIndex_toReverseDirection(_unitigs[unitigIndex_exit]._startNode)) << endl;
                 //getchar();
             #endif
 
-            //cout << "Found superbubble: " << BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex_exit]._startNode) << endl;
+            //_logFile << "Found superbubble: " << BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex_exit]._startNode) << endl;
             simplifySuperbubble(unitig._index, unitigIndex_exit, _removedNodes, _isBubble, _saveState, sw);
 
         }
@@ -1939,7 +1941,7 @@ public:
         //https://arxiv.org/pdf/1307.7925.pdf
         u_int32_t detectSuperbubble(u_int32_t unitigIndex_source, u_int64_t maxLength, vector<bool>& isBubble){
 
-            //if(8236239 == _unitigs[unitigIndex_source]._startNode) cout << "Source: " << _unitigs[unitigIndex_source]._startNode << endl;
+            //if(8236239 == _unitigs[unitigIndex_source]._startNode) _logFile << "Source: " << _unitigs[unitigIndex_source]._startNode << endl;
             //disconnectSubGraph(_unitigs[unitigIndex_source]._endNode);
 
             unordered_set<u_int32_t> isVisited;
@@ -1953,14 +1955,14 @@ public:
             while(queue.size() > 0){
                 u_int32_t v = queue[queue.size()-1];
 
-                //if(8236239 == _unitigs[unitigIndex_source]._startNode) cout << "\t" << _unitigs[v]._startNode << " " << pathLength[v] << endl;
-                //cout << "\tVisited: " << BiGraph::nodeIndex_to_nodeName(_unitigs[v]._startNode) << " " << BiGraph::nodeIndex_to_nodeName(_unitigs[v]._endNode) << endl;
+                //if(8236239 == _unitigs[unitigIndex_source]._startNode) _logFile << "\t" << _unitigs[v]._startNode << " " << pathLength[v] << endl;
+                //_logFile << "\tVisited: " << BiGraph::nodeIndex_to_nodeName(_unitigs[v]._startNode) << " " << BiGraph::nodeIndex_to_nodeName(_unitigs[v]._endNode) << endl;
                 queue.pop_back();
 
                 //if(pathLength[v] > maxLength) continue;
-                //cout << pathLength[v] << " " << _kminmerSize << endl;
+                //_logFile << pathLength[v] << " " << _kminmerSize << endl;
                 if(pathLength[v] > maxLength){
-                    //cout << "exit 1" << endl;
+                    //_logFile << "exit 1" << endl;
                     return -1;
                     //continue;
                 }
@@ -1976,12 +1978,12 @@ public:
                 //vector<u_int32_t> successors;
                 //getSuccessors_unitig(v, 0, successors);
                 if(successors.size() == 0){
-                    //cout << "exit 2" << endl;
+                    //_logFile << "exit 2" << endl;
                     return -1; //abort tip
                 }
 
                 //for(u_int32_t nodeIndex : successors){
-                //    cout << nodeIndex << " " << _graph->_nodeToUnitig[nodeIndex] << " " << isBubble[nodeIndex] << " " << isBubble[nodeIndex_toReverseDirection(nodeIndex)] << " " << _graph->_isNodeRemoved[nodeIndex] << " " << _graph->_isNodeRemoved[nodeIndex_toReverseDirection(nodeIndex)] << endl;
+                //    _logFile << nodeIndex << " " << _graph->_nodeToUnitig[nodeIndex] << " " << isBubble[nodeIndex] << " " << isBubble[nodeIndex_toReverseDirection(nodeIndex)] << " " << _graph->_isNodeRemoved[nodeIndex] << " " << _graph->_isNodeRemoved[nodeIndex_toReverseDirection(nodeIndex)] << endl;
                 //}
                 std::sort(successors.begin(),successors.end(), [this](const u_int32_t& unitigIndex1, const u_int32_t& unitigIndex2) {
                     return _graph->_unitigs[unitigIndex1]._startNode < _graph->_unitigs[unitigIndex2]._startNode;
@@ -1997,7 +1999,7 @@ public:
                         if(isBubble[nodeIndex_toReverseDirection(_unitigs[u]._startNode)]) exist = true;
                     }
                     if(exist){
-                        //cout << "exit 3" << endl;
+                        //_logFile << "exit 3" << endl;
                         return -1;
                     }
 
@@ -2008,14 +2010,14 @@ public:
                     if(isVisited.find(u) == isVisited.end()){
                         seen.insert(u);
                         long length = _unitigs[u]._length - _graph->_kminmerOverlapMean;
-                        //cout << _unitigs[u]._length << " " << node._overlap << endl;
+                        //_logFile << _unitigs[u]._length << " " << node._overlap << endl;
                         //if(length < 0) length = _unitigs[u]._length;
                         pathLength[u] = pathLength[v] + length;
                         //pathLength[u] = pathLength[v] + _unitigs[u]._nbNodes;
                     }
                     else{
 
-                        //cout << "exit 4" << endl;
+                        //_logFile << "exit 4" << endl;
                         return -1; //Cycle within superbubble
                     }
 
@@ -2024,7 +2026,7 @@ public:
                 for(const u_int32_t& u : successors){
 
                     //u_int32_t u = node._index;
-                    //cout << "\t\tVisiting: " << BiGraph::nodeIndex_to_nodeName(_unitigs[u]._startNode) << " " << BiGraph::nodeIndex_to_nodeName(_unitigs[u]._endNode) << endl;
+                    //_logFile << "\t\tVisiting: " << BiGraph::nodeIndex_to_nodeName(_unitigs[u]._startNode) << " " << BiGraph::nodeIndex_to_nodeName(_unitigs[u]._endNode) << endl;
 
                     vector<u_int32_t> predecessors;
                     _graph->getPredecessors_unitig(u, 0, predecessors);
@@ -2037,11 +2039,11 @@ public:
                     }
 
                     if(allPredecessorsAreVisited){
-                        //cout << "\t\tAll predecessors visited: " << BiGraph::nodeIndex_to_nodeName(_unitigs[u]._startNode) << endl;
+                        //_logFile << "\t\tAll predecessors visited: " << BiGraph::nodeIndex_to_nodeName(_unitigs[u]._startNode) << endl;
                         queue.push_back(u);
                     }
 
-                    //cout << "\t\t\tQueue size: " << queue.size() << " " << seen.size() << endl;
+                    //_logFile << "\t\t\tQueue size: " << queue.size() << " " << seen.size() << endl;
                     if(queue.size() == 1 && seen.size() == 1 && seen.find(queue[0]) != seen.end()){ //only one vertex t is left in S and no other vertex is seen 
                         u_int32_t t = queue[0];
                         vector<u_int32_t> successors_t;
@@ -2050,7 +2052,7 @@ public:
                             return t;
                         }
                         else{
-                            //cout << "exit 5" << endl;
+                            //_logFile << "exit 5" << endl;
                             return -1; // cycle including s
                         }
 
@@ -2061,7 +2063,7 @@ public:
 
             }
 
-            //cout << "exit 6" << endl;
+            //_logFile << "exit 6" << endl;
             return -1;
         }
 
@@ -2115,14 +2117,14 @@ public:
                 int u = pq.top()._unitigIndex;
                 pq.pop();
                 
-                //cout << u << endl;
-                //cout << u << endl;
+                //_logFile << u << endl;
+                //_logFile << u << endl;
                 //if(_unitigs[u]._startNode == -1) continue;
                 
                 //if(dests.find(u) != dests.end() || dests.find(unitigIndex_toReverseDirection(u)) != dests.end()){
                 //    dests.erase(u);
                 //}
-                //cout << dests.size() << " " << prev.size() << endl;
+                //_logFile << dests.size() << " " << prev.size() << endl;
                 //if(dests.size() == 0) break;
 
                 //if(pass == 60){
@@ -2132,7 +2134,7 @@ public:
                 //}
 
 
-                //cout << u << " " << pq.size() << endl;
+                //_logFile << u << " " << pq.size() << endl;
                 vector<u_int32_t> successors;
                 getSuccessors_unitig(u, 0, successors);
                 //vector<u_int32_t> predecessors;
@@ -2177,7 +2179,7 @@ public:
             }
 
             if(!found){
-                cout << "Not found path in superbubble with cycle" << endl;
+                _logFile << "Not found path in superbubble with cycle" << endl;
                 exit(1);
             }
             
@@ -2206,17 +2208,17 @@ public:
                 vector<u_int32_t> successors;
                 _graph->getSuccessors_unitig(unitigIndex, 0, successors);
 
-                //cout << _unitigs[unitigIndex]._startNode << endl;
+                //_logFile << _unitigs[unitigIndex]._startNode << endl;
 
                 vector<u_int32_t> maxAbNodes;
                 float maxAbundance = 0;
                 u_int32_t maxV = -1;
                 for(u_int32_t v : successors){
-                    //cout << "\t" << _unitigs[v]._abundance << endl;
+                    //_logFile << "\t" << _unitigs[v]._abundance << endl;
                     //for(u_int32_t nodeIndex : _unitigs[v]._nodes){
-                    //    cout << nodeIndex << " ";
+                    //    _logFile << nodeIndex << " ";
                     //}
-                    //cout << endl;
+                    //_logFile << endl;
                     if(_unitigs[v]._abundance == maxAbundance){
                         maxAbNodes.push_back(v);
                     }
@@ -2235,17 +2237,17 @@ public:
                 else{
 
                     
-                    //cout << "----" << endl;
+                    //_logFile << "----" << endl;
                     vector<BubbleSide> bubbleSides;
                     for(u_int32_t unitigIndex : maxAbNodes){
 
                         
-                        //cout << "equal: " << unitigIndex << " " << _unitigs[unitigIndex]._quality << " " << _unitigs[unitigIndex]._nbNodes << " " << _unitigs[unitigIndex]._abundance << endl;
+                        //_logFile << "equal: " << unitigIndex << " " << _unitigs[unitigIndex]._quality << " " << _unitigs[unitigIndex]._nbNodes << " " << _unitigs[unitigIndex]._abundance << endl;
 
-                        //cout << "\t-" << endl;
+                        //_logFile << "\t-" << endl;
                         u_int64_t sum = 0;
                         for(u_int32_t nodeIndex : _unitigs[unitigIndex]._nodes){
-                            //cout << "\t" << nodeIndex << ": " << _graph->_graphSuccessors->_nodeDatas[BiGraph::nodeIndex_to_nodeName(nodeIndex)]._quality << endl;
+                            //_logFile << "\t" << nodeIndex << ": " << _graph->_graphSuccessors->_nodeDatas[BiGraph::nodeIndex_to_nodeName(nodeIndex)]._quality << endl;
                             sum += nodeIndex;
                         }
                         
@@ -2255,12 +2257,12 @@ public:
 
                     std::sort(bubbleSides.begin(), bubbleSides.end(), BubbleSideComparator);
                     path.push_back(bubbleSides[0]._unitigIndex);
-                    //cout << "Keep: " << bubbleSides[0]._unitigIndex << endl;
+                    //_logFile << "Keep: " << bubbleSides[0]._unitigIndex << endl;
 
                     unitigIndex = bubbleSides[0]._unitigIndex;
 
-                    //cout << "Keep node: " << _unitigs[unitigIndex]._startNode << endl;
-                    //cout << _unitigs[unitigIndex]._nbNodes;
+                    //_logFile << "Keep node: " << _unitigs[unitigIndex]._startNode << endl;
+                    //_logFile << _unitigs[unitigIndex]._nbNodes;
                     //getchar();
                 }
                 
@@ -2277,13 +2279,13 @@ public:
                 for(u_int32_t nodeIndex : nodes){
                     if(BiGraph::nodeIndex_to_nodeName(nodeIndex) == 510153){
                         print_superbubble = true;
-                        cout << "------" << endl;
-                        cout << path.size() << endl;
+                        _logFile << "------" << endl;
+                        _logFile << path.size() << endl;
                     }
                     if(BiGraph::nodeIndex_to_nodeName(nodeIndex) == 3300236){
                         print_superbubble = true;
-                        cout << "------" << endl;
-                        cout << path.size() << endl;
+                        _logFile << "------" << endl;
+                        _logFile << path.size() << endl;
                     }
                     
                 }
@@ -2294,19 +2296,19 @@ public:
             for(u_int32_t unitigIndex : path){
                 _graph->getUnitigNodes(_unitigs[unitigIndex], nodes);
                 for(u_int32_t nodeIndex : nodes){
-                    //cout << "\tKeep nodes: " << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
+                    //_logFile << "\tKeep nodes: " << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
                     keepNodes.insert(nodeIndex);
                     //keepNodes.insert(nodeIndex_toReverseDirection(nodeIndex));
                     //if(print_superbubble){
-                    //cout << "keep node: " << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
+                    //_logFile << "keep node: " << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
                     //}
                     //keepNodes.insert(nodeIndex_toReverseDirection(nodeIndex));
                 }
             }
     
-            //cout << "simp bubble " << keepNodes.size() << " " << unitigIndexes.size() << endl;
+            //_logFile << "simp bubble " << keepNodes.size() << " " << unitigIndexes.size() << endl;
 
-            //cout << "OMG: " << processIndex << endl;
+            //_logFile << "OMG: " << processIndex << endl;
             //SuperbubbleWriter sw = {processIndex, {}};
 
             for(u_int32_t unitigIndex : unitigIndexes){
@@ -2321,7 +2323,7 @@ public:
 
                     //saveState._isBubble.push_back(BiGraph::nodeIndex_to_nodeName(nodeIndex));
                     //if(print_superbubble){
-                    //    cout << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
+                    //    _logFile << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
                     //}
 
 
@@ -2339,7 +2341,7 @@ public:
                     //removedNodes.push_back(nodeIndex);
                     //bubble._nodes.push_back({nodeIndex, _graph->getNodeUnitigAbundance(nodeIndex)});
                     //bubbleRC._nodes.push_back({nodeIndex_toReverseDirection(nodeIndex), _graph->getNodeUnitigAbundance(nodeIndex_toReverseDirection(nodeIndex)) });
-                    //cout << "\tRemove nodes: " << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
+                    //_logFile << "\tRemove nodes: " << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
                 }
             }
 
@@ -2357,13 +2359,13 @@ public:
 
                 if(isHere){
                     for(u_int32_t nodeIndex : keepNodes){
-                        cout << "Keep: " << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
+                        _logFile << "Keep: " << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
                     }
                     for(u_int32_t unitigIndex : unitigIndexes){
                         _graph->getUnitigNodes(_unitigs[unitigIndex], nodes);
                         for(u_int32_t nodeIndex : nodes){
                             if(keepNodes.find(nodeIndex) != keepNodes.end()) continue;
-                            cout << unitigIndex << " " << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
+                            _logFile << unitigIndex << " " << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
                             if(BiGraph::nodeIndex_to_nodeName(nodeIndex) == 17360) isHere = true;
                         }
                     }
@@ -2385,7 +2387,7 @@ public:
 
                     //saveState._isBubble.push_back(BiGraph::nodeIndex_to_nodeName(nodeIndex));
                     //if(print_superbubble){
-                    //    cout << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
+                    //    _logFile << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
                     //}
 
                     if(keepNodes.find(nodeIndex) != keepNodes.end()) continue;
@@ -2393,7 +2395,7 @@ public:
                     //removedNodes.push_back(nodeIndex);
                     bubble._nodes.push_back({nodeIndex, _graph->getNodeUnitigAbundance(nodeIndex)});
                     //bubbleRC._nodes.push_back({nodeIndex_toReverseDirection(nodeIndex), _graph->getNodeUnitigAbundance(nodeIndex_toReverseDirection(nodeIndex)) });
-                    //cout << "\tRemove nodes: " << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
+                    //_logFile << "\tRemove nodes: " << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
                 }
             }
                
@@ -2407,10 +2409,10 @@ public:
             bool cancelBubble = false;
 
             if(bubble._nodes.size() == 0){ 
-                cout << "1" << endl;
-                cout << path.size() << " " << unitigIndexes.size() << endl;
-                //cout << source_unitigIndex << endl;
-                //cout << BiGraph::nodeIndex_to_nodeName(_unitigs[source_unitigIndex]._startNode) << " " << BiGraph::nodeIndex_to_nodeName(_unitigs[sink_unitigIndex]._startNode) << endl;
+                _logFile << "1" << endl;
+                _logFile << path.size() << " " << unitigIndexes.size() << endl;
+                //_logFile << source_unitigIndex << endl;
+                //_logFile << BiGraph::nodeIndex_to_nodeName(_unitigs[source_unitigIndex]._startNode) << " " << BiGraph::nodeIndex_to_nodeName(_unitigs[sink_unitigIndex]._startNode) << endl;
                 //getchar();
                 for(u_int32_t nodeIndex : keepNodes){
                     if(_graph->nodeIndex_to_unitigIndex(nodeIndex) == source_unitigIndex) continue;
@@ -2426,7 +2428,7 @@ public:
             }
 
             for(NodeAbundance& nodeIndex : bubble._nodes){ //removed nodes
-                //cout << "1" << endl;
+                //_logFile << "1" << endl;
                 //_isNodeValid2.erase(nodeIndex);
                 removedNodes.insert(nodeIndex._nodeIndex);
                 removedNodes.insert(nodeIndex_toReverseDirection(nodeIndex._nodeIndex));
@@ -2456,7 +2458,7 @@ public:
 
                 const SuperbubbleWriter& sw = _readWriterQueue.top();
 
-                //cout << sw._readIndex << " " << _nextReadIndexWriter << endl;
+                //_logFile << sw._readIndex << " " << _nextReadIndexWriter << endl;
                 if(sw._readIndex == _nextReadIndexWriter){
 
 
@@ -2473,18 +2475,18 @@ public:
                         /*
                         if(!__debug_lala){
                             if(sw._nodeIndexRemoved.size() > 0){
-                                cout << "\t" << sw._readIndex << endl;
-                                cout << "\t\tCrush bubble: " << sw._nodeIndexRemoved[0] << endl;// << " " << std::fixed << " " << getChecksumGlobal_nbUtg(removedNodes) << endl;
+                                _logFile << "\t" << sw._readIndex << endl;
+                                _logFile << "\t\tCrush bubble: " << sw._nodeIndexRemoved[0] << endl;// << " " << std::fixed << " " << getChecksumGlobal_nbUtg(removedNodes) << endl;
                                 unordered_set<u_int32_t> utgs;
                                 for(u_int32_t nodeIndex : sw._nodeIndexRemoved){
                                     utgs.insert(nodeIndex_to_unitigIndex(nodeIndex));
-                                //    cout << "\t\t" << nodeIndex << endl;
+                                //    _logFile << "\t\t" << nodeIndex << endl;
                                 }
 
-                                cout << "\t\t" << utgs.size() << endl;
+                                _logFile << "\t\t" << utgs.size() << endl;
                                 
                                 //for(u_int32_t unitigIndex: utgs){
-                                    //cout << "\t\t" << unitigIndex << " " << _unitigs[unitigIndex]._nbNodes << endl;
+                                    //_logFile << "\t\t" << unitigIndex << " " << _unitigs[unitigIndex]._nbNodes << endl;
                                 //}
                                 //getchar();
                             }
@@ -2505,10 +2507,10 @@ public:
                             saveState._nodeNameRemoved_tmp.insert(BiGraph::nodeIndex_to_nodeName(nodeIndex));
                             _superbubble_checksum += BiGraph::nodeIndex_to_nodeName(nodeIndex);
 
-                            //cout << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
+                            //_logFile << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
                         }
 
-                        //if(sw._nodeIndexRemoved.size() > 0) cout << sw._readIndex << ": " << _superbubble_checksum << endl;
+                        //if(sw._nodeIndexRemoved.size() > 0) _logFile << sw._readIndex << ": " << _superbubble_checksum << endl;
                         //if(1122 == sw._readIndex) getchar();
                     }
                     
@@ -2517,16 +2519,16 @@ public:
                         //if(sw._nodeIndexRemoved.size() > 0 && 897358 == sw._nodeIndexRemoved[0]) getchar();
                         
                         if(_nextReadIndexWriter % 100000 == 0){
-                        //    cout << _nextReadIndexWriter << endl;
+                        //    _logFile << _nextReadIndexWriter << endl;
                         //    double lala = getChecksumGlobal_nbUtg(removedNodes);
-                            cout << "Bubble: " << std::fixed << " " << getChecksumGlobal_nbUtg(removedNodes) << endl;
-                                //cout << getNodeUnitigAbundance(894141) << endl;
+                            _logFile << "Bubble: " << std::fixed << " " << getChecksumGlobal_nbUtg(removedNodes) << endl;
+                                //_logFile << getNodeUnitigAbundance(894141) << endl;
                                 //getchar();
                                // getchar();
-                        //    cout << "\t" << lala << endl;
+                        //    _logFile << "\t" << lala << endl;
                         //    if(lala < 828230)  getchar();
                         }
-                        //cout << getChecksumGlobal_nbUtg(removedNodes) << endl;
+                        //_logFile << getChecksumGlobal_nbUtg(removedNodes) << endl;
                     }
                     */
                     
@@ -2569,7 +2571,7 @@ public:
 
                             //saveState._isBubble.push_back(BiGraph::nodeIndex_to_nodeName(nodeIndex));
                             //if(print_superbubble){
-                            //    cout << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
+                            //    _logFile << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
                             //}
 
                             if(keepNodes.find(nodeIndex) != keepNodes.end()) continue;
@@ -2577,7 +2579,7 @@ public:
                             //removedNodes.push_back(nodeIndex);
                             bubble._nodes.push_back({nodeIndex, _graph->getNodeUnitigAbundance(nodeIndex)});
                             //bubbleRC._nodes.push_back({nodeIndex_toReverseDirection(nodeIndex), _graph->getNodeUnitigAbundance(nodeIndex_toReverseDirection(nodeIndex)) });
-                            //cout << "\tRemove nodes: " << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
+                            //_logFile << "\tRemove nodes: " << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
                         }
                     }
                             
@@ -2590,10 +2592,10 @@ public:
                     bool cancelBubble = false;
 
                     if(bubble._nodes.size() == 0){ 
-                        cout << "1" << endl;
-                        cout << path.size() << " " << unitigIndexes.size() << endl;
-                        //cout << source_unitigIndex << endl;
-                        //cout << BiGraph::nodeIndex_to_nodeName(_unitigs[source_unitigIndex]._startNode) << " " << BiGraph::nodeIndex_to_nodeName(_unitigs[sink_unitigIndex]._startNode) << endl;
+                        _logFile << "1" << endl;
+                        _logFile << path.size() << " " << unitigIndexes.size() << endl;
+                        //_logFile << source_unitigIndex << endl;
+                        //_logFile << BiGraph::nodeIndex_to_nodeName(_unitigs[source_unitigIndex]._startNode) << " " << BiGraph::nodeIndex_to_nodeName(_unitigs[sink_unitigIndex]._startNode) << endl;
                         //getchar();
                         for(u_int32_t nodeIndex : keepNodes){
                             if(_graph->nodeIndex_to_unitigIndex(nodeIndex) == source_unitigIndex) continue;
@@ -2609,7 +2611,7 @@ public:
                     }
 
                     for(NodeAbundance& nodeIndex : bubble._nodes){ //removed nodes
-                        //cout << "1" << endl;
+                        //_logFile << "1" << endl;
                         //_isNodeValid2.erase(nodeIndex);
                         removedNodes.insert(nodeIndex._nodeIndex);
                         removedNodes.insert(nodeIndex_toReverseDirection(nodeIndex._nodeIndex));
@@ -2629,7 +2631,7 @@ public:
     u_int32_t _nextUnitigIndex;
 
 
-
+    /*
     u_int32_t detectSuperbubble_withCycle(u_int32_t unitigIndex_source, u_int64_t maxLength, vector<bool>& isBubble){
 
         
@@ -2663,7 +2665,7 @@ public:
 
         while(queue.size() > 0){
             u_int32_t v = queue[queue.size()-1];
-            //cout << "\tVisited: " << BiGraph::nodeIndex_to_nodeName(_unitigs[v]._startNode) << " " << BiGraph::nodeIndex_to_nodeName(_unitigs[v]._endNode) << endl;
+            //_logFile << "\tVisited: " << BiGraph::nodeIndex_to_nodeName(_unitigs[v]._startNode) << " " << BiGraph::nodeIndex_to_nodeName(_unitigs[v]._endNode) << endl;
             queue.pop_back();
 
             //if(pathLength[v] > maxLength) continue;
@@ -2693,7 +2695,7 @@ public:
 
             for(u_int32_t u : successors){
 
-                //cout << "\t\tVisiting: " << BiGraph::nodeIndex_to_nodeName(_unitigs[u]._startNode) << " " << BiGraph::nodeIndex_to_nodeName(_unitigs[u]._endNode) << endl;
+                //_logFile << "\t\tVisiting: " << BiGraph::nodeIndex_to_nodeName(_unitigs[u]._startNode) << " " << BiGraph::nodeIndex_to_nodeName(_unitigs[u]._endNode) << endl;
 
                 const vector<u_int32_t>& scc_u = unitigToSccs[u];
 
@@ -2708,11 +2710,11 @@ public:
                 }
 
                 if(allPredecessorsAreVisited){
-                    //cout << "\t\tAll predecessors visited: " << BiGraph::nodeIndex_to_nodeName(_unitigs[u]._startNode) << endl;
+                    //_logFile << "\t\tAll predecessors visited: " << BiGraph::nodeIndex_to_nodeName(_unitigs[u]._startNode) << endl;
                     queue.push_back(u);
                 }
 
-                //cout << "\t\t\tQueue size: " << queue.size() << " " << seen.size() << endl;
+                //_logFile << "\t\t\tQueue size: " << queue.size() << " " << seen.size() << endl;
                 if(queue.size() == 1 && seen.size() == 1 && seen.find(queue[0]) != seen.end()){ //only one vertex t is left in S and no other vertex is seen 
                     u_int32_t t = queue[0];
 
@@ -2782,6 +2784,7 @@ public:
 		}
 
 	}
+    */
 
     u_int64_t bubble(float maxLength, vector<bool>& isBubble, SaveState2& saveState, bool useReadpathSubgraph, GraphSimplify* graphMain){
 
@@ -2860,13 +2863,13 @@ public:
                     }
                     else{
                         unitigIndex = unitigTips[i]._unitigIndex;
-                        //cout << nodeIndex << endl;
+                        //_logFile << nodeIndex << endl;
                     }
 
-                    //cout << unitigIndex << " " << _unitigs[unitigIndex]._startNode << endl;
-                    //cout << _unitigs[unitigIndex]._length << " " << _unitigs[unitigIndex]._startNode << endl;
+                    //_logFile << unitigIndex << " " << _unitigs[unitigIndex]._startNode << endl;
+                    //_logFile << _unitigs[unitigIndex]._length << " " << _unitigs[unitigIndex]._startNode << endl;
                     //getchar();
-                    //cout << i << endl;
+                    //_logFile << i << endl;
                     sw = {i, unitigIndex, {}};
                     i += 1;
                 }
@@ -2901,7 +2904,7 @@ public:
             //_isNodeValid2.erase(nodeIndex);
             //file_debug << BiGraph::nodeIndex_to_nodeName(nodeIndex) << "," << "green" << endl;
             //if(395881 == BiGraph::nodeIndex_to_nodeName(nodeIndex)){
-              //      cout << "lala6" << endl;
+              //      _logFile << "lala6" << endl;
                //     getchar();
                 //}
             //_removedFrom[nodeIndex] = 3;
@@ -2940,7 +2943,7 @@ public:
 
         //for(Unitig& unitig : _unitigs){
             //if(unitig._startNode == -1) continue;
-            //cout << "-------------" << endl;
+            //_logFile << "-------------" << endl;
 
             //u_int32_t startNodeName = _graphSuccessors->nodeIndex_to_nodeName(unitig._startNode, dummy);
             //u_int32_t visitedNodeIndex = unitig._startNode;
@@ -2959,7 +2962,7 @@ public:
             //if(_isBubble[nodeIndex_toReverseDirection(unitig._startNode)]) continue;
             
 
-            //cout << "--------------" << endl;
+            //_logFile << "--------------" << endl;
             //if(isVisited[unitig._startNode]) continue;
             //if(isVisited[unitig._endNode]) continue;
 
@@ -2974,11 +2977,11 @@ public:
             _graph->getSuccessors(utg_1._endNode, 0, neighbors_utg1);
             
 
-            //cout << _graphSuccessors->nodeIndex_to_nodeName(utg_1._endNode, dummy) << " " << neighbors.size() << endl;
+            //_logFile << _graphSuccessors->nodeIndex_to_nodeName(utg_1._endNode, dummy) << " " << neighbors.size() << endl;
 
             //else if(_graphSuccessors->nodeIndex_to_nodeName(unitig._startNode, dummy) == 6734){
-            //    cout << "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" << endl;
-                //cout << _graphSuccessors->nodeIndex_to_nodeName(utg_1._endNode, dummy) << " " << neighbors.size() << endl;
+            //    _logFile << "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" << endl;
+                //_logFile << _graphSuccessors->nodeIndex_to_nodeName(utg_1._endNode, dummy) << " " << neighbors.size() << endl;
             //}
             
             if(neighbors_utg1.size() <= 1 || neighbors_utg1.size() > 5){
@@ -3008,7 +3011,7 @@ public:
                         GfaParser::rewriteGfa_withoutNodes(_inputGfaFilename, outputFilename, validNodes, _isEdgeRemoved, _graphSuccessors);
 
 
-                        cout << "Readpath subgraph: " << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
+                        _logFile << "Readpath subgraph: " << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
 
 
                         getchar();
@@ -3028,7 +3031,7 @@ public:
                         GfaParser::rewriteGfa_withoutNodes(_inputGfaFilename, outputFilename, validNodes, _isEdgeRemoved, _graphSuccessors);
 
 
-                        cout << "Readpath subgraph: " << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
+                        _logFile << "Readpath subgraph: " << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
                         getchar();
                     }
                     
@@ -3086,7 +3089,7 @@ public:
                     //if(utg_2._nbNodes > maxLength || utg_3._nbNodes > maxLength) continue;
 
                     #ifdef PRINT_DEBUG_SIMPLIFICATION
-                        cout << "\tBubble: " << _graphSuccessors->nodeIndex_to_nodeName(utg_1._endNode, dummy) << " " << _graphSuccessors->nodeIndex_to_nodeName(utg_2._startNode, dummy) << " " << _graphSuccessors->nodeIndex_to_nodeName(utg_3._startNode, dummy) << " " << _graphSuccessors->nodeIndex_to_nodeName(utg_4._startNode, dummy) << " " << utg_2._length << " " << utg_3._length << endl;
+                        _logFile << "\tBubble: " << _graphSuccessors->nodeIndex_to_nodeName(utg_1._endNode, dummy) << " " << _graphSuccessors->nodeIndex_to_nodeName(utg_2._startNode, dummy) << " " << _graphSuccessors->nodeIndex_to_nodeName(utg_3._startNode, dummy) << " " << _graphSuccessors->nodeIndex_to_nodeName(utg_4._startNode, dummy) << " " << utg_2._length << " " << utg_3._length << endl;
                     #endif
 
                     //#pragma omp critical(bubble)
@@ -3107,7 +3110,7 @@ public:
                         //_saveState._isBubble.push_back(BiGraph::nodeIndex_to_nodeName(node));
 
                         //if(BiGraph::nodeIndex_to_nodeName(node) == 510153){
-                        //    cout << "bubulu (1): " << BiGraph::nodeIndex_to_nodeName(utg_2._nodes[0]) << endl;
+                        //    _logFile << "bubulu (1): " << BiGraph::nodeIndex_to_nodeName(utg_2._nodes[0]) << endl;
                         //    getchar();
                         //}
                     }
@@ -3118,7 +3121,7 @@ public:
                         //_saveState._isBubble.push_back(BiGraph::nodeIndex_to_nodeName(node));
 
                         //if(BiGraph::nodeIndex_to_nodeName(node) == 510153){
-                        //    cout << "bubulu (2): " << BiGraph::nodeIndex_to_nodeName(utg_3._nodes[0]) << endl;
+                        //    _logFile << "bubulu (2): " << BiGraph::nodeIndex_to_nodeName(utg_3._nodes[0]) << endl;
                         //    getchar();
                         //}
 
@@ -3131,20 +3134,20 @@ public:
 
                         for(u_int32_t nodeIndex : utg_2._nodes){
                             if(nodeIndex == 11055044){
-                                cout << "HAAAAA" << endl;
+                                _logFile << "HAAAAA" << endl;
                                 getchar();
                             }
                         }
                         for(u_int32_t nodeIndex : utg_3._nodes){
                             if(nodeIndex == 11055044){
-                                cout << "HAAAAA" << endl;
+                                _logFile << "HAAAAA" << endl;
                                 getchar();
                             }
                         }
-                        //cout << "-----" << endl;
-                        //cout << "equal: " << utg_2._index << " " << _unitigs[utg_2._index]._quality << " " << _unitigs[utg_2._index]._nbNodes << " " << _unitigs[utg_2._index]._abundance << " " << _unitigs[utg_2._index]._startNode << endl;
-                        //cout << "equal: " << utg_3._index << " " << _unitigs[utg_3._index]._quality << " " << _unitigs[utg_3._index]._nbNodes << " " << _unitigs[utg_3._index]._abundance << " " << _unitigs[utg_3._index]._startNode << endl;
-                        //cout << "keep: " << bubbleSides[0]._unitigIndex << " " << unitigNodes[0] << endl;
+                        //_logFile << "-----" << endl;
+                        //_logFile << "equal: " << utg_2._index << " " << _unitigs[utg_2._index]._quality << " " << _unitigs[utg_2._index]._nbNodes << " " << _unitigs[utg_2._index]._abundance << " " << _unitigs[utg_2._index]._startNode << endl;
+                        //_logFile << "equal: " << utg_3._index << " " << _unitigs[utg_3._index]._quality << " " << _unitigs[utg_3._index]._nbNodes << " " << _unitigs[utg_3._index]._abundance << " " << _unitigs[utg_3._index]._startNode << endl;
+                        //_logFile << "keep: " << bubbleSides[0]._unitigIndex << " " << unitigNodes[0] << endl;
                     }
                     */
 
@@ -3194,14 +3197,14 @@ public:
                         std::sort(bubbleSides.begin(), bubbleSides.end(), BubbleSideComparator);
 
                         _graph->getUnitigNodes(_unitigs[bubbleSides[1]._unitigIndex], unitigNodes);
-                        //cout << "keep: " << bubbleSides[0]._unitigIndex << endl;
+                        //_logFile << "keep: " << bubbleSides[0]._unitigIndex << endl;
 
                         //#pragma omp critical(superbubble)
                         //{
-                            //cout << "-----" << endl;
-                            //cout << "equal: " << utg_2._index << " " << _unitigs[utg_2._index]._quality << " " << _unitigs[utg_2._index]._nbNodes << " " << _unitigs[utg_2._index]._abundance << endl;
-                            //cout << "equal: " << utg_3._index << " " << _unitigs[utg_3._index]._quality << " " << _unitigs[utg_3._index]._nbNodes << " " << _unitigs[utg_3._index]._abundance << endl;
-                            //cout << "keep: " << bubbleSides[0]._unitigIndex << " " << unitigNodes[0] << endl;
+                            //_logFile << "-----" << endl;
+                            //_logFile << "equal: " << utg_2._index << " " << _unitigs[utg_2._index]._quality << " " << _unitigs[utg_2._index]._nbNodes << " " << _unitigs[utg_2._index]._abundance << endl;
+                            //_logFile << "equal: " << utg_3._index << " " << _unitigs[utg_3._index]._quality << " " << _unitigs[utg_3._index]._nbNodes << " " << _unitigs[utg_3._index]._abundance << endl;
+                            //_logFile << "keep: " << bubbleSides[0]._unitigIndex << " " << unitigNodes[0] << endl;
                         //}
 
                     }
@@ -3244,7 +3247,7 @@ public:
 
         unordered_set<u_int32_t> removedUnitigs;
 
-        //cout << "removing small loops" << endl;
+        //_logFile << "removing small loops" << endl;
         u_int64_t nbRemoved = 0;
 
         //vector<u_int32_t> unitigNodes;
@@ -3331,7 +3334,7 @@ public:
                         if((nodeIndex_to_unitigIndex(successors[0]) == unitig_loop._index && nodeIndex_to_unitigIndex(successors[1]) == unitig_dest._index) || (nodeIndex_to_unitigIndex(successors[0]) == unitig_dest._index && nodeIndex_to_unitigIndex(successors[1]) == unitig_loop._index)){
                             
                             #ifdef PRINT_DEBUG_SIMPLIFICATION
-                                cout << "Small loop: " <<  _graphSuccessors->nodeToString(unitig_loop._startNode) << " " << _graphSuccessors->nodeToString(unitig_loop._endNode)  << endl;
+                                _logFile << "Small loop: " <<  _graphSuccessors->nodeToString(unitig_loop._startNode) << " " << _graphSuccessors->nodeToString(unitig_loop._endNode)  << endl;
                             #endif
                             
                             removedUnitigs.insert(unitig_source._index);
@@ -3376,7 +3379,7 @@ public:
 
 
             //#ifdef PRINT_DEBUG_SIMPLIFICATION
-            //    cout << "\tSmall loop: " << _graphSuccessors->nodeIndex_to_nodeName(unitig._endNode, dummy) << endl;
+            //    _logFile << "\tSmall loop: " << _graphSuccessors->nodeIndex_to_nodeName(unitig._endNode, dummy) << endl;
             //#endif 
 
             //nbRemoved += 1;
@@ -3422,20 +3425,20 @@ public:
     void compact(bool rebuild, const vector<UnitigData>& unitigDatas){
 
 
-        cout << "\tCompacting" << endl;
+        _logFile << "\tCompacting" << endl;
         //if(rebuild && _rebuildInvalidUnitigs.size() == 0) return;
 
         _unitigIndexToClean.clear();
 
         #ifdef PRINT_DEBUG_SIMPLIFICATION
-            cout << "\tCompacting" << endl;
+            _logFile << "\tCompacting" << endl;
         #endif
 
         vector<u_int32_t> nodes;
 
         if(rebuild){
 
-            //cout << "lala1" << endl;
+            //_logFile << "lala1" << endl;
             //vector<u_int32_t> unitigIndexes;
             //for (u_int32_t unitigIndex : _removedUnitigs){
             //    unitigIndexes.push_back(unitigIndex);
@@ -3444,10 +3447,10 @@ public:
 
             for(u_int32_t unitigIndex : _removedUnitigs){
 
-                //cout << unitigIndex << " " << _unitigs.size() << endl;
-                //cout << _unitigs[unitigIndex]._startNode << endl;
+                //_logFile << unitigIndex << " " << _unitigs.size() << endl;
+                //_logFile << _unitigs[unitigIndex]._startNode << endl;
                 //nodes.push_back(_unitigs[unitigIndex]._startNode);
-                //cout << unitigIndex << endl;
+                //_logFile << unitigIndex << endl;
                 //vector<u_int32_t> unitigNodes; 
                 //getUnitigNodes(_unitigs[unitigIndex], unitigNodes);
                 for(u_int32_t nodeIndex : _unitigs[unitigIndex]._nodes){
@@ -3458,12 +3461,12 @@ public:
                     break;
                 }
 
-                //cout << "done" << endl;
+                //_logFile << "done" << endl;
 
                 //_unitigs.erase(unitigIndex);
             }
 
-            //cout << "lala2" << endl;
+            //_logFile << "lala2" << endl;
             _removedUnitigs.clear();
             //for(u_int32_t invalidUnitigIndex : _rebuildInvalidUnitigs){
             //    Unitig& unitig = _unitigs[invalidUnitigIndex];
@@ -3520,11 +3523,11 @@ public:
         /*
         for (u_int32_t nodeIndex : nodes){
             computeUnitig(nodeIndex, unitigDatas, rebuild);
-            //cout << "done" << endl;
+            //_logFile << "done" << endl;
         }
         */
 
-        //cout << "lala3" << endl;
+        //_logFile << "lala3" << endl;
 
 	    _abCircular = 0;
         
@@ -3549,7 +3552,7 @@ public:
                     }
                     else{
                         nodeIndex = nodes[i];
-                        //cout << nodeIndex << endl;
+                        //_logFile << nodeIndex << endl;
                     }
 
                     i += 1;
@@ -3566,55 +3569,55 @@ public:
         //std::sort(_unitigs.begin(), _unitigs.end(), UnitigComparator_ByIndex);
         
 
-        //cout << _nextUnitigIndex << endl;
-        //cout << "\tCdone" << endl;
+        //_logFile << _nextUnitigIndex << endl;
+        //_logFile << "\tCdone" << endl;
 
 
         u_int32_t unitigIndex = 0;
         #ifdef PRINT_DEBUG_SIMPLIFICATION
-            cout << "Nb unitigs: " << _unitigs.size() << endl;
+            _logFile << "Nb unitigs: " << _unitigs.size() << endl;
         #endif
 
         //if(_abCircular > 0){
-        //    cout << _abCircular << endl;
+        //    _logFile << _abCircular << endl;
         //    getchar();
         //}
-        cout << "\tdone: " << _unitigs.size() << endl;
+        _logFile << "\tdone: " << _unitigs.size() << endl;
         /*
         for(u_int32_t unitigIndex : _possibleTips){
-            cout << "-" << endl;
+            _logFile << "-" << endl;
             for(u_int32_t nodeIndex : _unitigs[unitigIndex]._nodes){
-                cout << nodeIndex << endl;
+                _logFile << nodeIndex << endl;
             }
         }
-        cout << _possibleTips.size() << endl;
-        cout << isTip(nodeIndex_to_unitigIndex(29512)) << endl;
-        cout << isTip(nodeIndex_to_unitigIndex(22528)) << endl;
+        _logFile << _possibleTips.size() << endl;
+        _logFile << isTip(nodeIndex_to_unitigIndex(29512)) << endl;
+        _logFile << isTip(nodeIndex_to_unitigIndex(22528)) << endl;
         getchar();
         */
-        //cout << "Nb unitigs: " << _unitigs.size() << endl;
-        //cout << "Unitigs: " << _unitigs.size() << " " << _nodeToUnitig.size() << endl;
+        //_logFile << "Nb unitigs: " << _unitigs.size() << endl;
+        //_logFile << "Unitigs: " << _unitigs.size() << " " << _nodeToUnitig.size() << endl;
         //getchar();
         /*
         for(Unitig& unitig : unitigs){
 
             int lala = _graphSuccessors->nodeIndex_to_nodeName(unitig._startNode, dummy);
             if(lala == 4452 && dummy){
-                cout << "4452+ " << nodeToUnitig[unitig._startNode] << endl;
+                _logFile << "4452+ " << nodeToUnitig[unitig._startNode] << endl;
                 getPredecessors(unitig._startNode, neighbors);
                 for(u_int32_t nn : neighbors){
                     bool orientation;
                     int loulou = _graphSuccessors->nodeIndex_to_nodeName(nn, orientation);
-                    cout << loulou << " " << orientation << "    " << nodeToUnitig[nn] << endl;
+                    _logFile << loulou << " " << orientation << "    " << nodeToUnitig[nn] << endl;
                 }
             }
             else if(lala == 4453 && dummy){
-                cout << "4453+ " << nodeToUnitig[unitig._startNode] << endl;
+                _logFile << "4453+ " << nodeToUnitig[unitig._startNode] << endl;
                 getPredecessors(unitig._startNode, neighbors);
                 for(u_int32_t nn : neighbors){
                     bool orientation;
                     int loulou = _graphSuccessors->nodeIndex_to_nodeName(nn, orientation);
-                    cout << loulou << " " << orientation << "    " << nodeToUnitig[nn] << endl;
+                    _logFile << loulou << " " << orientation << "    " << nodeToUnitig[nn] << endl;
                 }
             }
             
@@ -3633,7 +3636,7 @@ public:
             
             GfaParser::tokenize(line, fields, '\t');
             
-            //cout << (*fields)[0] << endl;
+            //_logFile << (*fields)[0] << endl;
 
             //if((*fields)[0] == "S"){
             //    outfile << line << endl;
@@ -3658,7 +3661,7 @@ public:
 
                 //if(nodes[fromNodeIndex] == nodes[toNodeIndex]) continue;
                 //if(fromNodeIndex == 5432 || toNodeIndex == 5432){
-                  //  cout << nodes.find(fromNodeIndex) << " " << nodes.find(toNodeIndex) << endl;
+                  //  _logFile << nodes.find(fromNodeIndex) << " " << nodes.find(toNodeIndex) << endl;
                 //}
                 //if(nodes.find(fromNodeIndex) == nodes.end()) continue;
                 //if(nodes.find(toNodeIndex) == nodes.end()) continue;
@@ -3666,7 +3669,7 @@ public:
                 //u_int32_t unitigIndex_to = nodeToUnitigs[toNodeIndex];
 
                 //if(unitigIndex_from == -1 || unitigIndex_to == -1) continue;
-                //cout << fromName << " " << unitigIndex_from << " " << toName << " " << unitigIndex_to << endl;
+                //_logFile << fromName << " " << unitigIndex_from << " " << toName << " " << unitigIndex_to << endl;
             
                 //outfile << "L" << "\t" << nodes[fromNodeIndex] << "\t" <<  fromOrient << "\t" << nodes[toNodeIndex]  << "\t" << toOrient << "\t" << "0M" << endl;
             }
@@ -3733,7 +3736,7 @@ public:
 
             //forward
             while(true){
-                //cout << endNode << " " << nodeIndex << endl;
+                //_logFile << endNode << " " << nodeIndex << endl;
 
                 if(endNode < smallestNodeIndex){
                     smallestNodeIndex = endNode;
@@ -3742,21 +3745,21 @@ public:
                 _graph->getSuccessors(endNode, 0, neighbors);
 
 
-                //cout << "lala1: " << neighbors.size() << endl;
+                //_logFile << "lala1: " << neighbors.size() << endl;
                 if(neighbors.size() != 1) break;
 
-                //cout << endNode << " " << neighbors[0] << endl;
+                //_logFile << endNode << " " << neighbors[0] << endl;
 
                 u_int32_t successor = neighbors[0];
                 _graph->getPredecessors(successor, 0, neighbors);
-                //cout << BiGraph::nodeIndex_to_nodeName(successor) << " " << neighbors.size() << endl;
-                //cout << "lala2: " << neighbors.size() << endl;
+                //_logFile << BiGraph::nodeIndex_to_nodeName(successor) << " " << neighbors.size() << endl;
+                //_logFile << "lala2: " << neighbors.size() << endl;
                 if(neighbors.size() != 1) break;
 
                 if(successor == nodeIndex){
                     endNode = successor;
                     isCircular = true;
-                    //cout << "circular" << endl;
+                    //_logFile << "circular" << endl;
                     break; //Circular
                 }
 
@@ -3771,13 +3774,13 @@ public:
                 //backward
                 while(true){
                     _graph->getPredecessors(startNode, 0, neighbors);
-                    //cout << "loulou1: " << neighbors.size() << endl;
+                    //_logFile << "loulou1: " << neighbors.size() << endl;
                     if(neighbors.size() != 1) break;
 
 
                     u_int32_t predecessor = neighbors[0];
                     _graph->getSuccessors(predecessor, 0, neighbors);
-                    //cout << "loulou2: " << neighbors.size() << endl;
+                    //_logFile << "loulou2: " << neighbors.size() << endl;
                     if(neighbors.size() != 1) break;
 
                     startNode = predecessor;
@@ -3799,9 +3802,9 @@ public:
 
             u_int32_t length = 0;
             u_int32_t node = startNode;
-            //cout << "---------------" << endl;
+            //_logFile << "---------------" << endl;
 
-            //cout << BiGraph::nodeIndex_to_nodeName(startNode) << " " << BiGraph::nodeIndex_to_nodeName(endNode) << endl;
+            //_logFile << BiGraph::nodeIndex_to_nodeName(startNode) << " " << BiGraph::nodeIndex_to_nodeName(endNode) << endl;
 
 
             size_t i=0;
@@ -3814,16 +3817,16 @@ public:
             u_int32_t minQuality = -1;
             u_int32_t maxQuality = 0;
             //if(unitigIndex == 114)
-            //cout << "----" << endl;
+            //_logFile << "----" << endl;
 
             vector<float> abundances;
             while(true){
 
                 //if(unitigIndex == 114){
-                //    cout << "HIIII: " << BiGraph::nodeIndex_to_nodeName(node) << " " << length << endl;
+                //    _logFile << "HIIII: " << BiGraph::nodeIndex_to_nodeName(node) << " " << length << endl;
                 //}
 
-                //cout << _graphSuccessors->nodeIndex_to_nodeName(node, dummy) << endl;
+                //_logFile << _graphSuccessors->nodeIndex_to_nodeName(node, dummy) << endl;
                 u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(node);
 
                 u_int32_t quality = _graph->_graphSuccessors->_nodeDatas[nodeName]._quality;
@@ -3842,17 +3845,17 @@ public:
 
                 if(i == 0){
                     length += _graph->_graphSuccessors->_nodeDatas[nodeName]._length;
-                    //cout << "lala: " << length << endl;
+                    //_logFile << "lala: " << length << endl;
                 }
                 else{
                     //u_int16_t overlapLength = _graph->_graphSuccessors->getOverlap(lastNode, node);
-                    //if(_kminmerSize > 4) cout << _graphSuccessors->_nodeLengths[nodeName] << " " << overlapLength << endl;
+                    //if(_kminmerSize > 4) _logFile << _graphSuccessors->_nodeLengths[nodeName] << " " << overlapLength << endl;
                     length += _graph->_graphSuccessors->_nodeDatas[nodeName]._length - _graph->_kminmerOverlapMean;
-                    //cout << "\t" << _graphSuccessors->_nodeLengths[nodeName] << " " << overlapLength << " " << (_graphSuccessors->_nodeLengths[nodeName] - overlapLength) << endl;
+                    //_logFile << "\t" << _graphSuccessors->_nodeLengths[nodeName] << " " << overlapLength << " " << (_graphSuccessors->_nodeLengths[nodeName] - overlapLength) << endl;
                 }
 
                 //if(BiGraph::nodeIndex_to_nodeName(startNode) == 5304){
-                //    cout << "\t" << length << endl;
+                //    _logFile << "\t" << length << endl;
                 //}
                 abundance_sum += _graph->_graphSuccessors->_nodeDatas[nodeName]._abundance;
                 //nbNodes += 1;
@@ -3861,9 +3864,9 @@ public:
                 _graph->getSuccessors(node, 0, neighbors);
 
                 //if(unitigIndex == 114)
-                //cout << neighbors.size() << endl;
+                //_logFile << neighbors.size() << endl;
 
-                //cout << "lili: " << node << " " << neighbors.size() << endl;
+                //_logFile << "lili: " << node << " " << neighbors.size() << endl;
 
                 //isVisited[node] = true;
                 nodes.push_back(node);
@@ -3871,7 +3874,7 @@ public:
                 nbNodes += 1;
 
                 //if(isCircular){
-                    //cout << "\tnode: " << BiGraph::nodeIndex_to_nodeName(node) << endl;
+                    //_logFile << "\tnode: " << BiGraph::nodeIndex_to_nodeName(node) << endl;
                 //}
 
                 if(isCircular){
@@ -3906,12 +3909,12 @@ public:
 
             /*
             if(isCircular){
-                //cout << "----" << endl;
+                //_logFile << "----" << endl;
                 for(u_int32_t nodeIndex : nodes){
                     _graph->_abCircular += _graph->getNodeUnitigAbundance(nodeIndex);
-                    //cout << BiGraph::nodeIndex_to_nodeName(nodeIndex) << " ";
+                    //_logFile << BiGraph::nodeIndex_to_nodeName(nodeIndex) << " ";
                 }
-                //cout << endl;
+                //_logFile << endl;
                 //median = 0;
                 //mean = 0;
             }
@@ -3919,33 +3922,33 @@ public:
 
             /*
             if(startNode == 162558){
-                cout << "-------------" << endl;
-                cout << startNode << " " << endNode << endl;
-                cout << lala1 << " " << lala2 << endl;
+                _logFile << "-------------" << endl;
+                _logFile << startNode << " " << endNode << endl;
+                _logFile << lala1 << " " << lala2 << endl;
                 getSuccessors(endNode, 0, neighbors);
-                cout << "nb successors: " << neighbors.size() << endl;
+                _logFile << "nb successors: " << neighbors.size() << endl;
                 getPredecessors(startNode, 0, neighbors);
-                cout << "nb predecessors: " << neighbors.size() << endl;
+                _logFile << "nb predecessors: " << neighbors.size() << endl;
                 //exit(1);
             }
             */
 
             //float abundance = ((float) abundance_sum) / nbNodes;
-            //cout << abundance << endl;
+            //_logFile << abundance << endl;
             //if(_graphSuccessors->nodeIndex_to_nodeName(nodeIndex, dummy) == 4453){
-            //    cout << _graphSuccessors->nodeIndex_to_nodeName(startNode, dummy) << " " << dummy << " " << _graphSuccessors->nodeIndex_to_nodeName(endNode, dummy) << " " << dummy << endl;
+            //    _logFile << _graphSuccessors->nodeIndex_to_nodeName(startNode, dummy) << " " << dummy << " " << _graphSuccessors->nodeIndex_to_nodeName(endNode, dummy) << " " << dummy << endl;
             //}
 
             //if(nodeIndex % 2 == 0) continue;
 
-            //cout << "Unitig: " << BiGraph::nodeIndex_to_nodeName(startNode) << " " << length << endl;
-            //cout << BiGraph::nodeIndex_to_nodeName(startNode) << " " << BiGraph::nodeIndex_to_nodeName(endNode) << endl;
+            //_logFile << "Unitig: " << BiGraph::nodeIndex_to_nodeName(startNode) << " " << length << endl;
+            //_logFile << BiGraph::nodeIndex_to_nodeName(startNode) << " " << BiGraph::nodeIndex_to_nodeName(endNode) << endl;
 
             #pragma omp critical(unitig)
             {
 
 
-                //cout << "1" << endl;
+                //_logFile << "1" << endl;
                 bool isValid = false; //_nodeToUnitig[nodes[0]] == -1 || _nodeToUnitig[nodes[nodes.size()-1]] == -1;// _nodeToUnitig.find(nodes[0]) == _nodeToUnitig.end();
                 
                 for(u_int32_t nodeIndex : nodes){
@@ -3959,25 +3962,25 @@ public:
                 bool isHere = false;
                 for(u_int32_t nodeIndex : nodes){
                     if(nodeIndex == 7294223){
-                        cout << "lalalalala: " << isValid << endl;
+                        _logFile << "lalalalala: " << isValid << endl;
                         isHere = true;
                     }
                 }
 
                 if(isHere){
                     for(u_int32_t nodeIndex : nodes){
-                        cout << nodeIndex << " " << _nodeToUnitig[nodeIndex] << endl;
+                        _logFile << nodeIndex << " " << _nodeToUnitig[nodeIndex] << endl;
                     }
                     getchar();
                 }
                 */
 
-                //cout << "2" << endl;
+                //_logFile << "2" << endl;
 
                 if(isValid){
-                    //cout << "---" << endl;
+                    //_logFile << "---" << endl;
 
-                    //cout << "3" << endl;
+                    //_logFile << "3" << endl;
 
                     u_int32_t unitigIndexRC = _graph->_nextUnitigIndex + 1;
 
@@ -3986,12 +3989,12 @@ public:
 
                         if(_rebuild){
                             u_int32_t utg = _nodeToUnitig[nodeIndex];
-                            //cout << utg << " " << _unitigs.size() << endl;
+                            //_logFile << utg << " " << _unitigs.size() << endl;
                             if(utg != -1 && utg != _graph->_nextUnitigIndex && utg != unitigIndexRC){
-                                //cout << utg << endl;
+                                //_logFile << utg << endl;
                                 for(u_int32_t nodeIndex : _unitigs[utg]._nodes){
                                     //if(nodeIndex == 7294223){
-                                    //    cout << "lol" << endl;
+                                    //    _logFile << "lol" << endl;
                                     //    getchar();
                                     //}
                                     _nodeToUnitig[nodeIndex] = -1;
@@ -4019,11 +4022,11 @@ public:
                         sum += nodeIndex;
 
 
-                        //cout << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
+                        //_logFile << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
                     }
 
 
-                    //cout << "4" << endl;
+                    //_logFile << "4" << endl;
                     //_nodeToUnitig[startNode] = _graph->_nextUnitigIndex;
                     //_nodeToUnitig[endNode] = _graph->_nextUnitigIndex;
                     /*
@@ -4034,7 +4037,7 @@ public:
                             vector<u_int32_t> preds;
                             _graph->getPredecessors(nodes[i], 0, preds);
                             if(preds.size() == 1){
-                                cout << "NOOOO " <<  BiGraph::nodeIndex_to_nodeName(nodes[i]) << endl;
+                                _logFile << "NOOOO " <<  BiGraph::nodeIndex_to_nodeName(nodes[i]) << endl;
                                 getchar();
                             }
                             
@@ -4045,7 +4048,7 @@ public:
                             vector<u_int32_t> preds;
                             _graph->getPredecessors(nodes[i], 0, preds);
                             if(preds.size() != 1){
-                                cout << "NOOOO " <<  BiGraph::nodeIndex_to_nodeName(nodes[i]) << endl;
+                                _logFile << "NOOOO " <<  BiGraph::nodeIndex_to_nodeName(nodes[i]) << endl;
                                 getchar();
                             }
                             
@@ -4055,7 +4058,7 @@ public:
                             vector<u_int32_t> succs;
                             _graph->getSuccessors(nodes[i], 0, succs);
                             if(succs.size() != 1){
-                                cout << "NOOOO " <<  BiGraph::nodeIndex_to_nodeName(nodes[i]) << endl;
+                                _logFile << "NOOOO " <<  BiGraph::nodeIndex_to_nodeName(nodes[i]) << endl;
                                 getchar();
                             }
                         }
@@ -4094,7 +4097,7 @@ public:
             for(u_int32_t nodeIndex : nodes){
 
                 const UnitigData& unitigData = unitigDatas[BiGraph::nodeIndex_to_nodeName(nodeIndex)];
-                //cout << unitigData._readIndexes.size() << endl;
+                //_logFile << unitigData._readIndexes.size() << endl;
                 for(u_int64_t readIndex : unitigData._readIndexes){
                     readIndexes_unique.insert(readIndex);
                 }
@@ -4118,11 +4121,11 @@ public:
 
 
 
-            //cout << _graphSuccessors->nodeIndex_to_nodeName(startNode, dummy) << endl;
-            //cout << _graphSuccessors->nodeIndex_to_nodeName(endNode, dummy) << endl;
-            //cout << _graphSuccessors->nodeIndex_to_nodeName(neighbors[0], dummy) << endl;
+            //_logFile << _graphSuccessors->nodeIndex_to_nodeName(startNode, dummy) << endl;
+            //_logFile << _graphSuccessors->nodeIndex_to_nodeName(endNode, dummy) << endl;
+            //_logFile << _graphSuccessors->nodeIndex_to_nodeName(neighbors[0], dummy) << endl;
             //getPredecessors(nodeName, neighbors);
-            //cout << _graphSuccessors->nodeIndex_to_nodeName(neighbors[0], dummy) << endl;
+            //_logFile << _graphSuccessors->nodeIndex_to_nodeName(neighbors[0], dummy) << endl;
 
         }
 
@@ -4136,11 +4139,11 @@ public:
         vector<u_int32_t> neighbors;
         bool dummy = false;
 
-        //cout << nodeIndex << " " << _isNodeValid2.size() << endl;
+        //_logFile << nodeIndex << " " << _isNodeValid2.size() << endl;
         //u_int32_t nodeIndex = *it;
-        //cout << nodeIndex << " " << _isNodeValid2.size() << endl;
+        //_logFile << nodeIndex << " " << _isNodeValid2.size() << endl;
         //if(nodeIndex % 10000 == 0){
-        //    cout << nodeIndex << " " << _graphSuccessors->_nbNodes << endl;
+        //    _logFile << nodeIndex << " " << _graphSuccessors->_nbNodes << endl;
         //}
         //if(nodeIndex % 2 == 1) continue;
 
@@ -4150,7 +4153,7 @@ public:
         //isVisited[nodeIndex] = true;
         //u_int32_t nodeName = _graphSuccessors->nodeName_to_nodeIndex(7701, true);
 
-        //cout << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
+        //_logFile << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
         u_int32_t startNode = nodeIndex;
         u_int32_t endNode = nodeIndex;
 
@@ -4168,37 +4171,37 @@ public:
 
         //forward
         while(true){
-            //cout << endNode << " " << nodeIndex << endl;
+            //_logFile << endNode << " " << nodeIndex << endl;
 
             getSuccessors(endNode, 0, neighbors);
 
 
 
-            //cout << "lala1: " << neighbors.size() << endl;
+            //_logFile << "lala1: " << neighbors.size() << endl;
             if(neighbors.size() != 1) break;
             if(neighbors[0] == nodeIndex){
                 endNode = neighbors[0];
                 isCircular = true;
-                //cout << "circular" << endl;
+                //_logFile << "circular" << endl;
                 break; //Circular
             }
-            //cout << endNode << " " << neighbors[0] << endl;
+            //_logFile << endNode << " " << neighbors[0] << endl;
 
             u_int32_t successor = neighbors[0];
             getPredecessors(successor, 0, neighbors);
-            //cout << BiGraph::nodeIndex_to_nodeName(successor) << " " << neighbors.size() << endl;
-            //cout << "lala2: " << neighbors.size() << endl;
+            //_logFile << BiGraph::nodeIndex_to_nodeName(successor) << " " << neighbors.size() << endl;
+            //_logFile << "lala2: " << neighbors.size() << endl;
             if(neighbors.size() != 1) break;
 
 
 
-            //cout << successor << " " << neighbors[0] << endl;
+            //_logFile << successor << " " << neighbors[0] << endl;
 
-            //cout << "1: " << BiGraph::nodeIndex_to_nodeName(successor) << endl;
+            //_logFile << "1: " << BiGraph::nodeIndex_to_nodeName(successor) << endl;
             endNode = successor;
             lala1 += 1;
 
-            //cout << "1" << endl;
+            //_logFile << "1" << endl;
         }
 
         if(!isCircular){
@@ -4206,7 +4209,7 @@ public:
             //backward
             while(true){
                 getPredecessors(startNode, 0, neighbors);
-                //cout << "loulou1: " << neighbors.size() << endl;
+                //_logFile << "loulou1: " << neighbors.size() << endl;
                 if(neighbors.size() != 1) break;
 
 
@@ -4216,15 +4219,15 @@ public:
                 //    break; //Circular, todo: don't need to backward if circular
                 //}
 
-                //cout << startNode << " " << neighbors[0] << endl;
+                //_logFile << startNode << " " << neighbors[0] << endl;
 
                 u_int32_t predecessor = neighbors[0];
                 getSuccessors(predecessor, 0, neighbors);
-                //cout << "loulou2: " << neighbors.size() << endl;
+                //_logFile << "loulou2: " << neighbors.size() << endl;
                 if(neighbors.size() != 1) break;
 
 
-                //cout << predecessor << " " << neighbors[0] << endl;
+                //_logFile << predecessor << " " << neighbors[0] << endl;
 
                 startNode = predecessor;
 
@@ -4236,7 +4239,7 @@ public:
 
         
         //if(isCircular){
-        //cout << startNode << " " << endNode << endl;
+        //_logFile << startNode << " " << endNode << endl;
         //}
 
         //u_int32_t nodeName = _graphSuccessors->nodeIndex_to_nodeName(startNode, dummy);
@@ -4250,14 +4253,14 @@ public:
         //isVisited[startNode] = true;
         //isVisited[endNode] = true;
 
-        //cout << unitigIndex << " " << _graphSuccessors->nodeIndex_to_nodeName(startNode, dummy) << " " << _graphSuccessors->nodeIndex_to_nodeName(endNode, dummy) << endl;
+        //_logFile << unitigIndex << " " << _graphSuccessors->nodeIndex_to_nodeName(startNode, dummy) << " " << _graphSuccessors->nodeIndex_to_nodeName(endNode, dummy) << endl;
         //int lala = _graphSuccessors->nodeIndex_to_nodeName(nodeIndex, dummy);
         //if(lala == 4452 && dummy){
-        //    cout << "lal " << _graphSuccessors->nodeIndex_to_nodeName(startNode, dummy) << " " << dummy << " " << _graphSuccessors->nodeIndex_to_nodeName(endNode, dummy) << " " << dummy << endl;
+        //    _logFile << "lal " << _graphSuccessors->nodeIndex_to_nodeName(startNode, dummy) << " " << dummy << " " << _graphSuccessors->nodeIndex_to_nodeName(endNode, dummy) << " " << dummy << endl;
         //}
         //lala = _graphSuccessors->nodeIndex_to_nodeName(nodeIndex, dummy);
         //if(lala == 4452 && !dummy){
-        //    cout << "loul " << _graphSuccessors->nodeIndex_to_nodeName(startNode, dummy) << " " << dummy << " " << _graphSuccessors->nodeIndex_to_nodeName(endNode, dummy) << " " << dummy << endl;
+        //    _logFile << "loul " << _graphSuccessors->nodeIndex_to_nodeName(startNode, dummy) << " " << dummy << " " << _graphSuccessors->nodeIndex_to_nodeName(endNode, dummy) << " " << dummy << endl;
         //}
 
 
@@ -4266,9 +4269,9 @@ public:
 
         u_int32_t length = 0;
         u_int32_t node = startNode;
-        //cout << "---------------" << endl;
+        //_logFile << "---------------" << endl;
 
-        //cout << BiGraph::nodeIndex_to_nodeName(startNode) << " " << BiGraph::nodeIndex_to_nodeName(endNode) << endl;
+        //_logFile << BiGraph::nodeIndex_to_nodeName(startNode) << " " << BiGraph::nodeIndex_to_nodeName(endNode) << endl;
         
         size_t i=0;
         u_int32_t nbNodes = 0;
@@ -4277,16 +4280,16 @@ public:
         vector<u_int32_t> nodes;
         vector<u_int32_t> nodesRC;
         //if(unitigIndex == 114)
-        //cout << "----" << endl;
+        //_logFile << "----" << endl;
 
         vector<float> abundances;
         while(true){
 
             //if(unitigIndex == 114){
-            //    cout << "HIIII: " << BiGraph::nodeIndex_to_nodeName(node) << " " << length << endl;
+            //    _logFile << "HIIII: " << BiGraph::nodeIndex_to_nodeName(node) << " " << length << endl;
             //}
 
-            //cout << _graphSuccessors->nodeIndex_to_nodeName(node, dummy) << endl;
+            //_logFile << _graphSuccessors->nodeIndex_to_nodeName(node, dummy) << endl;
             u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(node);
 
             if(_graphSuccessors->_nodeAbundances[nodeName] > abundance_max){
@@ -4295,17 +4298,17 @@ public:
 
             if(i == 0){
                 length += _graphSuccessors->_nodeLengths[nodeName];
-                //cout << "lala: " << length << endl;
+                //_logFile << "lala: " << length << endl;
             }
             else{
                 //u_int16_t overlapLength = _graphSuccessors->getOverlap(lastNode, node);
-                //if(_kminmerSize > 4) cout << _graphSuccessors->_nodeLengths[nodeName] << " " << overlapLength << endl;
+                //if(_kminmerSize > 4) _logFile << _graphSuccessors->_nodeLengths[nodeName] << " " << overlapLength << endl;
                 length += _graphSuccessors->_nodeLengths[nodeName] - _kminmerOverlapMean;
-                //cout << "\t" << _graphSuccessors->_nodeLengths[nodeName] << " " << overlapLength << " " << (_graphSuccessors->_nodeLengths[nodeName] - overlapLength) << endl;
+                //_logFile << "\t" << _graphSuccessors->_nodeLengths[nodeName] << " " << overlapLength << " " << (_graphSuccessors->_nodeLengths[nodeName] - overlapLength) << endl;
             }
 
             //if(BiGraph::nodeIndex_to_nodeName(startNode) == 5304){
-            //    cout << "\t" << length << endl;
+            //    _logFile << "\t" << length << endl;
             //}
             abundance_sum += _graphSuccessors->_nodeAbundances[nodeName];
             //nbNodes += 1;
@@ -4314,9 +4317,9 @@ public:
             getSuccessors(node, 0, neighbors);
 
             //if(unitigIndex == 114)
-            //cout << neighbors.size() << endl;
+            //_logFile << neighbors.size() << endl;
 
-            //cout << "lili: " << node << " " << neighbors.size() << endl;
+            //_logFile << "lili: " << node << " " << neighbors.size() << endl;
 
             //isVisited[node] = true;
             nodes.push_back(node);
@@ -4324,7 +4327,7 @@ public:
             nbNodes += 1;
 
             //if(isCircular){
-                //cout << "\tnode: " << BiGraph::nodeIndex_to_nodeName(node) << endl;
+                //_logFile << "\tnode: " << BiGraph::nodeIndex_to_nodeName(node) << endl;
             //}
 
             if(isCircular){
@@ -4354,15 +4357,15 @@ public:
 
 
         //float abundance = ((float) abundance_sum) / nbNodes;
-        //cout << abundance << endl;
+        //_logFile << abundance << endl;
         //if(_graphSuccessors->nodeIndex_to_nodeName(nodeIndex, dummy) == 4453){
-        //    cout << _graphSuccessors->nodeIndex_to_nodeName(startNode, dummy) << " " << dummy << " " << _graphSuccessors->nodeIndex_to_nodeName(endNode, dummy) << " " << dummy << endl;
+        //    _logFile << _graphSuccessors->nodeIndex_to_nodeName(startNode, dummy) << " " << dummy << " " << _graphSuccessors->nodeIndex_to_nodeName(endNode, dummy) << " " << dummy << endl;
         //}
 
         //if(nodeIndex % 2 == 0) continue;
 
-        //cout << "Unitig: " << BiGraph::nodeIndex_to_nodeName(startNode) << " " << length << endl;
-        //cout << BiGraph::nodeIndex_to_nodeName(startNode) << " " << BiGraph::nodeIndex_to_nodeName(endNode) << endl;
+        //_logFile << "Unitig: " << BiGraph::nodeIndex_to_nodeName(startNode) << " " << length << endl;
+        //_logFile << BiGraph::nodeIndex_to_nodeName(startNode) << " " << BiGraph::nodeIndex_to_nodeName(endNode) << endl;
 
         //#pragma omp critical
         //{
@@ -4404,11 +4407,11 @@ public:
 
 
         _nextUnitigIndex += 2;
-        //cout << _graphSuccessors->nodeIndex_to_nodeName(startNode, dummy) << endl;
-        //cout << _graphSuccessors->nodeIndex_to_nodeName(endNode, dummy) << endl;
-        //cout << _graphSuccessors->nodeIndex_to_nodeName(neighbors[0], dummy) << endl;
+        //_logFile << _graphSuccessors->nodeIndex_to_nodeName(startNode, dummy) << endl;
+        //_logFile << _graphSuccessors->nodeIndex_to_nodeName(endNode, dummy) << endl;
+        //_logFile << _graphSuccessors->nodeIndex_to_nodeName(neighbors[0], dummy) << endl;
         //getPredecessors(nodeName, neighbors);
-        //cout << _graphSuccessors->nodeIndex_to_nodeName(neighbors[0], dummy) << endl;
+        //_logFile << _graphSuccessors->nodeIndex_to_nodeName(neighbors[0], dummy) << endl;
     }
     */
 
@@ -4443,8 +4446,8 @@ public:
 
             /*
             if((n == 329 && nn == 349) || (n == 349 && nn == 329)){
-                cout << "lala: " << lala << " " << n << " " << nn << " " << node._isRemoved << " " << _graphSuccessors->_nodes[329][1]._index << " " << _graphSuccessors->_nodes[329][1]._isRemoved << endl;
-                cout << nodes.size() << " " << _graphSuccessors->_nodes[329][0]._index << " " << _graphSuccessors->_nodes[329][1]._index << " " << _graphSuccessors->_nodes[329][2]._index << " " << _graphSuccessors->_nodes[329][3]._index << endl;
+                _logFile << "lala: " << lala << " " << n << " " << nn << " " << node._isRemoved << " " << _graphSuccessors->_nodes[329][1]._index << " " << _graphSuccessors->_nodes[329][1]._isRemoved << endl;
+                _logFile << nodes.size() << " " << _graphSuccessors->_nodes[329][0]._index << " " << _graphSuccessors->_nodes[329][1]._index << " " << _graphSuccessors->_nodes[329][2]._index << " " << _graphSuccessors->_nodes[329][3]._index << endl;
                 getchar();
             }
             */
@@ -4537,7 +4540,7 @@ public:
 
     void getSuccessors_overlap(u_int32_t n, float abundanceCutoff_min, vector<AdjNode>& successors){
 
-        //cout << "succ overlap " << endl;
+        //_logFile << "succ overlap " << endl;
 
         bool dummy;
         successors.clear();
@@ -4600,7 +4603,7 @@ public:
 
     void getPredecessors_overlap(u_int32_t n, float abundanceCutoff_min, vector<AdjNode>& successors){
 
-        //cout << "pred overlap " << endl;
+        //_logFile << "pred overlap " << endl;
         bool dummy;
         successors.clear();
 
@@ -4613,7 +4616,7 @@ public:
 			u_int32_t nn = nodeIndex_toReverseDirection(node._index);
             AdjNode node_nn = {nn, _kminmerOverlapMean};
 
-            //cout << "YEY " << BiGraph::nodeIndex_to_nodeName(nn) << endl;
+            //_logFile << "YEY " << BiGraph::nodeIndex_to_nodeName(nn) << endl;
             //if(!_isNodeValid[nn]){
             //if(_isNodeValid2.find(nn) == _isNodeValid2.end()){
             if(_isNodeRemoved[nn]) continue;
@@ -4678,7 +4681,7 @@ public:
         //while (node != nullptr) {
 
 			u_int32_t nn = nodeIndex_toReverseDirection(node._index);
-            //cout << "Pred: " << BiGraph::nodeIndex_to_nodeName(nn) << endl;
+            //_logFile << "Pred: " << BiGraph::nodeIndex_to_nodeName(nn) << endl;
 
             //if(!_isNodeValid[nn]){
             //if(_isNodeValid2.find(nn) == _isNodeValid2.end()){
@@ -4765,43 +4768,43 @@ public:
         vector<u_int32_t> predecessors;
         getPredecessors(n, abundanceCutoff_min, predecessors);
 
-        //cout << n << " " << successors.size() << " " << predecessors.size() << endl;
+        //_logFile << n << " " << successors.size() << " " << predecessors.size() << endl;
         neighbors.insert(neighbors.end(), successors.begin(), successors.end());
         neighbors.insert(neighbors.end(), predecessors.begin(), predecessors.end());
     }
     
     void getSuccessors_unitig(u_int32_t unitigIndex, float abundanceCutoff, vector<u_int32_t>& successors){
 
-        //cout << unitigIndex << " " << _unitigs.size() << endl;
+        //_logFile << unitigIndex << " " << _unitigs.size() << endl;
         successors.clear();
 
-        //cout << "a" << endl;
+        //_logFile << "a" << endl;
         Unitig& unitig = _unitigs[unitigIndex];
 
-        //cout << (unitig._endNode == -1)<< endl;
-        //cout << BiGraph::nodeIndex_to_nodeName(unitig._endNode) << endl;
+        //_logFile << (unitig._endNode == -1)<< endl;
+        //_logFile << BiGraph::nodeIndex_to_nodeName(unitig._endNode) << endl;
         vector<u_int32_t> successors_nodeIndex;
         getSuccessors(unitig._endNode, 0, successors_nodeIndex);
             
-        //cout << "c" << endl;
+        //_logFile << "c" << endl;
 
         for(u_int32_t nodeIndex : successors_nodeIndex){
 
-            //cout << nodeIndex << " " << _nodeToUnitig[nodeIndex] << endl;
+            //_logFile << nodeIndex << " " << _nodeToUnitig[nodeIndex] << endl;
             //if(_nodeToUnitig.find(nodeIndex) == _nodeToUnitig.end()) continue; //reinserting bubble
             //if(_isNodeInvalid_tmp.find(nodeIndex_to_unitigIndex(nodeIndex)) != _isNodeInvalid_tmp.end()) continue;
             //if(_isUnitigInvalid_tmp.find(nodeIndex_to_unitigIndex(nodeIndex)) != _isUnitigInvalid_tmp.end()) continue;
 
-            //if(nodeIndex_to_unitigIndex(nodeIndex) == nodeIndex_to_unitigIndex(BiGraph::nodeName_to_nodeIndex(1302, true))) cout << "hhhhhhha" << endl;
-            //if(nodeIndex_to_unitigIndex(nodeIndex) == nodeIndex_to_unitigIndex(BiGraph::nodeName_to_nodeIndex(1302, false))) cout << "hhhhhhha" << endl;
-            //cout << (_isNodeInvalid_tmp.find(nodeIndex_to_unitigIndex(nodeIndex)) != _isNodeInvalid_tmp.end()) << endl;
+            //if(nodeIndex_to_unitigIndex(nodeIndex) == nodeIndex_to_unitigIndex(BiGraph::nodeName_to_nodeIndex(1302, true))) _logFile << "hhhhhhha" << endl;
+            //if(nodeIndex_to_unitigIndex(nodeIndex) == nodeIndex_to_unitigIndex(BiGraph::nodeName_to_nodeIndex(1302, false))) _logFile << "hhhhhhha" << endl;
+            //_logFile << (_isNodeInvalid_tmp.find(nodeIndex_to_unitigIndex(nodeIndex)) != _isNodeInvalid_tmp.end()) << endl;
 
             //if(_isNodeInvalid_tmp.find(nodeIndex_to_unitigIndex(nodeIndex)) != _isNodeInvalid_tmp.end()) continue;
 
             successors.push_back(nodeIndex_to_unitigIndex(nodeIndex));
         }
 
-        //cout << "d" << endl;
+        //_logFile << "d" << endl;
     }
 
     void getPredecessors_unitig(u_int32_t unitigIndex, float abundanceCutoff, vector<u_int32_t>& predecessors){
@@ -4815,7 +4818,7 @@ public:
             
         for(u_int32_t nodeIndex : predecessors_nodeIndex){
 
-            //cout << nodeIndex << " " << _nodeToUnitig[nodeIndex] << endl;
+            //_logFile << nodeIndex << " " << _nodeToUnitig[nodeIndex] << endl;
             //if(_nodeToUnitig.find(nodeIndex) == _nodeToUnitig.end()) continue; //reinserting bubble
             //if(_isNodeInvalid_tmp.find(nodeIndex_to_unitigIndex(nodeIndex)) != _isNodeInvalid_tmp.end()) continue;
             //if(_isUnitigInvalid_tmp.find(nodeIndex_to_unitigIndex(nodeIndex)) != _isUnitigInvalid_tmp.end()) continue;
@@ -4826,18 +4829,18 @@ public:
 
     void getSuccessors_unitig_overlap(u_int32_t unitigIndex, vector<AdjNode>& successors){
 
-        //cout << unitigIndex << " " << _unitigs.size() << endl;
+        //_logFile << unitigIndex << " " << _unitigs.size() << endl;
         successors.clear();
 
-        //cout << "a" << endl;
+        //_logFile << "a" << endl;
         Unitig& unitig = _unitigs[unitigIndex];
 
-        //cout << (unitig._endNode == -1)<< endl;
-        //cout << BiGraph::nodeIndex_to_nodeName(unitig._endNode) << endl;
+        //_logFile << (unitig._endNode == -1)<< endl;
+        //_logFile << BiGraph::nodeIndex_to_nodeName(unitig._endNode) << endl;
         vector<AdjNode> successors_nodeIndex;
         getSuccessors_overlap(unitig._endNode, 0, successors_nodeIndex);
             
-        //cout << "c" << endl;
+        //_logFile << "c" << endl;
 
         for(const AdjNode& node : successors_nodeIndex){
 
@@ -4846,16 +4849,16 @@ public:
             //if(_isNodeInvalid_tmp.find(nodeIndex_to_unitigIndex(nodeIndex)) != _isNodeInvalid_tmp.end()) continue;
             //if(_isUnitigInvalid_tmp.find(nodeIndex_to_unitigIndex(nodeIndex)) != _isUnitigInvalid_tmp.end()) continue;
 
-            //if(nodeIndex_to_unitigIndex(nodeIndex) == nodeIndex_to_unitigIndex(BiGraph::nodeName_to_nodeIndex(1302, true))) cout << "hhhhhhha" << endl;
-            //if(nodeIndex_to_unitigIndex(nodeIndex) == nodeIndex_to_unitigIndex(BiGraph::nodeName_to_nodeIndex(1302, false))) cout << "hhhhhhha" << endl;
-            //cout << (_isNodeInvalid_tmp.find(nodeIndex_to_unitigIndex(nodeIndex)) != _isNodeInvalid_tmp.end()) << endl;
+            //if(nodeIndex_to_unitigIndex(nodeIndex) == nodeIndex_to_unitigIndex(BiGraph::nodeName_to_nodeIndex(1302, true))) _logFile << "hhhhhhha" << endl;
+            //if(nodeIndex_to_unitigIndex(nodeIndex) == nodeIndex_to_unitigIndex(BiGraph::nodeName_to_nodeIndex(1302, false))) _logFile << "hhhhhhha" << endl;
+            //_logFile << (_isNodeInvalid_tmp.find(nodeIndex_to_unitigIndex(nodeIndex)) != _isNodeInvalid_tmp.end()) << endl;
 
             //if(_isNodeInvalid_tmp.find(nodeIndex_to_unitigIndex(nodeIndex)) != _isNodeInvalid_tmp.end()) continue;
 
             successors.push_back({nodeIndex_to_unitigIndex(nodeIndex), _kminmerOverlapMean});
         }
 
-        //cout << "d" << endl;
+        //_logFile << "d" << endl;
     }
 
     void getPredecessors_unitig_overlap(u_int32_t unitigIndex, vector<AdjNode>& predecessors){
@@ -4926,7 +4929,7 @@ public:
             vector<u_int32_t> nodes;
             getUnitigNodes(_unitigs[unitigIndex], nodes);
             for(u_int32_t nodeIndex : nodes){
-                //cout << "Scc: " << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
+                //_logFile << "Scc: " << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
                 nodeIndexes.insert(nodeIndex);
             }
         }
@@ -4951,24 +4954,24 @@ public:
 
 
         while(true){
-            //cout << node << endl;
+            //_logFile << node << endl;
             nodes.push_back(node);
 
-            //cout << nodes.size() << " " << unitig._nbNodes << endl;
+            //_logFile << nodes.size() << " " << unitig._nbNodes << endl;
             if(nodes.size() == unitig._nbNodes) break;
 
             getSuccessors(node, 0, neighbors);
-            //cout << neighbors.size() << endl;
+            //_logFile << neighbors.size() << endl;
             node = neighbors[0];
         }
         /*
             if(unitig._startNode == 162558){
-                cout << "-------------" << endl;
-                cout << unitig._startNode << " " << unitig._endNode << endl;
+                _logFile << "-------------" << endl;
+                _logFile << unitig._startNode << " " << unitig._endNode << endl;
                 getSuccessors(unitig._endNode, 0, neighbors);
-                cout << "nb successors: " << neighbors.size() << endl;
+                _logFile << "nb successors: " << neighbors.size() << endl;
                 getPredecessors(unitig._startNode, 0, neighbors);
-                cout << "nb predecessors: " << neighbors.size() << endl;
+                _logFile << "nb predecessors: " << neighbors.size() << endl;
                 exit(1);
             }
 
@@ -5048,17 +5051,17 @@ public:
 
         //auto t1 = std::chrono::high_resolution_clock::now();
 
-        cout << "Loading state: " << abundanceCutoff_min << endl;
+        _logFile << "Loading state: " << abundanceCutoff_min << endl;
         //vector<Bubble> bubbles;
 
-        cout << "clear" << endl;
+        _logFile << "clear" << endl;
         clear(0);
-        cout << "load" << endl;
+        _logFile << "load" << endl;
 
         for(const SaveState2& saveState : _cachedGraphStates){
-            //cout << saveState._abundanceCutoff_min << endl;
+            //_logFile << saveState._abundanceCutoff_min << endl;
             if(saveState._abundanceCutoff_min > abundanceCutoff_min) break;
-            //cout << "Applying state changes: " << saveState._abundanceCutoff_min << endl;
+            //_logFile << "Applying state changes: " << saveState._abundanceCutoff_min << endl;
 
             for(const u_int32_t nodeName : saveState._nodeNameRemoved){
 
@@ -5088,9 +5091,9 @@ public:
 
         //std::reverse(bubbles.begin(), bubbles.end());
         
-        cout << "compact" << endl;
+        _logFile << "compact" << endl;
         compact(false, unitigDatas);
-        cout << "done" << endl;
+        _logFile << "done" << endl;
         //removeUnconnectedNodes(nodeIndex_source);
         //compact(false);
 
@@ -5112,7 +5115,7 @@ public:
 
         //auto t2 = std::chrono::high_resolution_clock::now();
         //auto ms_int = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1);
-        //std::cout << ms_int.count() << "ms\n";
+        //std::_logFile << ms_int.count() << "ms\n";
         //getchar();
     }
     */
@@ -5136,20 +5139,20 @@ public:
                 compact(true, unitigDatas);
                 u_int64_t nbSuperbubblesRemoved = superbubble(maxLength, isBubble, currentSaveState, false, graphMain, false);
                 #ifdef PRINT_DEBUG_SIMPLIFICATION
-                    cout << "Nb superbubble removed: " << nbSuperbubblesRemoved << endl;
+                    _logFile << "Nb superbubble removed: " << nbSuperbubblesRemoved << endl;
                 #endif
                 if(nbSuperbubblesRemoved == 0) break;
                 isModSub = true;
             }
             
 
-            //cout << "Nb nodes valid: " << _isNodeValid2.size() << endl;
+            //_logFile << "Nb nodes valid: " << _isNodeValid2.size() << endl;
 
             while(true){
                 compact(true, unitigDatas);
                 u_int64_t nbBubblesRemoved = bubble(maxLength, currentSaveState, false, graphMain);
                 #ifdef PRINT_DEBUG_SIMPLIFICATION
-                    cout << "Nb bubble removed: " << nbBubblesRemoved << endl;
+                    _logFile << "Nb bubble removed: " << nbBubblesRemoved << endl;
                 #endif
                 if(nbBubblesRemoved == 0) break;
                 isModSub = true;
@@ -5190,9 +5193,9 @@ public:
         */
 
 
-        //cout << _graphSuccessors->_nodeDatas[BiGraph::nodeIndex_to_nodeName(894141)]._abundance << endl;
+        //_logFile << _graphSuccessors->_nodeDatas[BiGraph::nodeIndex_to_nodeName(894141)]._abundance << endl;
         //getchar();
-        cout << "Cleaning graph" << endl;
+        _logFile << "Cleaning graph" << endl;
         
         u_int64_t maxBubbleLength;
         if(smallBubbleOnly){
@@ -5231,7 +5234,7 @@ public:
         //loadState(abundanceCutoff_min);
 
         #ifdef PRINT_DEBUG_SIMPLIFICATION
-            cout << "Start cleaning: " << saveGfa << " " << doesSaveState << " " << doesLoadState << endl;
+            _logFile << "Start cleaning: " << saveGfa << " " << doesSaveState << " " << doesLoadState << endl;
         #endif
 
         clear(0);
@@ -5249,7 +5252,7 @@ public:
         //for(u_int32_t nodeIndex : _isNodeValid2){
         //    nodeIndexSum += nodeIndex;
         //}
-        //cout << "Node index sum: " << nodeIndexSum << endl;
+        //_logFile << "Node index sum: " << nodeIndexSum << endl;
 
         compact(false, unitigDatas);
 
@@ -5267,7 +5270,7 @@ public:
         //for(u_int32_t nodeIndex : _isNodeValid2){
         //    nodeIndexSum += nodeIndex;
         //}
-        //cout << "Node index sum: " << nodeIndexSum << endl;
+        //_logFile << "Node index sum: " << nodeIndexSum << endl;
 
         /*
         bool isHere = false;
@@ -5277,8 +5280,8 @@ public:
                 break;
             }
         }
-        cout << "Is here 1: " << isHere << endl;
-        cout << getNodeUnitigAbundance(BiGraph::nodeName_to_nodeIndex(targetNodeName, false)) << endl;
+        _logFile << "Is here 1: " << isHere << endl;
+        _logFile << getNodeUnitigAbundance(BiGraph::nodeName_to_nodeIndex(targetNodeName, false)) << endl;
         */
 
         //removeErrors_3(k, 2000, unitigDatas, detectRoundabout, maxBubbleLength, insertBubble, saveAllState, doesSaveUnitigGraph, mdbg, minimizerSize, nbCores);
@@ -5293,14 +5296,14 @@ public:
                 break;
             }
         }
-        cout << "Is here 2: " << isHere << endl;
+        _logFile << "Is here 2: " << isHere << endl;
         */
 
 		//if(doesSaveUnitigGraph) saveUnitigGraph(_outputDir + "/minimizer_graph_u.gfa", mdbg, minimizerSize, nbCores, false);
 
         //vector<Bubble> bubbles;
         //vector<float> lala = {40, 800};
-        //cout << compute_median_float(lala) << endl;
+        //_logFile << compute_median_float(lala) << endl;
         //exit(1);
         /*
         for(u_int32_t nodeIndex : _isNodeValid2){
@@ -5314,7 +5317,7 @@ public:
                 getPredecessors(nodeIndex_successor, 0, predecessors);
 
                 if(std::find(predecessors.begin(), predecessors.end(), nodeIndex) == predecessors.end()){
-                    cout << "Symetrical edge issue: " << BiGraph::nodeIndex_to_nodeName(nodeIndex) << " -> " << BiGraph::nodeIndex_to_nodeName(nodeIndex_successor) << endl;
+                    _logFile << "Symetrical edge issue: " << BiGraph::nodeIndex_to_nodeName(nodeIndex) << " -> " << BiGraph::nodeIndex_to_nodeName(nodeIndex_successor) << endl;
                     getchar();
                 }
             }
@@ -5322,27 +5325,27 @@ public:
         }*/
 
         /*
-        cout << "lala1" << endl;
+        _logFile << "lala1" << endl;
         for(Unitig& unitig : _unitigs){
             if(unitig._startNode == -1) continue;
             if(unitigIndex_toReverseDirection(unitig._index) == -1){
-                cout << "KC" << endl;
+                _logFile << "KC" << endl;
                 getchar();
             }
             if(unitig._nbNodes != _unitigs[unitigIndex_toReverseDirection(unitig._index)]._nbNodes){
-                cout << "KC" << endl;
+                _logFile << "KC" << endl;
                 getchar();
             }
             //if(unitig._nbNodes != )
         }
-        cout << "lala2" << endl;
+        _logFile << "lala2" << endl;
         */
 
         /*
         for(u_int32_t nodeIndex : _isNodeValid2){
 
             if(395881 == BiGraph::nodeIndex_to_nodeName(nodeIndex)){
-                cout << "lala 1" << endl;
+                _logFile << "lala 1" << endl;
                 getchar();
             }
         }*/
@@ -5357,13 +5360,13 @@ public:
         while(true){
 
 
-            //cout << std::fixed << "Init: " << getChecksumGlobal_utg() << " " << getChecksumGlobal_abundanceUtg() << endl;
+            //_logFile << std::fixed << "Init: " << getChecksumGlobal_utg() << " " << getChecksumGlobal_abundanceUtg() << endl;
             //getchar();
 
             bool firstBubblePass = true;
             bool firstTipPass = true;
             //compact(false, unitigDatas);
-            //cout << _isNodeValid2.size() << " " << getChecksumGlobal_abundance() << " " << getChecksumGlobal_abundanceUtg() << endl;
+            //_logFile << _isNodeValid2.size() << " " << getChecksumGlobal_abundance() << " " << getChecksumGlobal_abundanceUtg() << endl;
             //getchar();
 
             u_int64_t nbTipsRemoved = 0;
@@ -5389,7 +5392,7 @@ public:
                     u_int64_t nbSelfLoopRemoved = removeSelfLoops(currentSaveState);
 
                     #ifdef PRINT_DEBUG_SIMPLIFICATION
-                        cout << "Nb self loop removed: " << nbSelfLoopRemoved << endl;
+                        _logFile << "Nb self loop removed: " << nbSelfLoopRemoved << endl;
                     #endif
                     if(nbSelfLoopRemoved == 0) break;
                     isModification = true;
@@ -5420,12 +5423,12 @@ public:
 
                         while(true){
 
-                            cout << "superbubble" << endl;
+                            _logFile << "superbubble" << endl;
                             compact(true, unitigDatas);
-                            //cout << "1: " << _unitigIndexToClean.size() << endl;
+                            //_logFile << "1: " << _unitigIndexToClean.size() << endl;
                             u_int64_t nbSuperbubblesRemoved = superbubble(maxBubbleLength, isBubble, currentSaveState, false, nullptr, false);
                             #ifdef PRINT_DEBUG_SIMPLIFICATION
-                                cout << "Nb superbubble removed: " << nbSuperbubblesRemoved << endl;
+                                _logFile << "Nb superbubble removed: " << nbSuperbubblesRemoved << endl;
                             #endif
                             if(nbSuperbubblesRemoved == 0) break;
                             isModification = true;
@@ -5434,11 +5437,11 @@ public:
 
 
                         }
-                        //cout << "Nb nodes valid: " << _isNodeValid2.size() << endl;
+                        //_logFile << "Nb nodes valid: " << _isNodeValid2.size() << endl;
                         
-                        //cout << "Superbubble: " << getChecksumGlobal_utg() << " " << getChecksumGlobal_abundanceUtg() << endl;
+                        //_logFile << "Superbubble: " << getChecksumGlobal_utg() << " " << getChecksumGlobal_abundanceUtg() << endl;
                         //getchar();
-                        //cout << "Superbubble: " << getChecksumGlobal() << endl;
+                        //_logFile << "Superbubble: " << getChecksumGlobal() << endl;
                         //getchar();
                         
                         isBubble = vector<bool>(_graphSuccessors->_nbNodes, false);
@@ -5446,14 +5449,14 @@ public:
 
                         while(true){
 
-                            cout << "bubble" << endl;
+                            _logFile << "bubble" << endl;
 
                             compact(true, unitigDatas);
                             //getchar();
-                            //cout << "2: " << _unitigIndexToClean.size() << endl;
+                            //_logFile << "2: " << _unitigIndexToClean.size() << endl;
                             nbBubblesRemoved = bubble(maxBubbleLength, isBubble, currentSaveState, false, nullptr);
                             #ifdef PRINT_DEBUG_SIMPLIFICATION
-                                cout << "Nb bubble removed: " << nbBubblesRemoved << endl;
+                                _logFile << "Nb bubble removed: " << nbBubblesRemoved << endl;
                             #endif
                             if(nbBubblesRemoved == 0) break;
                             isModification = true;
@@ -5462,12 +5465,12 @@ public:
                         }
                         
                         
-                        //cout << "Bubble: " << getChecksumGlobal_utg() << " " << getChecksumGlobal_abundanceUtg() << endl;
+                        //_logFile << "Bubble: " << getChecksumGlobal_utg() << " " << getChecksumGlobal_abundanceUtg() << endl;
 
                         //getchar();
 
-                        //cout << "bubble: " << getChecksumGlobal() << endl;
-                        //cout << nodeIndex_to_unitig(BiGraph::nodeName_to_nodeIndex(22716, true))._nbNodes << endl;
+                        //_logFile << "bubble: " << getChecksumGlobal() << endl;
+                        //_logFile << nodeIndex_to_unitig(BiGraph::nodeName_to_nodeIndex(22716, true))._nbNodes << endl;
                         //getchar();
 
                         if(!isModBubble) break;
@@ -5491,7 +5494,7 @@ public:
                             compact(true, unitigDatas);
                             u_int64_t nbRemoved = tip(_kminmerSize, false, currentSaveState, true, false, false);
                             #ifdef PRINT_DEBUG_SIMPLIFICATION
-                                cout << "Nb tip removed: " << nbRemoved << endl;
+                                _logFile << "Nb tip removed: " << nbRemoved << endl;
                             #endif
                             if(nbRemoved > 0){
                                 isModification = true;
@@ -5504,10 +5507,10 @@ public:
                         }
 
 
-                        //cout << "Tip 1: " << getChecksumGlobal_utg() << " " << getChecksumGlobal_abundanceUtg() << endl;
+                        //_logFile << "Tip 1: " << getChecksumGlobal_utg() << " " << getChecksumGlobal_abundanceUtg() << endl;
                         //getchar();
 
-                        //cout << "Tip 1: " << getChecksumGlobal() << " " << _tip_checksum << endl;
+                        //_logFile << "Tip 1: " << getChecksumGlobal() << " " << _tip_checksum << endl;
                         //getchar();
 
                         if(isTipRemoved) continue;
@@ -5516,7 +5519,7 @@ public:
                             compact(true, unitigDatas);
                             u_int64_t nbRemoved = tip(_kminmerSize*2, false, currentSaveState, true, false, false);
                             #ifdef PRINT_DEBUG_SIMPLIFICATION
-                                cout << "Nb tip removed: " << nbRemoved << endl;
+                                _logFile << "Nb tip removed: " << nbRemoved << endl;
                             #endif
                             if(nbRemoved > 0){
                                 isModification = true;
@@ -5528,9 +5531,9 @@ public:
                             }
                         }
 
-                        //cout << "Tip 2: " << getChecksumGlobal_utg() << " " << getChecksumGlobal_abundanceUtg() << endl;
+                        //_logFile << "Tip 2: " << getChecksumGlobal_utg() << " " << getChecksumGlobal_abundanceUtg() << endl;
                         //getchar();
-                        //cout << "Tip 2: " << getChecksumGlobal() << " " << _tip_checksum << endl;
+                        //_logFile << "Tip 2: " << getChecksumGlobal() << " " << _tip_checksum << endl;
                         //getchar();
 
                         if(isTipRemoved) continue;
@@ -5539,7 +5542,7 @@ public:
                             compact(true, unitigDatas);
                             u_int64_t nbRemoved = tip(50000, false, currentSaveState, false, false, false);
                             #ifdef PRINT_DEBUG_SIMPLIFICATION
-                                cout << "Nb tip removed: " << nbRemoved << endl;
+                                _logFile << "Nb tip removed: " << nbRemoved << endl;
                             #endif
                             if(nbRemoved > 0){
                                 isModification = true;
@@ -5552,9 +5555,9 @@ public:
                         }
 
 
-                        //cout << "Tip 3: " << getChecksumGlobal_utg() << " " << getChecksumGlobal_abundanceUtg() << endl;
+                        //_logFile << "Tip 3: " << getChecksumGlobal_utg() << " " << getChecksumGlobal_abundanceUtg() << endl;
                         //getchar();
-                        //cout << "Tip 3: " << getChecksumGlobal() << " " << _tip_checksum << " " << _unitigs.size() << endl;
+                        //_logFile << "Tip 3: " << getChecksumGlobal() << " " << _tip_checksum << " " << _unitigs.size() << endl;
                         //getchar();
 
                         if(!isTipRemoved) break;
@@ -5566,7 +5569,7 @@ public:
                     while(true){
                         
                         //compact(true, unitigDatas);
-                        //cout << "3: " << _unitigIndexToClean.size() << endl;
+                        //_logFile << "3: " << _unitigIndexToClean.size() << endl;
 
                         //u_int64_t nbRemovedTotal = 0;
 
@@ -5578,7 +5581,7 @@ public:
                         //while(true){
                             u_int64_t nbRemoved = 0;
                             for(u_int64_t maxLength : {1000, 5000, 10000, 15000, 20000, 25000, 30000, 35000, 40000, 45000, 50000}){
-                                //cout << "tip " << maxLength << endl;
+                                //_logFile << "tip " << maxLength << endl;
                                 compact(true, unitigDatas);
                                 nbRemoved = tip(maxLength, false, currentSaveState, false, false, false);
                                 //nbRemovedTotal += nbRemoved;
@@ -5588,7 +5591,7 @@ public:
                         //}
 
                         #ifdef PRINT_DEBUG_SIMPLIFICATION
-                            cout << "Nb tip removed: " << nbRemovedTotal << endl;
+                            _logFile << "Nb tip removed: " << nbRemovedTotal << endl;
                         #endif
 
                         if(nbRemoved > 0){
@@ -5615,24 +5618,24 @@ public:
                     
                     
 
-                    //cout << "4: " << _unitigIndexToClean.size() << endl;
+                    //_logFile << "4: " << _unitigIndexToClean.size() << endl;
                     //if(nbTipsRemoved == 0) break;
                     //isModification = true;
                     //isModSub = true;
 
                 //}
 
-                //cout << _isBubble[BiGraph::nodeName_to_nodeIndex(510153, true)] << " " << _isBubble[BiGraph::nodeName_to_nodeIndex(510153, false)] << endl;
-                //cout << _isBubble[BiGraph::nodeName_to_nodeIndex(1718667, true)] << " " << _isBubble[BiGraph::nodeName_to_nodeIndex(1718667, false)] << endl;
-                //cout << getNodeUnitigAbundance(BiGraph::nodeName_to_nodeIndex(1473953, true)) << endl;
-                //cout << getNodeUnitigAbundance(BiGraph::nodeName_to_nodeIndex(3541558, true)) << endl;
+                //_logFile << _isBubble[BiGraph::nodeName_to_nodeIndex(510153, true)] << " " << _isBubble[BiGraph::nodeName_to_nodeIndex(510153, false)] << endl;
+                //_logFile << _isBubble[BiGraph::nodeName_to_nodeIndex(1718667, true)] << " " << _isBubble[BiGraph::nodeName_to_nodeIndex(1718667, false)] << endl;
+                //_logFile << getNodeUnitigAbundance(BiGraph::nodeName_to_nodeIndex(1473953, true)) << endl;
+                //_logFile << getNodeUnitigAbundance(BiGraph::nodeName_to_nodeIndex(3541558, true)) << endl;
                 
                 /*
                 while(true){
                     compact(true, unitigDatas);
                     nbSmallLoopRemoved = removeSmallLoop(10000, currentSaveState);
                     #ifdef PRINT_DEBUG_SIMPLIFICATION
-                        cout << "Nb small loop removed: " << nbSmallLoopRemoved << endl;
+                        _logFile << "Nb small loop removed: " << nbSmallLoopRemoved << endl;
                     #endif
                     if(nbSmallLoopRemoved == 0) break;
                     isModification = true;
@@ -5642,27 +5645,27 @@ public:
                 
                 
                 /*
-                cout << "detecting readpath 1" << endl;
+                _logFile << "detecting readpath 1" << endl;
                 while(true){
                     compact(true, unitigDatas);
                     u_int64_t nbSuperbubblesRemoved = superbubble(50000, isBubble, currentSaveState, true);
                     #ifdef PRINT_DEBUG_SIMPLIFICATION
-                        cout << "Nb superbubble removed: " << nbSuperbubblesRemoved << endl;
+                        _logFile << "Nb superbubble removed: " << nbSuperbubblesRemoved << endl;
                     #endif
                     if(nbSuperbubblesRemoved == 0) break;
                     isModification = true;
                     isModSub = true;
                 }
                 
-                cout << "detecting readpath 2" << endl;
+                _logFile << "detecting readpath 2" << endl;
 
-                //cout << "Nb nodes valid: " << _isNodeValid2.size() << endl;
+                //_logFile << "Nb nodes valid: " << _isNodeValid2.size() << endl;
 
                 while(true){
                     compact(true, unitigDatas);
                     nbBubblesRemoved = bubble(50000, currentSaveState, true);
                     #ifdef PRINT_DEBUG_SIMPLIFICATION
-                        cout << "Nb bubble removed: " << nbBubblesRemoved << endl;
+                        _logFile << "Nb bubble removed: " << nbBubblesRemoved << endl;
                     #endif
                     if(nbBubblesRemoved == 0) break;
                     isModification = true;
@@ -5670,13 +5673,13 @@ public:
                 }
 
                 
-                cout << "detecting readpath 3" << endl;
+                _logFile << "detecting readpath 3" << endl;
                 */
 
                 //compact(false);
-                //cout << nodeIndex_to_unitigIndex(BiGraph::nodeName_to_nodeIndex(792165, true)) << endl;
+                //_logFile << nodeIndex_to_unitigIndex(BiGraph::nodeName_to_nodeIndex(792165, true)) << endl;
                 //getStronglyConnectedComponent(nodeIndex_to_unitigIndex(BiGraph::nodeName_to_nodeIndex(792165, true)), true, sccDebug);
-                //cout << sccDebug.size() << endl;
+                //_logFile << sccDebug.size() << endl;
 
 
                 if(!isModSub) break;
@@ -5722,13 +5725,13 @@ public:
             //    saveState();
             //}
 
-            //cout << "Error: " << _isNodeRemoved[loulou] << endl;
+            //_logFile << "Error: " << _isNodeRemoved[loulou] << endl;
             //compact();
             
 
 
 
-            //cout << "Nb nodes valid: " << _isNodeValid2.size() << endl;
+            //_logFile << "Nb nodes valid: " << _isNodeValid2.size() << endl;
 
             //exit(1);
 
@@ -5778,7 +5781,7 @@ public:
         GfaParser::rewriteGfa_withoutNodes(_inputGfaFilename, outputFilename, validNodes, _isEdgeRemoved, _graphSuccessors);
         */
 
-        //cout << "Nb graph state: " << _cachedGraphStates.size() << endl;
+        //_logFile << "Nb graph state: " << _cachedGraphStates.size() << endl;
         
 
         /*
@@ -5791,11 +5794,11 @@ public:
             }
         }*/
 
-        //cout << "Nb invalid reads: " << _removedReadIndex.size() << endl;
+        //_logFile << "Nb invalid reads: " << _removedReadIndex.size() << endl;
         /*
         for(u_int32_t nodeIndex : _isNodeValid2){
             if(_isNodeValid2.find(nodeIndex_toReverseDirection(nodeIndex)) == _isNodeValid2.end()){
-                cout << "omg" << endl;
+                _logFile << "omg" << endl;
                 getchar();
             }
         }*/
@@ -5829,7 +5832,7 @@ public:
 
             bool isModification = false;
 
-            //cout << "Nb nodes valid: " << _isNodeValid2.size() << endl;
+            //_logFile << "Nb nodes valid: " << _isNodeValid2.size() << endl;
 
             if(useConnectComponent){
                 compact();
@@ -5843,7 +5846,7 @@ public:
                 compact();
                 nbErrorRemoved = removeLowAbundantNodes(abundanceCutoff_min/2.0);
                 #ifdef PRINT_DEBUG_SIMPLIFICATION
-                    cout << "Nb error removed 1: " << nbErrorRemoved << endl;
+                    _logFile << "Nb error removed 1: " << nbErrorRemoved << endl;
                 #endif
                 if(nbErrorRemoved == 0) break;
                 isModification = true;
@@ -5855,86 +5858,86 @@ public:
                     compact();
                     nbErrorRemoved = removeLowAbundantNodes(i);
                     #ifdef PRINT_DEBUG_SIMPLIFICATION
-                        cout << "Nb error removed 2: " << nbErrorRemoved << endl;
+                        _logFile << "Nb error removed 2: " << nbErrorRemoved << endl;
                     #endif
                     if(nbErrorRemoved == 0) break;
                     isModification = true;
                 }
             }
 
-            //cout << "Nb nodes valid: " << _isNodeValid2.size() << endl;
+            //_logFile << "Nb nodes valid: " << _isNodeValid2.size() << endl;
 
             if(useConnectComponent){
                 removeUnconnectedNodes(nodeIndex_source);
             }
             getStronglyConnectedComponent_node
-            //cout << "Error: " << _isNodeRemoved[loulou] << endl;
+            //_logFile << "Error: " << _isNodeRemoved[loulou] << endl;
             //compact();
 
             while(true){
                 compact();
                 nbTipsRemoved = tip(50000);
                 #ifdef PRINT_DEBUG_SIMPLIFICATION
-                    cout << "Nb tip removed: " << nbTipsRemoved << endl;
+                    _logFile << "Nb tip removed: " << nbTipsRemoved << endl;
                 #endif
                 if(nbTipsRemoved == 0) break;
                 isModification = true;
             }
 
-            //cout << "tip: " << _isNodeRemoved[loulou] << endl;
+            //_logFile << "tip: " << _isNodeRemoved[loulou] << endl;
 
             
 
-            //cout << "Nb nodes valid: " << _isNodeValid2.size() << endl;
+            //_logFile << "Nb nodes valid: " << _isNodeValid2.size() << endl;
             
             
             while(true){
                 compact();
                 u_int64_t nbSuperbubblesRemoved = superbubble(50000);
                 #ifdef PRINT_DEBUG_SIMPLIFICATION
-                    cout << "Nb superbubble removed: " << nbSuperbubblesRemoved << endl;
+                    _logFile << "Nb superbubble removed: " << nbSuperbubblesRemoved << endl;
                 #endif
                 if(nbSuperbubblesRemoved == 0) break;
                 isModification = true;
             }
             nodeIndex_neighbor
-            //cout << "Nb nodes valid: " << _isNodeValid2.size() << endl;
+            //_logFile << "Nb nodes valid: " << _isNodeValid2.size() << endl;
 
             while(true){
                 compact();
                 nbBubblesRemoved = bubble(50000);
                 #ifdef PRINT_DEBUG_SIMPLIFICATION
-                    cout << "Nb bubble removed: " << nbBubblesRemoved << endl;
+                    _logFile << "Nb bubble removed: " << nbBubblesRemoved << endl;
                 #endif
                 if(nbBubblesRemoved == 0) break;
                 isModification = true;
             }
 
-            //cout << "Nb nodes valid: " << _isNodeValid2.size() << endl;
+            //_logFile << "Nb nodes valid: " << _isNodeValid2.size() << endl;
 
             //exit(1);
             while(true){
                 compact();
                 nbSmallLoopRemoved = removeSmallLoop(10000);
                 #ifdef PRINT_DEBUG_SIMPLIFICATION
-                    cout << "Nb small loop removed: " << nbSmallLoopRemoved << endl;
+                    _logFile << "Nb small loop removed: " << nbSmallLoopRemoved << endl;
                 #endif
                 if(nbSmallLoopRemoved == 0) break;
                 isModification = true;
             }
 
-            //cout << "Nb nodes valid: " << _isNodeValid2.size() << endl;
+            //_logFile << "Nb nodes valid: " << _isNodeValid2.size() << endl;
 
-            //cout << "Small bubble: " << _isNodeRemoved[loulou] << endl;
+            //_logFile << "Small bubble: " << _isNodeRemoved[loulou] << endl;
 
             if(!isModification) break;
         }
 
 
-        //cout << "Nb bubbles: " << _bubbles.size() << endl;
+        //_logFile << "Nb bubbles: " << _bubbles.size() << endl;
         //for(Bubble& bubble : _bubbles){
         //    for(u_int32_t nodeIndex : bubble._nodes){
-        //        cout << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
+        //        _logFile << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
         //    }
         //}
 
@@ -5979,7 +5982,7 @@ public:
                 for(u_int32_t nodeIndex : bubble._nodes){
                     _isNodeValid2.insert(nodeIndex);
                     _isNodeValid2.insert(nodeIndex_toReverseDirection(nodeIndex));
-                    //cout << "Bubble saved: " << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
+                    //_logFile << "Bubble saved: " << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
                     //_isNodeValid[nodeIndex] = true;
                 }
 
@@ -5991,8 +5994,8 @@ public:
 
         compact();
 
-        //cout << (_isNodeValid2.find(BiGraph::nodeName_to_nodeIndex(1840, false)) != _isNodeValid2.end())<< endl;
-        cout << "Nb nodes valid: " << _isNodeValid2.size() << endl;
+        //_logFile << (_isNodeValid2.find(BiGraph::nodeName_to_nodeIndex(1840, false)) != _isNodeValid2.end())<< endl;
+        _logFile << "Nb nodes valid: " << _isNodeValid2.size() << endl;
         //compact();
         //superbubble(50000);
         */
@@ -6009,22 +6012,22 @@ public:
 
         //exit(1);
         /*
-        //cout << "orlolo" << endl;
+        //_logFile << "orlolo" << endl;
         for(size_t nodeIndex=0; nodeIndex<_graphSuccessors->_nbNodes; nodeIndex++){
-            //cout << nodeIndex << " " << BiGraph::nodeName_to_nodeIndex(214, true) << endl;
+            //_logFile << nodeIndex << " " << BiGraph::nodeName_to_nodeIndex(214, true) << endl;
             //if(nodeIndex == BiGraph::nodeName_to_nodeIndex(214, true)){
-            //    cout << "haha" << endl;
-            //    cout << _isNodeRemoved[nodeIndex] << endl;
+            //    _logFile << "haha" << endl;
+            //    _logFile << _isNodeRemoved[nodeIndex] << endl;
             //}
             //if(nodeIndex == BiGraph::nodeName_to_nodeIndex(214, false)){
-            //    cout << "haha" << endl;
-            //    cout << _isNodeRemoved[nodeIndex] << endl;
+            //    _logFile << "haha" << endl;
+            //    _logFile << _isNodeRemoved[nodeIndex] << endl;
             //}
 
             //if(_isNodeValid[nodeIndex]) continue;
             if(_isNodeValid2.find(nodeIndex) != _isNodeValid2.end()){
-                cout << _graphSuccessors->nodeIndex_to_nodeName(nodeIndex) << endl;
-                cout << "lala" << _isNodeValid2.size() << endl;
+                _logFile << _graphSuccessors->nodeIndex_to_nodeName(nodeIndex) << endl;
+                _logFile << "lala" << _isNodeValid2.size() << endl;
                 continue;
             }
             u_int32_t nodeName = _graphSuccessors->nodeIndex_to_nodeName(nodeIndex);
@@ -6034,15 +6037,15 @@ public:
 
 
 
-        //cout << "lalalal" << endl;
-        //cout << _isNodeRemoved[BiGraph::nodeName_to_nodeIndex(214, true)] << endl;
+        //_logFile << "lalalal" << endl;
+        //_logFile << _isNodeRemoved[BiGraph::nodeName_to_nodeIndex(214, true)] << endl;
 
         //exit(1);
 
-        cout << "Cleaning graph done" << endl;
-        cout << "Check sum (superbubble): " << _superbubble_checksum << endl;
-        cout << "Check sum (tip): " << _tip_checksum << endl;
-        cout << "Check sum (ab cutoff): " << _abcutoff_checksum << endl;
+        _logFile << "Cleaning graph done" << endl;
+        _logFile << "Check sum (superbubble): " << _superbubble_checksum << endl;
+        _logFile << "Check sum (tip): " << _tip_checksum << endl;
+        _logFile << "Check sum (ab cutoff): " << _abcutoff_checksum << endl;
         
         //getchar();
 
@@ -6050,7 +6053,7 @@ public:
 
     void resizeUnitigs(){
         
-        cout << "resizing" << endl;
+        _logFile << "resizing" << endl;
         _nextUnitigIndex = 0;
         vector<Unitig> unitigs;
         
@@ -6075,7 +6078,7 @@ public:
 
         _unitigs = unitigs;
 
-        cout << "done" << endl;
+        _logFile << "done" << endl;
     }
 
     void checkSaveState(float currentCutoff, const vector<UnitigData>& unitigDatas, bool detectRoundabout, u_int64_t maxBubbleLength, SaveState2& currentSaveState, bool insertBubble, bool doesSaveUnitigGraph, MDBG* mdbg, size_t minimizerSize, size_t nbCores){
@@ -6088,14 +6091,14 @@ public:
             }
         }
 
-        //cout << saveStateExist << endl;
-        //cout << saveStateExist << " " << _cachedGraphStates.size() << endl;
+        //_logFile << saveStateExist << endl;
+        //_logFile << saveStateExist << " " << _cachedGraphStates.size() << endl;
         //getchar();
 
         //getchar();
         if(!saveStateExist){
 
-            cout << "saving state: " << currentCutoff << endl;
+            _logFile << "saving state: " << currentCutoff << endl;
 
             //getchar();
             compact(true, unitigDatas);
@@ -6124,9 +6127,9 @@ public:
             
             ///---------------------------- Inserting bubbles
             if(insertBubble){
-                cout << "inserting bubbles" << endl;
+                _logFile << "inserting bubbles" << endl;
             #ifdef PRINT_DEBUG_SIMPLIFICATION
-                cout << "inserting bubbles" << endl;
+                _logFile << "inserting bubbles" << endl;
             #endif
 
             unordered_set<u_int32_t> invalidBubbleNodes;
@@ -6156,11 +6159,11 @@ public:
                         if(invalidBubbleNodes.find(node._nodeIndex) != invalidBubbleNodes.end()) continue;
                         //u_int32_t unitigIndex = nodeIndex_to_unitigIndex(nodeIndex);
                         //double localabundance = computeLocalAbundance(startUnitigIndex, k, nodeLongNeighbors);
-                        //cout << localabundance << endl;
+                        //_logFile << localabundance << endl;
                         double cutoff = currentCutoff; //_globalCutoff-((float)k/6.0); //localabundance*0.5;
 
                         
-                        //cout << "2" << endl;
+                        //_logFile << "2" << endl;
                         if(node._abundance >= cutoff){
                             if(_isNodeValid2.find(node._nodeIndex) == _isNodeValid2.end()){
                                 bubbleAdded += 1;
@@ -6197,7 +6200,7 @@ public:
                         }
 
                         for(u_int32_t nodeIndex : removedNodes){
-                            //cout << "removed final tips: " << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;;
+                            //_logFile << "removed final tips: " << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;;
                             _isNodeValid2.erase(nodeIndex);
                             addedNodes.erase(std::remove(addedNodes.begin(), addedNodes.end(), nodeIndex), addedNodes.end());
                             invalidBubbleNodes.insert(nodeIndex);
@@ -6212,7 +6215,7 @@ public:
 
                 }
 
-                cout << "Bubble added: " << bubbleAdded << endl;
+                _logFile << "Bubble added: " << bubbleAdded << endl;
                 if(bubbleAdded == 0) break;
             }
             
@@ -6254,7 +6257,7 @@ public:
                 u_int64_t nbTipsRemoved = tip(50000, true, isTips, saveStateDummy);
                 nbTipsRemoved = tip(50000, false, isTips, saveStateDummy);
 
-                cout << "Final tips removed: " << nbTipsRemoved << endl;
+                _logFile << "Final tips removed: " << nbTipsRemoved << endl;
                 
                 if(nbTipsRemoved == 0) break;
             }
@@ -6262,8 +6265,8 @@ public:
             getchar();
             */
 
-            //cout << (_isNodeValid2.find(BiGraph::nodeName_to_nodeIndex(1840, false)) != _isNodeValid2.end())<< endl;
-            //cout << "Nb nodes valid: " << _isNodeValid2.size() << endl;
+            //_logFile << (_isNodeValid2.find(BiGraph::nodeName_to_nodeIndex(1840, false)) != _isNodeValid2.end())<< endl;
+            //_logFile << "Nb nodes valid: " << _isNodeValid2.size() << endl;
             //getchar();
 
             /*
@@ -6321,8 +6324,8 @@ public:
                     
                 }
             }
-            cout << "Rare unitigs: " << nbRareUnitigs << " / " << _unitigs.size() << endl;
-            cout << "Rare reads: " << rareReadsAll.size() << endl;
+            _logFile << "Rare unitigs: " << nbRareUnitigs << " / " << _unitigs.size() << endl;
+            _logFile << "Rare reads: " << rareReadsAll.size() << endl;
 
             for(u_int64_t readIndex : rareReads){
                 currentSaveState._rareReads.push_back(readIndex);
@@ -6332,7 +6335,7 @@ public:
             currentSaveState._abundanceCutoff_min = currentCutoff;
             _cachedGraphStates.push_back(currentSaveState);
             currentSaveState = {0, {}, {}, {}, {}};
-            //cout << "insert graph state" << currentCutoff << endl;
+            //_logFile << "insert graph state" << currentCutoff << endl;
 
             /*
             if(insertBubble){
@@ -6363,10 +6366,10 @@ public:
             for(u_int32_t nodeIndex : indexedNodeIndex){
                 nodeIndexSum3 += nodeIndex;
             }
-            cout << "Save state: " << currentCutoff << endl;
-            cout << std::fixed << "\tNb unitigs: " << _unitigs.size() << " " << nbNodes << " " << nodeIndexSum << " " << nodeIndexSum3 << " " << nodeIndexSum2 << " " << indexedNodeIndex.size() << " " << _isNodeValid2.size() << endl;
-            cout << std::fixed << "\tAb total: " << abTotal << endl;
-            cout << getChecksumGlobal_utg() << endl;
+            _logFile << "Save state: " << currentCutoff << endl;
+            _logFile << std::fixed << "\tNb unitigs: " << _unitigs.size() << " " << nbNodes << " " << nodeIndexSum << " " << nodeIndexSum3 << " " << nodeIndexSum2 << " " << indexedNodeIndex.size() << " " << _isNodeValid2.size() << endl;
+            _logFile << std::fixed << "\tAb total: " << abTotal << endl;
+            _logFile << getChecksumGlobal_utg() << endl;
             //getchar();
             */
             
@@ -6383,11 +6386,11 @@ public:
 
 
         for(const Unitig& unitig: _unitigs){
-            //cout << unitig._length << " " << unitig._abundance << endl;
+            //_logFile << unitig._length << " " << unitig._abundance << endl;
             if(unitig._index % 2 == 1) continue;
             //if(unitig._length < 10000) continue;
             if(unitig._nbNodes < k*2) continue;
-            //coutif(unitig._length < 50000) continue;
+            //_logFileif(unitig._length < 50000) continue;
             //if(unitig._length < 10000 || unitig._length > 15000) continue;
             //if(unitig._abundance < 10) continue; //200
             
@@ -6395,7 +6398,7 @@ public:
         }
         //std::sort(_startingUnitigstest.begin(), _startingUnitigstest.end(), UnitigComparator_ByAbundance2);
         std::sort(_startingUnitigstest.begin(), _startingUnitigstest.end(), UnitigComparator_ByLength);
-        cout << "Nb starting unitigs test: " << _startingUnitigstest.size() << endl;
+        _logFile << "Nb starting unitigs test: " << _startingUnitigstest.size() << endl;
 
         auto rng = std::default_random_engine {};
 		unordered_set<u_int32_t> binNodes;
@@ -6421,7 +6424,7 @@ public:
 			vector<UnitigLength>& unitigLengths = _startingUnitigs[i];
 
             for(const Unitig& unitig: _unitigs){
-				//cout << unitig._length << " " << unitig._abundance << endl;
+				//_logFile << unitig._length << " " << unitig._abundance << endl;
 				//if(unitig._index % 2 == 1) continue;
 				if(unitig._length < unitigLength_cutoff_min) continue;
 				if(unitig._length > unitigLength_cutoff_max) continue;
@@ -6456,16 +6459,16 @@ public:
                         startNodeIndex = nodes[index2];
                         break;
                     }
-                    //cout << BiGraph::nodeIndex_to_nodeName(nodes[index1]) << " " << BiGraph::nodeIndex_to_nodeName(nodes[index2]) << " " << " " << _isBubble[nodes[index1]] << " " << _isBubble[nodes[index2]] << " " << ray << endl;
+                    //_logFile << BiGraph::nodeIndex_to_nodeName(nodes[index1]) << " " << BiGraph::nodeIndex_to_nodeName(nodes[index2]) << " " << " " << _isBubble[nodes[index1]] << " " << _isBubble[nodes[index2]] << " " << ray << endl;
                     ray += 1;
                 }
 
                 //getchar();
 				/*
-				cout << endl << "----" << endl;
+				_logFile << endl << "----" << endl;
 				for(u_int32_t nIndex : nodes){
 					u_int32_t nName = BiGraph::nodeIndex_to_nodeName(nIndex);
-					cout << nName << " " << graphSimplify->_nodeAbundances[nName] << endl;
+					_logFile << nName << " " << graphSimplify->_nodeAbundances[nName] << endl;
 				}*/
 
 
@@ -6504,13 +6507,13 @@ public:
 
 				/*
 				if(BiGraph::nodeIndex_to_nodeName(startNodeIndex) == 2246258){
-					cout << "-" << endl;
-					cout << "OMG" << endl;
-					cout << unitig._abundance << endl;
+					_logFile << "-" << endl;
+					_logFile << "OMG" << endl;
+					_logFile << unitig._abundance << endl;
 
 					for(u_int32_t nIndex : nodes){
 						u_int32_t nName = BiGraph::nodeIndex_to_nodeName(nIndex);
-						cout << nName << " " << graphSimplify->_nodeAbundances[nName] << endl;
+						_logFile << nName << " " << graphSimplify->_nodeAbundances[nName] << endl;
 					}
 					exit(1);
 				}
@@ -6522,8 +6525,8 @@ public:
 			std::sort(unitigLengths.begin(), unitigLengths.end(), UnitigComparator_ByAbundance);
 
 
-			cout << "Length cutoff: " << unitigLength_cutoff_min << " " << unitigLength_cutoff_max << endl;
-			cout << "Nb starting unitigs: " << unitigLengths.size() << endl;
+			_logFile << "Length cutoff: " << unitigLength_cutoff_min << " " << unitigLength_cutoff_max << endl;
+			_logFile << "Nb starting unitigs: " << unitigLengths.size() << endl;
 		}
 		usedNodeNames.clear();
 
@@ -6549,10 +6552,10 @@ public:
             unordered_set<u_int32_t> removedUnitigs;
 
             #ifdef PRINT_DEBUG_SIMPLIFICATION
-                cout << t << " " << abundanceCutoff_min << endl;
+                _logFile << t << " " << abundanceCutoff_min << endl;
             #endif
 
-            cout << t << " " << abundanceCutoff_min << endl;
+            _logFile << t << " " << abundanceCutoff_min << endl;
 
             compact(true, unitigDatas);
 
@@ -6561,7 +6564,7 @@ public:
                 const Unitig& unitig = _unitigs[i];
                 if(unitig._startNode == -1) continue;
                 //if(unitig._index % 2 == 1) continue;
-                //cout << unitig._nbNodes << " " << unitig._abundance << endl;
+                //_logFile << unitig._nbNodes << " " << unitig._abundance << endl;
                 /*
                 if(unitig._nbNodes > 3*k) continue;
                 */
@@ -6636,7 +6639,7 @@ public:
 
             t = t * (1+aplha);
 
-            //cout << "Nb error removed: " << nbErrorsRemoved << endl;
+            //_logFile << "Nb error removed: " << nbErrorsRemoved << endl;
             if(nbErrorsRemoved > 0) break;
         }
 
@@ -6730,7 +6733,7 @@ public:
 
         }
 
-        cout << "Nb errors removed: " << nbRemoved << endl;
+        _logFile << "Nb errors removed: " << nbRemoved << endl;
         compact(false, unitigDatas);
     }
 
@@ -6760,10 +6763,10 @@ public:
             unordered_set<u_int32_t> removedNodes;
 
             #ifdef PRINT_DEBUG_SIMPLIFICATION
-                cout << t << " " << abundanceCutoff_min << endl;
+                _logFile << t << " " << abundanceCutoff_min << endl;
             #endif
 
-            cout << t << " " << abundanceCutoff_min << endl;
+            _logFile << t << " " << abundanceCutoff_min << endl;
 
             compact(true, unitigDatas);
 
@@ -6774,7 +6777,7 @@ public:
                 if(unitig._nbNodes > _kminmerSize) continue;
                 if(unitig._abundance > t) continue;
                 if(safeUnitigs.find(unitig._index) != safeUnitigs.end()) continue;
-                //cout << unitig._nbNodes << " " << unitig._abundance << endl;
+                //_logFile << unitig._nbNodes << " " << unitig._abundance << endl;
                 /*
                 if(unitig._nbNodes > 3*k) continue;
                 */
@@ -6841,7 +6844,7 @@ public:
                 float mean = abundanceSum / abundanceN;
 
                 //if(BiGraph::nodeIndex_to_nodeName(unitig._startNode) == 13568 || BiGraph::nodeIndex_to_nodeName(unitig._endNode) == 13568){
-                //    cout << "loulou: " <<  unitig._abundance << " " << mean << endl;
+                //    _logFile << "loulou: " <<  unitig._abundance << " " << mean << endl;
                 //}
                 //if(unitig._abundance < mean*0.25){
                 //    continue;
@@ -6875,7 +6878,7 @@ public:
             }
             
             //auto stop = high_resolution_clock::now();
-            //cout << "Duration: " << duration_cast<seconds>(stop - start).count() << endl;
+            //_logFile << "Duration: " << duration_cast<seconds>(stop - start).count() << endl;
 
 
             //unordered_set<u_int32_t> removedUnitigs;
@@ -6904,13 +6907,13 @@ public:
             
 
             //auto stop1 = high_resolution_clock::now();
-            //cout << "Duration: " << duration_cast<seconds>(stop1 - start1).count() << endl;
+            //_logFile << "Duration: " << duration_cast<seconds>(stop1 - start1).count() << endl;
             //exit(1);
-            //cout << nbErrorsRemoved << endl;
+            //_logFile << nbErrorsRemoved << endl;
             //if(nbErrorsRemoved > 0) break;
         }
 
-        //cout << "Removed nodes: " << nbErrorsRemoved << endl;
+        //_logFile << "Removed nodes: " << nbErrorsRemoved << endl;
         return nbErrorsRemoved;
 
     }
@@ -6932,8 +6935,8 @@ public:
             //if(((u_int32_t)t) != prevCutoff){
             //    prevCutoff = t;
 
-            cout << t << endl;
-            //cout << "Nb node valid: " << _isNodeValid2.size() << endl;
+            _logFile << t << endl;
+            //_logFile << "Nb node valid: " << _isNodeValid2.size() << endl;
 
             compact(true, unitigDatas);
                 
@@ -6945,7 +6948,7 @@ public:
             
             for(const Unitig& unitig: _unitigs){
                 if(unitig._startNode == -1) continue;
-                //cout << unitig._nbNodes << " " << unitig._abundance << endl;
+                //_logFile << unitig._nbNodes << " " << unitig._abundance << endl;
                 if(unitig._nbNodes > 3*k) continue;
 
                 
@@ -6979,15 +6982,15 @@ public:
 
                 //if(unitig._nbNodes > 3*k) continue;
 
-                //cout << "mioum: " << _unitigs[0]._startNode << endl;
-                //cout << unitig._index << " " << _unitigs.size() << endl;
+                //_logFile << "mioum: " << _unitigs[0]._startNode << endl;
+                //_logFile << unitig._index << " " << _unitigs.size() << endl;
 
 
-                //cout << "1" << endl;
+                //_logFile << "1" << endl;
                 double localabundance = computeLocalAbundance(unitig._index, k, nodeLongNeighbors);
                 double cutoff = min(t, localabundance*0.5);
 
-                //cout << "2" << endl;
+                //_logFile << "2" << endl;
                 if(unitig._abundance < cutoff){
                     vector<u_int32_t> unitigNodes;
                     getUnitigNodes(unitig, unitigNodes);
@@ -6998,14 +7001,14 @@ public:
               
 
                         //if(BiGraph::nodeIndex_to_nodeName(node) == 314212){
-                          //  cout << BiGraph::nodeIndex_to_nodeName(node) << " " << unitig._abundance << " " << localabundance << endl;
+                          //  _logFile << BiGraph::nodeIndex_to_nodeName(node) << " " << unitig._abundance << " " << localabundance << endl;
                             //getchar();
                         //}
                         
 
                         //bool isContigNode = _unitigDatas[BiGraph::nodeIndex_to_nodeName(node)]._readIndexes.size() == 0;
                         //if(isContigNode){
-                        //    cout << "Removing contig node: " << localabundance << endl;
+                        //    _logFile << "Removing contig node: " << localabundance << endl;
                         //    getchar();
                         //}
 
@@ -7014,17 +7017,17 @@ public:
                     }
                     //isModification = true;
                 }
-                //cout << "3" << endl;
-                //cout << BiGraph::nodeIndex_to_nodeName(unitig._startNode) << " " << unitig._abundance << " " << computeLocalAbundance(unitig._index, k) << endl;
+                //_logFile << "3" << endl;
+                //_logFile << BiGraph::nodeIndex_to_nodeName(unitig._startNode) << " " << unitig._abundance << " " << computeLocalAbundance(unitig._index, k) << endl;
                 //if(localabundance < 30) getchar();
-                //cout << BiGraph::nodeIndex_to_nodeName(unitig._startNode) << " " << unitig._abundance << " " << computeLocalAbundance(unitig._index, k) << endl;
+                //_logFile << BiGraph::nodeIndex_to_nodeName(unitig._startNode) << " " << unitig._abundance << " " << computeLocalAbundance(unitig._index, k) << endl;
                 //if(computeLocalAbundance(unitig._index, k) > 50){
                 //    getchar();
                 //}
 
 
                 //if(20545 == BiGraph::nodeIndex_to_nodeName(unitig._startNode) || 20545 == BiGraph::nodeIndex_to_nodeName(unitig._endNode)){
-                //    cout << unitig._abundance << " " << localabundance << " " << cutoff << endl;
+                //    _logFile << unitig._abundance << " " << localabundance << " " << cutoff << endl;
                 //    getchar();
                 //}
 
@@ -7034,7 +7037,7 @@ public:
             unordered_set<u_int32_t> removedUnitigs;
             for(u_int32_t nodeIndex : removedNodes){
                 //if(_nodeToUnitig.find(nodeIndex) == _nodeToUnitig.end()){
-                //    cout << "KOUERK" << endl;
+                //    _logFile << "KOUERK" << endl;
                 //}
                 //_unitigs[_nodeToUnitig[nodeIndex]]._index
 
@@ -7064,7 +7067,7 @@ public:
 
 
 
-        cout << "Saving current gfa" << endl;
+        _logFile << "Saving current gfa" << endl;
         //Bizarre mais peut etre detruit dans les region pourri composé de 3 unitig relié a leur extreminité (donc 3 tips) par exemple
         if(_isNodeValid2.find(nodeIndex_source) == _isNodeValid2.end()){
             return;
@@ -7086,7 +7089,7 @@ public:
 
         unordered_set<u_int32_t> isNodeValid2;
 
-        //cout << component.size() << endl;
+        //_logFile << component.size() << endl;
         //u_int32_t componentSize = 0;
 
         vector<u_int32_t> nodes;
@@ -7111,7 +7114,7 @@ public:
         //    fs::create_directory(_outputDir + "/gfa");
         //}
 
-        cout << "Component size: " << isNodeValid2.size() << endl;
+        _logFile << "Component size: " << isNodeValid2.size() << endl;
         
         unordered_set<u_int32_t> validNodes;
         for (auto& nodeIndex : isNodeValid2){
@@ -7156,7 +7159,7 @@ public:
 
     void saveGraph2(const string& outputFilename, unordered_set<u_int32_t>& componentOnly){
 
-        cout << "Saving graph: " << outputFilename << endl;
+        _logFile << "Saving graph: " << outputFilename << endl;
 
 	    ofstream outputFile(outputFilename);
 
@@ -7200,7 +7203,7 @@ public:
 
         outputFile.close();
 
-        cout << "done" << endl;
+        _logFile << "done" << endl;
         
     }
 
@@ -7216,10 +7219,10 @@ public:
 
         queue <u_int32_t> queue;
 
-        //cout << "----------" << endl;
-        //cout << nodeIndex_source << endl;
-        //cout << _unitigs.size() << endl;
-        //cout << _nodeToUnitig[nodeIndex_source] << endl;
+        //_logFile << "----------" << endl;
+        //_logFile << nodeIndex_source << endl;
+        //_logFile << _unitigs.size() << endl;
+        //_logFile << _nodeToUnitig[nodeIndex_source] << endl;
 
 
         queue.push(nodeIndex_to_unitigIndex(nodeIndex_source));
@@ -7229,7 +7232,7 @@ public:
         while (!queue.empty()){
 
             u_int64_t unitigIndex = queue.front();
-            //cout << "1: " << unitigIndex << endl;
+            //_logFile << "1: " << unitigIndex << endl;
 
             queue.pop();
 
@@ -7240,7 +7243,7 @@ public:
 
 
             for(u_int32_t nodeIndex_neighbor : neighbors1){
-                //cout << "2: " << _nodeToUnitig[nodeIndex_neighbor] << endl;
+                //_logFile << "2: " << _nodeToUnitig[nodeIndex_neighbor] << endl;
                 u_int32_t unitigIndex_neighbor = nodeIndex_to_unitigIndex(nodeIndex_neighbor);
                 if (component.find(unitigIndex_neighbor) != component.end()) continue;
 
@@ -7251,7 +7254,7 @@ public:
             }
 
             for(u_int32_t nodeIndex_neighbor : neighbors2){
-                //cout << "3: " << _nodeToUnitig[nodeIndex_neighbor] << endl;
+                //_logFile << "3: " << _nodeToUnitig[nodeIndex_neighbor] << endl;
                 u_int32_t unitigIndex_neighbor = nodeIndex_to_unitigIndex(nodeIndex_neighbor);
                 if (component.find(unitigIndex_neighbor) != component.end()) continue;
 
@@ -7266,8 +7269,8 @@ public:
 
     void getConnectedComponent_unitig(u_int32_t unitigIndex_source, unordered_set<u_int32_t>& component){
 
-        //cout << "-----" << endl;
-        //cout << unitigIndex_source << endl;
+        //_logFile << "-----" << endl;
+        //_logFile << unitigIndex_source << endl;
         component.clear();
 
         queue <u_int32_t> queue;
@@ -7279,11 +7282,11 @@ public:
             u_int64_t unitigIndex = queue.front();
             queue.pop();
 
-            //cout << unitigIndex << endl;
+            //_logFile << unitigIndex << endl;
             if(_unitigs[unitigIndex]._startNode == -1 || _unitigs[unitigIndex_toReverseDirection(unitigIndex)]._startNode == -1){
-                cout << "lala" << endl;
-                cout << _unitigs[unitigIndex]._index << " " << _unitigs[unitigIndex_toReverseDirection(unitigIndex)]._index << endl;
-                cout << _unitigs[unitigIndex]._startNode << " " << _unitigs[unitigIndex_toReverseDirection(unitigIndex)]._startNode << endl;
+                _logFile << "lala" << endl;
+                _logFile << _unitigs[unitigIndex]._index << " " << _unitigs[unitigIndex_toReverseDirection(unitigIndex)]._index << endl;
+                _logFile << _unitigs[unitigIndex]._startNode << " " << _unitigs[unitigIndex_toReverseDirection(unitigIndex)]._startNode << endl;
                 getchar();
             }
             if(_unitigs[unitigIndex]._startNode == -1) continue;
@@ -7293,33 +7296,33 @@ public:
 
             if (component.find(unitigIndex) != component.end()) continue;
 
-            //cout << "Start: " << unitigIndex << " " << unitigIndex_toReverseDirection(unitigIndex) << endl;
-            //cout << _unitigs[unitigIndex]._startNode << " " << _unitigs[unitigIndex_toReverseDirection(unitigIndex)]._startNode << endl;
-            //cout << "1" << endl;
+            //_logFile << "Start: " << unitigIndex << " " << unitigIndex_toReverseDirection(unitigIndex) << endl;
+            //_logFile << _unitigs[unitigIndex]._startNode << " " << _unitigs[unitigIndex_toReverseDirection(unitigIndex)]._startNode << endl;
+            //_logFile << "1" << endl;
 
             component.insert(unitigIndex);
             component.insert(unitigIndex_toReverseDirection(unitigIndex));
 
 
-            //cout << "2" << endl;
+            //_logFile << "2" << endl;
             vector<u_int32_t> successors;
 
             getSuccessors_unitig(unitigIndex, 0, successors);
             for(u_int32_t unitigIndex_nn : successors) queue.push(unitigIndex_nn);
 
-            //cout << "3" << endl;
+            //_logFile << "3" << endl;
             getPredecessors_unitig(unitigIndex, 0, successors);
             for(u_int32_t unitigIndex_nn : successors) queue.push(unitigIndex_nn);
 
-            //cout << "4" << endl;
+            //_logFile << "4" << endl;
             getSuccessors_unitig(unitigIndex_toReverseDirection(unitigIndex), 0, successors);
             for(u_int32_t unitigIndex_nn : successors) queue.push(unitigIndex_nn);
 
-            //cout << "5" << endl;
+            //_logFile << "5" << endl;
             getPredecessors_unitig(unitigIndex_toReverseDirection(unitigIndex), 0, successors);
             for(u_int32_t unitigIndex_nn : successors) queue.push(unitigIndex_nn);
 
-            //cout << "6" << endl;
+            //_logFile << "6" << endl;
         }
 
     }
@@ -7327,8 +7330,8 @@ public:
 
     void getConnectedComponent_unitig(u_int32_t unitigIndex_source, u_int32_t maxDistance, unordered_set<u_int32_t>& component){
 
-        //cout << "-----" << endl;
-        //cout << unitigIndex_source << endl;
+        //_logFile << "-----" << endl;
+        //_logFile << unitigIndex_source << endl;
         component.clear();
 
         queue <u_int32_t> queue;
@@ -7345,11 +7348,11 @@ public:
             u_int64_t unitigIndex = queue.front();
             queue.pop();
 
-            //cout << unitigIndex << endl;
+            //_logFile << unitigIndex << endl;
             if(_unitigs[unitigIndex]._startNode == -1 || _unitigs[unitigIndex_toReverseDirection(unitigIndex)]._startNode == -1){
-                cout << "lala" << endl;
-                cout << _unitigs[unitigIndex]._index << " " << _unitigs[unitigIndex_toReverseDirection(unitigIndex)]._index << endl;
-                cout << _unitigs[unitigIndex]._startNode << " " << _unitigs[unitigIndex_toReverseDirection(unitigIndex)]._startNode << endl;
+                _logFile << "lala" << endl;
+                _logFile << _unitigs[unitigIndex]._index << " " << _unitigs[unitigIndex_toReverseDirection(unitigIndex)]._index << endl;
+                _logFile << _unitigs[unitigIndex]._startNode << " " << _unitigs[unitigIndex_toReverseDirection(unitigIndex)]._startNode << endl;
                 getchar();
             }
             if(_unitigs[unitigIndex]._startNode == -1) continue;
@@ -7361,30 +7364,30 @@ public:
 
             if(distances[unitigIndex] > maxDistance) continue;
 
-            //cout << "Start: " << unitigIndex << " " << unitigIndex_toReverseDirection(unitigIndex) << endl;
-            //cout << _unitigs[unitigIndex]._startNode << " " << _unitigs[unitigIndex_toReverseDirection(unitigIndex)]._startNode << endl;
-            //cout << "1" << endl;
+            //_logFile << "Start: " << unitigIndex << " " << unitigIndex_toReverseDirection(unitigIndex) << endl;
+            //_logFile << _unitigs[unitigIndex]._startNode << " " << _unitigs[unitigIndex_toReverseDirection(unitigIndex)]._startNode << endl;
+            //_logFile << "1" << endl;
 
             component.insert(unitigIndex);
             component.insert(unitigIndex_toReverseDirection(unitigIndex));
 
 
-            //cout << "2" << endl;
+            //_logFile << "2" << endl;
             vector<u_int32_t> neighbors;
             vector<u_int32_t> successors;
 
             getSuccessors_unitig(unitigIndex, 0, successors);
             for(u_int32_t unitigIndex_nn : successors) neighbors.push_back(unitigIndex_nn);
 
-            //cout << "3" << endl;
+            //_logFile << "3" << endl;
             getPredecessors_unitig(unitigIndex, 0, successors);
             for(u_int32_t unitigIndex_nn : successors) neighbors.push_back(unitigIndex_nn);
 
-            //cout << "4" << endl;
+            //_logFile << "4" << endl;
             getSuccessors_unitig(unitigIndex_toReverseDirection(unitigIndex), 0, successors);
             for(u_int32_t unitigIndex_nn : successors) neighbors.push_back(unitigIndex_nn);
 
-            //cout << "5" << endl;
+            //_logFile << "5" << endl;
             getPredecessors_unitig(unitigIndex_toReverseDirection(unitigIndex), 0, successors);
             for(u_int32_t unitigIndex_nn : successors) neighbors.push_back(unitigIndex_nn);
 
@@ -7402,8 +7405,8 @@ public:
 
     void getConnectedComponent_unitig_nt(u_int32_t unitigIndex_source, u_int32_t maxDistance, unordered_set<u_int32_t>& component){
 
-        //cout << "-----" << endl;
-        //cout << unitigIndex_source << endl;
+        //_logFile << "-----" << endl;
+        //_logFile << unitigIndex_source << endl;
         component.clear();
 
         queue <u_int32_t> queue;
@@ -7433,28 +7436,28 @@ public:
 
             if(distances[unitigIndex] > maxDistance) continue;
 
-            //cout << "Start: " << unitigIndex << " " << unitigIndex_toReverseDirection(unitigIndex) << endl;
-            //cout << _unitigs[unitigIndex]._startNode << " " << _unitigs[unitigIndex_toReverseDirection(unitigIndex)]._startNode << endl;
-            //cout << "1" << endl;
+            //_logFile << "Start: " << unitigIndex << " " << unitigIndex_toReverseDirection(unitigIndex) << endl;
+            //_logFile << _unitigs[unitigIndex]._startNode << " " << _unitigs[unitigIndex_toReverseDirection(unitigIndex)]._startNode << endl;
+            //_logFile << "1" << endl;
 
 
 
-            //cout << "2" << endl;
+            //_logFile << "2" << endl;
             vector<AdjNode> neighbors;
             vector<AdjNode> successors;
 
             getSuccessors_unitig_overlap(unitigIndex, successors);
             for(const AdjNode& unitigIndex_nn : successors) neighbors.push_back(unitigIndex_nn);
 
-            //cout << "3" << endl;
+            //_logFile << "3" << endl;
             getPredecessors_unitig_overlap(unitigIndex, successors);
             for(const AdjNode& unitigIndex_nn : successors) neighbors.push_back(unitigIndex_nn);
 
-            //cout << "4" << endl;
+            //_logFile << "4" << endl;
             getSuccessors_unitig_overlap(unitigIndex_toReverseDirection(unitigIndex), successors);
             for(const AdjNode& unitigIndex_nn : successors) neighbors.push_back(unitigIndex_nn);
 
-            //cout << "5" << endl;
+            //_logFile << "5" << endl;
             getPredecessors_unitig_overlap(unitigIndex_toReverseDirection(unitigIndex), successors);
             for(const AdjNode& unitigIndex_nn : successors) neighbors.push_back(unitigIndex_nn);
 
@@ -7464,7 +7467,7 @@ public:
                 u_int32_t unitigIndex_nn = unitigNode._index;
                 u_int32_t overlap = _kminmerOverlapMean;
 
-                //cout << distances[unitigIndex] << " " << _unitigs[unitigIndex_nn]._length << " " << overlap << endl;
+                //_logFile << distances[unitigIndex] << " " << _unitigs[unitigIndex_nn]._length << " " << overlap << endl;
                 distances[unitigIndex_nn] = distances[unitigIndex] + _unitigs[unitigIndex_nn]._length - overlap; 
 
                 queue.push(unitigIndex_nn);
@@ -7484,8 +7487,8 @@ public:
 
         
         #ifdef PRINT_DEBUG_SIMPLIFICATION
-            cout << "Compute connected component" << endl;
-            cout << _isNodeValid2.size() << endl;
+            _logFile << "Compute connected component" << endl;
+            _logFile << _isNodeValid2.size() << endl;
         #endif
         unordered_set<u_int32_t> component;
         getConnectedComponent(nodeIndex_source, component);
@@ -7493,7 +7496,7 @@ public:
 
         unordered_set<u_int32_t> isNodeValid2;
 
-        //cout << component.size() << endl;
+        //_logFile << component.size() << endl;
         //u_int32_t componentSize = 0;
 
         vector<u_int32_t> nodes;
@@ -7507,7 +7510,7 @@ public:
         }
 
         #ifdef PRINT_DEBUG_SIMPLIFICATION
-            cout << "Component size: " << isNodeValid2.size() << endl;
+            _logFile << "Component size: " << isNodeValid2.size() << endl;
         #endif
         _isNodeValid2 = isNodeValid2;
 
@@ -7518,7 +7521,7 @@ public:
    /*
     double computeLocalAbundance(u_int32_t unitigIndex_source, u_int64_t k, unordered_map<u_int32_t, vector<LongNeighbor>>& nodeLongNeighbors){
 
-        //cout << "---------------" << endl;
+        //_logFile << "---------------" << endl;
         //return 0;
         
         float abundanceMinIndexed = std::numeric_limits<float>::max();
@@ -7549,7 +7552,7 @@ public:
                         abundanceMinIndexed = abundance;
                     }
                     //if(nodeName == 580)
-                    //cout << "Existing: " << BiGraph::nodeIndex_to_nodeName(ln._nodeIndex) << " " << abundance << endl;
+                    //_logFile << "Existing: " << BiGraph::nodeIndex_to_nodeName(ln._nodeIndex) << " " << abundance << endl;
 
                     float currentAbundance = _unitigs[unitigIndex]._abundance;
                     if(currentAbundance != abundance){
@@ -7563,13 +7566,13 @@ public:
         }
 
 
-        //cout << hasChanged << endl;
+        //_logFile << hasChanged << endl;
         if(hasChanged){
             needIndexing = true;
             for(u_int32_t nodeIndex : unitigNodes){
                 u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
                 if(nodeLongNeighbors.find(nodeName) != nodeLongNeighbors.end()){
-                    //cout << "cleaned" << endl;
+                    //_logFile << "cleaned" << endl;
                     nodeLongNeighbors.erase(nodeName);
                 }
             }
@@ -7579,11 +7582,11 @@ public:
             return abundanceMinIndexed;
         }
         
-        //cout << "Indexed: " << abundanceMinIndexed << endl;
+        //_logFile << "Indexed: " << abundanceMinIndexed << endl;
 
         static float maxVal = std::numeric_limits<float>::max();
 
-        //cout << "recomp" << endl;
+        //_logFile << "recomp" << endl;
         int lala = 0;
 
         u_int64_t totalLongUnitigLength = 0;
@@ -7604,7 +7607,7 @@ public:
         distance[unitigIndex_source] = 0;
         queue.push(unitigIndex_source);
         isVisited.insert(unitigIndex_source);
-        //cout << "------" << endl;
+        //_logFile << "------" << endl;
 
         while(!queue.empty()){
             
@@ -7621,11 +7624,11 @@ public:
 
             lala += 1;
 
-            //cout << lala << " " << distance[unitigIndex] << " " << nbLongUnitigs << " " << abundanceMin << endl;
+            //_logFile << lala << " " << distance[unitigIndex] << " " << nbLongUnitigs << " " << abundanceMin << endl;
             if(nbLongUnitigs > 1) break;
             if(lala > 100) break;
             if(abundanceMin <= 2) return 2;
-            //cout << unitigIndex << " " << nbLongUnitigs << " " << totalLongUnitigLength << endl;
+            //_logFile << unitigIndex << " " << nbLongUnitigs << " " << totalLongUnitigLength << endl;
 
             for(u_int32_t unitigIndex_nn : successors){
 
@@ -7633,7 +7636,7 @@ public:
 
                 bool isLong = false;
                 if(_unitigs[unitigIndex_nn]._nbNodes > 3*k){
-                    //cout << BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex_nn]._startNode) << endl;
+                    //_logFile << BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex_nn]._startNode) << endl;
                     //if(_unitigs[unitigIndex_nn]._nod > 1500){
                     nbLongUnitigs += 1;
                     totalLongUnitigLength += _graphSuccessors->_nodeLengths[BiGraph::nodeIndex_to_nodeName(unitigIndex_nn)];
@@ -7645,7 +7648,7 @@ public:
                         nodeLongNeighbors[BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex_source]._startNode)].push_back({_unitigs[unitigIndex_nn]._startNode, _unitigs[unitigIndex_nn]._abundance});
                     }    
                     //if(BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex_source]._startNode) == 580)
-                    //cout << "Truth: " << BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex_nn]._startNode) << " " << _unitigs[unitigIndex_nn]._abundance << endl;
+                    //_logFile << "Truth: " << BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex_nn]._startNode) << " " << _unitigs[unitigIndex_nn]._abundance << endl;
                     isLong = true;
                 }
 
@@ -7662,7 +7665,7 @@ public:
 
                 if(_unitigs[unitigIndex_nn]._nbNodes > 3*k){
                     //if(_unitigs[unitigIndex_nn]._length >= 10000){
-                    //cout << BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex_nn]._startNode) << endl;
+                    //_logFile << BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex_nn]._startNode) << endl;
                     nbLongUnitigs += 1;
                     totalLongUnitigLength += _graphSuccessors->_nodeLengths[BiGraph::nodeIndex_to_nodeName(unitigIndex_nn)];
                     if(_unitigs[unitigIndex_nn]._abundance < abundanceMin){
@@ -7673,7 +7676,7 @@ public:
                         nodeLongNeighbors[BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex_source]._startNode)].push_back({_unitigs[unitigIndex_nn]._startNode, _unitigs[unitigIndex_nn]._abundance});
                     }  
                     //if(BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex_source]._startNode) == 580)
-                    //cout << "Truth: " << BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex_nn]._startNode) << " " << _unitigs[unitigIndex_nn]._abundance << endl;
+                    //_logFile << "Truth: " << BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex_nn]._startNode) << " " << _unitigs[unitigIndex_nn]._abundance << endl;
                     isLong = true;
                 }
 
@@ -7691,11 +7694,11 @@ public:
         //}
         if(nbLongUnitigs <= 1) return 2;
         if(abundanceMin == maxVal) return 2;
-        //cout << "Truth: " << abundanceMin << " " << hasChanged << " " << needIndexing << endl;
-        //cout << "Nb nodes: " << lala << endl;
-        //cout << abundanceMin << endl;
-        //cout << abundanceMin << endl;
-        //cout << "Nb long utg: " << nbLongUnitigs << " " << abundanceMin << endl;
+        //_logFile << "Truth: " << abundanceMin << " " << hasChanged << " " << needIndexing << endl;
+        //_logFile << "Nb nodes: " << lala << endl;
+        //_logFile << abundanceMin << endl;
+        //_logFile << abundanceMin << endl;
+        //_logFile << "Nb long utg: " << nbLongUnitigs << " " << abundanceMin << endl;
         return abundanceMin;
 
     }
@@ -7726,7 +7729,7 @@ public:
             vector<u_int32_t> nodeNeighbors;
             getNeighbors(n, 0, nodeNeighbors);
 
-            //cout << n << " " << nodeNeighbors.size() << endl;
+            //_logFile << n << " " << nodeNeighbors.size() << endl;
             for(u_int32_t nodeIndex_neighbor : nodeNeighbors){
 
 
@@ -7753,7 +7756,7 @@ public:
                     continue;
                 }
 
-                //cout << "Push: " << nn << " " << distance[nn] << endl;
+                //_logFile << "Push: " << nn << " " << distance[nn] << endl;
                 queue.push(nodeIndex_neighbor);
 
             }
@@ -7776,12 +7779,12 @@ public:
         getUnitigNodes(nodeIndex_to_unitig(nodeIndex), unitigNodes);
         for(u_int32_t nIndex : unitigNodes){
             u_int32_t nName = BiGraph::nodeIndex_to_nodeName(nIndex);
-            //cout << nName << " " << _graphSuccessors->_nodeAbundances[nName] << endl;
+            //_logFile << nName << " " << _graphSuccessors->_nodeAbundances[nName] << endl;
         }
 
 
-        //cout << nodeName << " " << nodeIndex_to_unitig(nodeIndex)._abundance << " " << nodeIndex_to_unitig(nodeIndex)._length << endl;
-        //cout << nodeIndex_to_unitig(nodeIndex)._abundance << endl;
+        //_logFile << nodeName << " " << nodeIndex_to_unitig(nodeIndex)._abundance << " " << nodeIndex_to_unitig(nodeIndex)._length << endl;
+        //_logFile << nodeIndex_to_unitig(nodeIndex)._abundance << endl;
         
         unordered_set<u_int32_t> nodes;
 		collectNeighbors(nodeIndex, 200, 10000, nodes);
@@ -7797,6 +7800,7 @@ public:
 		//exit(1);
     }
     
+    /*
 
     void getStronglyConnectedComponent(u_int32_t unitigIndex_source, bool forward, vector<u_int32_t>& component){ //, vector<u_int32_t>& scc
         //scc.clear();
@@ -7835,7 +7839,7 @@ public:
                 getPredecessors_unitig(v, 0, v_nbrs); //_unitigs[v]._endNode
             }
             
-            //cout << BiGraph::nodeIndex_to_nodeName(_unitigs[v]._startNode) << " " << v_nbrs.size() << endl;
+            //_logFile << BiGraph::nodeIndex_to_nodeName(_unitigs[v]._startNode) << " " << v_nbrs.size() << endl;
 
             for(u_int32_t w : v_nbrs){
                 if(preorder.find(w) == preorder.end()){
@@ -7861,7 +7865,7 @@ public:
                 queue.pop_back();
 
                 if(lowlink[v] == preorder[v]){
-                    //cout << "----" << endl;
+                    //_logFile << "----" << endl;
                     scc_found.insert(v);
                     vector<u_int32_t> scc = {v};
 
@@ -7875,7 +7879,7 @@ public:
                         scc_found.insert(k);
                         scc.push_back(k);
 
-                        //cout << "Lala: " << unitigIndex_source << " " << k << " " << BiGraph::nodeIndex_to_nodeName(_unitigs[k]._startNode) << endl;
+                        //_logFile << "Lala: " << unitigIndex_source << " " << k << " " << BiGraph::nodeIndex_to_nodeName(_unitigs[k]._startNode) << endl;
 
                         if(k == unitigIndex_source) isSourceScc = true;
                     }
@@ -7884,7 +7888,7 @@ public:
                         for(u_int32_t unitigIndex : scc){
                             component.push_back(unitigIndex);
                         }
-                        //cout << "found" << endl;
+                        //_logFile << "found" << endl;
                         //component = scc;
                         return;
                     }
@@ -7896,55 +7900,7 @@ public:
             }
         }
         
-        /*
-		for(size_t i=0; i<sccs.size(); i++){
-            
-            vector<u_int32_t>& scc = sccs[i];
 
-                //cout << scc.size() << endl;
-            if(std::find(scc.begin(), scc.end(), unitigIndex_source) != scc.end()){
-                //cout << "miam" << endl;
-                component = scc;
-                return;
-            }
-
-        }
-        */
-
-
-        /*
-        u_int32_t largestComponent = 0;
-        size_t largestComponentIndex = -1;
-		for(size_t i=0; i<sccs.size(); i++){
-            
-            vector<u_int32_t>& scc = sccs[i];
-            
-            if(scc.size() > largestComponent){
-                largestComponent = scc.size();
-                largestComponentIndex = i;
-            }
-        }
-
-        component = sccs[largestComponentIndex];
-        */
-
-        //for(u_int32_t nodeIndex : sccs[largestComponentIndex]){
-        //    component.insert(nodeIndex);
-        //}
-
-        /*
-        cout << "Nb sccs: " << sccs.size() << endl;
-		for(vector<u_int32_t>& scc : sccs){
-            //cout << scc.size() << endl;
-			cout << "----" << endl;
-			for(u_int32_t unitigIndex : scc){
-				vector<u_int32_t> nodes;
-				getUnitigNodes(_unitigs[unitigIndex], nodes);
-				for(u_int32_t nodeIndex : nodes){
-					cout << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
-				}
-			}
-		}*/
 
 
     }
@@ -7986,7 +7942,7 @@ public:
                 getPredecessors_unitig(v, 0, v_nbrs); //_unitigs[v]._endNode
             }
             
-            //cout << BiGraph::nodeIndex_to_nodeName(_unitigs[v]._startNode) << " " << v_nbrs.size() << endl;
+            //_logFile << BiGraph::nodeIndex_to_nodeName(_unitigs[v]._startNode) << " " << v_nbrs.size() << endl;
 
             for(u_int32_t w : v_nbrs){
                 if(preorder.find(w) == preorder.end()){
@@ -8012,7 +7968,7 @@ public:
                 queue.pop_back();
 
                 if(lowlink[v] == preorder[v]){
-                    //cout << "----" << endl;
+                    //_logFile << "----" << endl;
                     scc_found.insert(v);
                     vector<u_int32_t> scc = {v};
 
@@ -8026,13 +7982,13 @@ public:
                         scc_found.insert(k);
                         scc.push_back(k);
 
-                        //cout << "Lala: " << unitigIndex_source << " " << k << " " << BiGraph::nodeIndex_to_nodeName(_unitigs[k]._startNode) << endl;
+                        //_logFile << "Lala: " << unitigIndex_source << " " << k << " " << BiGraph::nodeIndex_to_nodeName(_unitigs[k]._startNode) << endl;
 
                         if(k == unitigIndex_source) isSourceScc = true;
                     }
 
                     if(isSourceScc){
-                        //cout << "found" << endl;
+                        //_logFile << "found" << endl;
                         //component = scc;
                         //return;
                     }
@@ -8085,7 +8041,7 @@ public:
                 getPredecessors(v, 0, v_nbrs); //_unitigs[v]._endNode
             }
             
-            //cout << BiGraph::nodeIndex_to_nodeName(v) << " " << v_nbrs.size() << endl;
+            //_logFile << BiGraph::nodeIndex_to_nodeName(v) << " " << v_nbrs.size() << endl;
             //getchar();
 
             for(u_int32_t w : v_nbrs){
@@ -8112,7 +8068,7 @@ public:
                 queue.pop_back();
 
                 if(lowlink[v] == preorder[v]){
-                    //cout << "----" << endl;
+                    //_logFile << "----" << endl;
                     scc_found.insert(v);
                     vector<u_int32_t> scc = {v};
 
@@ -8126,7 +8082,7 @@ public:
                         scc_found.insert(k);
                         scc.push_back(k);
 
-                        //cout << "Lala: " << unitigIndex_source << " " << k << " " << BiGraph::nodeIndex_to_nodeName(_unitigs[k]._startNode) << endl;
+                        //_logFile << "Lala: " << unitigIndex_source << " " << k << " " << BiGraph::nodeIndex_to_nodeName(_unitigs[k]._startNode) << endl;
 
                         if(nodeIndex_to_unitigIndex(k) == unitigIndex_source) isSourceScc = true;
                     }
@@ -8137,7 +8093,7 @@ public:
                             if(std::find(component.begin(), component.end(), unitigIndex) != component.end()) continue;
                             component.push_back(unitigIndex);
                         }
-                        //cout << "found" << endl;
+                        //_logFile << "found" << endl;
                         //component = scc;
                         return;
                     }
@@ -8149,42 +8105,7 @@ public:
             }
         }
         
-        /*
-        //unordered_map<u_int32_t, u_int32_t> unitigTo;
-        unordered_map<u_int32_t, vector<u_int32_t>> unitigToNodes;
 
-        for(vector<u_int32_t>& scc : components_tmp){
-            for(u_int32_t nodeIndex : scc){
-                
-                u_int32_t unitigIndex = nodeIndex_to_unitigIndex(nodeIndex);
-                unitigToNodes[unitigIndex].push_back(nodeIndex);
-            }
-        }
-
-
-        //unordered_map<u_int32_t, u_int32_t> unitigToScc;
-        unordered_set<u_int32_t> nodeVisited;
-
-
-        for(vector<u_int32_t>& scc : components_tmp){
-
-            vector<u_int32_t> sccNew;
-            
-            for(u_int32_t nodeIndex : scc){
-                if(nodeVisited.find(nodeIndex) != nodeVisited.end()) continue;
-
-                u_int32_t unitigIndex = nodeIndex_to_unitigIndex(nodeIndex);
-                for(u_int32_t n : unitigToNodes[unitigIndex]){
-                    sccNew.push_back(n);
-                    nodeVisited.insert(n);
-                }
-            }
-
-            if(sccNew.size() == 0) continue;
-
-            components.push_back(sccNew);
-
-        }*/
     }
 
     void getStronglyConnectedComponents_node_2(u_int32_t nodeIndex_source, bool forward, vector<vector<u_int32_t>>& components){ //, vector<u_int32_t>& scc
@@ -8224,7 +8145,7 @@ public:
                 getPredecessors(v, 0, v_nbrs); //_unitigs[v]._endNode
             }
             
-            //cout << BiGraph::nodeIndex_to_nodeName(v) << " " << v_nbrs.size() << endl;
+            //_logFile << BiGraph::nodeIndex_to_nodeName(v) << " " << v_nbrs.size() << endl;
             //getchar();
 
             for(u_int32_t w : v_nbrs){
@@ -8251,7 +8172,7 @@ public:
                 queue.pop_back();
 
                 if(lowlink[v] == preorder[v]){
-                    //cout << "----" << endl;
+                    //_logFile << "----" << endl;
                     scc_found.insert(v);
                     vector<u_int32_t> scc = {v};
 
@@ -8265,7 +8186,7 @@ public:
                         scc_found.insert(k);
                         scc.push_back(k);
 
-                        //cout << "Lala: " << unitigIndex_source << " " << k << " " << BiGraph::nodeIndex_to_nodeName(_unitigs[k]._startNode) << endl;
+                        //_logFile << "Lala: " << unitigIndex_source << " " << k << " " << BiGraph::nodeIndex_to_nodeName(_unitigs[k]._startNode) << endl;
 
                         if(nodeIndex_to_unitigIndex(k) == unitigIndex_source) isSourceScc = true;
                     }
@@ -8277,7 +8198,7 @@ public:
                             if(std::find(component.begin(), component.end(), unitigIndex) != component.end()) continue;
                             component.push_back(unitigIndex);
                         }
-                        //cout << "found" << endl;
+                        //_logFile << "found" << endl;
                         //component = scc;
                         //return;
                     //}
@@ -8289,42 +8210,7 @@ public:
             }
         }
         
-        /*
-        //unordered_map<u_int32_t, u_int32_t> unitigTo;
-        unordered_map<u_int32_t, vector<u_int32_t>> unitigToNodes;
 
-        for(vector<u_int32_t>& scc : components_tmp){
-            for(u_int32_t nodeIndex : scc){
-                
-                u_int32_t unitigIndex = nodeIndex_to_unitigIndex(nodeIndex);
-                unitigToNodes[unitigIndex].push_back(nodeIndex);
-            }
-        }
-
-
-        //unordered_map<u_int32_t, u_int32_t> unitigToScc;
-        unordered_set<u_int32_t> nodeVisited;
-
-
-        for(vector<u_int32_t>& scc : components_tmp){
-
-            vector<u_int32_t> sccNew;
-            
-            for(u_int32_t nodeIndex : scc){
-                if(nodeVisited.find(nodeIndex) != nodeVisited.end()) continue;
-
-                u_int32_t unitigIndex = nodeIndex_to_unitigIndex(nodeIndex);
-                for(u_int32_t n : unitigToNodes[unitigIndex]){
-                    sccNew.push_back(n);
-                    nodeVisited.insert(n);
-                }
-            }
-
-            if(sccNew.size() == 0) continue;
-
-            components.push_back(sccNew);
-
-        }*/
     }
 
     void getStronglyConnectedComponents_node(u_int32_t nodeIndex_source, bool forward, vector<vector<u_int32_t>>& components){ //, vector<u_int32_t>& scc
@@ -8365,7 +8251,7 @@ public:
                 getPredecessors(v, 0, v_nbrs); //_unitigs[v]._endNode
             }
             
-            //cout << BiGraph::nodeIndex_to_nodeName(v) << " " << v_nbrs.size() << endl;
+            //_logFile << BiGraph::nodeIndex_to_nodeName(v) << " " << v_nbrs.size() << endl;
             //getchar();
 
             for(u_int32_t w : v_nbrs){
@@ -8392,7 +8278,7 @@ public:
                 queue.pop_back();
 
                 if(lowlink[v] == preorder[v]){
-                    //cout << "----" << endl;
+                    //_logFile << "----" << endl;
                     scc_found.insert(v);
                     vector<u_int32_t> scc = {v};
 
@@ -8406,13 +8292,13 @@ public:
                         scc_found.insert(k);
                         scc.push_back(k);
 
-                        //cout << "Lala: " << unitigIndex_source << " " << k << " " << BiGraph::nodeIndex_to_nodeName(_unitigs[k]._startNode) << endl;
+                        //_logFile << "Lala: " << unitigIndex_source << " " << k << " " << BiGraph::nodeIndex_to_nodeName(_unitigs[k]._startNode) << endl;
 
                         if(k == nodeIndex_source) isSourceScc = true;
                     }
 
                     if(isSourceScc){
-                        //cout << "found" << endl;
+                        //_logFile << "found" << endl;
                         //component = scc;
                         //return;
                     }
@@ -8459,18 +8345,7 @@ public:
             components.push_back(sccNew);
 
         }
-        /*
-        for(auto& it : preorder){
-            u_int32_t nodeIndex = it.first;
-            cout << BiGraph::nodeIndex_to_nodeName(nodeIndex);
 
-            u_int32_t unitigIndex = nodeIndex_to_unitigIndex(nodeIndex);
-            if(unitigToScc.find(unitigIndex) == unitigToScc.end()){
-                unitigToScc[unitigIndex] = it.second;
-            }
-
-
-        }*/
     }
 
     u_int32_t shortestPath(u_int32_t source_nodeIndex, u_int32_t sink_nodeIndex, vector<u_int32_t>& path, bool includeSource, bool includeSink, bool forward){
@@ -8543,7 +8418,8 @@ public:
 
         return -1;
     }
-
+    */
+    /*
     u_int32_t shortestPath_unitig(u_int32_t source_unitigIndex, u_int32_t sink_unitigIndex, vector<u_int32_t>& path, bool includeSource, bool includeSink){
 
         path.clear();
@@ -8609,7 +8485,7 @@ public:
 
         return -1;
     }
-    
+    */
 
     void collectNodes_betweenSourceSink_unitig(u_int32_t source_unitigIndex, u_int32_t sink_unitigIndex, vector<u_int32_t>& nodes, float abundanceCutoff_min, const vector<UnitigData>& _unitigDatas, bool forward){
 
@@ -8638,30 +8514,31 @@ public:
 			    getPredecessors_unitig(unitigIndex_current, 0, successors);
             }
 
-            //cout << BiGraph::nodeToString(_unitigs[unitigIndex_current]._endNode) << " " << unitigIndex_current << " " << successors.size() << endl;
+            //_logFile << BiGraph::nodeToString(_unitigs[unitigIndex_current]._endNode) << " " << unitigIndex_current << " " << successors.size() << endl;
 			for(u_int32_t unitigIndex_successor : successors){
 
-                //cout << unitigIndex_successor << " " << (isVisited.find(unitigIndex_successor) != isVisited.end()) << endl;
+                //_logFile << unitigIndex_successor << " " << (isVisited.find(unitigIndex_successor) != isVisited.end()) << endl;
                 if (isVisited.find(unitigIndex_successor) != isVisited.end()) continue;
 
                 /*
                 if(abundanceCutoff_min > 0){
                     u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex_successor]._startNode);
                     u_int64_t nbSharedReads = Utils::computeSharedReads(_unitigDatas[source_nodeName], _unitigDatas[nodeName]);
-                    //cout << nodeName_neighbor << " " << nbSharedReads << endl;
+                    //_logFile << nodeName_neighbor << " " << nbSharedReads << endl;
                     if(nbSharedReads ==0 || nbSharedReads < abundanceCutoff_min) continue;
                 }*/
 
                 queue.push(unitigIndex_successor);
                 isVisited.insert(unitigIndex_successor);
                 nodes.push_back(unitigIndex_successor);
-                //cout << "\t\tCollected node: " <<  BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex_successor]._startNode) << endl;
+                //_logFile << "\t\tCollected node: " <<  BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex_successor]._startNode) << endl;
 
             }
         }
 
     }
 
+    /*
     unordered_set<u_int32_t> _allowedNodeIndex;
     void disconnectSubGraph(u_int32_t source_unitigIndex, u_int64_t maxLength, bool forward){
 
@@ -8685,13 +8562,7 @@ public:
             disconnectUnitig(unitigIndex);
 		}
 
-        /*
-        if(forward){
-            source_nodeIndex = _unitigs[nodeIndex_to_unitigIndex(source_nodeIndex)]._endNode;
-        }
-        else{
-            source_nodeIndex = _unitigs[nodeIndex_to_unitigIndex(source_nodeIndex)]._startNode; 
-        }*/
+
 		//ofstream file_scc("/home/gats/workspace/run/overlap_test_AD/subgraph.csv");
 		//file_scc << "Name,Colour" << endl;
 
@@ -8724,17 +8595,17 @@ public:
                 getPredecessors_unitig(unitigIndex, 0, neighbors);
             }
 
-            //cout << BiGraph::nodeIndex_to_nodeName(nodeIndex) << " " << neighbors.size() << endl;
+            //_logFile << BiGraph::nodeIndex_to_nodeName(nodeIndex) << " " << neighbors.size() << endl;
             
             for(u_int32_t& unitigIndex_nn : neighbors){
 
                 //u_int32_t nodeIndex_neighbor = node_neighbor._index;
                 //u_int32_t nodeName_neighbor = BiGraph::nodeIndex_to_nodeName(nodeIndex_neighbor);
 
-                //cout << nodeName_neighbor << " " << (isVisited.find(nodeIndex_neighbor) != isVisited.end()) << " " << distance[nodeIndex_neighbor] << endl;
+                //_logFile << nodeName_neighbor << " " << (isVisited.find(nodeIndex_neighbor) != isVisited.end()) << " " << distance[nodeIndex_neighbor] << endl;
 
 
-                //cout << "2: " << _nodeToUnitig[nodeIndex_neighbor] << endl;
+                //_logFile << "2: " << _nodeToUnitig[nodeIndex_neighbor] << endl;
                 //u_int32_t unitigIndex_neighbor = nodeIndex_to_unitigIndex(nodeIndex_neighbor);
 
                 //float overlapLength = 0;
@@ -8747,11 +8618,11 @@ public:
 
                 distance[unitigIndex_nn] = distance[unitigIndex] + _unitigs[unitigIndex_nn]._length - _kminmerOverlapMean; //(_nodeLengths[BiGraph::nodeIndex_to_nodeName(nodeIndex_neighbor)] - node_neighbor._overlap);
 
-                //cout << nodeName_neighbor << " " << distance[nodeIndex_neighbor] << endl;
+                //_logFile << nodeName_neighbor << " " << distance[nodeIndex_neighbor] << endl;
                 
                 //if(abundanceCutoff_min > 0){
 				  //   u_int64_t nbSharedReads = Utils::computeSharedReads(_unitigDatas[source_nodeName], _unitigDatas[nodeName_neighbor]);
-                    //cout << nodeName_neighbor << " " << nbSharedReads << endl;
+                    //_logFile << nodeName_neighbor << " " << nbSharedReads << endl;
                     //if(nbSharedReads == 0 || nbSharedReads < abundanceCutoff_min) continue;
                 //}
 
@@ -8761,7 +8632,7 @@ public:
                 
                 //validUnitigIndex.insert(unitigIndex_nn;)
                 //_allowedNodeIndex.insert(BiGraph::nodeIndex_to_nodeName(nodeIndex));
-                //cout << "Visited: " << BiGraph::nodeToString(nodeIndex_neighbor) << " " << nodeIndex_to_unitigIndex(nodeIndex_neighbor) << "             " << distance[nodeIndex_neighbor] << "    " << _nodeLengths[BiGraph::nodeIndex_to_nodeName(nodeIndex_neighbor)] << " " << node_neighbor._overlap << endl;
+                //_logFile << "Visited: " << BiGraph::nodeToString(nodeIndex_neighbor) << " " << nodeIndex_to_unitigIndex(nodeIndex_neighbor) << "             " << distance[nodeIndex_neighbor] << "    " << _nodeLengths[BiGraph::nodeIndex_to_nodeName(nodeIndex_neighbor)] << " " << node_neighbor._overlap << endl;
                 //component.push_back(nodeIndex_neighbor);
             }
 
@@ -8771,8 +8642,8 @@ public:
 
             //_allowedNodeIndex.insert(BiGraph::nodeIndex_to_nodeName(nodeIndex));
             
-            //cout << "miam: " << unitigIndex << " " << BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex]._startNode) << endl;
-            //cout << BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex]._endNode) << endl;
+            //_logFile << "miam: " << unitigIndex << " " << BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex]._startNode) << endl;
+            //_logFile << BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex]._endNode) << endl;
 
             vector<u_int32_t> successors;
             if(forward){
@@ -8787,86 +8658,35 @@ public:
                 if(isVisited.find(successor_unitigIndex) != isVisited.end()) continue; 
                 if(isVisited.find(unitigIndex_toReverseDirection(successor_unitigIndex)) != isVisited.end()) continue; 
 
-                //cout << unitigIndex << " " << (visitedUnitigs.find(unitigIndex) != visitedUnitigs.end()) << endl;
+                //_logFile << unitigIndex << " " << (visitedUnitigs.find(unitigIndex) != visitedUnitigs.end()) << endl;
                 //if(visitedUnitigs.find(nodeIndex) != visitedUnitigs.end()) continue; 
                 //if(isVisited.find(_unitigs[unitigIndex]._startNode) != isVisited.end() ||  isVisited.find(_unitigs[unitigIndex]._endNode) != isVisited.end()) continue;
                 //if(isVisited.find(nodeIndex_toReverseDirection(_unitigs[unitigIndex]._startNode)) != isVisited.end() ||  isVisited.find(nodeIndex_toReverseDirection(_unitigs[unitigIndex]._endNode)) != isVisited.end()) continue;
-                //cout << BiGraph::nodeToString(_unitigs[unitigIndex]._startNode) << " " << BiGraph::nodeToString(_unitigs[unitigIndex]._endNode) << endl;
+                //_logFile << BiGraph::nodeToString(_unitigs[unitigIndex]._startNode) << " " << BiGraph::nodeToString(_unitigs[unitigIndex]._endNode) << endl;
                 disconnectUnitig(successor_unitigIndex);
             }
         }
 
         //_allowedNodeIndex = isVisited;
         //file_scc.close();
-        /*
-        unordered_set<u_int32_t> unitigs;
-
-
-		ofstream file_scc("/home/gats/workspace/run/overlap_test_AD/subgraph.csv");
-		file_scc << "Name,Colour" << endl;
-
-        for(u_int32_t nodeIndex : isVisited){
-            file_scc << BiGraph::nodeIndex_to_nodeName(nodeIndex) << "," << "red" << endl;
-
-            u_int32_t unitigIndex = nodeIndex_to_unitigIndex(nodeIndex);
-            unitigs.insert(unitigIndex);
-        }
-        file_scc.close();
-
-        for(u_int32_t unitigIndex : unitigs){
-
-
-
-            //cout << "miam: " << unitigIndex << " " << BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex]._startNode) << endl;
-            //cout << BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex]._endNode) << endl;
-
-            vector<u_int32_t> neighbors;
-            if(forward){
-                getSuccessors_unitig(unitigIndex, neighbors);
-            }
-            else{
-                getPredecessors_unitig(unitigIndex, neighbors);
-            }
-
-            for(u_int32_t unitigIndex : neighbors){
-                cout << unitigIndex << " " << (visitedUnitigs.find(unitigIndex) != visitedUnitigs.end()) << endl;
-                if(visitedUnitigs.find(unitigIndex) != visitedUnitigs.end()) continue; 
-                //if(isVisited.find(_unitigs[unitigIndex]._startNode) != isVisited.end() ||  isVisited.find(_unitigs[unitigIndex]._endNode) != isVisited.end()) continue;
-                //if(isVisited.find(nodeIndex_toReverseDirection(_unitigs[unitigIndex]._startNode)) != isVisited.end() ||  isVisited.find(nodeIndex_toReverseDirection(_unitigs[unitigIndex]._endNode)) != isVisited.end()) continue;
-                //cout << BiGraph::nodeToString(_unitigs[unitigIndex]._startNode) << " " << BiGraph::nodeToString(_unitigs[unitigIndex]._endNode) << endl;
-                disconnectUnitig(unitigIndex);
-            }
-        }
-        */
+        
         //exit(1);
     }
 
     void disconnectUnitig(u_int32_t unitigIndex){
-        /*
-        u_int32_t startNode = _unitigs[unitigIndex]._startNode;
-        _isNodeInvalid_tmp.insert(nodeIndex_to_unitigIndex(startNode));
-        _isNodeInvalid_tmp.insert(nodeIndex_to_unitigIndex(nodeIndex_toReverseDirection(startNode)));
-        
-        cout << "Disconnected: " << BiGraph::nodeIndex_to_nodeName(startNode) << endl;
-        */
+
         _isNodeInvalid_tmp.insert(unitigIndex);
         _isNodeInvalid_tmp.insert(nodeIndex_toReverseDirection(unitigIndex));
-        //cout << "Disconnected: " << BiGraph::nodeIndex_to_nodeName(unitigIndex) << endl;
+        //_logFile << "Disconnected: " << BiGraph::nodeIndex_to_nodeName(unitigIndex) << endl;
     }
 
     void extractSubGraph(u_int32_t source_nodeIndex, vector<u_int32_t>& successor_nodeIndex, u_int64_t maxLength, bool forward){
 
-        //cout << BiGraph::nodeIndex_to_nodeName(source_nodeIndex) << endl;
+        //_logFile << BiGraph::nodeIndex_to_nodeName(source_nodeIndex) << endl;
 		ofstream file_scc("/home/gats/workspace/run/overlap_test_AD/subgraph.csv");
 		file_scc << "Name,Colour" << endl;
 
-        /*
-        for(u_int32_t nodeIndex : sourceNodes){
-            vector<u_int32_t> scc;
-            getStronglyConnectedComponent(nodeIndex, scc);
 
-        }
-        */
 
         //u_int32_t source_nodeName = BiGraph::nodeIndex_to_nodeName(source_nodeIndex);
 
@@ -8919,36 +8739,7 @@ public:
         for(u_int32_t nodeIndex : isVisited){
             file_scc << BiGraph::nodeIndex_to_nodeName(nodeIndex) << "," << "red" << endl;
         }
-        /*
-        unordered_set<u_int32_t> unitigs;
 
-        for(u_int32_t nodeIndex : isVisited){
-            u_int32_t unitigIndex = nodeIndex_to_unitigIndex(nodeIndex);
-            unitigs.insert(unitigIndex);
-        }
-
-        for(u_int32_t unitigIndex : unitigs){
-
-
-
-            //cout << unitigIndex << endl;
-            //cout << BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex]._endNode) << endl;
-
-            vector<u_int32_t> neighbors;
-            if(forward){
-                getSuccessors_unitig(unitigIndex, neighbors);
-            }
-            else{
-                getPredecessors_unitig(unitigIndex, neighbors);
-            }
-
-            for(u_int32_t unitigIndex : neighbors){
-                if(isVisited.find(_unitigs[unitigIndex]._startNode) != isVisited.end() ||  isVisited.find(_unitigs[unitigIndex]._endNode) != isVisited.end()) continue;
-                disconnectUnitig(unitigIndex);
-            }
-        }
-
-        */
         file_scc.close();
     }
 
@@ -8973,22 +8764,6 @@ public:
         //_allowedNodeIndex.clear();
         //u_int32_t source_nodeName = BiGraph::nodeIndex_to_nodeName(source_nodeIndex);
 
-        /*
-        _isNodeInvalid_tmp.clear();
-
-
-
-		for(u_int32_t unitigIndex : predecessors){
-            disconnectUnitig(unitigIndex);
-		}
-        */
-        /*
-        if(forward){
-            source_nodeIndex = _unitigs[nodeIndex_to_unitigIndex(source_nodeIndex)]._endNode;
-        }
-        else{
-            source_nodeIndex = _unitigs[nodeIndex_to_unitigIndex(source_nodeIndex)]._startNode; 
-        }*/
 		ofstream file_scc("/home/gats/workspace/run/subgraph.csv");
 		file_scc << "Name,Colour" << endl;
 
@@ -9019,23 +8794,23 @@ public:
                 getPredecessors_overlap(nodeIndex, 0, neighbors);
             }
 
-            //cout << BiGraph::nodeIndex_to_nodeName(nodeIndex) << " " << neighbors.size() << endl;
+            //_logFile << BiGraph::nodeIndex_to_nodeName(nodeIndex) << " " << neighbors.size() << endl;
             
             for(AdjNode& node_neighbor : neighbors){
 
                 u_int32_t nodeIndex_neighbor = node_neighbor._index;
                 //u_int32_t nodeName_neighbor = BiGraph::nodeIndex_to_nodeName(nodeIndex_neighbor);
 
-                //cout << nodeName_neighbor << " " << (isVisited.find(nodeIndex_neighbor) != isVisited.end()) << " " << distance[nodeIndex_neighbor] << endl;
+                //_logFile << nodeName_neighbor << " " << (isVisited.find(nodeIndex_neighbor) != isVisited.end()) << " " << distance[nodeIndex_neighbor] << endl;
 
 
-                //cout << "2: " << _nodeToUnitig[nodeIndex_neighbor] << endl;
+                //_logFile << "2: " << _nodeToUnitig[nodeIndex_neighbor] << endl;
                 //u_int32_t unitigIndex_neighbor = nodeIndex_to_unitigIndex(nodeIndex_neighbor);
                 if (isVisited.find(nodeIndex_neighbor) != isVisited.end()) continue;
 
                 distance[nodeIndex_neighbor] = distance[nodeIndex] + (_graphSuccessors->_nodeDatas[BiGraph::nodeIndex_to_nodeName(nodeIndex_neighbor)]._length - _kminmerOverlapMean);
 
-                //cout << nodeName_neighbor << " " << distance[nodeIndex_neighbor] << endl;
+                //_logFile << nodeName_neighbor << " " << distance[nodeIndex_neighbor] << endl;
                 if(distance[nodeIndex_neighbor] > maxLength){
                     if(successorUnitigs.find(nodeIndex_to_unitigIndex(nodeIndex_neighbor)) == successorUnitigs.end()){
                         _isBoundUnitig.insert(nodeIndex_to_unitigIndex(nodeIndex_neighbor));
@@ -9067,7 +8842,7 @@ public:
 
     void extractReadpathSubgraph(u_int32_t source_unitigIndex){
 
-        //cout << "-----" << endl;
+        //_logFile << "-----" << endl;
         const UnitigData& source_readIndexes = _unitigDatas2[source_unitigIndex];
 
 		ofstream file_scc("/home/gats/workspace/run/subgraph.csv");
@@ -9087,12 +8862,12 @@ public:
             isVisited.insert(unitigIndex);
 
             const UnitigData& readIndexes = _unitigDatas2[unitigIndex];
-            //cout << _unitigDatas2[unitigIndex]._readIndexes.size() << endl;
+            //_logFile << _unitigDatas2[unitigIndex]._readIndexes.size() << endl;
 
             u_int32_t nbSharedReads = Utils::computeSharedReads(source_readIndexes, readIndexes);
-            //cout << nbSharedReads << endl;
-            //cout << BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex]._endNode) << " " << nbSharedReads << endl;
-            //cout << "Shared reads: " << nbSharedReads << " " << readIndexes._readIndexes.size() << " " << source_readIndexes._readIndexes.size() << endl;
+            //_logFile << nbSharedReads << endl;
+            //_logFile << BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex]._endNode) << " " << nbSharedReads << endl;
+            //_logFile << "Shared reads: " << nbSharedReads << " " << readIndexes._readIndexes.size() << " " << source_readIndexes._readIndexes.size() << endl;
             if(nbSharedReads <= 1) continue;
 
             for(u_int32_t nodeIndex : _unitigs[unitigIndex]._nodes){
@@ -9118,12 +8893,14 @@ public:
         file_scc.close();
 
     }
+    */
 
     bool isEdgeNode(u_int32_t nodeIndex){
 		Unitig& unitig = nodeIndex_to_unitig(nodeIndex);
         return nodeIndex == unitig._startNode || nodeIndex == unitig._endNode;
     }
 
+    /*
     bool isNeighborOfEdgeNode(u_int32_t nodeIndex){
 
         vector<u_int32_t> successors;
@@ -9142,6 +8919,7 @@ public:
 
 		return false;
     }
+    */
 
     u_int64_t getChecksumNodeNames(){
 
@@ -9208,24 +8986,6 @@ public:
 
             sum += s*u._nbNodes;
 
-            /*
-            double s = 0;
-            vector<u_int32_t> nodes = u._nodes;
-            size_t nbNodes = 0;
-            if(nodes.size() > 1 && nodes[0] == nodes[nodes.size()-1]){
-                nbNodes = nodes.size()-1;
-                for(size_t i=0; i<nodes.size()-1; i++){
-                    s += nodes[i];
-                }
-            }
-            else{
-                nbNodes = nodes.size();
-                for(u_int32_t nodeIndex : u._nodes){
-                    s += nodeIndex;
-                }
-            }
-            sum += s*nbNodes;
-            */
         }
 
         return sum;
@@ -9254,6 +9014,7 @@ public:
         return sum;
     }  
 
+    /*
     struct ShortedPathData{
         u_int32_t _unitigIndex;
         u_int32_t _distance;
@@ -9266,7 +9027,6 @@ public:
         }
     };
     
-    /*
     void shortestPath_weighted(u_int32_t source_unitigIndex, u_int32_t sink_unitigIndex, vector<u_int32_t>& path){
         
         path.clear();
@@ -9297,7 +9057,7 @@ public:
             }
 
 
-            //cout << graphInfo->id_to_name(u) << " " << nodes.size() << endl;
+            //_logFile << graphInfo->id_to_name(u) << " " << nodes.size() << endl;
 
             for(AdjNode& node : nodes){
 
@@ -9320,7 +9080,7 @@ public:
                         break;
                     }
 
-                    //cout << "\tAdd node: " << graphInfo->id_to_name(v) << " " << distances[v] << endl;
+                    //_logFile << "\tAdd node: " << graphInfo->id_to_name(v) << " " << distances[v] << endl;
                     pq.push({v, distances[v], p});
                 }
 
@@ -9328,24 +9088,24 @@ public:
 
         }
 
-        //cout << path.size() << endl;
+        //_logFile << path.size() << endl;
         //printf("Vertex Distance from Source\n");
         //for (int i = 0; i < V; ++i)
         //    printf("%d \t\t %d\n", i, distance[i]);
     }
     */
-
+    /*
     ofstream file_scc;
 
     void shortestPath_unitig_weighted(u_int32_t source_unitigIndex, unordered_map<u_int32_t, vector<u_int32_t>>& destPaths, bool includeSource, bool includeSink, u_int32_t pass){
 
         
-        //cout << "-----" << endl;
+        //_logFile << "-----" << endl;
 
         unordered_set<u_int32_t> dests;
         for(const auto& destPath : destPaths){
             dests.insert(destPath.first);
-            //cout << source_unitigIndex << " -> " << destPath.first << endl;
+            //_logFile << source_unitigIndex << " -> " << destPath.first << endl;
         }
         //getchar();
        
@@ -9374,13 +9134,13 @@ public:
             int u = pq.top()._unitigIndex;
             pq.pop();
             
-            //cout << u << endl;
+            //_logFile << u << endl;
             if(_unitigs[u]._startNode == -1) continue;
             
             if(dests.find(u) != dests.end() || dests.find(unitigIndex_toReverseDirection(u)) != dests.end()){
                 dests.erase(u);
             }
-            //cout << dests.size() << " " << prev.size() << endl;
+            //_logFile << dests.size() << " " << prev.size() << endl;
             if(dests.size() == 0) break;
 
             //if(pass == 60){
@@ -9390,7 +9150,7 @@ public:
             //}
 
 
-            //cout << u << " " << pq.size() << endl;
+            //_logFile << u << " " << pq.size() << endl;
             vector<u_int32_t> successors;
             getSuccessors_unitig(u, 0, successors);
             vector<u_int32_t> predecessors;
@@ -9457,46 +9217,27 @@ public:
         }
 
         //if(pass == 60){
-        //    cout << "debug done" << endl;
+        //    _logFile << "debug done" << endl;
         //    file_scc.close();
         //    getchar();
         //}
 
-        /*
-        if(found){
-
-            u_int32_t n = found_unitigIndex;
-            while(n != source_unitigIndex){
-
-
-                if(n == found_unitigIndex){
-                    if(includeSink) path.push_back(n);
-                }
-                else{
-                    path.push_back(n);
-                }
-
-                n = prev[n];
-            }
-            if(includeSource) path.push_back(source_unitigIndex);
-
-            //return distance[sink_unitigIndex];
-        }
-        */
 
     }
+    */
 
+    /*
     void determineRepeats(const vector<UnitigData>& unitigDatas, float abundanceCutoff){
 
         u_int32_t minSupportingReads = abundanceCutoff / 4;
         if(minSupportingReads < 2) minSupportingReads = 2;
 
-        cout << "Detecting repeat" << endl;
-        cout << "Min supporting reads: " << minSupportingReads << endl;
+        _logFile << "Detecting repeat" << endl;
+        _logFile << "Min supporting reads: " << minSupportingReads << endl;
 
         u_int32_t unitigIndexLala = nodeIndex_to_unitigIndex(BiGraph::nodeName_to_nodeIndex(1242487, false));
-        //cout << Utils::computeSharedReads(unitigDatas[12264], unitigDatas[25489]) << endl;
-        //cout << Utils::computeSharedReads(unitigDatas[4876], unitigDatas[6347]) << endl;
+        //_logFile << Utils::computeSharedReads(unitigDatas[12264], unitigDatas[25489]) << endl;
+        //_logFile << Utils::computeSharedReads(unitigDatas[4876], unitigDatas[6347]) << endl;
         //exit(1);
 
         ofstream file_repeat(_outputDir + "/repeat.csv");
@@ -9506,10 +9247,10 @@ public:
         vector<Unitig> unitigSortedByLength;
 
         for(const Unitig& unitig: _unitigs){
-            //cout << unitig._length << " " << unitig._abundance << endl;
+            //_logFile << unitig._length << " " << unitig._abundance << endl;
             //if(unitig._index % 2 == 1) continue;
             //if(unitig._length < 10000) continue;
-            //coutif(unitig._length < 50000) continue;
+            //_logFileif(unitig._length < 50000) continue;
             //if(unitig._length < 10000 || unitig._length > 15000) continue;
             //if(unitig._abundance < 10) continue; //200
             
@@ -9532,7 +9273,7 @@ public:
                 if(uniqueSuccessors.size() > 1){
 
                     if(unitig._index == unitigIndexLala || unitigIndex_toReverseDirection(unitig._index) == unitigIndexLala){
-                        cout << uniqueSuccessors.size() << endl;
+                        _logFile << uniqueSuccessors.size() << endl;
                         //getchar();
                     }
 
@@ -9546,7 +9287,7 @@ public:
                 if(uniquePredecessors.size() > 1){
 
                     if(unitig._index == unitigIndexLala || unitigIndex_toReverseDirection(unitig._index) == unitigIndexLala){
-                        cout << uniquePredecessors.size() << endl;
+                        _logFile << uniquePredecessors.size() << endl;
                         //getchar();
                     }
 
@@ -9561,23 +9302,6 @@ public:
 
             }
 
-            /*
-            for(const Unitig& unitig : _unitigs){
-                if(isUnitigUnique.find(unitig._index) == isUnitigUnique.end()){
-                    for(u_int32_t nodeIndex : unitig._nodes){
-                        file_repeat << BiGraph::nodeIndex_to_nodeName(nodeIndex) << "," << "red" << endl;
-                    }
-                }
-                else{
-                    for(u_int32_t nodeIndex : unitig._nodes){
-                        file_repeat << BiGraph::nodeIndex_to_nodeName(nodeIndex) << "," << "blue" << endl;
-                    }
-                }
-            }
-            file_repeat.flush();
-            cout << "repeat pass: " << nbPass << endl;
-            getchar();
-            */
 
 
             nbPass += 1;
@@ -9613,7 +9337,7 @@ public:
         const vector<u_int64_t>& source_readIndexes = unitigDatas[BiGraph::nodeIndex_to_nodeName(source_nodeIndex)]._readIndexes;
 
         u_int32_t unitigIndexLala = nodeIndex_to_unitigIndex(BiGraph::nodeName_to_nodeIndex(1242487, false));
-        //cout << "-----" << endl;
+        //_logFile << "-----" << endl;
 
         uniqueSuccessors.clear();
 		//const vector<u_int64_t>& source_readIndexes = unitigDatas[source_unitigIndex]._readIndexes;
@@ -9640,46 +9364,12 @@ public:
                 const vector<u_int64_t>& readIndexes = unitigDatas[BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex]._startNode)]._readIndexes;
                 u_int64_t nbSharedReads = Utils::computeSharedReads(source_readIndexes, readIndexes);
             
-                /*
-                if(nbSharedReads > 1){
-                    if(source_unitigIndex == unitigIndexLala || unitigIndex_toReverseDirection(source_unitigIndex) == unitigIndexLala){
-                        cout << BiGraph::nodeIndex_to_nodeName(_unitigs[source_unitigIndex]._endNode) << " " << BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex]._startNode) << " " <<  nbSharedReads << endl;
-                        getchar();
-                    }
-                }*/
 
-                /*
-                if(forward){
-                    const vector<u_int64_t>& source_readIndexes = unitigDatas[BiGraph::nodeIndex_to_nodeName(_unitigs[source_unitigIndex]._endNode)]._readIndexes;
-                    const vector<u_int64_t>& readIndexes = unitigDatas[BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex]._startNode)]._readIndexes;
-                    nbSharedReads = Utils::computeSharedReads(source_readIndexes, readIndexes);
-                
-                    if(nbSharedReads > 1){
-                        if(source_unitigIndex == unitigIndexLala || unitigIndex_toReverseDirection(source_unitigIndex) == unitigIndexLala){
-                            cout << BiGraph::nodeIndex_to_nodeName(_unitigs[source_unitigIndex]._endNode) << " " << BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex]._startNode) << " " <<  nbSharedReads << endl;
-                            getchar();
-                        }
-                    }
 
-                }
-                else{
-                    const vector<u_int64_t>& source_readIndexes = unitigDatas[BiGraph::nodeIndex_to_nodeName(_unitigs[source_unitigIndex]._startNode)]._readIndexes;
-                    const vector<u_int64_t>& readIndexes = unitigDatas[BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex]._endNode)]._readIndexes;
-                    nbSharedReads = Utils::computeSharedReads(source_readIndexes, readIndexes);
-                
-
-                    if(nbSharedReads > 1){
-                        if(source_unitigIndex == unitigIndexLala || unitigIndex_toReverseDirection(source_unitigIndex) == unitigIndexLala){
-                            cout << source_readIndexes.size() << " " << readIndexes.size() << endl;
-                            cout << BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex]._startNode) << " " <<  nbSharedReads << endl;
-                            getchar();
-                        }
-                    }
-                }
-                */
+              
 
                 //if(source_unitigIndex == unitigIndexLala || unitigIndex_toReverseDirection(source_unitigIndex) == unitigIndexLala){
-                //    cout << BiGraph::nodeIndex_to_nodeName(source_nodeIndex) << " " << BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex]._startNode) << " " <<  nbSharedReads << endl;
+                //    _logFile << BiGraph::nodeIndex_to_nodeName(source_nodeIndex) << " " << BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex]._startNode) << " " <<  nbSharedReads << endl;
                 //    //getchar();
                 //}
 
@@ -9688,27 +9378,27 @@ public:
 
 
                 if(isUnitigUnique.find(unitigIndex) != isUnitigUnique.end()){
-                    //cout << BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex]._startNode) << " " <<  nbSharedReads << endl;
+                    //_logFile << BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex]._startNode) << " " <<  nbSharedReads << endl;
                     
                     bool isValid = true;
                     for(u_int32_t u : uniqueSuccessors){
                         if(Utils::computeSharedReads(unitigDatas[BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex]._startNode)], unitigDatas[BiGraph::nodeIndex_to_nodeName(_unitigs[u]._startNode)]) > 1){
-                            //cout << "\tinvalid" << endl;
+                            //_logFile << "\tinvalid" << endl;
                             isValid = false;
                             break;
                         }
                         if(Utils::computeSharedReads(unitigDatas[BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex]._startNode)], unitigDatas[BiGraph::nodeIndex_to_nodeName(_unitigs[u]._endNode)]) > 1){
-                            //cout << "\tinvalid" << endl;
+                            //_logFile << "\tinvalid" << endl;
                             isValid = false;
                             break;
                         }
                         if(Utils::computeSharedReads(unitigDatas[BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex]._endNode)], unitigDatas[BiGraph::nodeIndex_to_nodeName(_unitigs[u]._startNode)]) > 1){
-                            //cout << "\tinvalid" << endl;
+                            //_logFile << "\tinvalid" << endl;
                             isValid = false;
                             break;
                         }
                         if(Utils::computeSharedReads(unitigDatas[BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex]._endNode)], unitigDatas[BiGraph::nodeIndex_to_nodeName(_unitigs[u]._endNode)]) > 1){
-                            //cout << "\tinvalid" << endl;
+                            //_logFile << "\tinvalid" << endl;
                             isValid = false;
                             break;
                         }
@@ -9799,21 +9489,21 @@ public:
 
             component.insert(unitigIndex);
             component.insert(unitigIndex_toReverseDirection(unitigIndex));
-            //cout << "2" << endl;
+            //_logFile << "2" << endl;
             vector<u_int32_t> successors;
 
             getSuccessors_unitig(unitigIndex, 0, successors);
             for(u_int32_t unitigIndex_nn : successors) queue.push(unitigIndex_nn);
 
-            //cout << "3" << endl;
+            //_logFile << "3" << endl;
             getPredecessors_unitig(unitigIndex, 0, successors);
             for(u_int32_t unitigIndex_nn : successors) queue.push(unitigIndex_nn);
 
-            //cout << "4" << endl;
+            //_logFile << "4" << endl;
             getSuccessors_unitig(unitigIndex_toReverseDirection(unitigIndex), 0, successors);
             for(u_int32_t unitigIndex_nn : successors) queue.push(unitigIndex_nn);
 
-            //cout << "5" << endl;
+            //_logFile << "5" << endl;
             getPredecessors_unitig(unitigIndex_toReverseDirection(unitigIndex), 0, successors);
             for(u_int32_t unitigIndex_nn : successors) queue.push(unitigIndex_nn);
 
@@ -9822,7 +9512,7 @@ public:
         //file_scc.close();
 
 	}
-
+    */
     /*
     u_int64_t countValidSuccessors(unordered_set<u_int32_t>& uniqueSuccessors, const vector<UnitigData>& unitigDatas){
 
@@ -9839,7 +9529,7 @@ public:
 
             for(size_t j=i+1; j<succs.size(); j++){
 
-                cout << BiGraph::nodeIndex_to_nodeName(_unitigs[succs[i]]._startNode) << " " << BiGraph::nodeIndex_to_nodeName(_unitigs[succs[j]]._startNode) << " " << isInReadPath(succs[i], succs[j], true, unitigDatas) << " " << isInReadPath(succs[i], succs[j], false, unitigDatas) << endl;
+                _logFile << BiGraph::nodeIndex_to_nodeName(_unitigs[succs[i]]._startNode) << " " << BiGraph::nodeIndex_to_nodeName(_unitigs[succs[j]]._startNode) << " " << isInReadPath(succs[i], succs[j], true, unitigDatas) << " " << isInReadPath(succs[i], succs[j], false, unitigDatas) << endl;
                 if(isInReadPath(succs[i], succs[j], true, unitigDatas) || isInReadPath(succs[i], succs[j], false, unitigDatas)){
                     isValid = false;
                     break;
@@ -9875,7 +9565,7 @@ public:
             if(isValid) addedSuccs.insert(unitigIndex);
         }
 
-        cout << uniqueSuccessors.size() << " " << addedSuccs.size() << endl;
+        _logFile << uniqueSuccessors.size() << " " << addedSuccs.size() << endl;
         return addedSuccs.size();
     }
     */
@@ -9891,7 +9581,7 @@ public:
             source_nodeIndex = _unitigs[unitigIndex_toReverseDirection(source_unitigIndex)]._endNode;
         }
 
-        cout << "Is in read path: " << BiGraph::nodeIndex_to_nodeName(source_nodeIndex) << endl;
+        _logFile << "Is in read path: " << BiGraph::nodeIndex_to_nodeName(source_nodeIndex) << endl;
 
         const vector<u_int64_t>& source_readIndexes = unitigDatas[BiGraph::nodeIndex_to_nodeName(source_nodeIndex)]._readIndexes;
 
@@ -9932,6 +9622,7 @@ public:
 	}
     */
 
+    /*
     struct NodeSupport{
         u_int32_t _nodeIndex;
         u_int32_t _nbSupportingReads;
@@ -9965,7 +9656,7 @@ public:
 
         while(true){
             u_int32_t nodeIndex = prevNodes[prevNodes.size()-1];
-            //cout << "\t\tVisit: " << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
+            //_logFile << "\t\tVisit: " << BiGraph::nodeIndex_to_nodeName(nodeIndex) << endl;
 
             vector<u_int32_t> successors;
             getSuccessors(nodeIndex, 0, successors);
@@ -9990,7 +9681,7 @@ public:
                 //u_int32_t nbSharedReads = Utils::computeSharedReads(readIndexes_source, readIndexes);
                 u_int32_t nbSharedReads = Utils::computeSharedReads(nodeNames, unitigDatas);
                 
-                //cout << "\t\tSuccessor: " << BiGraph::nodeIndex_to_nodeName(nodeIndex_successor) << " " << nbSharedReads << " " << (isVisited.find(nodeIndex_successor) != isVisited.end()) << endl;
+                //_logFile << "\t\tSuccessor: " << BiGraph::nodeIndex_to_nodeName(nodeIndex_successor) << " " << nbSharedReads << " " << (isVisited.find(nodeIndex_successor) != isVisited.end()) << endl;
                 if(isVisited.find(nodeIndex_successor) != isVisited.end()) continue;
 
 
@@ -10011,53 +9702,17 @@ public:
             if(BiGraph::nodeIndex_to_nodeName(maxSuccessorNodeIndex) == dest_nodeName) break; //Found path
         }     
 
-        //cout << "\t\tfind path: ";
+        //_logFile << "\t\tfind path: ";
         //for(u_int32_t nodeIndex : prevNodes){
-        //    cout << BiGraph::nodeIndex_to_nodeName(nodeIndex) << " ";
+        //    _logFile << BiGraph::nodeIndex_to_nodeName(nodeIndex) << " ";
         //}
-        //cout << endl;
+        //_logFile << endl;
 
         nodepath = prevNodes;    
     }
 
     void shortestPath_nodeName(u_int32_t source_nodeName, u_int32_t dest_nodeName, vector<u_int32_t>& path, bool includeSource, bool includeSink, u_int32_t maxDistance, const vector<UnitigData>& unitigDatas, unordered_set<u_int32_t>& unallowedNodenames, u_int32_t nodeIndex_sourceLala, vector<u_int32_t>& anchorNodeNames){
-        /*
-        path.clear();
 
-        u_int32_t source_nodeIndex_1 = BiGraph::nodeName_to_nodeIndex(source_nodeName, true);
-        u_int32_t source_nodeIndex_2 = BiGraph::nodeName_to_nodeIndex(source_nodeName, false);
-
-        if(nodeIndex_sourceLala == -1){
-            vector<u_int32_t> nodepath1;
-            findBestSupportedPath(source_nodeIndex_1, dest_nodeName, unallowedNodenames, unitigDatas, nodepath1, anchorNodeNames);
-            vector<u_int32_t> nodepath2;
-            findBestSupportedPath(source_nodeIndex_2, dest_nodeName, unallowedNodenames, unitigDatas, nodepath2, anchorNodeNames);
-            
-            //cout << "\t\t" << nodepath1.size() << " " << nodepath2.size() << endl;
-            if(nodepath1.size() == 0 && nodepath2.size() == 0) return;
-
-            if(nodepath1.size() == 0){
-                path = nodepath2;
-            }
-            else if(nodepath2.size() == 0){
-                path = nodepath1;
-            }
-            else if(nodepath1.size() < nodepath2.size()){
-                path = nodepath1;
-            }
-            else{
-                path = nodepath2;
-            }
-        }
-        else{
-
-            //cout << "\t\tallo: " << BiGraph::nodeIndex_to_nodeName(nodeIndex_sourceLala) << endl;
-            vector<u_int32_t> nodepath;
-            findBestSupportedPath(nodeIndex_sourceLala, dest_nodeName, unallowedNodenames, unitigDatas, nodepath, anchorNodeNames);
-
-            path = nodepath;
-        }
-        */
 
         
         //const vector<u_int64_t>& readIndexes_source = unitigDatas[anchorNodeName]._readIndexes;
@@ -10118,11 +9773,11 @@ public:
         
         while(!found){
 
-            //cout << source_nodeName << " " << dest_nodeName << endl;
-            //cout << queue1.size() << " " << queue2.size() << endl;
+            //_logFile << source_nodeName << " " << dest_nodeName << endl;
+            //_logFile << queue1.size() << " " << queue2.size() << endl;
 
 
-            //cout << "\tTop1: " << BiGraph::nodeIndex_to_nodeName(queue2.top()._nodeIndex) << " " << queue2.top()._nbSupportingReads << endl;
+            //_logFile << "\tTop1: " << BiGraph::nodeIndex_to_nodeName(queue2.top()._nodeIndex) << " " << queue2.top()._nbSupportingReads << endl;
             
             if(nodeIndex_sourceLala == -1){
 
@@ -10138,7 +9793,7 @@ public:
                     //if (isVisited1.find(nodeIndex_current) != isVisited1.end()) continue;
                     //isVisited1.insert(nodeIndex_current);
 
-                    //cout << "VisitL: " << BiGraph::nodeIndex_to_nodeName(nodeIndex_current) << endl;
+                    //_logFile << "VisitL: " << BiGraph::nodeIndex_to_nodeName(nodeIndex_current) << endl;
 
                     vector<u_int32_t> successors;
                     getSuccessors(nodeIndex_current, 0, successors);
@@ -10167,7 +9822,7 @@ public:
 
                         //const vector<u_int64_t>& readIndexes = unitigDatas[BiGraph::nodeIndex_to_nodeName(nodeIndex_successor)]._readIndexes;
                         //u_int32_t nbSharedReads = Utils::computeSharedReads(readIndexes_source, readIndexes);
-                        //cout << "\tNeighborsL: " << BiGraph::nodeIndex_to_nodeName(nodeIndex_successor) << " " << nbSharedReads << endl;
+                        //_logFile << "\tNeighborsL: " << BiGraph::nodeIndex_to_nodeName(nodeIndex_successor) << " " << nbSharedReads << endl;
 
                         if(nbSharedReads <= 1) continue;
 
@@ -10195,7 +9850,7 @@ public:
                                 dest_nodeIndex = nodeIndex_successor;
                                 found = true;
                                 prev = prev1;
-                                //cout << "found 1" << endl;
+                                //_logFile << "found 1" << endl;
                                 break;
                             }
                         //}
@@ -10204,7 +9859,7 @@ public:
                     }
                 }
 
-                //cout << "\tTop2: " << BiGraph::nodeIndex_to_nodeName(queue2.top()._nodeIndex) << " " << queue2.top()._nbSupportingReads << endl;
+                //_logFile << "\tTop2: " << BiGraph::nodeIndex_to_nodeName(queue2.top()._nodeIndex) << " " << queue2.top()._nbSupportingReads << endl;
                 
                 if(!queue2.empty() && !found){
 
@@ -10214,7 +9869,7 @@ public:
 
                     //if (isVisited2.find(nodeIndex_current) != isVisited2.end()) continue;
                     //isVisited2.insert(nodeIndex_current);
-                    //cout << "VisitR: " << BiGraph::nodeIndex_to_nodeName(nodeIndex_current) << endl;
+                    //_logFile << "VisitR: " << BiGraph::nodeIndex_to_nodeName(nodeIndex_current) << endl;
 
                     vector<u_int32_t> successors;
                     getSuccessors(nodeIndex_current, 0, successors);
@@ -10229,7 +9884,7 @@ public:
 
                         //const vector<u_int64_t>& readIndexes = unitigDatas[BiGraph::nodeIndex_to_nodeName(nodeIndex_successor)]._readIndexes;
                         //u_int32_t nbSharedReads = Utils::computeSharedReads(readIndexes_source, readIndexes);
-                        //cout << "\tNeighborsR: " << BiGraph::nodeIndex_to_nodeName(nodeIndex_successor) << " " << nbSharedReads << endl;
+                        //_logFile << "\tNeighborsR: " << BiGraph::nodeIndex_to_nodeName(nodeIndex_successor) << " " << nbSharedReads << endl;
 
                         if(nbSharedReads <= 1) continue;
 
@@ -10241,10 +9896,10 @@ public:
                             
 
                         //dist2[nodeIndex_successor] = nbSharedReads; //dist2[nodeIndex_current] + nbSharedReads;
-                        //cout << "\tInsert: " << BiGraph::nodeIndex_to_nodeName(nodeIndex_successor) << " " << nbSharedReads << endl;
+                        //_logFile << "\tInsert: " << BiGraph::nodeIndex_to_nodeName(nodeIndex_successor) << " " << nbSharedReads << endl;
 
                         queue2.push({nodeIndex_successor, nbSharedReads});
-                        //cout << "\tTop: " << BiGraph::nodeIndex_to_nodeName(queue2.top()._nodeIndex) << " " << queue2.top()._nbSupportingReads << endl;
+                        //_logFile << "\tTop: " << BiGraph::nodeIndex_to_nodeName(queue2.top()._nodeIndex) << " " << queue2.top()._nbSupportingReads << endl;
                         prev2[nodeIndex_successor] = nodeIndex_current;
 
                         //distance1[nodeIndex_successor] = distance1[nodeIndex_current] + 1;
@@ -10259,7 +9914,7 @@ public:
                             dest_nodeIndex = nodeIndex_successor;
                             found = true;
                             prev = prev2;
-                            //cout << "found 2" << endl;
+                            //_logFile << "found 2" << endl;
                             break;
                         }
                         //}
@@ -10267,7 +9922,7 @@ public:
                         if(found) break;
                     }
 
-                    //cout << "\tTop: " << BiGraph::nodeIndex_to_nodeName(queue2.top()._nodeIndex) << " " << queue2.top()._nbSupportingReads << endl;
+                    //_logFile << "\tTop: " << BiGraph::nodeIndex_to_nodeName(queue2.top()._nodeIndex) << " " << queue2.top()._nbSupportingReads << endl;
                             
                 }
             }
@@ -10284,7 +9939,7 @@ public:
                     //if (isVisited1.find(nodeIndex_current) != isVisited1.end()) continue;
                     //isVisited1.insert(nodeIndex_current);
                     
-                    //cout << "Visit: " << BiGraph::nodeIndex_to_nodeName(nodeIndex_current) << endl;
+                    //_logFile << "Visit: " << BiGraph::nodeIndex_to_nodeName(nodeIndex_current) << endl;
 
                     vector<u_int32_t> successors;
                     getSuccessors(nodeIndex_current, 0, successors);
@@ -10300,7 +9955,7 @@ public:
 
                         //const vector<u_int64_t>& readIndexes = unitigDatas[BiGraph::nodeIndex_to_nodeName(nodeIndex_successor)]._readIndexes;
                         //u_int32_t nbSharedReads = Utils::computeSharedReads(readIndexes_source, readIndexes);
-                        //cout << "\tNeighbors: " << BiGraph::nodeIndex_to_nodeName(nodeIndex_successor) << " " << nbSharedReads << endl;
+                        //_logFile << "\tNeighbors: " << BiGraph::nodeIndex_to_nodeName(nodeIndex_successor) << " " << nbSharedReads << endl;
 
                         if(nbSharedReads <= 1) continue;
 
@@ -10328,7 +9983,7 @@ public:
                                 dest_nodeIndex = nodeIndex_successor;
                                 found = true;
                                 prev = prev1;
-                                //cout << "found 1" << endl;
+                                //_logFile << "found 1" << endl;
                                 break;
                             }
                         //}
@@ -10338,22 +9993,22 @@ public:
                 }
             }
             
-            //cout << "\tTop: " << BiGraph::nodeIndex_to_nodeName(queue2.top()._nodeIndex) << " " << queue2.top()._nbSupportingReads << endl;
+            //_logFile << "\tTop: " << BiGraph::nodeIndex_to_nodeName(queue2.top()._nodeIndex) << " " << queue2.top()._nbSupportingReads << endl;
                 
          
             //if(source_nodeName == 6999 && dest_nodeName == 5632) getchar();
             //getchar(); 
         } 
 
-        //cout << "\tFound: " << found << endl;
+        //_logFile << "\tFound: " << found << endl;
 
         if(found){
 
             u_int32_t n = dest_nodeIndex;
             while(n != source_nodeIndex){
 
-                //cout << BiGraph::nodeIndex_to_nodeName(source_nodeIndex) << " " << BiGraph::nodeIndex_to_nodeName(dest_nodeIndex) << " " << BiGraph::nodeIndex_to_nodeName(n) << " " << n << endl;
-                //cout << "haaaaa" << endl;
+                //_logFile << BiGraph::nodeIndex_to_nodeName(source_nodeIndex) << " " << BiGraph::nodeIndex_to_nodeName(dest_nodeIndex) << " " << BiGraph::nodeIndex_to_nodeName(n) << " " << n << endl;
+                //_logFile << "haaaaa" << endl;
 
                 if(n == dest_nodeIndex){
                     if(includeSink) path.push_back(n);
@@ -10445,13 +10100,13 @@ public:
 
         
     }
-
+    */
 
 /*
     void findUniquePath(u_int32_t source_nodeIndex, u_int32_t dest_nodeIndex, vector<u_int32_t>& path, bool includeSource, bool includeSink, u_int32_t maxDistance, unordered_set<u_int64_t>& readMinimizersIndex, bool print_read, unordered_map<u_int32_t, vector<u_int64_t>>& _nodeName_to_kminmerSequence){
 
         //print_read = true;
-        //cout << BiGraph::nodeIndex_to_nodeName(source_nodeIndex) << " -> " << BiGraph::nodeIndex_to_nodeName(dest_nodeIndex) << endl;
+        //_logFile << BiGraph::nodeIndex_to_nodeName(source_nodeIndex) << " -> " << BiGraph::nodeIndex_to_nodeName(dest_nodeIndex) << endl;
         path.clear();
 		//unordered_set<u_int32_t> isVisited;
 		unordered_map<u_int32_t, u_int32_t> prev;
@@ -10532,7 +10187,7 @@ public:
         }
 
         //if(nbFound > 1){
-        //    cout << "haha" << endl;
+        //    _logFile << "haha" << endl;
         //    getchar();
         //}
         if(found){
@@ -10557,11 +10212,11 @@ public:
         
     }
 */
-
+/*
 	void detectRoundabouts(u_int64_t maxLength, const vector<UnitigData>& unitigDatas){
 
         #ifdef PRINT_DEBUG_SIMPLIFICATION
-            cout << "detecting roudabout" << endl;
+            _logFile << "detecting roudabout" << endl;
         #endif
 
         unordered_set<u_int32_t> isProcessedNodename;
@@ -10577,47 +10232,47 @@ public:
         }
 
         #ifdef PRINT_DEBUG_SIMPLIFICATION
-            cout << "done" << endl;
+            _logFile << "done" << endl;
         #endif
 
 
 	}
 
 	void detectRoundabouts2(u_int32_t nodeIndex_source, u_int64_t maxLength, const vector<UnitigData>& unitigDatas, unordered_set<u_int32_t>& isProcessedNodename){
-        /*
+        
         u_int32_t source_nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex_source);
         
         if(isProcessedNodename.find(source_nodeName) != isProcessedNodename.end()) return;
         isProcessedNodename.insert(source_nodeName);
 
-        //cout << "1" << endl;
+        //_logFile << "1" << endl;
 
         unordered_set<u_int32_t> readpathNodeNames;
         extractReadpathSubgraph(source_nodeName, unitigDatas, readpathNodeNames);
 
-        //cout << "2" << endl;
+        //_logFile << "2" << endl;
         GraphSimplify* graph = new GraphSimplify(this, readpathNodeNames);
         
-        //cout << "3" << endl;
+        //_logFile << "3" << endl;
         unordered_set<u_int32_t> bubbleNodeNames;
         graph->detectBubbles(this, readpathNodeNames, maxLength, unitigDatas, bubbleNodeNames);
 
-        //cout << "4" << endl;
+        //_logFile << "4" << endl;
         for(u_int32_t nodeName : bubbleNodeNames){
             _isNodenameRoundabout.insert(nodeName);
         }
 
-        //cout << "5" << endl;
+        //_logFile << "5" << endl;
         delete graph;
-        //cout << "6" << endl;
-        */
+        //_logFile << "6" << endl;
+        
     }
 
     void extractReadpathSubgraph(u_int32_t source_nodeName, const vector<UnitigData>& unitigDatas, unordered_set<u_int32_t>& component){
 
 		component.clear();
 
-        //cout << "-----" << endl;
+        //_logFile << "-----" << endl;
         const UnitigData& source_readIndexes = unitigDatas[source_nodeName];
 
 		//ofstream file_scc("/home/gats/workspace/run/subgraph.csv");
@@ -10638,12 +10293,12 @@ public:
 
 
             const UnitigData& readIndexes = unitigDatas[nodeName];
-            //cout << _unitigDatas2[unitigIndex]._readIndexes.size() << endl;
+            //_logFile << _unitigDatas2[unitigIndex]._readIndexes.size() << endl;
 
             u_int32_t nbSharedReads = Utils::computeSharedReads(source_readIndexes, readIndexes);
-            //cout << nbSharedReads << endl;
-            //cout << BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex]._endNode) << " " << nbSharedReads << endl;
-            //cout << "Shared reads: " << nbSharedReads << " " << readIndexes._readIndexes.size() << " " << source_readIndexes._readIndexes.size() << endl;
+            //_logFile << nbSharedReads << endl;
+            //_logFile << BiGraph::nodeIndex_to_nodeName(_unitigs[unitigIndex]._endNode) << " " << nbSharedReads << endl;
+            //_logFile << "Shared reads: " << nbSharedReads << " " << readIndexes._readIndexes.size() << " " << source_readIndexes._readIndexes.size() << endl;
             if(nbSharedReads <= 1) continue;
 
             const Unitig& unitig = nodeIndex_to_unitig(BiGraph::nodeName_to_nodeIndex(nodeName, false));
@@ -10691,7 +10346,7 @@ public:
         //file_scc.close();
 
     }
-
+    */
 
     struct UnitigOri{
         u_int32_t _unitigIndex;
@@ -10741,7 +10396,7 @@ public:
 
     void saveUnitigGraph(const string& outputFilename, MDBG* mdbg, size_t minimizerSize, size_t nbCores, bool isCleanedGraph){
 
-        cout << "Saving unitig graph: " << outputFilename << endl;
+        _logFile << "Saving unitig graph: " << outputFilename << endl;
         
         nbCores = 1;
 		unordered_set<u_int32_t> writtenUnitigs;
@@ -10751,7 +10406,7 @@ public:
         ofstream file_nodeNameToUnitigIndex(_outputDir +  "/nodeName_to_unitigIndex.bin");
         //u_int32_t unitigIndex_source = -1;
 
-        //cout << _unitigs.size() << endl;
+        //_logFile << _unitigs.size() << endl;
         for(const Unitig& u: _unitigs){
             if(u._startNode == -1) continue;
 
@@ -10761,10 +10416,10 @@ public:
 			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._startNode));
 			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
 
-            //cout << "line" << endl;
+            //_logFile << "line" << endl;
 
             //if(_contigFeature == nullptr) outputFile << "S" << "\t" << u._index << "\t" << "*" << "\t" << "LN:i:600" << "\t" << 'dp:i:39' << endl;
-            //cout << "Select: " << u._index << " " << u._nbNodes << endl;
+            //_logFile << "Select: " << u._index << " " << u._nbNodes << endl;
             selectedUnitigIndex.insert(u._index);
 
             for(u_int32_t nodeIndex : u._nodes){
@@ -10779,10 +10434,10 @@ public:
                 if(u._index == 448){
                     vector<u_int32_t> succ;
                     getPredecessors(u._startNode, 0, succ);
-                    cout << succ.size() << endl;
+                    _logFile << succ.size() << endl;
                     getSuccessors(u._endNode, 0, succ);
-                    cout << succ.size() << endl;
-                    cout << BiGraph::nodeIndex_to_nodeName(u._startNode) << " " << BiGraph::nodeIndex_to_nodeName(u._endNode) << endl;
+                    _logFile << succ.size() << endl;
+                    _logFile << BiGraph::nodeIndex_to_nodeName(u._startNode) << " " << BiGraph::nodeIndex_to_nodeName(u._endNode) << endl;
                     getchar();
                 }
             }
@@ -10805,7 +10460,7 @@ public:
             unordered_set<u_int32_t> linkedUnitigIndex;
             unordered_set<DbgEdge, hash_pair> isEdge;
             unordered_set<u_int32_t> isVisited;
-            //cout << outputFilename << endl;
+            //_logFile << outputFilename << endl;
             //outputFile << "lala" << endl;
             
 
@@ -10896,7 +10551,7 @@ public:
                     
 
                     //if(unitigIndex == 452){
-                    //    cout << successors.size() << " " << predecessors.size() << endl;
+                    //    _logFile << successors.size() << " " << predecessors.size() << endl;
                     //}
 
                 }
@@ -10907,6 +10562,7 @@ public:
             outputFile.close();
         //}
         //else{
+        /*
         if(_contigFeature != nullptr){
             if(isCleanedGraph){
 
@@ -10945,31 +10601,7 @@ public:
 
                 }
 
-                /*
-                cout << coloredUnitigs.size() << endl;
-                for(u_int32_t unitigIndex : selectedUnitigIndex){
-                    if(coloredUnitigs.find(unitigIndex) == coloredUnitigs.end()) cout << unitigIndex << " " << _unitigs[unitigIndex]._length << endl;
-                    if(unitigIndex == 192){
-                        for(u_int32_t nodeIndex : _unitigs[unitigIndex]._nodes){
-                            //u_int32_t nodeIndex = _unitigs[unitigIndex]._nodes[_unitigs[unitigIndex]._nbNodes];
-                            u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
-                            cout << nodeName << endl;
-                            for(auto& it : mdbg->_dbg_nodes){
-                                if (it.second._index == nodeName){
-                                    cout << it.second._abundance << endl;
-                                    cout << it.first._kmers[0] << " " << it.first._kmers[1] << " " << it.first._kmers[2] << endl;
-                                      
-                                    if(it.first._kmers[0] == 4901087538459952 && it.first._kmers[1] == 14618695441502469 && it.first._kmers[2] == 79737352576542472){
-                                    //if(it.first._kmers[0] == 66918863945726617 && it.first._kmers[1] == 46622693399843280 && it.first._kmers[2] == 91239340561015544){
-                                        getchar();
-                                        //getchar();
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                */
+
                 
 
                 outputFileContigColor.close();
@@ -11010,12 +10642,13 @@ public:
                 outputFileContigPath.close();
 
 
-                //cout << "lala" << endl;
+                //_logFile << "lala" << endl;
                 //getchar();
             }
         }
+        */
 
-        cout << "done" << endl;
+        _logFile << "done" << endl;
         //getchar();
 
     }
@@ -11127,7 +10760,7 @@ public:
 
             size_t i=0;
 
-            //cout << it.first << " " << it.second.size() << endl;
+            //_logFile << it.first << " " << it.second.size() << endl;
 
 			for(u_int64_t readIndex : it.second){
 				if(i==0){
@@ -11147,7 +10780,7 @@ public:
         _unitigIndex_to_readIndexes.clear();
         _mdbg = nullptr;
 
-        //cout << _unitigs[8372]._abundance << " " << _unitigs[8372]._nbNodes << endl;
+        //_logFile << _unitigs[8372]._abundance << " " << _unitigs[8372]._nbNodes << endl;
 	}
     */
 

@@ -10,7 +10,7 @@ CreateMdbg::CreateMdbg () : Tool()
 
 void CreateMdbg::parseArgs(int argc, char* argv[]){
 
-
+	
 	args::ArgumentParser parser("", ""); //"This is a test program.", "This goes after the options."
 	args::Positional<std::string> arg_outputDir(parser, "outputDir", "Output dir", args::Options::Required);
 	//args::PositionalList<std::string> arg_readFilenames(parser, "reads", "Input filename(s) (separated by space)", args::Options::Required);
@@ -35,13 +35,13 @@ void CreateMdbg::parseArgs(int argc, char* argv[]){
 	}
 	catch (const std::exception& e)
 	{
-		std::cout << parser;
-		std::cout << e.what() << endl;
+		cerr << parser;
+		cerr << e.what() << endl;
 		exit(0);
 	}
 
 	if(arg_help){
-		std::cout << parser;
+		cerr << parser;
 		exit(0);
 	}
 
@@ -119,14 +119,16 @@ void CreateMdbg::parseArgs(int argc, char* argv[]){
 	gzread(file_parameters, (char*)&_kminmerSizePrev, sizeof(_kminmerSizePrev));
 	gzclose(file_parameters);
 
+	openLogFile(_outputDir);
 
-	cout << endl;
-	cout << "Contig filename: " << _filename_inputContigs << endl;
-	cout << "Output dir: " << _outputDir << endl;
-	cout << "Minimizer length: " << _minimizerSize << endl;
-	cout << "Kminmer length: " << _kminmerSize << endl;
-	cout << "Density: " << _minimizerDensity << endl;
-	cout << endl;
+
+	_logFile << endl;
+	_logFile << "Contig filename: " << _filename_inputContigs << endl;
+	_logFile << "Output dir: " << _outputDir << endl;
+	_logFile << "Minimizer length: " << _minimizerSize << endl;
+	_logFile << "Kminmer length: " << _kminmerSize << endl;
+	_logFile << "Density: " << _minimizerDensity << endl;
+	_logFile << endl;
 
 	//_inputDir = getInput()->get(STR_INPUT_DIR) ? getInput()->getStr(STR_INPUT_DIR) : "";
 	//_input_extractKminmers= getInput()->get(STR_INPUT_EXTRACT_KMINMERS) ? getInput()->getStr(STR_INPUT_EXTRACT_KMINMERS) : "";
@@ -185,7 +187,7 @@ void CreateMdbg::execute (){
 
 	//_file_noKminmerReads.close();
 
-
+	closeLogFile();
 }
 
 
@@ -275,7 +277,7 @@ void CreateMdbg::createMDBG (){
 	
 	//_kminmerFile = ofstream(_outputDir + "/kminmerData_min.txt");
 
-	cout << "Building kminmer graph" << endl;
+	_logFile << "Building kminmer graph" << endl;
 
 	_parsingContigs = false;
 	
@@ -286,14 +288,14 @@ void CreateMdbg::createMDBG (){
 		usePos = false;
 		inputFilename_min = _outputDir + "/read_data_init.txt";
 
-		cout << "Filling bloom filter" << endl;
+		_logFile << "Filling bloom filter" << endl;
 		_nbSolidKminmers = 0;
 		//KminmerParserParallel parser(inputFilename_min, _minimizerSize, _kminmerSize, usePos, _nbCores);
 		//parser.parse(FillBloomFilter(*this));
-		cout << "Solid kminmers: " << _nbSolidKminmers << endl;
+		_logFile << "Solid kminmers: " << _nbSolidKminmers << endl;
 		//getchar();
 		
-		cout << "Building mdbg" << endl;
+		_logFile << "Building mdbg" << endl;
 		KminmerParserParallel parser2(inputFilename_min, _minimizerSize, _kminmerSize, usePos, true, _nbCores);
 		parser2.parse(IndexKminmerFunctor(*this, false));
 		//auto fp = std::bind(&CreateMdbg::createMDBG_collectKminmers_minspace_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
@@ -332,11 +334,11 @@ void CreateMdbg::createMDBG (){
 		//KminmerParserParallel parser4(filename_contigs, _minimizerSize, _kminmerSizePrev, false, false, 1);
 		//parser4.parse(IndexContigFunctor(*this));
 
-		cout << "Filling bloom filter" << endl;
+		_logFile << "Filling bloom filter" << endl;
 		//KminmerParserParallel parser(filename_uncorrectedReads, _minimizerSize, _kminmerSize, false, _nbCores);
 		//parser.parse(FillBloomFilter(*this));
 
-		cout << "Building mdbg" << endl;
+		_logFile << "Building mdbg" << endl;
 		KminmerParserParallel parser2(filename_uncorrectedReads, _minimizerSize, _kminmerSize, false, true, _nbCores);
 		//parser2.parse(FilterKminmerFunctor2(*this));
 		parser2.parse(IndexKminmerFunctor(*this, false));
@@ -349,7 +351,7 @@ void CreateMdbg::createMDBG (){
 	}
 
 	auto stop = high_resolution_clock::now();
-	cout << "Duration: " << duration_cast<seconds>(stop - start).count() << endl;
+	_logFile << "Duration: " << duration_cast<seconds>(stop - start).count() << endl;
 	//cout << _mdbg->_dbg_nodes.size() << endl;
 	
 	
@@ -375,8 +377,8 @@ void CreateMdbg::createMDBG (){
 	}
 
 
-	cout << "Nb kminmers (reads): " << _kminmerExist.size() << endl;
-	cout << "Nb solid kminmers: " << _mdbg->_dbg_nodes.size() << endl;
+	_logFile << "Nb kminmers (reads): " << _kminmerExist.size() << endl;
+	_logFile << "Nb solid kminmers: " << _mdbg->_dbg_nodes.size() << endl;
 	
 	_kminmerExist.clear();
 	_minimizerCounts.clear();
@@ -428,7 +430,7 @@ static bool KmerVecComparator(const KmerVecSorterData &a, const KmerVecSorterDat
 void CreateMdbg::createGfa(){
 
 	u_int32_t nbNodes = _mdbg->_dbg_nodes.size();
-	cout << "Dumping mdbg nodes" << endl;
+	_logFile << "Dumping mdbg nodes" << endl;
 	_mdbg->dump(_outputDir + "/kminmerData_min.txt");
 
 
@@ -439,7 +441,7 @@ void CreateMdbg::createGfa(){
 
 
 
-	//cout << "Cleaning repeats..." << endl;
+	//_logFile << "Cleaning repeats..." << endl;
 
 	/*
 	vector<KmerVecSorterData> kmerVecs;
@@ -630,15 +632,15 @@ void CreateMdbg::createGfa(){
 	//for(const auto& it : _mdbg->_dbg_nodes){
 	//	keys.push_back(it.first);
 	//}
-	cout << "Computing deterministic node index" << endl;
+	_logFile << "Computing deterministic node index" << endl;
 	computeDeterministicNodeNames();
 
 
-	cout << "Indexing edges" << endl;
+	_logFile << "Indexing edges" << endl;
 
 	indexEdges();
 	
-	cout << "Computing edges" << endl;
+	_logFile << "Computing edges" << endl;
 
 	computeEdges();
 
@@ -664,8 +666,8 @@ void CreateMdbg::createGfa(){
 	_outputFileGfa.close();
 	output_file_gfa_debug.close();
 	
-	cout << "Nb nodes: " << nbNodes  << endl;
-	cout << "Nb edges: " << _nbEdges << endl;
+	_logFile << "Nb nodes: " << nbNodes  << endl;
+	_logFile << "Nb edges: " << _nbEdges << endl;
 
 
 	

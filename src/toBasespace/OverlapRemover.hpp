@@ -14,8 +14,9 @@ public:
 	string _inputDir;
 	string _inputFilenameContig;
 	size_t _kminmerSize;
+	ofstream& _logFile;
 
-	OverlapRemover(const string& inputDir, const string& inputFilenameContig, size_t kminmerSize){
+	OverlapRemover(const string& inputDir, const string& inputFilenameContig, size_t kminmerSize, ofstream& logFile) : _logFile(logFile){
 		_inputDir = inputDir;
 		_inputFilenameContig = inputFilenameContig;
 		_kminmerSize = kminmerSize-1;
@@ -105,10 +106,10 @@ public:
 			for(size_t i=0; i<_contigs.size(); i++){
 				if(_contigs[i]._minimizers.size() == 0) continue;
 				for(u_int64_t m : _contigs[i]._minimizers){
-					cout << m << " ";
+					_logFile << m << " ";
 				}
-				cout << endl;
-				//cout << _contigs[i]._contigIndex << " " << _contigs[i]._minimizers.size() << endl;
+				_logFile << endl;
+				//_logFile << _contigs[i]._contigIndex << " " << _contigs[i]._minimizers.size() << endl;
 			}
 			*/
 
@@ -141,7 +142,7 @@ public:
 				contigIndex += 1;
 			}
 
-			cout << "Nb contigs: " << contigIndex << endl;
+			_logFile << "Nb contigs: " << contigIndex << endl;
 		
 			//getchar();
 		}
@@ -159,7 +160,7 @@ public:
 			outputFile.write((const char*)&_contigs[i].isCircular, sizeof(_contigs[i].isCircular));
 			outputFile.write((const char*)&_contigs[i]._minimizers[0], contigSize*sizeof(u_int64_t));
 
-			//cout << contigSize << endl;
+			//_logFile << contigSize << endl;
 			nbContigs += 1;
 		}
 		outputFile.close();
@@ -167,7 +168,7 @@ public:
 		fs::remove(_inputFilenameContig);
 		fs::rename(_inputFilenameContig + ".nooverlaps", _inputFilenameContig);
 
-		cout << nbContigs << endl;
+		_logFile << nbContigs << endl;
 		//getchar();
 
 
@@ -203,7 +204,7 @@ public:
 
 	void indexKminmers(){
 
-		cout << "Indexing kminmers" << endl;
+		_logFile << "Indexing kminmers" << endl;
 
 		_kminmerID = 0;
 
@@ -227,7 +228,7 @@ public:
 
 	void indexContigs(){
 
-		cout << "Indexing contigs" << endl;
+		_logFile << "Indexing contigs" << endl;
 
 		KminmerParser parser(_inputFilenameContig, -1, _kminmerSize, false, false);
 		auto fp = std::bind(&OverlapRemover::indexContigs_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5);
@@ -264,12 +265,12 @@ public:
 	void removeOverlapsSelf(){
 
 		//isContigRemoved.resize(_contigs.size(), false);
-		cout << "Removing self overlaps: " << _contigs.size()<< endl;
+		_logFile << "Removing self overlaps: " << _contigs.size()<< endl;
 
 		//while(true){
 
 			
-			//cout << "loop" << endl;
+			//_logFile << "loop" << endl;
 
 		//std::sort(_contigs.begin(), _contigs.end(), ContigComparator_ByLength);
 		//bool isModification = false;
@@ -278,8 +279,8 @@ public:
 		for(long i=0; i<_contigs.size(); i++){
 
 			Contig& contig = _contigs[i];
-			//cout << "---------------------" << endl;
-			//cout << i << " " << contig._minimizers.size() << endl;
+			//_logFile << "---------------------" << endl;
+			//_logFile << i << " " << contig._minimizers.size() << endl;
 
 			if(contig._minimizers.size() == 0) continue;
 
@@ -288,25 +289,25 @@ public:
 			if(n <= 0) continue;
 			
 
-			//cout << "lala1: " << n << endl;
+			//_logFile << "lala1: " << n << endl;
 			
 			contig._kminmers.resize(contig._kminmers.size()-n);
-			//cout << contig._minimizers.size() << endl;
+			//_logFile << contig._minimizers.size() << endl;
 			contig._minimizers.resize(contig._minimizers.size()-n);
 
-			//cout << "lala2: " << longestPrefixSuffix(contig) << endl;
+			//_logFile << "lala2: " << longestPrefixSuffix(contig) << endl;
 		}
 	}
 
 	bool removeOverlaps(){
 
 		//isContigRemoved.resize(_contigs.size(), false);
-		cout << "detecting overlaps" << endl;
+		_logFile << "detecting overlaps" << endl;
 
 		//while(true){
 
 			
-			//cout << "loop" << endl;
+			//_logFile << "loop" << endl;
 
 		std::sort(_contigs.begin(), _contigs.end(), ContigComparator_ByLength);
 		bool isModification = false;
@@ -315,27 +316,27 @@ public:
 		for(long i=0; i<_contigs.size(); i++){
 
 			Contig& contig = _contigs[i];
-			//cout << "---------------------" << endl;
-			//cout << i << " " << contig._minimizers.size() << endl;
+			//_logFile << "---------------------" << endl;
+			//_logFile << i << " " << contig._minimizers.size() << endl;
 
 			if(contig._minimizers.size() == 0) continue;
 
 
 
-			//cout << "-------" << endl;
+			//_logFile << "-------" << endl;
 			//for(u_int32_t nodeName : contig._kminmers){
-			//	cout << nodeName << " ";
+			//	_logFile << nodeName << " ";
 			//}
-			//cout << endl;
-			//cout << contig._kminmers.size() << endl;
+			//_logFile << endl;
+			//_logFile << contig._kminmers.size() << endl;
 
 			//size_t contigSize = contig._minimizers.size();
 			u_int64_t overlapSizeLeft = computeOverlapSize_left(contig);
-			//cout << "done -----" << endl;
+			//_logFile << "done -----" << endl;
 
 			
 			u_int64_t overlapSizeRight = computeOverlapSize_right(contig);
-			//cout << overlapSizeLeft << " " << overlapSizeRight << endl;
+			//_logFile << overlapSizeLeft << " " << overlapSizeRight << endl;
 
 			if(contig._minimizers.size() > 1000) continue;
 			//u_int64_t overlapTotalMin = 0;
@@ -353,14 +354,14 @@ public:
 			}
 			else if(overlapSizeLeft + overlapSizeRight >= contig._kminmers.size()){//} || overlapTotalMin >= contig._minimizers.size()){
 
-				//cout << "remove total" << endl;
+				//_logFile << "remove total" << endl;
 
 				isModification = true;
 				for(size_t i=0; i<contig._kminmers.size(); i++){
 					
 					for(KminmerIndex& mIndex : _kminmerIndex[contig._kminmers[i]]){
 						if(mIndex._contigIndex == contig._contigIndex){//} && mIndex._pos == i){
-							//cout << "Removed: " << mIndex._contigIndex << " " << mIndex._pos << endl;
+							//_logFile << "Removed: " << mIndex._contigIndex << " " << mIndex._pos << endl;
 							mIndex._contigIndex = -1;
 							//mIndex._pos = -1;
 							break;
@@ -372,14 +373,14 @@ public:
 			}
 			else{
 				
-				//cout << "remove left and right" << endl;
+				//_logFile << "remove left and right" << endl;
 
 				isModification = true;
 				for(size_t i=0; i<overlapSizeLeft; i++){
 					
 					for(KminmerIndex& mIndex : _kminmerIndex[contig._kminmers[i]]){
 						if(mIndex._contigIndex == contig._contigIndex){//} && mIndex._pos == i){
-							//cout << "Removed: " << mIndex._contigIndex << " " << mIndex._pos << endl;
+							//_logFile << "Removed: " << mIndex._contigIndex << " " << mIndex._pos << endl;
 							mIndex._contigIndex = -1;
 							//mIndex._pos = -1;
 							break;
@@ -391,10 +392,10 @@ public:
 				for(size_t i=0; i<overlapSizeRight; i++){
 					size_t ii = contig._kminmers.size()-1-i;
 					
-					//cout << contig._minimizers.size()-1-i << " " << m << endl;
+					//_logFile << contig._minimizers.size()-1-i << " " << m << endl;
 					for(KminmerIndex& mIndex : _kminmerIndex[contig._kminmers[ii]]){
 						if(mIndex._contigIndex == contig._contigIndex){//} && mIndex._pos == i){
-							//cout << "Removed: " << mIndex._contigIndex << " " << mIndex._pos << endl;
+							//_logFile << "Removed: " << mIndex._contigIndex << " " << mIndex._pos << endl;
 							mIndex._contigIndex = -1;
 							//mIndex._pos = -1;
 							break;
@@ -404,9 +405,9 @@ public:
 
 				//contig._minimizers.erase(contig._minimizers.begin()+contigSize-overlapSizeRight, contig._minimizers.begin()+contigSize);
 				//for(u_int64_t m : contig._minimizers){
-				//	cout << m << " ";
+				//	_logFile << m << " ";
 				//}
-				//cout << endl;
+				//_logFile << endl;
 
 				
 
@@ -418,16 +419,16 @@ public:
 				if(overlapSizeRight > 0){
 					//overlapSizeRight += (_kminmerSize-1);
 					contig._kminmers.resize(contig._kminmers.size()-overlapSizeRight);
-					//cout << contig._minimizers.size() << endl;
+					//_logFile << contig._minimizers.size() << endl;
 					contig._minimizers.resize(contig._minimizers.size()-overlapSizeRight);
-					//cout << contig._minimizers.size() << endl;
+					//_logFile << contig._minimizers.size() << endl;
 					//contig._minimizers.erase(contig._minimizers.begin()+contig._minimizers.size()-1-overlapSizeRight, contig._minimizers.begin()+contig._minimizers.size()-1);
 				}
-				//cout << "lala: " << contig._minimizers.size() << endl;
+				//_logFile << "lala: " << contig._minimizers.size() << endl;
 				//for(u_int64_t m : contig._minimizers){
-				//	cout << m << " ";
+				//	_logFile << m << " ";
 				//}
-				//cout << endl;
+				//_logFile << endl;
 			}
 
 
@@ -439,13 +440,13 @@ public:
 			}
 			
 			//for(u_int64_t m : contig._minimizers){
-			//	cout << m << " ";
+			//	_logFile << m << " ";
 			//}
-			//cout << endl;
+			//_logFile << endl;
 			//for(u_int32_t m : contig._kminmers){
-			//	cout << m << " ";
+			//	_logFile << m << " ";
 			//}
-			//cout << endl;
+			//_logFile << endl;
 
 			//if(contig._kminmers.size() > 0)	getchar();
 
@@ -476,7 +477,7 @@ public:
 				}
 			}
 
-			//cout << "pos: " << p << endl;
+			//_logFile << "pos: " << p << endl;
 
 			
 			if(p > 0){
@@ -486,22 +487,22 @@ public:
 				std::sort(nextContigIndex.begin(), nextContigIndex.end(), KminmerIndexComparator);
 
 				//for(const MinimizerIndex& mIndex : currentContigIndex){
-				//	cout << mIndex._contigIndex << " " << mIndex._pos << endl;
+				//	_logFile << mIndex._contigIndex << " " << mIndex._pos << endl;
 				//}
 				//for(const MinimizerIndex& mIndex : nextContigIndex){
-				//	cout << mIndex._contigIndex << " " << mIndex._pos << endl;
+				//	_logFile << mIndex._contigIndex << " " << mIndex._pos << endl;
 				//}
 
 				size_t i=0;
 				size_t j=0;
 				while(i < currentContigIndex.size() && j < nextContigIndex.size()){
 
-					//cout << p << " " << currentContigIndex[i]._contigIndex << " " << nextContigIndex[j]._contigIndex << endl;
+					//_logFile << p << " " << currentContigIndex[i]._contigIndex << " " << nextContigIndex[j]._contigIndex << endl;
 
 					if(currentContigIndex[i]._contigIndex == nextContigIndex[j]._contigIndex){
 
 						//if(contig._minimizers.size() > 1000){
-						//	cout << p << " " << nextContigIndex[j]._contigIndex << endl;
+						//	_logFile << p << " " << nextContigIndex[j]._contigIndex << endl;
 						//}
 
 						sharedContigIndexValid.push_back(nextContigIndex[j]);
@@ -554,7 +555,7 @@ public:
 				}
 			}
 
-			//cout << "pos: " << p << endl;
+			//_logFile << "pos: " << p << endl;
 
 			
 			if(p < firstPos){
@@ -564,17 +565,17 @@ public:
 				std::sort(nextContigIndex.begin(), nextContigIndex.end(), KminmerIndexComparator);
 
 				//for(const MinimizerIndex& mIndex : currentContigIndex){
-				//	cout << mIndex._contigIndex << " " << mIndex._pos << endl;
+				//	_logFile << mIndex._contigIndex << " " << mIndex._pos << endl;
 				//}
 				//for(const MinimizerIndex& mIndex : nextContigIndex){
-				//	cout << mIndex._contigIndex << " " << mIndex._pos << endl;
+				//	_logFile << mIndex._contigIndex << " " << mIndex._pos << endl;
 				//}
 
 				size_t i=0;
 				size_t j=0;
 				while(i < currentContigIndex.size() && j < nextContigIndex.size()){
 
-					//cout << p << " " << currentContigIndex[i]._contigIndex << " " << nextContigIndex[j]._contigIndex << endl;
+					//_logFile << p << " " << currentContigIndex[i]._contigIndex << " " << nextContigIndex[j]._contigIndex << endl;
 
 					if(currentContigIndex[i]._contigIndex == nextContigIndex[j]._contigIndex){
 

@@ -37,7 +37,7 @@ After successful installation, an executable named metaMDBG will appear in build
 	-t            Number of cores [3]
 ```
 
-MetaMDBG will generate polished contigs in outputDir ("contigs_polished.fasta.gz").
+MetaMDBG will generate polished contigs in outputDir (file named "contigs_polished.fasta.gz").
 
 ## Purging strain duplication (experimental)
 

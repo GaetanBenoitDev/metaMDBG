@@ -11,14 +11,14 @@
 #include <sstream>
 #include <unordered_set>
 #include <unordered_map>
-#include <regex>
+//#include <regex>
 #include <algorithm>
 #include <libgen.h>
 #include <set>
 //#include "graph/Graph.hpp"
 #include "graph/GfaParser.hpp"
 #include "graph/GraphSimplify.hpp"
-#include "eval/ContigStatistics.hpp"
+//#include "eval/ContigStatistics.hpp"
 //#include "toBasespace/ToBasespaceOnTheFly.hpp"
 //#include "contigFeatures/ContigFeature.hpp"
 
@@ -109,13 +109,13 @@ public:
 		}
 		catch (const std::exception& e)
 		{
-			std::cout << parser;
-			std::cout << e.what() << endl;
+			cerr << parser;
+			cerr << e.what() << endl;
 			exit(0);
 		}
 
 		if(arg_help){
-			std::cout << parser;
+			cerr << parser;
 			exit(0);
 		}
 
@@ -194,13 +194,15 @@ public:
 		gzread(file_parameters, (char*)&_kminmerOverlapMean, sizeof(_kminmerOverlapMean));
 		gzclose(file_parameters);
 
-		cout << endl;
-		cout << "Input dir: " << _inputDir << endl;
+		openLogFile(_inputDir);
+
+		_logFile << endl;
+		_logFile << "Input dir: " << _inputDir << endl;
 		//cout << "Output filename: " << _outputFilename << endl;
-		cout << "Minimizer length: " << _minimizerSize << endl;
-		cout << "Kminmer length: " << _kminmerSize << endl;
-		cout << "Density: " << _minimizerDensity << endl;
-		cout << endl;
+		_logFile << "Minimizer length: " << _minimizerSize << endl;
+		_logFile << "Kminmer length: " << _kminmerSize << endl;
+		_logFile << "Density: " << _minimizerDensity << endl;
+		_logFile << endl;
 
 		_outputFilename = _inputDir + "/minimizer_contigs.gz";
 		_outputFilename_complete = _inputDir + "/minimizer_contigs_complete.gz";
@@ -240,6 +242,7 @@ public:
 			_mdbg->dump(_inputDir + "/kminmerData_min.txt");
 		//}
 
+		closeLogFile();
 	}
 
 	void loadGraph(){
@@ -275,7 +278,7 @@ public:
             //gfa_filename = _inputDir + "/minimizer_graph_debug.gfa";
 		//}
 		
-		GraphSimplify* graphSimplify = new GraphSimplify(_gfaFilename, _inputDir, 0, _kminmerSize, _nbCores, _kminmerLengthMean, _kminmerOverlapMean);
+		GraphSimplify* graphSimplify = new GraphSimplify(_gfaFilename, _inputDir, 0, _kminmerSize, _nbCores, _kminmerLengthMean, _kminmerOverlapMean, _logFile);
 		_graph = graphSimplify;
 		
 
@@ -1492,12 +1495,12 @@ public:
 		//extractContigKminmers(outputFilename_fasta);
 		//file_asmResult.close();
 		
-		cout << "Nb contigs: " << contigIndex << endl;
-		cout << "Check sum (nb nodes): " << checksum_nbNodes << endl;
-		cout << "Check sum (nodeNames): " << nbNodesCheckSum << endl;
-		cout << "Check sum global: " << checksum_global << endl;
-		cout << "Check sum global (abundance): " << checksum_abundance << endl;
-		cout << "Check sum: " << checkSum << endl;
+		_logFile << "Nb contigs: " << contigIndex << endl;
+		_logFile << "Check sum (nb nodes): " << checksum_nbNodes << endl;
+		_logFile << "Check sum (nodeNames): " << nbNodesCheckSum << endl;
+		_logFile << "Check sum global: " << checksum_global << endl;
+		_logFile << "Check sum global (abundance): " << checksum_abundance << endl;
+		_logFile << "Check sum: " << checkSum << endl;
 		//getchar();
 
 	}

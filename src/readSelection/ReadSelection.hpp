@@ -51,6 +51,7 @@ public:
 
     void execute (){
 		readSelection();
+		closeLogFile();
 	}
 
 	void parseArgs(int argc, char* argv[]){
@@ -68,7 +69,7 @@ public:
 		//;
 
 		if(argc <= 1){
-			cout << options.help() << endl;
+			cerr << options.help() << endl;
 			exit(0);
 		}
 
@@ -85,8 +86,8 @@ public:
 
 		}
 		catch (const std::exception& e){
-			std::cout << options.help() << std::endl;
-			std::cerr << e.what() << std::endl;
+			cerr << options.help() << std::endl;
+			cerr << e.what() << std::endl;
 			std::exit(EXIT_FAILURE);
 		}
 
@@ -98,13 +99,15 @@ public:
 		gzread(file_parameters, (char*)&_minimizerDensity, sizeof(_minimizerDensity));
 		gzclose(file_parameters);
 
-		cout << endl;
-		cout << "Input filename: " << _inputFilename << endl;
-		cout << "Input dir: " << _inputDir << endl;
-		cout << "Minimizer length: " << _minimizerSize << endl;
-		cout << "Kminmer length: " << _kminmerSize << endl;
-		cout << "Density: " << _minimizerDensity << endl;
-		cout << endl;
+		openLogFile(_inputDir);
+
+		_logFile << endl;
+		_logFile << "Input filename: " << _inputFilename << endl;
+		_logFile << "Input dir: " << _inputDir << endl;
+		_logFile << "Minimizer length: " << _minimizerSize << endl;
+		_logFile << "Kminmer length: " << _kminmerSize << endl;
+		_logFile << "Density: " << _minimizerDensity << endl;
+		_logFile << endl;
 
 		_filename_readMinimizers = _outputFilename; //_inputDir + "/read_data.gz";
 	}
@@ -119,11 +122,11 @@ public:
 		//_file_minimizerPos = gzopen(_filename_readMinimizers.c_str(),"wb");
 		
 		//auto fp = std::bind(&ReadSelection::readSelection_read, this, std::placeholders::_1);
-		ReadParserParallel readParser(_inputFilename, false, false, _nbCores);
+		ReadParserParallel readParser(_inputFilename, false, false, _nbCores, _logFile);
 		readParser.parse(ReadSelectionFunctor(*this, _minimizerSize, _minimizerDensity));
 
 		/*
-		cout << _readWriterQueue.size() << endl;
+		_logFile << _readWriterQueue.size() << endl;
 		while(!_readWriterQueue.empty()){
 
 			const ReadWriter& readWriter = _readWriterQueue.top();
@@ -131,7 +134,7 @@ public:
 			if(readWriter._readIndex == _nextReadIndexWriter){
 
 
-				cout << "Writing read (end): " << _nextReadIndexWriter << endl;
+				_logFile << "Writing read (end): " << _nextReadIndexWriter << endl;
 				u_int32_t size = readWriter._minimizers.size();
 				_file_readData.write((const char*)&size, sizeof(size));
 				_file_readData.write((const char*)&readWriter._minimizers[0], size*sizeof(u_int64_t));
@@ -155,7 +158,7 @@ public:
 		#pragma omp critical
 		{
 			_readWriterQueue.push({read._index, minimizers, minimizerQualities});
-			//cout << _readWriterQueue.size() << " " << read._index << " " << _nextReadIndexWriter << endl;
+			//_logFile << _readWriterQueue.size() << " " << read._index << " " << _nextReadIndexWriter << endl;
 
 			while(!_readWriterQueue.empty()){
 
@@ -166,12 +169,12 @@ public:
 					/*
 					for(auto qual : minimizerQualities){
 						if(qual > 100){
-							cout << qual << endl;
+							_logFile << qual << endl;
 							getchar();
 						}
 					}
 					*/
-					//cout << "Writing read: " << _nextReadIndexWriter << endl;
+					//_logFile << "Writing read: " << _nextReadIndexWriter << endl;
 					u_int32_t size = readWriter._minimizers.size();
 					_file_readData.write((const char*)&size, sizeof(size));
 
@@ -189,7 +192,7 @@ public:
 				}
 			}
 			
-			//cout << readIndex << endl;
+			//_logFile << readIndex << endl;
 			//_file_readData.write((const char*)&minimizerPosOffset[0], size*sizeof(u_int16_t));
 		}
 
@@ -233,7 +236,7 @@ public:
 		void operator () (const Read& read) {
 
 			u_int64_t readIndex = read._index;
-			if(readIndex % 100000 == 0) cout << readIndex << endl;
+			if(readIndex % 100000 == 0) _readSelection._logFile << readIndex << endl;
 
 			string rleSequence;
 			vector<u_int64_t> rlePositions;
@@ -245,8 +248,8 @@ public:
 			_minimizerParser->parse(rleSequence, minimizers, minimizers_pos);
 			//_debug_nbMinimizers += minimizers.size();
 
-			//cout << strlen(read->seq.s) << " " << rleSequence.size() << endl;
-			//cout << minimizers.size() << " " << minimizers_pos.size() << endl;
+			//_logFile << strlen(read->seq.s) << " " << rleSequence.size() << endl;
+			//_logFile << minimizers.size() << " " << minimizers_pos.size() << endl;
 			
 			//for(u_int64_t minimizer : minimizers){
 			//	_minimizerCounts[minimizer] += 1;
@@ -279,26 +282,26 @@ public:
 			//gzwrite(_file_readData, (const char*)&size, sizeof(size));
 			//gzwrite(_file_readData, read->seq.s, size);
 
-			//cout << "----" << endl;
+			//_logFile << "----" << endl;
 			
 			/*
 			vector<u_int16_t> minimizerPosOffset;
 
 			if(minimizers.size() > 0){
 				u_int16_t pos = minimizers_pos[0];
-				//cout << pos << endl;
+				//_logFile << pos << endl;
 				minimizerPosOffset.push_back(pos);
 				
 				for(size_t i=1; i<minimizers_pos.size(); i++){
 					u_int16_t posOffset = minimizers_pos[i] - pos;
 					minimizerPosOffset.push_back(posOffset);
 					pos = minimizers_pos[i];
-					//cout << pos << " " << posOffset << endl;
+					//_logFile << pos << " " << posOffset << endl;
 				}
 			}
 			*/
 
-			//cout << read._qual << endl;
+			//_logFile << read._qual << endl;
 			vector<u_int8_t> minimizerQualities;
 			if(read._qual.empty()){
 				for(u_int64_t pos : minimizers_pos){
@@ -309,22 +312,22 @@ public:
 
 				for(u_int64_t pos : minimizers_pos){
 
-					//cout << pos << endl;
+					//_logFile << pos << endl;
 					//double averageQuals_sum = 0;
 					//double averageQuals_n = 0;
 					u_int8_t minQuality = -1;
 
-					//cout << read._qual.size() << pos+_readSelection._minimizerSize << endl;
+					//_logFile << read._qual.size() << pos+_readSelection._minimizerSize << endl;
 					for(size_t i=rlePositions[pos]; i<rlePositions[pos+_readSelection._minimizerSize]; i++){
-						//cout << i << " " << read._qual.size() << endl;
+						//_logFile << i << " " << read._qual.size() << endl;
 						u_int8_t quality = static_cast<u_int8_t>(read._qual[i]) - 33;
 						//averageQuals_sum += quality;
 						//averageQuals_n += 1;
-						//cout << read._qual[i] << " " << to_string(quality) << endl;
+						//_logFile << read._qual[i] << " " << to_string(quality) << endl;
 						if(quality < minQuality){
 							minQuality = quality;
 						}
-						//cout << quality << endl;
+						//_logFile << quality << endl;
 						//getchar();
 					}
 
@@ -339,11 +342,11 @@ public:
 			if(read._index == 32){
 				for(size_t i=0; i<read._qual.size(); i++){
 					u_int8_t quality = static_cast<u_int8_t>(read._qual[i]) - 33;
-					cout << to_string(quality) << " ";
+					_logFile << to_string(quality) << " ";
 				}
-				cout << endl;
-				//cout << minimizers.size() << endl;
-				//cout << read._qual << endl;
+				_logFile << endl;
+				//_logFile << minimizers.size() << endl;
+				//_logFile << read._qual << endl;
 				getchar();
 			}
 			*/

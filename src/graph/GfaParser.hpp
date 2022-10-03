@@ -27,7 +27,7 @@ struct UnitigLength{
 class GfaParser{
 
 public:
-
+    /*
     static AdjGraph* createGraph_lol(const string& filename){
 
         AdjGraph* graph = new AdjGraph();
@@ -142,7 +142,8 @@ public:
 
         return graph;
     }
-
+    */
+   
     static BiGraph* createBiGraph_lol(const string& filename, bool indexSuccessors, u_int32_t nbNodes){
 
         unordered_set<DbgEdge, hash_pair> seenEdges;

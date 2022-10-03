@@ -14,7 +14,7 @@ using namespace std;
 typedef pair<int, int> iPair;
 
 
-
+/*
 static u_int32_t unitigName_to_id(string unitig_name){
     unitig_name.erase(unitig_name.begin());
     unitig_name.erase(unitig_name.begin());
@@ -36,7 +36,7 @@ static string unitigIndex_to_unitigName(u_int32_t unitigIndex){
 
     return unitigName;
 }
-
+*/
 
 struct adjNode {
     u_int32_t val;
@@ -62,7 +62,7 @@ struct AdjNode {
 
 
 
-
+/*
 
 
 class GraphInfo{
@@ -97,48 +97,9 @@ public:
         return _id_to_readIndex[id];
     }
 
-/*
-    void create(vector<GraphNode>* nodesInfos){
-        _unitigs_length.resize(nodesInfos->size(), 0);
-        for(size_t i=0; i<nodesInfos->size(); i++){
-            //cout << (*nodesInfos)[i]._nodeID << " " << (*nodesInfos)[i]._length << endl;
-            _unitigs_length[(*nodesInfos)[i]._nodeID] = (*nodesInfos)[i]._length;
-        }
-    }
-*/
-/*
-    u_int64_t _current_node_id;
-    unordered_map<string, u_int64_t> _name_to_id;
-    vector<string> _id_to_name;
 
-
-    vector<u_int64_t> _unitigs_length;
-
-    void addNode(const string& name){
-        if (_name_to_id.find(name) != _name_to_id.end()) return;
-
-        _name_to_id[name] = _current_node_id;
-        _id_to_name.push_back(name);
-        _current_node_id += 1;
-    }
-
-    u_int64_t name_to_id(const string& name){
-        return _name_to_id[name];
-    }
-
-    string& id_to_name(u_int64_t id){
-        return _id_to_name[id];
-    }
-
-    void create(vector<GraphNode>* nodesInfos){
-        _unitigs_length.resize(nodesInfos->size(), 0);
-        for(size_t i=0; i<nodesInfos->size(); i++){
-            //cout << (*nodesInfos)[i]._nodeID << " " << (*nodesInfos)[i]._length << endl;
-            _unitigs_length[(*nodesInfos)[i]._nodeID] = (*nodesInfos)[i]._length;
-        }
-    }
-    */
 };
+*/
 
 
 
@@ -147,8 +108,7 @@ public:
 
 
 
-
-
+/*
 
 class AdjGraph{
     
@@ -235,14 +195,7 @@ public:
         //    node = node->next;
         //}
 
-        /*
-        collectNeighbors(from, 1, _neighbors);
-        cout << _neighbors.size() << endl;
-        for(u_int32_t n : _neighbors){
-            if(n == to){
-                return false;
-            }
-        }*/
+
 
         //cout << _neighbors.size() << endl;
 
@@ -272,29 +225,7 @@ public:
         //    _nodes[i] = nullptr;
 
         // construct directed graph by adding edges to it
-        /*
-        for (unsigned i = 0; i < _nbEdges; i++)  {
-            int start_ver = (*edges)[i].start_ver;
-            int end_ver = (*edges)[i].end_ver;
-            int weight = (*edges)[i].weight;
-            // insert in the beginning
-            adjNode* newNode = getAdjListNode(end_ver, weight, directionFrom, (*edges)[i].directionTo, (*edges)[i].isBidirection, _nodes[start_ver]);
-             
-            // point head pointer to new node
-            _nodes[start_ver] = newNode;
-        }
 
-        for (unsigned i = 0; i < _nbEdges; i++)  {
-            int start_ver = (*edges)[i].end_ver;
-            int end_ver = (*edges)[i].start_ver;
-            int weight = (*edges)[i].weight;
-            // insert in the beginning
-
-            adjNode* newNode = getAdjListNode(end_ver, weight, (*edges)[i].directionTo, (*edges)[i].directionFrom, true, _nodes[start_ver]);
-             
-            // point head pointer to new node
-            _nodes[start_ver] = newNode;
-        }*/
 
     }
     
@@ -591,87 +522,9 @@ public:
 
 
     }
-    /*
-    // print all adjacent vertices of given vertex
-    //void display_AdjList(adjNode* ptr, int i)
-    void display_AdjList(u_int64_t nodeID){
-        adjNode* node = _nodes[nodeID];
-        while (node != nullptr) {
-            cout << "(" << id_to_name(nodeID) << ", " << id_to_name(node->val)
-                << ", " << node->overlap << ") ";
-            node = node->next;
-        }
-        cout << endl;
-    }
-    */
 
-   /*
-	static bool unitigLength_sorter(GraphNode& x, GraphNode& y) { return x._length > y._length; }
-
-    void getUnitigSortedByLength(vector<GraphNode>& result){
-
-        result.clear();
-
-        //vector<GraphNode> nodes;
-        for(size_t i=0; i<_unitigs_length.size(); i++){
-            result.push_back({i, _unitigs_length[i]});
-        }
-
-	    //std::sort(result.begin(), result.end(), unitigLength_sorter);
-
-        //for(size_t i=0; i<result.size(); i++){
-
-        //    cout << result[i]._nodeID << " " << result[i]._length << endl;
-
-	    //}
-
-
-    }*/
-
-    /*
-    void collectNeighbors(u_int64_t nodeID, int maxDepth, vector<u_int64_t>& neighbors){
-
-        for(size_t i=0; i<_nbNodes; i++){
-            isVisited[i] = false;
-        }
-
-        neighbors.clear();
-        neighbors.push_back(nodeID);
-        isVisited[nodeID] = true;
-        collectNeighbors_aux(nodeID, maxDepth, 0, neighbors, isVisited);
-        //neighbors.erase(neighbors.begin());
-    }
-
-    void collectNeighbors_aux(u_int64_t nodeID, int maxDepth, int currentDepth, vector<u_int64_t>& neighbors, vector<bool>& isVisited){
-        if(currentDepth >= maxDepth) return;
-
-        adjNode* node = _nodes[nodeID];
-        while (node != nullptr) {
-
-            u_int64_t node_neighbor = node->val;
-            //cout << "Neigh: " << node_neighbor << endl;
-
-            if(!isVisited[node->val]){
-                isVisited[node->val] = true;
-                neighbors.push_back(node_neighbor);
-                collectNeighbors_aux(node_neighbor, maxDepth, currentDepth+1, neighbors, isVisited);
-            }
-            //if(find(neighbors.begin(), neighbors.end(), node_neighbor) == neighbors.end()) {
-            //    neighbors.push_back(node_neighbor);
-            //    collectNeighbors_aux(node_neighbor, maxDepth, currentDepth+1, neighbors);
-            //}
-
-            node = node->next;
-        }
-    }
-
-    
-
-
-
-    */
 };
-
+*/
 
 
 /*
@@ -1021,7 +874,7 @@ public:
 
 };
 
-
+/*
 class Graph2{
 
 public:
@@ -1122,7 +975,7 @@ public:
 
 };
 
-
+*/
 /*
 class UnitigGraph{
     
