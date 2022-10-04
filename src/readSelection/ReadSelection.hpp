@@ -21,7 +21,7 @@ public:
     size_t _minimizerSize;
     size_t _kminmerSize;
 	string _filename_readMinimizers;
-	bool _isFirstPass;
+	//bool _isFirstPass;
 	int _nbCores;
 	
 
@@ -56,6 +56,7 @@ public:
 
 	void parseArgs(int argc, char* argv[]){
 
+		/*
 		cxxopts::Options options("Assembly", "");
 		options.add_options()
 		(ARG_INPUT_FILENAME, "", cxxopts::value<string>())
@@ -91,6 +92,45 @@ public:
 			std::exit(EXIT_FAILURE);
 		}
 
+		*/
+
+		args::ArgumentParser parser("readSelection", ""); //"This is a test program.", "This goes after the options."
+		args::Positional<std::string> arg_outputDir(parser, "outputDir", "", args::Options::Required);
+		args::Positional<std::string> arg_outputFilename(parser, "outputFilename", "", args::Options::Required);
+		args::Positional<std::string> arg_inputReadFilename(parser, "inputReadFilename", "", args::Options::Required);
+		//args::Positional<std::string> arg_contigs(parser, "contigs", "", args::Options::Required);
+		//args::PositionalList<std::string> arg_readFilenames(parser, "reads", "Input filename(s) (separated by space)", args::Options::Required);
+		//args::ValueFlag<int> arg_l(parser, "", "Minimizer length", {ARG_MINIMIZER_LENGTH2}, 13);
+		//args::ValueFlag<float> arg_d(parser, "", "Minimizer density", {ARG_MINIMIZER_DENSITY2}, 0.005f);
+		//args::ValueFlag<std::string> arg_contigs(parser, "", "", {ARG_INPUT_FILENAME_CONTIG}, "");
+		args::ValueFlag<int> arg_nbCores(parser, "", "Number of cores", {ARG_NB_CORES2}, NB_CORES_DEFAULT_INT);
+		//args::Flag arg_firstPass(parser, "", "Is first pass of multi-k", {ARG_FIRST_PASS});
+		//args::Flag arg_isFinalAssembly(parser, "", "Is final multi-k pass", {ARG_FINAL});
+		//args::Flag arg_firstPass(parser, "", "Is first pass of multi-k", {ARG_FIRST_PASS});
+		args::Flag arg_help(parser, "", "", {'h', "help"}, args::Options::Hidden);
+		//args::HelpFlag help(parser, "help", "Display this help menu", {'h'});
+		//args::CompletionFlag completion(parser, {"complete"});
+
+		try
+		{
+			parser.ParseCLI(argc, argv);
+		}
+		catch (const std::exception& e)
+		{
+			cerr << parser;
+			cerr << e.what() << endl;
+			exit(0);
+		}
+
+		if(arg_help){
+			cerr << parser;
+			exit(0);
+		}
+
+		_inputDir = args::get(arg_outputDir);
+		_outputFilename = args::get(arg_outputFilename);
+		_inputFilename = args::get(arg_inputReadFilename);
+		_nbCores = args::get(arg_nbCores);
 
 		string filename_parameters = _inputDir + "/parameters.gz";
 		gzFile file_parameters = gzopen(filename_parameters.c_str(),"rb");

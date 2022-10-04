@@ -80,11 +80,11 @@ public:
 		string ARG_CUT_INTERNAL = "cutinternal";
 		string ARG_NO_DUMP= "nodump";
 
-
+		
 		args::ArgumentParser parser("derep", ""); //"This is a test program.", "This goes after the options."
-		args::Positional<std::string> arg_contigs(parser, "contigs", "", args::Options::Required);
-		args::Positional<std::string> arg_outputFilename(parser, "outputFilename", "", args::Options::Required);
-		args::Positional<std::string> arg_outputDir(parser, "outputDir", "", args::Options::Required);
+		args::Positional<std::string> arg_contigs(parser, "contigs", "Input contig filename", args::Options::Required);
+		args::Positional<std::string> arg_outputFilename(parser, "outputFilename", "Output contig filename", args::Options::Required);
+		args::Positional<std::string> arg_outputDir(parser, "outputDir", "Output dir for temporary files", args::Options::Required);
 		//args::Positional<std::string> arg_contigs(parser, "contigs", "", args::Options::Required);
 		//args::PositionalList<std::string> arg_readFilenames(parser, "reads", "Input filename(s) (separated by space)", args::Options::Required);
 		//args::ValueFlag<int> arg_l(parser, "", "Minimizer length", {ARG_MINIMIZER_LENGTH2}, 13);
@@ -133,6 +133,15 @@ public:
 			_cut_contigInternal = true;
 		}
 
+		if (_outputFilename_contigs.find(".gz") == std::string::npos) {
+			_outputFilename_contigs += ".gz";
+		}
+
+
+		if(_inputFilename_contigs == _outputFilename_contigs){
+			cerr << "Output filename == input filename" << endl;
+			exit(0);
+		}
 
 		/*
 		//string ARG_CUT_ENDS = "cutends";
@@ -194,18 +203,22 @@ public:
 		*/
 
 
-		if (_outputFilename_contigs.find(".gz") == std::string::npos) {
-			_outputFilename_contigs += ".gz";
-		}
+
 
 		//fs::path p(_inputFilename_contigs);
 		//while(p.has_extension()){
 		//	p.replace_extension("");
 		//}
 
-		_tmpDir = _outputDir + "/__tmp/";
+		_tmpDir = _outputDir + "/tmp/";
 		if(!fs::exists(_tmpDir)){
 			fs::create_directories(_tmpDir);
+		}
+
+		fs::path outputContigPath(_outputFilename_contigs);
+		string contigDir = outputContigPath.parent_path();
+		if(!fs::exists(contigDir)){
+			fs::create_directories(contigDir);
 		}
 
 		//_outputFilename_contigs = p.string() + "_derep.fasta.gz";
@@ -255,7 +268,7 @@ public:
 		processContigs();
 		
 		dumpDereplicatedContigs();
-		fs::remove_all(_tmpDir);
+		//fs::remove_all(_tmpDir);
 
 		closeLogFile();
 	}
@@ -267,7 +280,7 @@ public:
 		input << _inputFilename_contigs << endl;
 		input.close();
 
-		string command = "minimap2 -m 900 -H -DP --dual=no -I 1G -t " + to_string(_nbCores) + " -x map-hifi " + _inputFilename_contigs + " " + _inputFilename_contigs;
+		string command = "minimap2 -m 500 -H -DP --dual=no -I 1G -t " + to_string(_nbCores) + " " + _inputFilename_contigs + " " + _inputFilename_contigs;
 		command += " > " + _outputFilename_mapping;
 		//command += " | " + _mapperOutputExeFilename + " " + _inputFilename_contigs + " " + inputContigsFilename + " " + _outputFilename_mapping;
 		Utils::executeCommand(command, _outputDir, _logFile);

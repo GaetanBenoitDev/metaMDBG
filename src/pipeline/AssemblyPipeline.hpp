@@ -294,7 +294,7 @@ public:
 		cerr << "Converting reads to minimizers..." << endl;
 
 		//Read selection
-		command = _filename_exe + " readSelection -i " + _inputFilename + " -o " + _tmpDir + " -f " + _tmpDir + "/read_data_init.txt" + " -t " + to_string(_nbCores);
+		command = _filename_exe + " readSelection " + _tmpDir + " " + _tmpDir + "/read_data_init.txt" + " " + _inputFilename + " -t " + to_string(_nbCores);
 		executeCommand(command);
 		
 

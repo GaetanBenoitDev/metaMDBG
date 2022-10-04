@@ -11,6 +11,7 @@ public:
 
 	string _inputFilename_contigs;
 	string _outputFilename_contigs;
+	string _outputDir;
 	string _tmpDir;
 	int _nbCores;
 
@@ -24,6 +25,56 @@ public:
 	void parseArgs(int argc, char* argv[]){
 
 
+		args::ArgumentParser parser("derepOld", ""); //"This is a test program.", "This goes after the options."
+		args::Positional<std::string> arg_contigs(parser, "contigs", "Input contig filename", args::Options::Required);
+		args::Positional<std::string> arg_outputFilename(parser, "outputFilename", "Output contig filename", args::Options::Required);
+		args::Positional<std::string> arg_outputDir(parser, "outputDir", "Output dir for temporary files", args::Options::Required);
+		args::ValueFlag<int> arg_nbCores(parser, "", "Number of cores", {ARG_NB_CORES2}, NB_CORES_DEFAULT_INT);
+		args::Flag arg_help(parser, "", "", {'h', "help"}, args::Options::Hidden);
+
+		try
+		{
+			parser.ParseCLI(argc, argv);
+		}
+		catch (const args::Help&)
+		{
+			cerr << parser;
+			exit(0);
+		}
+		catch (const std::exception& e)
+		{
+			cerr << parser;
+			//_logFile << endl;
+			cerr << e.what() << endl;
+			exit(0);
+		}
+
+		if(arg_help){
+			cerr << parser;
+			exit(0);
+		}
+
+
+
+		_inputFilename_contigs = args::get(arg_contigs);
+		_outputFilename_contigs = args::get(arg_outputFilename);
+		_outputDir = args::get(arg_outputDir);
+		_nbCores = args::get(arg_nbCores);
+
+		if (_outputFilename_contigs.find(".gz") == std::string::npos) {
+			_outputFilename_contigs += ".gz";
+		}
+
+
+		if(_inputFilename_contigs == _outputFilename_contigs){
+			cerr << "Output filename == input filename" << endl;
+			exit(0);
+		}
+		//_tmpDir = _outputDir + "/__tmp_derepOld/";
+
+
+
+		/*
 		cxxopts::Options options("ToBasespace", "");
 		options.add_options()
 		("contigs", "", cxxopts::value<string>())
@@ -54,14 +105,23 @@ public:
 			cerr << e.what() << std::endl;
 			std::exit(EXIT_FAILURE);
 		}
+		*/
 
-		if (_outputFilename_contigs.find(".gz") == std::string::npos) {
-			_outputFilename_contigs += ".gz";
-		}
+		//if (_outputFilename_contigs.find(".gz") == std::string::npos) {
+		//	_outputFilename_contigs += ".gz";
+		//}
 
-		_tmpDir = _tmpDir + "/__tmp/";
+		//_outputFilename_contigs = _outputDir + "/contigs_derepOld.fasta.gz";
+
+		_tmpDir = _outputDir + "/tmp/";
 		if(!fs::exists(_tmpDir)){
 			fs::create_directories(_tmpDir);
+		}
+
+		fs::path outputContigPath(_outputFilename_contigs);
+		string contigDir = outputContigPath.parent_path();
+		if(!fs::exists(contigDir)){
+			fs::create_directories(contigDir);
 		}
 
 		openLogFile(_tmpDir);
@@ -107,7 +167,7 @@ public:
 
 
 		//-N 2 -p 0 --secondary=yes -I 2GB -x map-hifi -c -x asm20
-		string command = "minimap2 --dual=no -H -DP -c -I 100M -t " + to_string(_nbCores) + " " + _inputFilename_contigs + " " + _inputFilename_contigs + " > " + mapFilename;
+		string command = "minimap2 -m 500 --dual=no -H -DP -c -I 100M -t " + to_string(_nbCores) + " " + _inputFilename_contigs + " " + _inputFilename_contigs + " > " + mapFilename;
 		Utils::executeCommand(command, _tmpDir, _logFile);
 
 		//string command = "wfmash " + _inputFilename_contigs + " -t 15   > " + mapFilename; //-l 5000 -p 80

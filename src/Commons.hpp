@@ -1,39 +1,27 @@
 /*
 
-- add "polish" dans les commandes du tool si ça fonctionne bien
-- tester les différents paramètres (surtout minimizer size)
-- dependency: openmp dans readme
+- Polish: utiliser la commande "n" pour limiter la mémoire ou calculer le coverage des contig pour predir ela memory max
+- tester les différents paramètres (surtout minimizer size), puis mettre les bon par défaut
 - afficher performances (time, memory) à la fin de l'execution
 
-TODO:
 - toBasespace: il faudrait utiliser le processus de mapping pour tous les kminmer en fait, pas seulement ceux repeter (ne aps etre repeter dasn les contigs ne veux pas dire que la sequence du kminmer n'est pas ambigue dans les reads)
 
 Paralelisation:
 	- ToBasespace: read indexing phmap
 	- ToMinsapce: phmap
 
-- ajuster valeur par defaut de l (minimizer size, 13 ou 21 a test)
-
 - Polisher:  utiliser gzip pour compresser els sortie de minimap2 (on en aura besoin dans derep je pense) 
-- enlever cxxopts (old arg system)
 
 ContigPolisher:
 	- determiner le coverage d'un contig, utiliser cette valeur pour estimater la memory total du contig _windowByteSize = (contigLength*windowLength*NbWindows) (puis _windowByteSize a enelever)
 	- compress paf (gzip)
 	- read mal mapper sur les bord des contig circulaire (double mapping)
-	- refaire fonctionner le circularize
 
-- logs:
-	- écrire les logs debug dans un fichier dans tmpDir
-	- ajouter une progress bar global
+- ajouter une progress bar global
 
-%TODO: check le papier hifiasm_meta, human samples co-assembly, running metabat only with composition or not
+
 %Hifiasm: meilleur contiguity et assemble mieux les strains, mais trop de memory et time sur gros jeux. Une autre approche bin par species avec MDBG, puis strain deconvolution
 %Mock communities: pas representatif de données réelles niveau composition (strain abondante), grosse couverture
-%MAG: essayer de lancer drep sans clustering des strains ou juste checkm en gros
-%MDBG: beaucoup de contamination à investiguer
-%Metagenome: essayer assemblage d'un jeu simple, puis binning avec tous les jeu HiFi
-%MDBG: detecter circular contigs et indiquer dans header, utiliser le format de header de hifiasm: >s119.ctg000185c, >s2.ctg000186l
 
 */
 
@@ -55,7 +43,7 @@ ContigPolisher:
 #include <fstream>
 #include <filesystem>
 #include <cmath>
-#include "./utils/ArgParse.hpp"
+//#include "./utils/ArgParse.hpp"
 #include "./utils/args.hxx"
 #include <random>
 #include <chrono>
@@ -702,7 +690,10 @@ public:
 
 		int ret = system(command2.c_str());
 		if(ret != 0){
+			logFile.close();
+			cerr << endl;
 			cerr << "Command failed: " << ret << endl;
+			cerr << "Logs: " << outputDir + "/logs.txt";
 			exit(ret);
 		}
 
