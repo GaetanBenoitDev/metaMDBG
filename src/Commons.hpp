@@ -1,7 +1,7 @@
 /*
 
-- Polish: utiliser la commande "n" pour limiter la mémoire ou calculer le coverage des contig pour predir ela memory max
-- tester les différents paramètres (surtout minimizer size), puis mettre les bon par défaut
+- args help: augmenter la largeur du break line
+- check mail chris et lancer ses runs
 - afficher performances (time, memory) à la fin de l'execution
 
 - toBasespace: il faudrait utiliser le processus de mapping pour tous les kminmer en fait, pas seulement ceux repeter (ne aps etre repeter dasn les contigs ne veux pas dire que la sequence du kminmer n'est pas ambigue dans les reads)

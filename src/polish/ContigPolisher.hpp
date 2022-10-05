@@ -123,7 +123,8 @@ public:
 	//unordered_map<u_int64_t, u_int64_t> _contigLength;
 	unordered_map<string, vector<string>> _contigMapLeft;
 	unordered_map<string, vector<string>> _contigMapRight;
-
+	unordered_map<string, vector<u_int32_t>> _contigHitPos;
+	unordered_map<string, u_int32_t> _contigCoverages;
 
 	u_int64_t _checksumWrittenReads;
 
@@ -321,12 +322,6 @@ public:
 
 		_maxMemory = 4000000000ull;
 
-		if(_useQual){
-			_windowByteSize = 20  * ((_windowLength/4) + _windowLength);
-		}
-		else{
-			_windowByteSize = 20  * (_windowLength/4);
-		}
 
 
 
@@ -334,7 +329,7 @@ public:
 
 
 	u_int64_t _currentContigSize;
-	u_int64_t _windowByteSize;
+	//u_int64_t _windowByteSize;
 	//unordered_set<u_int32_t> _validContigIndexes;
 	gzFile _outputContigFile;
 
@@ -359,6 +354,7 @@ public:
 		if(_circularize) executeCircularize();
 		
 		parseAlignments(false);
+		computeContigCoverages();
 		//writeAlignmentBestHits();
 		//parseAlignments(true, false);
 		partitionReads();
@@ -417,6 +413,8 @@ public:
 	}
 
 	void executeCircularize(){
+
+		cerr << "Detecting circular contigs..." << endl;
 
 		indexCircularContigs();
 		indexMappingOnContigEnds();
@@ -688,7 +686,54 @@ public:
 
 	}
 
+	int _contigCoverageWindow = 100;
 
+	void computeContigCoverages(){
+		
+		cerr << "Computing contig coverages..." << endl;
+
+		auto fp = std::bind(&ContigPolisher::computeContigCoverages_setup_read, this, std::placeholders::_1);
+		ReadParser readParser(_inputFilename_contigs, true, false, _logFile);
+		readParser.parse(fp);
+
+
+		for(const auto& it : _alignments){
+
+			const string& contigName = it.second._contigName;
+			vector<u_int32_t>& contigHitPos = _contigHitPos[contigName];
+
+			for(size_t i=it.second._contigStart; i<it.second._contigEnd; i++){
+				if(i%_contigCoverageWindow != 0) continue;
+				//cout << i/_contigCoverageWindow << " " << contigHitPos.size() << endl;
+				contigHitPos[i/_contigCoverageWindow] += 1;
+			}
+
+		}
+
+		for(auto& it : _contigHitPos){
+			//cout << it.first << endl;
+			//for(u_int32_t count : it.second){
+			//	cout << count << " ";
+			//}
+			//cout << endl;
+
+			
+			float coverage = Utils::compute_median(it.second);
+			_contigCoverages[it.first] = coverage;
+
+			_logFile << "Coverage " << it.first << ": " << coverage << endl;
+		}
+
+		_contigHitPos.clear();
+	}
+
+
+	void computeContigCoverages_setup_read(const Read& read){
+
+		int nbCounts = read._seq.size() / _contigCoverageWindow;
+		//cout << Utils::shortenHeader(read._header) << " " << nbCounts << endl;
+		_contigHitPos[Utils::shortenHeader(read._header)].resize(nbCounts, 0);
+	}
 
 	/*
 	u_int64_t loadContig(u_int64_t contigIndex, const string& seq){
@@ -747,7 +792,7 @@ public:
 
 	void partitionReads(){
 
-		_logFile << "Partitionning reads on the disk" << endl;
+		cerr << "Partitionning reads on the disk..." << endl;
 		collectContigStats();
 
         srand(time(NULL));
@@ -759,7 +804,7 @@ public:
 
 		for(const ContigStats& contigStat : _contigStats){
 
-			totalByteSize += computeContigMemory(contigStat._length);
+			totalByteSize += computeContigMemory(contigStat._contigName, contigStat._length);
 			if(totalByteSize >= _maxMemory){
 				_nbPartitions += 1;
 				totalByteSize = 0;
@@ -812,6 +857,7 @@ public:
 		//}
 
 		_contigStats.clear();
+		_contigCoverages.clear();
 
 
 		//vector<vector<u_int32_t>> contigPartitions;
@@ -884,9 +930,22 @@ public:
 		_contigStats.push_back({Utils::shortenHeader(read._header), (u_int32_t)read._seq.size()});
 	}
 
-	u_int64_t computeContigMemory(size_t contigLength){
+	u_int64_t computeContigMemory(const string& contigName, size_t contigLength){
+		
+		u_int64_t windowByteSize = 0;
+		u_int32_t contigCoverage = _contigCoverages[contigName];
+		contigCoverage = max((u_int32_t)1, contigCoverage);
+
+		//cout << contigCoverage << endl;
+		if(_useQual){
+			windowByteSize = contigCoverage  * ((_windowLength/4) + _windowLength);
+		}
+		else{
+			windowByteSize = contigCoverage  * (_windowLength/4);
+		}
+
 		size_t nbWindows = ceil((double)contigLength / (double)_windowLength);
-		return nbWindows * _windowByteSize;
+		return nbWindows * windowByteSize;
 	}
 
 
@@ -988,7 +1047,7 @@ public:
 	void processPartition(u_int32_t partition){
 		_currentPartition = partition;
 		//if(_contigSequences.size() == 0) return;
-		_logFile << "Processing partition: " << _currentPartition << endl;
+		cerr << "Processing partition: " << _currentPartition << "/" << _nbPartitions << endl;
 
 		if(_partitionNbReads[partition] == 0) return;
 
@@ -1060,6 +1119,8 @@ public:
 
 	void mapReads(){
 		
+		cerr << "Mapping reads to contigs..." << endl;
+
 		string readFilenames = "";
 		ReadParser readParser(_inputFilename_reads, false, false, _logFile);
 
