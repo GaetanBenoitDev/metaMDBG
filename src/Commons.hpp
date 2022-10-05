@@ -19,6 +19,7 @@ ContigPolisher:
 
 - ajouter une progress bar global
 
+- recolter les bin complete et faire des run de fastani dessus
 
 %Hifiasm: meilleur contiguity et assemble mieux les strains, mais trop de memory et time sur gros jeux. Une autre approche bin par species avec MDBG, puis strain deconvolution
 %Mock communities: pas representatif de données réelles niveau composition (strain abondante), grosse couverture

@@ -705,7 +705,9 @@ public:
 			for(size_t i=it.second._contigStart; i<it.second._contigEnd; i++){
 				if(i%_contigCoverageWindow != 0) continue;
 				//cout << i/_contigCoverageWindow << " " << contigHitPos.size() << endl;
+				if(i/_contigCoverageWindow >= contigHitPos.size()) continue;
 				contigHitPos[i/_contigCoverageWindow] += 1;
+				//cout << i/_contigCoverageWindow << " " << contigHitPos.size() << endl;
 			}
 
 		}
@@ -1231,7 +1233,7 @@ public:
 
 		_alignments.clear();
 
-		_logFile << "\tParsing alignments" << endl;
+		cerr << "\tParsing alignments..." << endl;
 		/*
 		uint32_t kChunkSize = 1024 * 1024 * 1024;
     	std::vector<std::unique_ptr<Alignment2>> overlaps;
