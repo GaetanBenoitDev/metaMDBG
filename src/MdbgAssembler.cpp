@@ -13,7 +13,7 @@
 //#include "mapping/Mapping.hpp"
 //#include "mapping/Mapping_BinReads.hpp"
 //#include "mapping/Mapping_ContigToMDBG.hpp"
-//#include "mapping/Mapping_BinToMDBG.hpp"
+#include "mapping/Mapping_BinToMDBG.hpp"
 #include "polish/ContigPolisher.hpp"
 #include "polish/PurgeDups.hpp"
 #include "toBasespace/Dereplicater.hpp"
@@ -134,9 +134,9 @@ int main (int argc, char* argv[])
     		//else if(programName == "map-binreads"){
             //    Mapping_BinReads().run (argc, args);
     		//}
-    		//else if(programName == "map-binToMDBG"){
-            //    Mapping_BinToMDBG().run (argc, args);
-    		//}
+    		else if(programName == "map-binToMDBG"){
+                Mapping_BinToMDBG().run (argc, args);
+    		}
     		//else if(programName == "map-contigToMDBG"){
             //    Mapping_ContigToMDBG().run (argc, args);
     		//}

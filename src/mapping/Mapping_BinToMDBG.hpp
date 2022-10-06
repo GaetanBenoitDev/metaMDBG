@@ -28,6 +28,7 @@ public:
 
 	void parseArgs(int argc, char* argv[]){
 
+		/*
 		//_kminmerSize = 4;
 		//_minimizerSize = 21;
 		//_minimizerDensity = 0.05;
@@ -62,6 +63,47 @@ public:
 			std::cerr << e.what() << std::endl;
 			std::exit(EXIT_FAILURE);
 		}
+		*/
+		args::ArgumentParser parser("derep", ""); //"This is a test program.", "This goes after the options."
+		args::Positional<std::string> arg_mdbgDir(parser, "mdbgDir", "", args::Options::Required);
+		args::Positional<std::string> arg_binDir(parser, "binDir", "", args::Options::Required);
+		args::Positional<std::string> arg_outputFilename(parser, "outputFilename", "", args::Options::Required);
+		//args::Positional<std::string> arg_contigs(parser, "contigs", "", args::Options::Required);
+		//args::PositionalList<std::string> arg_readFilenames(parser, "reads", "Input filename(s) (separated by space)", args::Options::Required);
+		//args::ValueFlag<int> arg_l(parser, "", "Minimizer length", {ARG_MINIMIZER_LENGTH2}, 13);
+		//args::ValueFlag<float> arg_d(parser, "", "Minimizer density", {ARG_MINIMIZER_DENSITY2}, 0.005f);
+		//args::ValueFlag<std::string> arg_contigs(parser, "", "", {ARG_INPUT_FILENAME_CONTIG}, "");
+		//args::ValueFlag<int> arg_nbCores(parser, "", "Number of cores", {ARG_NB_CORES2}, NB_CORES_DEFAULT_INT);
+		//args::Flag arg_cutInternal(parser, "", "", {ARG_CUT_INTERNAL});
+		//args::Flag arg_noDump(parser, "", "", {ARG_NO_DUMP});
+		//args::Flag arg_isFinalAssembly(parser, "", "Is final multi-k pass", {ARG_FINAL});
+		//args::Flag arg_firstPass(parser, "", "Is first pass of multi-k", {ARG_FIRST_PASS});
+		args::Flag arg_help(parser, "", "", {'h', "help"}, args::Options::Hidden);
+		//args::HelpFlag help(parser, "help", "Display this help menu", {'h'});
+		//args::CompletionFlag completion(parser, {"complete"});
+
+		try
+		{
+			parser.ParseCLI(argc, argv);
+		}
+		catch (const std::exception& e)
+		{
+			cerr << parser;
+			cerr << e.what() << endl;
+			exit(0);
+		}
+
+		if(arg_help){
+			cerr << parser;
+			exit(0);
+		}
+
+		_mdbgDir = args::get(arg_mdbgDir);
+		_binDir = args::get(arg_binDir);
+		_outputFilename = args::get(arg_outputFilename);
+
+
+
 
 		string filename_parameters = _mdbgDir + "/parameters.gz";
 		gzFile file_parameters = gzopen(filename_parameters.c_str(),"rb");
@@ -91,7 +133,7 @@ public:
 
     void execute (){
 
-		string mdbg_filename = _mdbgDir + "/mdbg_nodes.gz";
+		string mdbg_filename = _mdbgDir + "/kminmerData_min.txt";
 
 		//cout << _gfaFilename << endl;
 		_mdbg = new MDBG(_kminmerSize);
@@ -105,12 +147,12 @@ public:
 		//binReads();
 	}
 
-	unordered_map<KmerVec, vector<u_int32_t>> _kmerVec_to_binIndexes;
+	unordered_map<KmerVec, vector<string>> _kmerVec_to_binIndexes;
 	unordered_map<u_int32_t, vector<u_int32_t>> _nodeName_to_unitigIndexes;
 	//unordered_map<KmerVec, string> _kmervec_to_binIndex;
 
 	EncoderRLE _encoderRLE;
-	u_int32_t _currentBinIndex;
+	//u_int32_t _currentBinIndex;
 
 	void indexNodeNames(){
 
@@ -131,9 +173,11 @@ public:
 		file.close();
 	}
 
+	string _currentBinName;
+
 	void extract_truth_kminmers(){
 
-		_currentBinIndex = 0;
+		//_currentBinIndex = 0;
 		//_outputFile = ofstream(_outputFilename);
 		//_outputFile << "Name,Color" << endl;
 
@@ -146,6 +190,7 @@ public:
 				string filename = p.path();
 				cout << filename << endl;
 
+				_currentBinName = p.path().stem();
 				//string binName = p.path().filename();
 				//binName.erase(binName.find("bin."), 4);
 				//binName.erase(binName.find(ext), ext.size());
@@ -155,7 +200,7 @@ public:
 
 				extract_truth_kminmers_bin(filename);
 
-				_currentBinIndex += 1;
+				//_currentBinIndex += 1;
 			}
 
 		}
@@ -167,7 +212,7 @@ public:
 	void extract_truth_kminmers_bin(const string& binFilename){
 
 		auto fp = std::bind(&Mapping_BinToMDBG::extract_truth_kminmers_bin_read, this, std::placeholders::_1);
-		ReadParser readParser(binFilename, true, false);
+		ReadParser readParser(binFilename, true, false, _logFile);
 		readParser.parse(fp);
 	}
 
@@ -195,7 +240,7 @@ public:
 
 			//cout << i << endl;
 			KmerVec& vec = kminmers[i];
-			_kmerVec_to_binIndexes[vec].push_back(_currentBinIndex);
+			_kmerVec_to_binIndexes[vec].push_back(_currentBinName);
 			//cout << _currentBinIndex << endl;
 			/*
 			cout << "oue?" << endl;
@@ -264,11 +309,11 @@ public:
 				//cout << "?" << endl;
 				if(_kmerVec_to_binIndexes.find(vec) == _kmerVec_to_binIndexes.end()) continue;
 
-				const vector<u_int32_t>& binIndexes = _kmerVec_to_binIndexes[vec];
+				const vector<string>& binIndexes = _kmerVec_to_binIndexes[vec];
 
 				for(u_int32_t unitigIndex : _nodeName_to_unitigIndexes[nodeName]){
-					for(u_int32_t binIndex : binIndexes){
-						_unitigIndex_to_binIndexes[unitigIndex].push_back(binIndex);
+					for(const string& binName : binIndexes){
+						_unitigIndex_to_binIndexes[unitigIndex].push_back(binName);
 					}
 				}
 			}
@@ -276,7 +321,7 @@ public:
 		}
 	}
 	
-	unordered_map<u_int32_t, vector<u_int32_t>> _unitigIndex_to_binIndexes;
+	unordered_map<u_int32_t, vector<string>> _unitigIndex_to_binIndexes;
 	//unordered_map<KmerVec, vector<u_int32_t>> _kmerVec_to_binIndexes;
 	//unordered_map<u_int32_t, vector<u_int32_t>> _nodeName_to_unitigIndexes;
 
@@ -287,18 +332,18 @@ public:
 
 		for(const auto& it : _unitigIndex_to_binIndexes){
 			u_int32_t unitigIndex = it.first;
-			const vector<u_int32_t>& binIndexes = it.second;
+			const vector<string>& binIndexes = it.second;
 
-			unordered_map<u_int32_t, u_int32_t> binCounts;
+			unordered_map<string, u_int32_t> binCounts;
 
-			for(u_int32_t binIndex : binIndexes){
+			for(const string& binIndex : binIndexes){
 				binCounts[binIndex] += 1;
 			}
 
-			u_int32_t maxBinIdnex = -1;
+			string maxBinIdnex = "";
 			u_int32_t maxBinCount = 0;
 			for(const auto& it : binCounts){
-				u_int32_t binIndex = it.first;
+				const string& binIndex = it.first;
 				u_int32_t binCount = it.second;
 
 				if(binCount > maxBinCount){

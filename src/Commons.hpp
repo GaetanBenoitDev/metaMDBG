@@ -3,6 +3,7 @@
 - args help: augmenter la largeur du break line
 - check mail chris et lancer ses runs
 - afficher performances (time, memory) à la fin de l'execution
+- release une version de metaMDBG, celle que j'utilise pour le papier sans changement
 
 - toBasespace: il faudrait utiliser le processus de mapping pour tous les kminmer en fait, pas seulement ceux repeter (ne aps etre repeter dasn les contigs ne veux pas dire que la sequence du kminmer n'est pas ambigue dans les reads)
 
