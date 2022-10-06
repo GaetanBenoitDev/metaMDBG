@@ -190,7 +190,7 @@ public:
 				string filename = p.path();
 				cout << filename << endl;
 
-				_currentBinName = p.path().stem();
+				_currentBinName = p.path().filename();
 				//string binName = p.path().filename();
 				//binName.erase(binName.find("bin."), 4);
 				//binName.erase(binName.find(ext), ext.size());
