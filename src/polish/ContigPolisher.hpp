@@ -321,6 +321,8 @@ public:
 		//_outputFilename_mapping = "/mnt/gpfs/gaetan/tmp/debug_polish/racon_align.paf";
 
 		_maxMemory = 4000000000ull;
+		//_maxMemory = 2000000ull;
+		//_nbCores = 2;
 
 
 
@@ -794,13 +796,63 @@ public:
 
 	void partitionReads(){
 
+
 		cerr << "Partitionning reads on the disk..." << endl;
 		collectContigStats();
 
-        srand(time(NULL));
-        std::random_shuffle(_contigStats.begin(), _contigStats.end());
+		int nbPartitionsInit = max((u_int32_t)1, (u_int32_t)_nbCores);
+		u_int64_t totalByteSize = 0;
+
+		vector<u_int64_t> memoryPerPartitions(nbPartitionsInit, 0);
+
+
+		for(const ContigStats& contigStat : _contigStats){
+
+			int partitionIndex = 0;
+			u_int64_t minMemory = -1;
+
+			for(size_t i=0; i<memoryPerPartitions.size(); i++){
+				if(memoryPerPartitions[i] < minMemory){
+					minMemory = memoryPerPartitions[i];
+					partitionIndex = i;
+				}
+			}
+
+			u_int64_t currentParitionMemory = memoryPerPartitions[partitionIndex];
+			u_int64_t contigMemory = computeContigMemory(contigStat._contigName, contigStat._length);
+
+			if(currentParitionMemory+contigMemory > _maxMemory){
+				memoryPerPartitions.push_back(0);
+				partitionIndex = memoryPerPartitions.size()-1;
+			}
+			
+			memoryPerPartitions[partitionIndex] += contigMemory;
+			_contigToPartition[contigStat._contigName] = partitionIndex;
+			
+			//cout << "-----------" << endl;
+			//for(size_t i=0; i<memoryPerPartitions.size(); i++){
+			//	cout << i << ": " << memoryPerPartitions[i] << endl;
+			//}
+
+			//totalByteSize += 
+			//if(totalByteSize >= _maxMemory){
+			//	_nbPartitions += 1;
+			//	totalByteSize = 0;
+			//}
+			//_contigToPartition[contigIndex] = partition;
+
+		}
+		//if(totalByteSize >= _maxMemory){
+		//	_nbPartitions += 1;
+		//}
+
+
+        //srand(time(NULL));
+        //std::random_shuffle(_contigStats.begin(), _contigStats.end());
 		
+
 		
+		/*
 		u_int64_t totalByteSize = 0;
 		_nbPartitions = 0;
 
@@ -820,9 +872,9 @@ public:
 
 		_nbPartitions = max(_nbPartitions, (u_int32_t)_nbCores);
 		_nbPartitions = min(_nbPartitions, (u_int32_t)_contigStats.size());
-		u_int64_t nbContigsPerPartition = _contigStats.size() / _nbPartitions;
+		//u_int64_t nbContigsPerPartition = _contigStats.size() / _nbPartitions;
 		_logFile << "Nb partitions: " << _nbPartitions << endl;
-		_logFile << "Contigs per partition: " << nbContigsPerPartition << endl;
+		//_logFile << "Contigs per partition: " << nbContigsPerPartition << endl;
 
 		for(u_int32_t i=0; i<_nbPartitions; i++){
 			_partitionNbReads[i] = 0;
@@ -830,6 +882,7 @@ public:
 		}
 
 		u_int32_t partition = 0;
+
 		u_int64_t nbContigs = 0;
 		//totalByteSize = 0;
 
@@ -857,10 +910,28 @@ public:
 		//if(totalByteSize >= _maxMemory){
 		//	_partitionFiles.push_back(new PartitionFile(partition, _tmpDir));
 		//}
+		*/
+
+
+		_nbPartitions = 0;
+		for(size_t i=0; i<memoryPerPartitions.size(); i++){
+			if(memoryPerPartitions[i] > 0){
+				_nbPartitions += 1;
+			}
+		}
+		
+		memoryPerPartitions.size();
+
+		for(u_int32_t i=0; i<_nbPartitions; i++){
+			_partitionNbReads[i] = 0;
+			_partitionFiles.push_back(new PartitionFile(i, _readPartitionDir));
+		}
+
 
 		_contigStats.clear();
 		_contigCoverages.clear();
 
+		_logFile << "Nb partitions: " << _nbPartitions << endl;
 
 		//vector<vector<u_int32_t>> contigPartitions;
 		//vector<u_int32_t> contigPartition;
@@ -1494,7 +1565,7 @@ public:
 
 	void collectWindowSequences(u_int32_t partition){
 		
-		_logFile << "\tCollecting window sequences" << endl;
+		cerr << "\tAligning window sequences" << endl;
 
 		//auto fp = std::bind(&ContigPolisher::collectWindowCopies_read, this, std::placeholders::_1);
 		//ReadParser readParser(_inputFilename_reads, false, false);
@@ -1963,7 +2034,7 @@ public:
 		
 		u_int64_t checksum = 0;
 
-		_logFile << "\tPerform correction" << endl;
+		cerr << "\tPerform correction" << endl;
 
 
 		//vector<u_int32_t> contigIndexes;
