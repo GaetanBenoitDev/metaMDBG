@@ -44,6 +44,7 @@
 #include "../utils/edlib.h"
 #include "../utils/spoa/include/spoa/spoa.hpp"
 #include "../utils/DnaBitset.hpp"
+#include "../utils/PafParser.hpp"
 //#include "../utils/abPOA2/include/abpoa.h"
 //#include "../utils/pafParser/paf_parser.hpp"
 
@@ -94,7 +95,27 @@ class ContigPolisher : public Tool{
 public:
 
 
+	struct Alignment{
+		string _contigName;
+		//u_int64_t _readIndex;
+		bool _strand;
+		u_int32_t _readStart;
+		u_int32_t _readEnd;
+		u_int32_t _contigStart;
+		u_int32_t _contigEnd;
+		float _identity;
+		//float _score;
+		//u_int64_t _length;
+		
+		u_int64_t length() const{
+			return std::max((u_int64_t)(_readEnd - _readStart), (u_int64_t)(_contigEnd - _contigStart));
+		}
 
+		float score() const{
+			return (_contigEnd - _contigStart) * _identity;
+		}
+
+	};
 
 
 	string _inputFilename_reads;
@@ -169,7 +190,6 @@ public:
 
 		char ARG_NB_WINDOWS = 'n';
 		string ARG_NO_QUAL = "noqual";
-		string ARG_CIRCULARIZE = "circ";
 		string filenameExe = argv[0];
 		//_logFile << filenameExe << endl;
 
@@ -325,6 +345,8 @@ public:
 		//_nbCores = 2;
 
 
+		_fields = new vector<string>();
+		_fields_optional = new vector<string>();
 
 
 	}
@@ -355,7 +377,7 @@ public:
 		mapReads();
 		if(_circularize) executeCircularize();
 		
-		parseAlignments(false);
+		parseAlignmentsGz(false);
 		computeContigCoverages();
 		//writeAlignmentBestHits();
 		//parseAlignments(true, false);
@@ -456,149 +478,74 @@ public:
 
 	void indexMappingOnContigEnds(){
 
-		_logFile << "\tParsing alignments" << endl;
+		cerr << "\tParsing alignments" << endl;
+
+		_alignments.clear();
+		//_indexPartitionOnly = indexPartitionOnly;
+
+		PafParser pafParser(_outputFilename_mapping);
+		auto fp = std::bind(&ContigPolisher::indexMappingOnContigEnds_read, this, std::placeholders::_1);
+		pafParser.parse(fp);
+
+	}
+
+	void indexMappingOnContigEnds_read(const string& line){
 
     	long maxHang = 100;
-		
-		/*
-		uint32_t kChunkSize = 1024 * 1024 * 1024;
-    	std::vector<std::unique_ptr<Alignment2>> overlaps;
-
-		//auto oparser = bioparser::Create<bioparser::PafParser<Alignment2>>(_outputFilename_mapping);
-		std::unique_ptr<bioparser::Parser<Alignment2>> oparser;
-    	_logFile << "1" << endl;
-		overlaps = oparser->Parse(kChunkSize, true);
-    	_logFile << "2" << endl;
-
-		_logFile << overlaps.size() << endl;
-
-		return;
-		*/
 
 		double errorThreshold = 0.3;
 
-		vector<string>* fields = new vector<string>();
-		vector<string>* fields_optional = new vector<string>();
-        ifstream infile(_outputFilename_mapping);
+		GfaParser::tokenize(line, _fields, '\t');
 
-		string lineInput;
-		while (getline(infile, lineInput)) {
+		//_logFile << line << endl;
+
+		const string& readName = Utils::shortenHeader((*_fields)[0]);
+		const string& contigName = Utils::shortenHeader((*_fields)[5]);
+		
+
+		u_int32_t readStart = stoull((*_fields)[2]);
+		u_int32_t readEnd = stoull((*_fields)[3]);
+		u_int32_t contigLength = stoull((*_fields)[6]);
+		u_int32_t contigStart = stoull((*_fields)[7]);
+		u_int32_t contigEnd = stoull((*_fields)[8]);
+
+		u_int64_t nbMatches = stoull((*_fields)[9]);
+		u_int64_t alignLength = stoull((*_fields)[10]);
+		u_int64_t queryLength = stoull((*_fields)[1]);
+
+		bool strand = (*_fields)[4] == "-";
+		//float score = (double) nbMatches / (double) queryLength;
+		//float score2 = (double) nbMatches / (double) alignLength;
+
+		//u_int32_t contigIndex = mappingIndex._contigName_to_contigIndex[contigName];
+		//u_int64_t readIndex = mappingIndex._readName_to_readIndex[readName];
+		//u_int64_t length = std::max(readEnd - readStart, contigEnd - contigStart);
+
+		if(alignLength < 3000) return;
+		if (contigLength < _minContigLength) return;
+		//_logFile << contigIndex << " " << readIndex << endl;
+
+		double length = max((double)(contigEnd - contigStart), (double)(readEnd - readStart));
+		double error = 1 - min((double)(contigEnd - contigStart), (double)(readEnd - readStart)) / length;
+		//_logFile << error << " " << errorThreshold << endl;
+		
+		if(error > errorThreshold) return;
+
+
+
+
+		long hangLeft = contigStart;
+		long hangRight = contigLength - contigEnd;
+
+		if (hangLeft < maxHang){
+			_contigMapLeft[contigName].push_back(readName);
 			//_logFile << lineInput << endl;
-			//getchar();
-
-
-			GfaParser::tokenize(lineInput, fields, '\t');
-
-			//_logFile << line << endl;
-
-			const string& readName = Utils::shortenHeader((*fields)[0]);
-			const string& contigName = Utils::shortenHeader((*fields)[5]);
-			
-
-			u_int32_t readStart = stoull((*fields)[2]);
-			u_int32_t readEnd = stoull((*fields)[3]);
-			u_int32_t contigLength = stoull((*fields)[6]);
-			u_int32_t contigStart = stoull((*fields)[7]);
-			u_int32_t contigEnd = stoull((*fields)[8]);
-
-			u_int64_t nbMatches = stoull((*fields)[9]);
-			u_int64_t alignLength = stoull((*fields)[10]);
-			u_int64_t queryLength = stoull((*fields)[1]);
-
-			bool strand = (*fields)[4] == "-";
-			//float score = (double) nbMatches / (double) queryLength;
-			//float score2 = (double) nbMatches / (double) alignLength;
-
-			//u_int32_t contigIndex = mappingIndex._contigName_to_contigIndex[contigName];
-			//u_int64_t readIndex = mappingIndex._readName_to_readIndex[readName];
-			//u_int64_t length = std::max(readEnd - readStart, contigEnd - contigStart);
-
-			if(alignLength < 3000) continue;
-			if (contigLength < _minContigLength) continue;
-			//_logFile << contigIndex << " " << readIndex << endl;
-
-			double length = max((double)(contigEnd - contigStart), (double)(readEnd - readStart));
-			double error = 1 - min((double)(contigEnd - contigStart), (double)(readEnd - readStart)) / length;
-			//_logFile << error << " " << errorThreshold << endl;
-			
-			if(error > errorThreshold) continue;
-
-
-
-
-			long hangLeft = contigStart;
-			long hangRight = contigLength - contigEnd;
-
-			if (hangLeft < maxHang){
-				_contigMapLeft[contigName].push_back(readName);
-				//_logFile << lineInput << endl;
-			}
-			if (hangRight < maxHang){
-				_contigMapRight[contigName].push_back(readName);
-				//_logFile << lineInput << endl;
-			}
-
-
-
+		}
+		if (hangRight < maxHang){
+			_contigMapRight[contigName].push_back(readName);
+			//_logFile << lineInput << endl;
 		}
 
-		infile.close();
-		delete fields;
-		delete fields_optional;
-
-		/*
-		_logFile << "\tIndexing read alignments" << endl;
-
-    	long maxHang = 100;
-        ifstream infile(_outputFilename_mapping);
-
-        std::string line;
-
-		while(true){
-
-			u_int32_t contigIndex;
-			u_int32_t contigLength;
-			u_int64_t readIndex;
-			u_int32_t readStart;
-			u_int32_t readEnd;
-			u_int32_t contigStart;
-			u_int32_t contigEnd;
-			float score;
-			bool strand;
-
-
-
-			infile.read((char*)&contigIndex, sizeof(contigIndex));
-			if(infile.eof()) break;
-			infile.read((char*)&contigLength, sizeof(contigLength));
-			infile.read((char*)&contigStart, sizeof(contigStart));
-			infile.read((char*)&contigEnd, sizeof(contigEnd));
-			infile.read((char*)&readIndex, sizeof(readIndex));
-			infile.read((char*)&readStart, sizeof(readStart));
-			infile.read((char*)&readEnd, sizeof(readEnd));
-			infile.read((char*)&strand, sizeof(strand));
-			infile.read((char*)&score, sizeof(score));
-
-
-			if (contigLength < _minContigLength) continue;
-
-
-			long hangLeft = contigStart;
-			long hangRight = contigLength - contigEnd;
-
-			if (hangLeft < maxHang){
-				_contigMapLeft[contigIndex].push_back(readIndex);
-				//_logFile << readIndex << endl;
-			}
-			if (hangRight < maxHang){
-				_contigMapRight[contigIndex].push_back(readIndex);
-				//_logFile << readIndex << endl;
-			}
-
-		}
-
-		infile.close();
-		*/
 	}
 
 	
@@ -1128,7 +1075,7 @@ public:
 		//indexContigs();
 		clearPass();
 		loadContigs();
-		parseAlignments(true);
+		parseAlignmentsGz(true);
 		//_contigName_to_contigIndex.clear();
 		//_readName_to_readIndex.clear();
 
@@ -1202,8 +1149,8 @@ public:
 		}
 
 		string command = "minimap2 -I 1G -t " + to_string(_nbCores) + " -x map-hifi " + _inputFilename_contigs + " " + readFilenames;
-		command += " > " + _outputFilename_mapping;
-		//command += " | gzip -c - > " c;
+		//command += " > " + _outputFilename_mapping;
+		command += " | gzip -c - > " + _outputFilename_mapping;
 		//command += " | " + _mapperOutputExeFilename + " " + _inputFilename_contigs + " " + _inputFilename_reads + " " + _outputFilename_mapping;
 		Utils::executeCommand(command, _tmpDir, _logFile);
 
@@ -1211,7 +1158,7 @@ public:
 		//minimap2 -x map-hifi ~/workspace/run/overlap_test_201/contigs_47.fasta.gz ~/workspace/data/overlap_test/genome_201_50x/simulatedReads_0.fastq.gz | ./bin/mapper ~/workspace/run/overlap_test_201/contigs_47.fasta.gz ~/workspace/data/overlap_test/genome_201_50x/input.txt ~/workspace/run/overlap_test_201/align.bin
 		
 	}
-
+	/*
 	struct Alignment{
 		string _contigName;
 		//u_int64_t _readIndex;
@@ -1228,6 +1175,7 @@ public:
 		}
 		
 	};
+	*/
 
 	struct AlignmentPartitionning{
 		string _contigName;
@@ -1300,152 +1248,24 @@ public:
 	}
 	*/
 
-	void parseAlignments(bool indexPartitionOnly){
+	vector<string>* _fields;
+	vector<string>* _fields_optional;
 
-		_alignments.clear();
+	void parseAlignmentsGz(bool indexPartitionOnly){
 
 		cerr << "\tParsing alignments..." << endl;
-		/*
-		uint32_t kChunkSize = 1024 * 1024 * 1024;
-    	std::vector<std::unique_ptr<Alignment2>> overlaps;
 
-		//auto oparser = bioparser::Create<bioparser::PafParser<Alignment2>>(_outputFilename_mapping);
-		std::unique_ptr<bioparser::Parser<Alignment2>> oparser;
-    	_logFile << "1" << endl;
-		overlaps = oparser->Parse(kChunkSize, true);
-    	_logFile << "2" << endl;
+		_alignments.clear();
+		//_indexPartitionOnly = indexPartitionOnly;
 
-		_logFile << overlaps.size() << endl;
+		PafParser pafParser(_outputFilename_mapping);
+		auto fp = std::bind(&ContigPolisher::parseAlignmentsGz_read, this, std::placeholders::_1);
+		pafParser.parse(fp);
 
-		return;
-		*/
+		//infile.close();
 
-		double errorThreshold = 0.3;
-
-		vector<string>* fields = new vector<string>();
-		vector<string>* fields_optional = new vector<string>();
-        ifstream infile(_outputFilename_mapping);
-
-		string lineInput;
-		while (getline(infile, lineInput)) {
-			//_logFile << lineInput << endl;
-			//getchar();
-
-
-			GfaParser::tokenize(lineInput, fields, '\t');
-
-			//_logFile << line << endl;
-
-			const string& readName = Utils::shortenHeader((*fields)[0]);
-			const string& contigName = Utils::shortenHeader((*fields)[5]);
-			
-
-			u_int32_t readStart = stoull((*fields)[2]);
-			u_int32_t readEnd = stoull((*fields)[3]);
-			u_int32_t contigLength = stoull((*fields)[6]);
-			u_int32_t contigStart = stoull((*fields)[7]);
-			u_int32_t contigEnd = stoull((*fields)[8]);
-
-			u_int64_t nbMatches = stoull((*fields)[9]);
-			u_int64_t alignLength = stoull((*fields)[10]);
-			u_int64_t queryLength = stoull((*fields)[1]);
-
-			bool strand = (*fields)[4] == "-";
-			//float score = (double) nbMatches / (double) queryLength;
-			//float score2 = (double) nbMatches / (double) alignLength;
-
-			//u_int32_t contigIndex = mappingIndex._contigName_to_contigIndex[contigName];
-			//u_int64_t readIndex = mappingIndex._readName_to_readIndex[readName];
-			//u_int64_t length = std::max(readEnd - readStart, contigEnd - contigStart);
-
-
-			//_logFile << contigIndex << " " << readIndex << endl;
-
-			double length = max((double)(contigEnd - contigStart), (double)(readEnd - readStart));
-			double error = 1 - min((double)(contigEnd - contigStart), (double)(readEnd - readStart)) / length;
-			//_logFile << error << " " << errorThreshold << endl;
-			
-			if(error > errorThreshold) continue;
-
-
-			//if(indexPartitionOnly && _contigSequences.find(contigName) == _contigSequences.end()) continue;
-
-
-			//u_int32_t length = std::max((u_int64_t)(readEnd - readStart), (u_int64_t)(contigEnd - contigStart));
-			Alignment align = {contigName, strand, readStart, readEnd, contigStart, contigEnd}; //, score
-
-			if(_alignments.find(readName) == _alignments.end()){
-				_alignments[readName] = align;
-			}
-			else{
-
-				const Alignment& existingAlign = _alignments[readName];
-
-				if(length >= existingAlign.length()){
-					_alignments[readName] = align;
-				}
-
-				/*
-				bool isUpdated = false;
-				//bool isBetter = false;
-				for(Alignment& al: _alignments[readIndex]){
-					if(al._contigIndex != contigIndex) continue;
-					
-					if(length > al.length()){
-
-						al._contigIndex = contigIndex;
-						al._strand = strand;
-						al._readStart = readStart;
-						al._readEnd = readEnd;
-						al._contigStart = contigStart;
-						al._contigEnd = contigEnd;
-
-						//isBetter = true;
-						isUpdated = true;
-						break;
-						//_alignments[readIndex] = align;
-					}
-				}
-
-				if(!isUpdated){
-					_alignments[readIndex].push_back(align);
-				}
-				*/
-
-				//if(length > _alignments[readIndex].length()){
-				//	_alignments[readIndex] = align;
-				//}
-				
-			}
-
-			/*
-			float divergence = 0;
-			//_logFile << error << endl;
-			//getchar();
-			//_logFile << contigIndex << " " << readIndex << endl;
-
-			for(size_t i=12; i<fields->size(); i++){
-
-				//_logFile << (*fields)[i] << endl;
-
-				GfaParser::tokenize((*fields)[i], fields_optional, ':');
-
-				if((*fields_optional)[0] == "dv"){
-					divergence = std::stof((*fields_optional)[2]);
-				}
-
-			}
-
-
-			float score = divergence; //nbMatches /
-			*/
-
-		}
-
-		infile.close();
-
-		delete fields;
-		delete fields_optional;
+		//delete fields;
+		//delete fields_optional;
 
 		if(indexPartitionOnly){
 			auto it = _alignments.begin();
@@ -1461,6 +1281,133 @@ public:
 				}
 			}
 		}
+
+	}
+
+	//void parseAlignmentsGz_read(const string& line){
+		
+	//}
+
+	void parseAlignmentsGz_read(const string& line){
+
+		//cout << line << endl;
+		double errorThreshold = 0.3;
+		//_logFile << lineInput << endl;
+		//getchar();
+
+
+		GfaParser::tokenize(line, _fields, '\t');
+
+		//_logFile << line << endl;
+
+		const string& readName = Utils::shortenHeader((*_fields)[0]);
+		const string& contigName = Utils::shortenHeader((*_fields)[5]);
+		
+
+		u_int32_t readStart = stoull((*_fields)[2]);
+		u_int32_t readEnd = stoull((*_fields)[3]);
+		u_int32_t contigLength = stoull((*_fields)[6]);
+		u_int32_t contigStart = stoull((*_fields)[7]);
+		u_int32_t contigEnd = stoull((*_fields)[8]);
+
+		u_int64_t nbMatches = stoull((*_fields)[9]);
+		u_int64_t alignLength = stoull((*_fields)[10]);
+		u_int64_t queryLength = stoull((*_fields)[1]);
+
+		bool strand = (*_fields)[4] == "-";
+		//float score = (double) nbMatches / (double) queryLength;
+		//float score2 = (double) nbMatches / (double) alignLength;
+
+		//u_int32_t contigIndex = mappingIndex._contigName_to_contigIndex[contigName];
+		//u_int64_t readIndex = mappingIndex._readName_to_readIndex[readName];
+		//u_int64_t length = std::max(readEnd - readStart, contigEnd - contigStart);
+
+
+		//_logFile << contigIndex << " " << readIndex << endl;
+
+		double length = max((double)(contigEnd - contigStart), (double)(readEnd - readStart));
+		double error = 1 - min((double)(contigEnd - contigStart), (double)(readEnd - readStart)) / length;
+		//_logFile << error << " " << errorThreshold << endl;
+		
+		if(error > errorThreshold) return;
+
+		float identity =  ((float)nbMatches) / alignLength;
+
+		//if(indexPartitionOnly && _contigSequences.find(contigName) == _contigSequences.end()) continue;
+
+
+		//u_int32_t length = std::max((u_int64_t)(readEnd - readStart), (u_int64_t)(contigEnd - contigStart));
+		Alignment align = {contigName, strand, readStart, readEnd, contigStart, contigEnd, identity}; //, score
+
+		if(_alignments.find(readName) == _alignments.end()){
+			_alignments[readName] = align;
+		}
+		else{
+
+			const Alignment& existingAlign = _alignments[readName];
+
+			//if(length >= existingAlign.length()){
+			if(align.score() >= existingAlign.score()){
+				_alignments[readName] = align;
+			}
+
+			/*
+			bool isUpdated = false;
+			//bool isBetter = false;
+			for(Alignment& al: _alignments[readIndex]){
+				if(al._contigIndex != contigIndex) continue;
+				
+				if(length > al.length()){
+
+					al._contigIndex = contigIndex;
+					al._strand = strand;
+					al._readStart = readStart;
+					al._readEnd = readEnd;
+					al._contigStart = contigStart;
+					al._contigEnd = contigEnd;
+
+					//isBetter = true;
+					isUpdated = true;
+					break;
+					//_alignments[readIndex] = align;
+				}
+			}
+
+			if(!isUpdated){
+				_alignments[readIndex].push_back(align);
+			}
+			*/
+
+			//if(length > _alignments[readIndex].length()){
+			//	_alignments[readIndex] = align;
+			//}
+			
+		}
+
+		/*
+		float divergence = 0;
+		//_logFile << error << endl;
+		//getchar();
+		//_logFile << contigIndex << " " << readIndex << endl;
+
+		for(size_t i=12; i<fields->size(); i++){
+
+			//_logFile << (*fields)[i] << endl;
+
+			GfaParser::tokenize((*fields)[i], fields_optional, ':');
+
+			if((*fields_optional)[0] == "dv"){
+				divergence = std::stof((*fields_optional)[2]);
+			}
+
+		}
+
+
+		float score = divergence; //nbMatches /
+		*/
+
+
+
 
 
 		/*

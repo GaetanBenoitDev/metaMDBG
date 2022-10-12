@@ -14,6 +14,9 @@ public:
 	string _outputDir;
 	string _tmpDir;
 	int _nbCores;
+	float _minIdentity;
+	u_int64_t _minCircularLength;
+	u_int64_t _minLinearLength;
 
 	gzFile _outputContigFile;
 
@@ -24,11 +27,17 @@ public:
 
 	void parseArgs(int argc, char* argv[]){
 
-
+		char ARG_MIN_IDENTITY = 'i';
+		char ARG_CIRCULAR_LENGTH = 'c';
+		char ARG_LINEAR_LENGTH = 'l';
+		
 		args::ArgumentParser parser("derepOld", ""); //"This is a test program.", "This goes after the options."
 		args::Positional<std::string> arg_contigs(parser, "contigs", "Input contig filename", args::Options::Required);
 		args::Positional<std::string> arg_outputFilename(parser, "outputFilename", "Output contig filename", args::Options::Required);
 		args::Positional<std::string> arg_outputDir(parser, "outputDir", "Output dir for temporary files", args::Options::Required);
+		args::ValueFlag<float> arg_minIdentity(parser, "", "Minimum identity for strains (0-1)", {ARG_MIN_IDENTITY}, 0.99);
+		args::ValueFlag<int> arg_circular(parser, "", "Leave untouched circular contigs with length > minLength (0 = disable)", {ARG_CIRCULAR_LENGTH}, 0);
+		args::ValueFlag<int> arg_linear(parser, "", "Leave untouched linear contigs with length > minLength (0 = disable)", {ARG_LINEAR_LENGTH}, 0);
 		args::ValueFlag<int> arg_nbCores(parser, "", "Number of cores", {ARG_NB_CORES2}, NB_CORES_DEFAULT_INT);
 		args::Flag arg_help(parser, "", "", {'h', "help"}, args::Options::Hidden);
 
@@ -60,6 +69,10 @@ public:
 		_outputFilename_contigs = args::get(arg_outputFilename);
 		_outputDir = args::get(arg_outputDir);
 		_nbCores = args::get(arg_nbCores);
+		_minCircularLength = args::get(arg_circular);
+		_minLinearLength = args::get(arg_linear);
+		_minIdentity = args::get(arg_minIdentity);
+		_minIdentity *= 100;
 
 		if (_outputFilename_contigs.find(".gz") == std::string::npos) {
 			_outputFilename_contigs += ".gz";
@@ -165,13 +178,29 @@ public:
 
 	void mapContigs(const string& mapFilename){
 
+		//fs::path p(_inputFilename_contigs);
+		//string contigFilenameBgzip = p.parent_path() + "/" ;
+		//cout << contigFilenameBgzip << endl;
+		//cout << p.stem() << endl;
+		//exit(1);
 
-		//-N 2 -p 0 --secondary=yes -I 2GB -x map-hifi -c -x asm20
-		string command = "minimap2 -m 500 --dual=no -H -DP -c -I 100M -t " + to_string(_nbCores) + " " + _inputFilename_contigs + " " + _inputFilename_contigs + " > " + mapFilename;
+		// = _inputFilename_contigs + "_tmpBgZip.fasta.gz";
+
+		string contigFilenameBgzip = _tmpDir + "/__tmp_contigs_bgzip.fasta.gz";
+
+		string command = "zcat " + _inputFilename_contigs + " | bgzip --threads " + to_string(_nbCores) + " -c > " + contigFilenameBgzip;
 		Utils::executeCommand(command, _tmpDir, _logFile);
 
-		//string command = "wfmash " + _inputFilename_contigs + " -t 15   > " + mapFilename; //-l 5000 -p 80
-		//Utils::executeCommand(command, _tmpDir);
+		command = "samtools faidx " + contigFilenameBgzip;
+		Utils::executeCommand(command, _tmpDir, _logFile);
+		//-N 2 -p 0 --secondary=yes -I 2GB -x map-hifi -c -x asm20
+		//string command = "minimap2 -m 500 --dual=no -H -DP -c -I 100M -t " + to_string(_nbCores) + " " + _inputFilename_contigs + " " + _inputFilename_contigs + " > " + mapFilename;
+		//Utils::executeCommand(command, _tmpDir, _logFile);
+
+		command = "wfmash " + contigFilenameBgzip + " -t " + to_string(_nbCores) + " > " + mapFilename; //-l 5000 -p 80
+		Utils::executeCommand(command, _tmpDir, _logFile);
+
+		fs::remove(contigFilenameBgzip);
 	}
 
 
@@ -193,7 +222,8 @@ public:
 			const string& targetName = (*fields)[5];
 			//if(readName == contigName) continue;
 
-
+			bool isQueryCircular = queryName[queryName.size()-1] == 'c';
+			bool isTargetCircular = targetName[targetName.size()-1] == 'c';
 
 			//string search1 ="ctg88963";
 			//string search2 ="ctg89401";
@@ -246,12 +276,45 @@ public:
 
 			u_int64_t nbMatches = stoull((*fields)[9]);
 			double alignLength = stoull((*fields)[10]);
+
+			float identity = 0;
+			//_logFile << error << endl;
+			//getchar();
+			//_logFile << contigIndex << " " << readIndex << endl;
+
+			for(size_t i=12; i<fields->size(); i++){
+
+				//_logFile << (*fields)[i] << endl;
+
+				GfaParser::tokenize((*fields)[i], fields_optional, ':');
+
+				if((*fields_optional)[0] == "gi"){
+					identity = std::stof((*fields_optional)[2]);
+				}
+
+			}
+
+			if((float)identity < (float)_minIdentity) continue;
+			cout << identity << " " << _minIdentity << " " << (identity < _minIdentity) << " " << _minLinearLength << " " << _minCircularLength << endl;
+			
+			
+			
+			if(targetLength < queryLength){
+				if(_minCircularLength > 0 && isTargetCircular && targetLength >= _minCircularLength) continue;
+				if(_minLinearLength > 0 && targetLength >= _minLinearLength) continue;
+				//if(isTargetLinear && targetLength >= _minCircularLength) continue;
+			}
+			else{
+				if(_minCircularLength > 0 && isQueryCircular && queryLength >= _minCircularLength) continue;
+				if(_minLinearLength > 0 && queryLength >= _minLinearLength) continue;
+			}
+			//continue;
 			//u_int64_t ml = nbMatches;
 			//u_int64_t bl = alignLength;
 
 			//_logFile << nbMatches / alignLength << " " << alignLength << endl;
-			if(nbMatches / alignLength < 0.8) continue;
-			if(alignLength < 1000) continue;
+			//if(nbMatches / alignLength < 0.8) continue;
+			//if(alignLength < 1000) continue;
 
 			u_int64_t maxHang = 100;
 
@@ -265,7 +328,7 @@ public:
 			bool isOverlap = false;
 
 			if(targetLength < queryLength){
-				
+
 				u_int64_t hangLeft = targetStart;
 				u_int64_t hangRight = targetLength - targetEnd;
 
@@ -304,8 +367,8 @@ public:
 			//}
 
 
-			if(nbMatches / alignLength < 0.95) continue;
-			if(alignLength < 10000) continue;
+			//if(nbMatches / alignLength < 0.95) continue;
+			//if(alignLength < 10000) continue;
 			//if(targetLength > queryLength) continue;
 
 
@@ -434,6 +497,7 @@ public:
 			//if(read._header == "ctg89567") 
 			_logFile << "-----" << endl;
 			vector<bool> isDuplicated(seq.size(), false);
+			double nbDuplis = 0;
 
 			for(const DbgEdge& duplicatedBound : _duplicationBounds[contigIndex]){
 				//if(read._header == "ctg89567") 
@@ -443,6 +507,11 @@ public:
 				}
 			}
 
+			for(size_t i=0; i<isDuplicated.size(); i++){
+				if(isDuplicated[i]) nbDuplis += 1;
+			}
+
+			cout << read._header << " " << read._seq.size() << " " << (nbDuplis/isDuplicated.size()) << endl;
 			bool isDuplicatedArea = true;
 			long startPos = 0;
 			size_t subSeqIndex = 0;
@@ -529,158 +598,6 @@ public:
 
 
 
-
-
-
-
-/*
-
-bin.1081.derep	TIGR03594	ctg87283_117
-bin.1081.derep	TIGR03594	ctg90059_400
-bin.1081.derep	TIGR00855	ctg89567_224
-bin.1081.derep	TIGR01079	ctg90131_612
-bin.1081.derep	TIGR02075	ctg88674_149
-bin.1081.derep	TIGR00250	ctg90131_424
-bin.1081.derep	TIGR00250	ctg88674_153
-bin.1081.derep	TIGR00967	ctg90131_602
-bin.1081.derep	TIGR00084	ctg87283_55
-bin.1081.derep	TIGR00084	ctg90059_314
-bin.1081.derep	TIGR00922	ctg89567_228
-bin.1081.derep	TIGR03723	ctg89567_233
-bin.1081.derep	TIGR00392	ctg89567_90
-bin.1081.derep	TIGR00329	ctg89567_233
-bin.1081.derep	TIGR00019	ctg89567_336
-bin.1081.derep	TIGR00019	ctg86936_63
-bin.1081.derep	TIGR03263	ctg89401_340
-bin.1081.derep	TIGR00344	ctg89567_136
-bin.1081.derep	TIGR00810	ctg85082_33
-bin.1081.derep	TIGR00810	ctg89567_52
-bin.1081.derep	TIGR00460	ctg90059_942
-bin.1081.derep	TIGR00460	ctg89441_25
-bin.1081.derep	TIGR00459	ctg89401_80
-bin.1081.derep	TIGR02432	ctg89096_72
-bin.1081.derep	TIGR02432	ctg90131_1040
-bin.1081.derep	TIGR00755	ctg89567_107
-bin.1081.derep	TIGR00615	ctg89401_88
-bin.1081.derep	PF00318.15	ctg88674_151
-bin.1081.derep	PF00318.15	ctg90131_421
-bin.1081.derep	PF01746.16	ctg90059_790
-bin.1081.derep	PF12344.3	ctg90059_122
-bin.1081.derep	PF12344.3	ctg90131_255
-bin.1081.derep	PF00572.13	ctg90059_767
-bin.1081.derep	PF04998.12	ctg89096_144
-bin.1081.derep	PF04998.12	ctg90131_860
-bin.1081.derep	PF04997.7	ctg90131_861
-bin.1081.derep	PF04997.7	ctg89096_143&&ctg89096_144
-bin.1081.derep	PF00623.15	ctg89096_144
-bin.1081.derep	PF00623.15	ctg90131_861
-bin.1081.derep	PF04983.13	ctg89096_144
-bin.1081.derep	PF04983.13	ctg90131_861
-bin.1081.derep	PF05000.12	ctg89096_144
-bin.1081.derep	PF05000.12	ctg90131_861
-bin.1081.derep	PF11987.3	ctg88674_136
-bin.1081.derep	PF11987.3	ctg90131_389
-bin.1081.derep	PF00237.14	ctg90131_618
-bin.1081.derep	PF03947.13	ctg90131_620
-bin.1081.derep	PF00181.18	ctg90131_620
-bin.1081.derep	PF01409.15	ctg90059_236
-bin.1081.derep	PF01409.15	ctg90131_51
-bin.1081.derep	PF02912.13	ctg90059_236
-bin.1081.derep	PF02912.13	ctg90131_51
-bin.1081.derep	PF02978.14	ctg90059_794
-bin.1081.derep	PF03946.9	ctg89567_227
-bin.1081.derep	PF00298.14	ctg89567_227
-bin.1081.derep	PF01668.13	ctg89567_50
-bin.1081.derep	PF01668.13	ctg85082_35
-bin.1081.derep	PF05697.8	ctg89401_206
-bin.1081.derep	PF06071.8	ctg89096_71
-bin.1081.derep	PF06071.8	ctg90131_1042
-bin.1081.derep	PF00252.13	ctg90131_616
-bin.1081.derep	PF01632.14	ctg88674_102
-bin.1081.derep	PF01632.14	ctg90131_335
-bin.1081.derep	PF00886.14	ctg90059_793
-bin.1081.derep	PF01018.17	ctg89401_329
-bin.1081.derep	PF05491.8	ctg87283_56
-bin.1081.derep	PF05491.8	ctg90059_315
-bin.1081.derep	PF00276.15	ctg90131_621
-bin.1081.derep	PF08529.6	ctg88674_139
-bin.1081.derep	PF08529.6	ctg90131_396
-bin.1081.derep	PF13184.1	ctg88674_139
-bin.1081.derep	PF13184.1	ctg90131_394
-bin.1081.derep	PF00411.14	ctg90131_594
-bin.1081.derep	PF00861.17	ctg90131_606
-bin.1081.derep	PF00562.23	ctg89096_142
-bin.1081.derep	PF00562.23	ctg90131_862
-bin.1081.derep	PF04563.10	ctg89096_142
-bin.1081.derep	PF04563.10	ctg90131_862
-bin.1081.derep	PF04561.9	ctg89096_142
-bin.1081.derep	PF04561.9	ctg90131_862
-bin.1081.derep	PF04560.15	ctg89096_142
-bin.1081.derep	PF04560.15	ctg90131_862
-bin.1081.derep	PF04565.11	ctg89096_142
-bin.1081.derep	PF04565.11	ctg90131_862
-bin.1081.derep	PF10385.4	ctg89096_142
-bin.1081.derep	PF10385.4	ctg90131_862
-bin.1081.derep	PF00673.16	ctg90131_611
-bin.1081.derep	PF00281.14	ctg90131_611
-bin.1081.derep	PF00889.14	ctg90131_420
-bin.1081.derep	PF00889.14	ctg88674_150
-bin.1081.derep	PF00312.17	ctg88674_131
-bin.1081.derep	PF00312.17	ctg90131_383
-bin.1081.derep	PF01245.15	ctg90059_789
-bin.1081.derep	PF01016.14	ctg90131_241
-bin.1081.derep	PF01016.14	ctg90059_131
-bin.1081.derep	PF03484.10	ctg90059_237
-bin.1081.derep	PF03484.10	ctg90131_50
-bin.1081.derep	PF00347.18	ctg90131_607&&ctg90131_608
-bin.1081.derep	PF00829.16	ctg90131_239
-bin.1081.derep	PF00829.16	ctg90059_133
-bin.1081.derep	PF01196.14	ctg90131_590
-bin.1081.derep	PF00416.17	ctg90131_595
-bin.1081.derep	PF06421.7	ctg90059_542
-bin.1081.derep	PF01765.14	ctg88674_148
-bin.1081.derep	PF01765.14	ctg90131_416
-bin.1081.derep	PF00238.14	ctg90131_613
-bin.1081.derep	PF01649.13	ctg90059_861
-bin.1081.derep	PF00189.15	ctg90131_617
-bin.1081.derep	PF02130.12	ctg89401_260
-bin.1081.derep	PF01121.15	ctg90059_843
-bin.1081.derep	PF00164.20	ctg89096_146
-bin.1081.derep	PF00164.20	ctg90131_857
-bin.1081.derep	PF00366.15	ctg90131_614
-bin.1081.derep	PF00687.16	ctg89567_226
-bin.1081.derep	PF00410.14	ctg90131_609
-bin.1081.derep	PF01509.13	ctg88674_133
-bin.1081.derep	PF01509.13	ctg90131_385&&ctg90131_386
-bin.1081.derep	PF00162.14	ctg89567_55
-bin.1081.derep	PF00162.14	ctg85082_30
-bin.1081.derep	PF00828.14	ctg90131_603
-bin.1081.derep	PF00453.13	ctg88674_101
-bin.1081.derep	PF00453.13	ctg90131_334
-bin.1081.derep	PF01000.21	ctg90131_592
-bin.1081.derep	PF01193.19	ctg90131_592
-bin.1081.derep	PF00573.17	ctg90131_622
-bin.1081.derep	PF00338.17	ctg90131_624
-bin.1081.derep	PF03719.10	ctg90131_605
-bin.1081.derep	PF00333.15	ctg90131_605
-bin.1081.derep	PF02033.13	ctg88674_135
-bin.1081.derep	PF02033.13	ctg90131_388
-bin.1081.derep	PF08459.6	ctg89401_134
-bin.1081.derep	PF01250.12	ctg90131_1133
-bin.1081.derep	PF01795.14	ctg89401_217
-bin.1081.derep	PF03948.9	ctg90131_1129
-bin.1081.derep	PF01281.14	ctg90131_1129
-bin.1081.derep	PF00177.16	ctg89096_147
-bin.1081.derep	PF00177.16	ctg90131_856
-bin.1081.derep	PF02367.12	ctg89401_317
-bin.1081.derep	PF00203.16	ctg90131_619
-bin.1081.derep	PF00380.14	ctg90059_766
-bin.1081.derep	PF00831.18	ctg90131_615
-bin.1081.derep	PF01195.14	ctg89401_238
-bin.1081.derep	PF00466.15	ctg89567_225
-bin.1081.derep	PF00297.17	ctg90131_623
-
-*/
 #endif 
 
 

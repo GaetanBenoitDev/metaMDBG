@@ -472,7 +472,7 @@ public:
 			cerr << "Polishing contigs..." << endl;
 			//./bin/metaMDBG polish ~/workspace/run/overlap_test_201/contigs_uncorrected.fasta.gz ~/workspace/run/overlap_test_201/ ~/workspace/data/overlap_test/genome_201_50x/simulatedReads_0.fastq.gz ~/workspace/data/overlap_test/genome_201_50x/simulatedReads_0.fastq.gz -t 15 --qual
 			//getchar();
-			command = _filename_exe + " polish " + contigFilename_uncorrected + " " + _outputDir + " " + readFilenames + " " + " -t " + to_string(_nbCores) + " --circ";
+			command = _filename_exe + " polish " + contigFilename_uncorrected + " " + _outputDir + " " + readFilenames + " " + " -t " + to_string(_nbCores) + " --circ -n 50";
 			executeCommand(command);
 			//generatedContigs = true;
 

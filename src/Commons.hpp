@@ -1,29 +1,22 @@
 /*
 
+- tout ce qui est écrit dans le cerr doit aussi etre ecrit dans les logs sinon c'est illisible
+- besoin de tester une meilleur metric pour le best hit du polisher (align length * identity par exemple), a test sur les gros dataset
+
+- derep: do not cut circular contigs overlap
+
 - args help: augmenter la largeur du break line
-- check mail chris et lancer ses runs
 - afficher performances (time, memory) à la fin de l'execution
 - release une version de metaMDBG, celle que j'utilise pour le papier sans changement
-
-- toBasespace: il faudrait utiliser le processus de mapping pour tous les kminmer en fait, pas seulement ceux repeter (ne aps etre repeter dasn les contigs ne veux pas dire que la sequence du kminmer n'est pas ambigue dans les reads)
 
 Paralelisation:
 	- ToBasespace: read indexing phmap
 	- ToMinsapce: phmap
 
-- Polisher:  utiliser gzip pour compresser els sortie de minimap2 (on en aura besoin dans derep je pense) 
-
 ContigPolisher:
-	- determiner le coverage d'un contig, utiliser cette valeur pour estimater la memory total du contig _windowByteSize = (contigLength*windowLength*NbWindows) (puis _windowByteSize a enelever)
-	- compress paf (gzip)
 	- read mal mapper sur les bord des contig circulaire (double mapping)
 
 - ajouter une progress bar global
-
-- recolter les bin complete et faire des run de fastani dessus
-
-%Hifiasm: meilleur contiguity et assemble mieux les strains, mais trop de memory et time sur gros jeux. Une autre approche bin par species avec MDBG, puis strain deconvolution
-%Mock communities: pas representatif de données réelles niveau composition (strain abondante), grosse couverture
 
 */
 
@@ -150,6 +143,7 @@ const char ARG_MINIMIZER_DENSITY2 = 'd';
 const char ARG_INPUT_FILENAME_CONTIG2 = 'c';
 const char ARG_INPUT_FILENAME_ABUNDANCE2 = 'a';
 const char ARG_NB_CORES2 = 't';
+const string ARG_CIRCULARIZE = "circ";
 
 
 struct UnitigData{
@@ -695,7 +689,7 @@ public:
 			logFile.close();
 			cerr << endl;
 			cerr << "Command failed: " << ret << endl;
-			cerr << "Logs: " << outputDir + "/logs.txt";
+			cerr << "Logs: " << outputDir + "/logs.txt" << endl;
 			exit(ret);
 		}
 
