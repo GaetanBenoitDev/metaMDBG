@@ -178,6 +178,7 @@ public:
 		string _quality;
 		u_int32_t _posStart;
 		u_int32_t _posEnd;
+		bool _isComplete;
 	};
 
 	ContigPolisher(): Tool (){
@@ -1715,8 +1716,7 @@ public:
 
 				//uint64_t window_id = id_to_first_window_id[overlaps[i]->t_id()] +
 				uint64_t window_id = breaking_points_[j].first / _windowLength;
-				uint32_t window_start = (breaking_points_[j].first / _windowLength) *
-					_windowLength;
+				uint32_t window_start = (breaking_points_[j].first / _windowLength) * _windowLength;
 
 				//const char* data = overlaps[i]->strand() ?
 				//	&(sequence->reverse_complement()[breaking_points[j].second]) :
@@ -1808,8 +1808,10 @@ public:
 					//getchar();
 				//}
 
+				size_t errorLength = _windowLength * 0.01;
+				bool isComplete = sequence.size() > _windowLength-errorLength && sequence.size() < _windowLength+errorLength;
 				//if(sequence.size() < 490) continue;
-				indexWindow(al, window_id, posStart, posEnd, sequence, quality);
+				indexWindow(al, window_id, posStart, posEnd, sequence, quality, isComplete);
 
 				//_logFile << window_id << " " << posStart << " " << posEnd << endl;
 				//_logFile << sequence << endl;
@@ -1853,7 +1855,7 @@ public:
 		}
 
 		//void indexWindow(const Alignment& al, size_t readWindowStart, size_t readWindowEnd, size_t contigWindowStart, size_t contigWindowEnd, const string& windowSequence, const string& windowQualities){
-		void indexWindow(const Alignment& al, u_int64_t windowIndex, u_int32_t posStart, u_int32_t posEnd, const string& windowSequence, const string& windowQualities){
+		void indexWindow(const Alignment& al, u_int64_t windowIndex, u_int32_t posStart, u_int32_t posEnd, const string& windowSequence, const string& windowQualities, bool isComplete){
 
 			#pragma omp critical(indexWindow)
 			{
@@ -1876,7 +1878,7 @@ public:
 				if(_contigPolisher._maxWindowCopies == 0 || windows.size() < (_contigPolisher._maxWindowCopies-1)){
 
 
-					windows.push_back({new DnaBitset2(windowSequence), windowQualities, posStart, posEnd});
+					windows.push_back({new DnaBitset2(windowSequence), windowQualities, posStart, posEnd, isComplete});
 
 					/*
 					if(al._contigIndex == 1 && windowIndex == 2){
@@ -1946,10 +1948,29 @@ public:
 					if(distance < largerDistanceWindow){
 						Window& window = windows[largerWindowIndex];
 						delete window._sequence;
-						windows[largerWindowIndex] = {new DnaBitset2(windowSequence), windowQualities, posStart, posEnd};
+						windows[largerWindowIndex] = {new DnaBitset2(windowSequence), windowQualities, posStart, posEnd, isComplete};
 					}
 					
 
+					/*
+					size_t largerWindowIndex = -1;
+
+					for(size_t i=0; i<windows.size(); i++){
+
+						const Window& window = windows[i];
+
+						if(!window._isComplete){
+							largerWindowIndex = i;
+							break;
+						}
+					}
+
+					if(largerWindowIndex != -1){
+						Window& window = windows[largerWindowIndex];
+						delete window._sequence;
+						windows[largerWindowIndex] = {new DnaBitset2(windowSequence), windowQualities, posStart, posEnd, isComplete};
+					}
+					*/
 				} 
 
 

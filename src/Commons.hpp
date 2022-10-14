@@ -1,5 +1,8 @@
 /*
 
+- Polisher: est ce que la collect des n windows est la meilleur formule (max vs distance)
+- purgeDups: identity 0.95 -> 0.98 ?
+
 - tout ce qui est écrit dans le cerr doit aussi etre ecrit dans les logs sinon c'est illisible
 - besoin de tester une meilleur metric pour le best hit du polisher (align length * identity par exemple), a test sur les gros dataset
 

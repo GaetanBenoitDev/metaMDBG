@@ -224,9 +224,9 @@ public:
 		//_outputFilename_contigs = p.string() + "_derep.fasta.gz";
 		_maxBases = 200000000ull;
 		_minDuplicationLength_ends = 1000;
-		_minDuplicationIdentity_ends = 0.95;
-		_minDuplicationLength_internal = 30000;
-		_minDuplicationIdentity_internal = 0.95;
+		_minDuplicationIdentity_ends = 0.98;
+		_minDuplicationLength_internal = 10000;
+		_minDuplicationIdentity_internal = 0.98;
 		//_outputFilename_contigs = p.string() + "_corrected.fasta.gz";
 		_outputFilename_mapping = _tmpDir + "/_tmp_mapping_derep__.paf.gz";
 		//_maxMemory = 4000000000ull;
