@@ -1,5 +1,6 @@
 /*
 
+- restester le graph based filter complet
 - Polisher: est ce que la collect des n windows est la meilleur formule (max vs distance)
 - purgeDups: identity 0.95 -> 0.98 ?
 
@@ -698,6 +699,8 @@ public:
 
 		ifstream infile(outputDir + "/time.txt");
 		string line;
+		double maxMem = 0;
+
 		while(std::getline(infile, line)){
 
     		//line.erase(std::remove_if(line.begin(), line.end(), ::istab), line.end());
@@ -712,7 +715,7 @@ public:
 				continue;
 			}
 
-			double maxMem = stod(line);
+			maxMem = stod(line);
 			maxMem /= 1024;
 			maxMem /= 1024;
 			_maxMemoryUsage = max(_maxMemoryUsage, maxMem);
@@ -720,6 +723,11 @@ public:
 		infile.close();
 		//cout << "Max memory: " << _maxMemoryUsage << " GB" << endl;
 		//getchar();
+
+		ofstream outfileMem(outputDir + "/memoryTrack.txt", std::ios_base::app);
+		outfileMem << command << endl;
+		outfileMem << "Peak memory (GB): " << maxMem << endl;
+		outfileMem.close();
 
 		ofstream outfile(outputDir + "/perf.txt");
 		outfile << "Peak memory (GB): " << _maxMemoryUsage << endl;
