@@ -224,9 +224,9 @@ public:
 		//_outputFilename_contigs = p.string() + "_derep.fasta.gz";
 		_maxBases = 200000000ull;
 		_minDuplicationLength_ends = 1000;
-		_minDuplicationIdentity_ends = 0.98;
+		_minDuplicationIdentity_ends = 0.95;
 		_minDuplicationLength_internal = 10000;
-		_minDuplicationIdentity_internal = 0.98;
+		_minDuplicationIdentity_internal = 0.95;
 		//_outputFilename_contigs = p.string() + "_corrected.fasta.gz";
 		_outputFilename_mapping = _tmpDir + "/_tmp_mapping_derep__.paf.gz";
 		//_maxMemory = 4000000000ull;
@@ -285,7 +285,7 @@ public:
 		input << _inputFilename_contigs << endl;
 		input.close();
 
-		string command = "minimap2 -m 500 -H -DP --dual=no -I 1G -t " + to_string(_nbCores) + " " + _inputFilename_contigs + " " + _inputFilename_contigs;
+		string command = "minimap2 -x asm20 -H -DP --dual=no -I 500M -K 500M -t " + to_string(_nbCores) + " " + _inputFilename_contigs + " " + _inputFilename_contigs;
 		command += " | gzip -c - > " + _outputFilename_mapping;
 		//command += " > " + _outputFilename_mapping;
 		//command += " | " + _mapperOutputExeFilename + " " + _inputFilename_contigs + " " + inputContigsFilename + " " + _outputFilename_mapping;
