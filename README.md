@@ -18,6 +18,9 @@ Contact: gaetanbenoitdev at gmail dot com
 ```
 git clone https://github.com/GaetanBenoitDev/metaMDBG.git
 cd metaMDBG
+conda env create -f conda_env.yml
+conda env config vars set CPATH=${CONDA_PREFIX}/include:${CPATH}
+conda activate metaMDBG
 mkdir build
 cd build
 cmake ..

@@ -1,0 +1,13 @@
+name: metaMDBG
+channels:
+  - anaconda
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - zlib
+  - openmp
+  - cxx-compiler
+  - cmake
+  - gsl=2.7
+  - wfmash=0.8.2

@@ -417,14 +417,65 @@ public:
 
 		}
 
+		int maxHang = 100;
+
+		/*
+		u_int64_t hangLeft = alignStart;
+		u_int64_t hangRight = seqLength - alignEnd;
+
+		//_logFile << hangLeft << " " << hangRight << endl;
+		//DbgEdge edge = {targetIndex, queryIndex};
+		//edge = edge.normalize();
+		bool isOverlap = false;
+
+		if((hangLeft < _maxHang) ){
+			u_int64_t overlapLength = determineOverlapLength(isMatches, true);
+			//if(_performedPairs.find(edge) == _performedPairs.end()){
+			//	_duplicationBounds[targetIndex].push_back({targetStart, targetEnd});
+			//	isOverlap = true;
+			//}
+			if(overlapLength > _purgeDups._minDuplicationLength_ends){
+				allowOverlapLeft = false;
+				isOverlap = true;
+
+				#pragma omp critical(dup)
+				{
+					//_logFile << "\tleft overlap: " << overlapLength << " " << alignStart << " " << alignEnd << endl;
+					_purgeDups._logFile << "\tleft overlap: " << targetIndex << " " << alignStart << " " << alignEnd << endl;
+					_purgeDups._duplicationEnds[targetIndex].push_back({alignStart, alignEnd});
+				}
+			}
+		}
+		*/
+
+
 		float _minIdentity = 0.99;
 		if((float)identity < (float)_minIdentity) return;
 
 		if(readLength < contigLength){
-			_duplicationInternal[readName].push_back({readStart, readEnd});
+
+			u_int64_t hangLeft = readStart;
+			u_int64_t hangRight = readLength - readEnd;
+
+			if(hangLeft < maxHang || hangRight < maxHang){
+				_duplicationEnds[readName].push_back({readStart, readEnd});
+			}
+			else{
+				_duplicationInternal[readName].push_back({readStart, readEnd});
+			}
 		}
 		else{
-			_duplicationInternal[contigName].push_back({contigStart, contigEnd});
+
+			u_int64_t hangLeft = contigStart;
+			u_int64_t hangRight = contigLength - contigEnd;
+
+			if(hangLeft < maxHang || hangRight < maxHang){
+				_duplicationEnds[contigName].push_back({contigStart, contigEnd});
+			}
+			else{
+				_duplicationInternal[contigName].push_back({contigStart, contigEnd});
+			}
+			
 		}
 		/*
 		if(readName == contigName) return;
@@ -1192,7 +1243,7 @@ public:
 
 
 
-		isDuplicated.clear();
+		isDuplicated = vector<bool>(seq.size(), false);
 
 		for(const DbgEdge& duplicatedBound : _duplicationEnds[contigName]){
 			for(size_t i=duplicatedBound._from; i<duplicatedBound._to; i++){
