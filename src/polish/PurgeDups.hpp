@@ -225,7 +225,7 @@ public:
 		_maxBases = 200000000ull;
 		_minDuplicationLength_ends = 1000;
 		_minDuplicationIdentity_ends = 0.95;
-		_minDuplicationLength_internal = 10000;
+		_minDuplicationLength_internal = 1000;
 		_minDuplicationIdentity_internal = 0.95;
 		//_outputFilename_contigs = p.string() + "_corrected.fasta.gz";
 		_outputFilename_mapping = _tmpDir + "/_tmp_mapping_derep__.paf.gz";
@@ -268,7 +268,7 @@ public:
 
 		//debug_indexContigName();
 		mapReads();
-		processContigs();
+		processContigs2();
 		
 		dumpDereplicatedContigs();
 		//fs::remove_all(_tmpDir);
@@ -277,7 +277,7 @@ public:
 	}
 
 	void mapReads(){
-		
+		/*
 		cerr << "Mapping reads" << endl;
 
 		string inputContigsFilename = _tmpDir + "/input_contigs.txt";
@@ -290,6 +290,28 @@ public:
 		//command += " > " + _outputFilename_mapping;
 		//command += " | " + _mapperOutputExeFilename + " " + _inputFilename_contigs + " " + inputContigsFilename + " " + _outputFilename_mapping;
 		Utils::executeCommand(command, _outputDir, _logFile);
+		*/
+
+		string contigFilenameBgzip = _tmpDir + "/__tmp_contigs_bgzip.fasta.gz";
+
+		string command = "zcat " + _inputFilename_contigs + " | bgzip --threads " + to_string(_nbCores) + " -c > " + contigFilenameBgzip;
+		Utils::executeCommand(command, _tmpDir, _logFile);
+
+		command = "samtools faidx " + contigFilenameBgzip;
+		Utils::executeCommand(command, _tmpDir, _logFile);
+		//-N 2 -p 0 --secondary=yes -I 2GB -x map-hifi -c -x asm20
+		//string command = "minimap2 -m 500 --dual=no -H -DP -c -I 100M -t " + to_string(_nbCores) + " " + _inputFilename_contigs + " " + _inputFilename_contigs + " > " + mapFilename;
+		//Utils::executeCommand(command, _tmpDir, _logFile);
+
+		command = "wfmash " + contigFilenameBgzip + " -t " + to_string(_nbCores) + " > " + _outputFilename_mapping; //-l 5000 -p 80
+		Utils::executeCommand(command, _tmpDir, _logFile);
+
+		fs::remove(contigFilenameBgzip);
+
+	}
+
+	void processContigs2(){
+		indexAlignments();
 	}
 
 	u_int64_t _currentLoadedBases;
@@ -365,6 +387,7 @@ public:
 		const string& contigName = Utils::shortenHeader((*_fields)[5]);
 		
 
+		u_int32_t readLength = stoull((*_fields)[1]);
 		u_int32_t readStart = stoull((*_fields)[2]);
 		u_int32_t readEnd = stoull((*_fields)[3]);
 		u_int32_t contigLength = stoull((*_fields)[6]);
@@ -377,6 +400,33 @@ public:
 
 		bool strand = (*_fields)[4] == "-";
 
+		float identity = 0;
+		//_logFile << error << endl;
+		//getchar();
+		//_logFile << contigIndex << " " << readIndex << endl;
+
+		for(size_t i=12; i<_fields->size(); i++){
+
+			//_logFile << (*fields)[i] << endl;
+
+			GfaParser::tokenize((*_fields)[i], _fields_optional, ':');
+
+			if((*_fields_optional)[0] == "gi"){
+				identity = std::stof((*_fields_optional)[2]);
+			}
+
+		}
+
+		float _minIdentity = 0.99;
+		if((float)identity < (float)_minIdentity) return;
+
+		if(readLength < contigLength){
+			_duplicationInternal[readName].push_back({readStart, readEnd});
+		}
+		else{
+			_duplicationInternal[contigName].push_back({contigStart, contigEnd});
+		}
+		/*
 		if(readName == contigName) return;
 		if(_contigSequences.find(contigName) == _contigSequences.end() && _contigSequences.find(readName) == _contigSequences.end()) return;
 
@@ -385,6 +435,7 @@ public:
 
 		Alignment align = {contigName, strand, readStart, readEnd, contigStart, contigEnd}; //, score
 		_alignments[readName].push_back(align);
+		*/
 		/*
 		u_int32_t length = std::max((u_int64_t)(readEnd - readStart), (u_int64_t)(contigEnd - contigStart));
 
@@ -773,8 +824,8 @@ public:
 
 			vector<bool> isDuplicated(isMatches.size(), false);
 
-			updateInternalDuplication(0, alignLength, isMatches, isDuplicated);
-			/*
+			//updateInternalDuplication(0, alignLength, isMatches, isDuplicated);
+			
 			size_t w = 1000;
 			size_t posStart = 0;
 			while(true){
@@ -788,7 +839,7 @@ public:
 			}
 
 			updateInternalDuplication(isMatches.size()-_purgeDups._minDuplicationLength_internal, isMatches.size(), isMatches, isDuplicated);
-			*/
+			
 
 			//for(size_t i=0; i<isDuplicated.size(); i++){
 				//_logFile << isDuplicated[i];
@@ -846,7 +897,7 @@ public:
 
 		void updateInternalDuplication(size_t posStart, size_t posEnd, const vector<u_int8_t>& isMatches, vector<bool>& isDuplicated){
 
-			float identity = computeIdentity(isMatches);
+			float identity = computeIdentity(isMatches, posStart, posEnd);
 			//_logFile << identity << endl;
 
 			if(identity >= _purgeDups._minDuplicationIdentity_internal){
@@ -856,13 +907,13 @@ public:
 			}
 		}
 
-		float computeIdentity(const vector<u_int8_t>& isMatches){
+		float computeIdentity(const vector<u_int8_t>& isMatches, size_t posStart, size_t posEnd){
 
 			double nbMatches = 0;
 			double length = 0;
 			bool isGap = false;
 
-			for(size_t i=0; i<isMatches.size(); i++){
+			for(size_t i=posStart; i<posEnd; i++){
 				if(isMatches[i] == 0){
 					isGap = false;
 					nbMatches += 1;
@@ -976,7 +1027,7 @@ public:
 			
 			if(isMatches.size() < _purgeDups._minDuplicationLength_ends) return 0;
 
-			float identity = computeIdentity(isMatches);
+			float identity = computeIdentity(isMatches, 0, isMatches.size());
 
 			if(identity >= _purgeDups._minDuplicationIdentity_ends){
 				return isMatches.size();
