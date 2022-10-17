@@ -11,15 +11,18 @@ Contact: gaetanbenoitdev at gmail dot com
 - zlib
 - openmp
 - minimap2
+- wfmash
 ```
 
-## Installation
+## Conda Installation
 
 ```
 git clone https://github.com/GaetanBenoitDev/metaMDBG.git
 cd metaMDBG
 conda env create -f conda_env.yml
+conda activate metaMDBG
 conda env config vars set CPATH=${CONDA_PREFIX}/include:${CPATH}
+conda deactivate
 conda activate metaMDBG
 mkdir build
 cd build
@@ -29,6 +32,16 @@ make -j 3
 
 After successful installation, an executable named metaMDBG will appear in build/bin.
 
+## Installation from source
+
+```
+git clone https://github.com/GaetanBenoitDev/metaMDBG.git
+cd metaMDBG
+mkdir build
+cd build
+cmake ..
+make -j 3
+```
 
 ## Usage
 
@@ -42,5 +55,4 @@ After successful installation, an executable named metaMDBG will appear in build
 
 MetaMDBG will generate polished contigs in outputDir (file named "contigs_polished.fasta.gz").
 
-## Purging strain duplication (experimental)
 
