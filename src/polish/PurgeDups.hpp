@@ -22,6 +22,9 @@ public:
 	//bool _cut_contigEnds;
 	bool _cut_contigInternal;
 	bool _dontOuputContigs;
+	float _minIdentity;
+	//u_int64_t _minCircularLength;
+	u_int64_t _minLinearLength;
 	
 	string _outputFilename_contigs;
 	string _outputFilename_mapping;
@@ -77,6 +80,10 @@ public:
 	void parseArgs(int argc, char* argv[]){
 
 
+		char ARG_MIN_IDENTITY = 'i';
+		char ARG_CIRCULAR_LENGTH = 'c';
+		char ARG_LINEAR_LENGTH = 'l';
+
 		string ARG_CUT_INTERNAL = "cutinternal";
 		string ARG_NO_DUMP= "nodump";
 
@@ -90,6 +97,8 @@ public:
 		//args::ValueFlag<int> arg_l(parser, "", "Minimizer length", {ARG_MINIMIZER_LENGTH2}, 13);
 		//args::ValueFlag<float> arg_d(parser, "", "Minimizer density", {ARG_MINIMIZER_DENSITY2}, 0.005f);
 		//args::ValueFlag<std::string> arg_contigs(parser, "", "", {ARG_INPUT_FILENAME_CONTIG}, "");
+		args::ValueFlag<int> arg_length(parser, "", "Do not remove contigs with length > minLength (0 = disable)", {ARG_LINEAR_LENGTH}, 1000000);
+		args::ValueFlag<float> arg_minIdentity(parser, "", "Minimum identity for strains (0-1)", {ARG_MIN_IDENTITY}, 0.99);
 		args::ValueFlag<int> arg_nbCores(parser, "", "Number of cores", {ARG_NB_CORES2}, NB_CORES_DEFAULT_INT);
 		args::Flag arg_cutInternal(parser, "", "", {ARG_CUT_INTERNAL});
 		args::Flag arg_noDump(parser, "", "", {ARG_NO_DUMP});
@@ -122,6 +131,10 @@ public:
 		_inputFilename_contigs = args::get(arg_contigs);
 		_outputFilename_contigs = args::get(arg_outputFilename);
 		_nbCores = args::get(arg_nbCores);
+
+		_minLinearLength = args::get(arg_length);
+		_minIdentity = args::get(arg_minIdentity);
+		_minIdentity *= 100;
 
 		_dontOuputContigs = false;
 		if(arg_noDump){
@@ -396,7 +409,7 @@ public:
 
 		u_int64_t nbMatches = stoull((*_fields)[9]);
 		u_int64_t alignLength = stoull((*_fields)[10]);
-		u_int64_t queryLength = stoull((*_fields)[1]);
+		//u_int64_t queryLength = stoull((*_fields)[1]);
 
 		bool strand = (*_fields)[4] == "-";
 
@@ -449,8 +462,24 @@ public:
 		*/
 
 
-		float _minIdentity = 0.99;
+		//float _minIdentity = 0.99;
+		//if((float)identity < (float)_minIdentity) return;
+
+
 		if((float)identity < (float)_minIdentity) return;
+		//cout << identity << " " << _minIdentity << " " << _minLinearLength << endl;
+		
+		
+		
+		if(readLength < contigLength){
+			//if(_minCircularLength > 0 && isTargetCircular && targetLength >= _minCircularLength) continue;
+			if(_minLinearLength > 0 && readLength >= _minLinearLength) return;
+			//if(isTargetLinear && targetLength >= _minCircularLength) continue;
+		}
+		else{
+			//if(_minCircularLength > 0 && isQueryCircular && queryLength >= _minCircularLength) continue;
+			if(_minLinearLength > 0 && contigLength >= _minLinearLength) return;
+		}
 
 		if(readLength < contigLength){
 
