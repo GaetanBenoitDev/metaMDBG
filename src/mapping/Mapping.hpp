@@ -29,6 +29,7 @@ public:
 		_minimizerSize = 21;
 		_minimizerDensity = 0.05;
 
+		/*
 		cxxopts::Options options("ToBasespace", "");
 		options.add_options()
 		//(ARG_INPUT_FILENAME, "", cxxopts::value<string>())
@@ -81,7 +82,7 @@ public:
 			std::cerr << e.what() << std::endl;
 			std::exit(EXIT_FAILURE);
 		}
-
+		*/
 		/*
 		_inputFilename = getInput()->getStr(STR_INPUT);
 		_inputDir = getInput()->getStr(STR_INPUT_DIR);
@@ -108,6 +109,46 @@ public:
 		//_filename_outputContigs = _inputDir + "/contigs.fasta.gz";
 		//_filename_outputContigs = _inputFilenameContig + ".fasta.gz"; //_inputDir + "/tmpContigs.fasta.gz";
 		*/
+
+		args::ArgumentParser parser("mapBin", ""); //"This is a test program.", "This goes after the options."
+		args::Positional<std::string> arg_mdbgDir(parser, "contig", "", args::Options::Required);
+		args::Positional<std::string> arg_binDir(parser, "binDir", "", args::Options::Required);
+		args::Positional<std::string> arg_outputFilename(parser, "outputFilename", "", args::Options::Required);
+		//args::Positional<std::string> arg_contigs(parser, "contigs", "", args::Options::Required);
+		//args::PositionalList<std::string> arg_readFilenames(parser, "reads", "Input filename(s) (separated by space)", args::Options::Required);
+		//args::ValueFlag<int> arg_l(parser, "", "Minimizer length", {ARG_MINIMIZER_LENGTH2}, 13);
+		//args::ValueFlag<float> arg_d(parser, "", "Minimizer density", {ARG_MINIMIZER_DENSITY2}, 0.005f);
+		//args::ValueFlag<std::string> arg_contigs(parser, "", "", {ARG_INPUT_FILENAME_CONTIG}, "");
+		//args::ValueFlag<int> arg_nbCores(parser, "", "Number of cores", {ARG_NB_CORES2}, NB_CORES_DEFAULT_INT);
+		//args::Flag arg_cutInternal(parser, "", "", {ARG_CUT_INTERNAL});
+		//args::Flag arg_noDump(parser, "", "", {ARG_NO_DUMP});
+		//args::Flag arg_isFinalAssembly(parser, "", "Is final multi-k pass", {ARG_FINAL});
+		//args::Flag arg_firstPass(parser, "", "Is first pass of multi-k", {ARG_FIRST_PASS});
+		args::Flag arg_help(parser, "", "", {'h', "help"}, args::Options::Hidden);
+		//args::HelpFlag help(parser, "help", "Display this help menu", {'h'});
+		//args::CompletionFlag completion(parser, {"complete"});
+
+		try
+		{
+			parser.ParseCLI(argc, argv);
+		}
+		catch (const std::exception& e)
+		{
+			cerr << parser;
+			cerr << e.what() << endl;
+			exit(0);
+		}
+
+		if(arg_help){
+			cerr << parser;
+			exit(0);
+		}
+
+		_contigFilename = args::get(arg_mdbgDir);
+		_binDir = args::get(arg_binDir);
+		_outputFilename = args::get(arg_outputFilename);
+
+
 		_minimizerParser = new MinimizerParser(_minimizerSize, _minimizerDensity);
 	}
 
@@ -138,7 +179,7 @@ public:
 		_minimizerParser = new MinimizerParser(_minimizerSize, _minimizerDensity);
 		
 		auto fp = std::bind(&Mapping::extract_truth_kminmers_read, this, std::placeholders::_1);
-		ReadParser readParser(_contigFilename, true, false);
+		ReadParser readParser(_contigFilename, true, false, _logFile);
 		readParser.parse(fp);
 
 		//_file_groundTruth_hifiasm_position.close();
@@ -227,7 +268,7 @@ public:
 	void mapBin(const string& binFilename){
 
 		auto fp = std::bind(&Mapping::mapBin_read, this, std::placeholders::_1);
-		ReadParser readParser(binFilename, true, false);
+		ReadParser readParser(binFilename, true, false, _logFile);
 		readParser.parse(fp);
 	}
 
