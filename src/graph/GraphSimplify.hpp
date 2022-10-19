@@ -6102,7 +6102,7 @@ public:
 
             //getchar();
             compact(true, unitigDatas);
-            if(doesSaveUnitigGraph && currentCutoff == 0) saveUnitigGraph(_outputDir + "/minimizer_graph_u_cleaned.gfa", mdbg, minimizerSize, nbCores, true);
+            //if(doesSaveUnitigGraph && currentCutoff == 0) saveUnitigGraph(_outputDir + "/minimizer_graph_u_cleaned.gfa", mdbg, minimizerSize, nbCores, true);
             /*
             compact(false, unitigDatas);
 
@@ -10394,6 +10394,9 @@ public:
         return unitigIndex; 
     }
 
+
+    unordered_set<u_int32_t> _selectedUnitigIndexTmp;
+
     void saveUnitigGraph(const string& outputFilename, MDBG* mdbg, size_t minimizerSize, size_t nbCores, bool isCleanedGraph){
 
         _logFile << "Saving unitig graph: " << outputFilename << endl;
@@ -10450,6 +10453,7 @@ public:
 
         file_nodeNameToUnitigIndex.close();
 
+        _selectedUnitigIndexTmp = selectedUnitigIndex;
         //if(_contigFeature == nullptr){
             
             ofstream outputFile(outputFilename);

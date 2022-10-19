@@ -601,7 +601,8 @@ public:
 
 		//if(fs::exists(_tmpDir + "/read_index.txt")) fs::copy(_tmpDir + "/read_index.txt", dir + "/read_index.txt");
 		if(fs::exists(_tmpDir + "/minimizer_graph_u.gfa")) fs::copy(_tmpDir + "/minimizer_graph_u.gfa", dir + "/minimizer_graph_u.gfa");
-		fs::copy(_tmpDir + "/minimizer_graph_u_cleaned.gfa", dir + "/minimizer_graph_u_cleaned.gfa");
+		fs::copy(_tmpDir + "/minimizer_graph_u_cleaned.gfa", dir + "/assembly_graph.gfa");
+		fs::copy(_tmpDir + "/contigs_path.csv", dir + "/contigs_path.csv");
 		//fs::copy(_tmpDir + "/minimizer_graph_cleaned.gfa", dir + "/minimizer_graph_cleaned.gfa");
 		fs::copy(_tmpDir + "/parameters.gz", dir + "/parameters.gz");
 

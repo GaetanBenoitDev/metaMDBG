@@ -1503,8 +1503,90 @@ public:
 		_logFile << "Check sum: " << checkSum << endl;
 		//getchar();
 
+		generateContigPathFile();
 	}
 	
+	void generateContigPathFile(){
+
+		_graph->saveUnitigGraph(_inputDir + "/minimizer_graph_u_cleaned.gfa", nullptr, _minimizerSize, _nbCores, true);
+		/*
+        unordered_set<u_int32_t> selectedUnitigIndex;
+		unordered_set<u_int32_t> writtenUnitigs;
+
+        for(const Unitig& u: _graph->_unitigs){
+            if(u._startNode == -1) continue;
+
+			if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
+			if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
+
+			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._startNode));
+			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
+
+            selectedUnitigIndex.insert(u._index);
+		}*/
+
+		_logFile << "Generating contig path file" << endl;
+		ifstream contigFile(_inputDir + "/contigs.nodepath");
+		ofstream outputFile(_inputDir + "/contigs_path.csv");
+
+		//outputFile << "Name,Color" << endl;
+
+		u_int64_t contigIndex = 0;
+		vector<u_int32_t> unitigPath;
+
+		while(true){
+
+			vector<u_int32_t> nodePath;
+			u_int64_t size;
+			contigFile.read((char*)&size, sizeof(size));
+			
+
+			if(contigFile.eof()) break;
+
+			bool isCircular;
+			contigFile.read((char*)&isCircular, sizeof(isCircular));
+
+			nodePath.resize(size);
+			contigFile.read((char*)&nodePath[0], size * sizeof(u_int32_t));
+
+			string contigName = "ctg" + to_string(contigIndex);
+			outputFile << contigName;
+
+            u_int32_t prevUnitigIndex = -1;
+			
+			for(size_t i=0; i<nodePath.size(); i++){
+				u_int32_t nodeIndex = nodePath[i];
+				bool orientation;
+				u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex, orientation);
+
+                u_int32_t unitigIndex = _graph->nodeName_toSelectedUnitigIndex(nodeName, _graph->_selectedUnitigIndexTmp);
+
+                if(unitigIndex != prevUnitigIndex){
+					unitigPath.push_back(unitigIndex);
+				    //nodeNames.push_back(unitigIndex);
+                    prevUnitigIndex = unitigIndex;
+
+					//outputFile << unitigIndex << "," << contigName << endl;
+					outputFile << ";" << unitigIndex;
+                }
+			}
+
+			//for(u_int32_t unitigIndex : unitigPath){
+			//	outputFile << ";" << unitigIndex;
+			//}
+
+			outputFile << endl;
+
+			contigIndex += 1;
+		}
+
+		contigFile.close();
+		outputFile.close();
+
+		//_logFile << _nodeName_entire.size() << " " << _nodeName_left.size() << " " << _nodeName_right.size() << endl;
+		//_logFile << "Nb contigs: " << nbContigs << endl;
+		
+	}
 /*
 Nb contigs: 384
 Nb nodes (checksum): 258228925
