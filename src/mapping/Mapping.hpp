@@ -156,6 +156,10 @@ public:
 
 
     void execute (){
+
+		_outputFile = ofstream(_outputFilename);
+		_outputFile << "Name,Color" << endl;
+
 		extract_truth_kminmers();
 		map();
 
@@ -195,6 +199,8 @@ public:
 	void extract_truth_kminmers_read(const Read& read){
 		//ottalSize += strlen(read->seq.s);
 
+
+		_outputFile << read._header << ",0" << endl;
 
 		u_int64_t readIndex = read._index;
 
@@ -245,8 +251,7 @@ public:
 
 		cout << "Mapping bins" << endl;
 
-		_outputFile = ofstream(_outputFilename);
-		_outputFile << "Name,Color" << endl;
+
 
 		for (const auto & p : fs::directory_iterator(_binDir)){
 			string ext = p.path().extension();
