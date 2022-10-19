@@ -164,7 +164,7 @@ public:
 
 
 
-	unordered_map<KmerVec, string> _kmervec_to_unitigName;
+	unordered_map<KmerVec, vector<string>> _kmervec_to_unitigName;
 
 	//MinimizerParser* _minimizerParser;
 	//u_int32_t _extract_truth_kminmers_read_position;
@@ -213,7 +213,7 @@ public:
 		for(size_t i=0; i<kminmers.size(); i++){
 
 			KmerVec& vec = kminmers[i];
-			_kmervec_to_unitigName[vec] = read._header;
+			_kmervec_to_unitigName[vec].push_back(read._header);
 			/*
 			if(_mdbg->_dbg_nodes.find(vec) != _mdbg->_dbg_nodes.end()){
 
@@ -306,12 +306,14 @@ public:
 
 			if(_kmervec_to_unitigName.find(vec) == _kmervec_to_unitigName.end()) continue;
 
-			string unitigName = _kmervec_to_unitigName[vec];
+			const vector<string>& unitigNames = _kmervec_to_unitigName[vec];
 
-			if(_writtenUnitigNames.find(unitigName) != _writtenUnitigNames.end()) continue;
+			for(const string& unitigName : unitigNames){
+				if(_writtenUnitigNames.find(unitigName) != _writtenUnitigNames.end()) continue;
 
-			_outputFile << unitigName << "," << _currentBinName << endl;
-			_writtenUnitigNames.insert(unitigName);
+				_outputFile << unitigName << "," << _currentBinName << endl;
+				_writtenUnitigNames.insert(unitigName);
+			}
 			//_kmervec_to_unitigName[vec] = read._header;
 			/*
 			if(_mdbg->_dbg_nodes.find(vec) != _mdbg->_dbg_nodes.end()){
