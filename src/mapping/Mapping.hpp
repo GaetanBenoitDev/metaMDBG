@@ -150,12 +150,16 @@ public:
 
 
 		_minimizerParser = new MinimizerParser(_minimizerSize, _minimizerDensity);
+		
+		//openLogFile(_tmpDir);
 	}
 
 
     void execute (){
 		extract_truth_kminmers();
 		map();
+
+		//closeLogFile();
 	}
 
 
@@ -172,6 +176,7 @@ public:
 
 	void extract_truth_kminmers(){
 
+		cout << "Extract contig kminmers" << endl;
 		//_file_groundTruth_hifiasm_position.open(_inputDir + "/groundtruth_hifiasm_position.csv");
 		//_file_groundTruth_hifiasm_position << "Name,Position" << endl;
 
@@ -232,10 +237,13 @@ public:
 	}
 
 	ofstream _outputFile;
-	u_int32_t _currentBinIndex;
+	//u_int32_t _currentBinIndex;
+	string _currentBinName;
 	unordered_set<string> _writtenUnitigNames;
 	
 	void map(){
+
+		cout << "Mapping bins" << endl;
 
 		_outputFile = ofstream(_outputFilename);
 		_outputFile << "Name,Color" << endl;
@@ -244,16 +252,18 @@ public:
 			string ext = p.path().extension();
 			cout << p.path() << endl;
 
+
 			cout << ext << endl;
 			if(ext == ".fa" || ext == ".fasta" || ext == ".fna"){
 				string filename = p.path();
 				cout << filename << endl;
 
-				string binName = p.path().filename();
-				binName.erase(binName.find("bin."), 4);
-				binName.erase(binName.find(ext), ext.size());
+				string binName = p.path().stem();
+				//binName.erase(binName.find("bin."), 4);
+				//binName.erase(binName.find(ext), ext.size());
 				cout << binName << endl;
-				_currentBinIndex = stoull(binName);
+				//_currentBinIndex = stoull(binName);
+				_currentBinName = binName;
 
 
 				mapBin(filename);
@@ -300,7 +310,7 @@ public:
 
 			if(_writtenUnitigNames.find(unitigName) != _writtenUnitigNames.end()) continue;
 
-			_outputFile << unitigName << "," << _currentBinIndex << endl;
+			_outputFile << unitigName << "," << _currentBinName << endl;
 			_writtenUnitigNames.insert(unitigName);
 			//_kmervec_to_unitigName[vec] = read._header;
 			/*
