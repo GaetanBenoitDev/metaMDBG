@@ -20,6 +20,7 @@ public:
 	string _outputDir;
 	string _tmpDir;
 	//bool _cut_contigEnds;
+	bool _removeContainedOnly;
 	bool _cut_contigInternal;
 	bool _dontOuputContigs;
 	float _minIdentity;
@@ -85,6 +86,7 @@ public:
 		char ARG_LINEAR_LENGTH = 'l';
 
 		string ARG_CUT_INTERNAL = "cutinternal";
+		string ARG_CONTAINED_ONLY = "containedOnly";
 		string ARG_NO_DUMP= "nodump";
 
 		
@@ -100,6 +102,7 @@ public:
 		args::ValueFlag<int> arg_length(parser, "", "Do not remove contigs with length > minLength (0 = disable)", {ARG_LINEAR_LENGTH}, 1000000);
 		args::ValueFlag<float> arg_minIdentity(parser, "", "Minimum identity for strains (0-1)", {ARG_MIN_IDENTITY}, 0.99);
 		args::ValueFlag<int> arg_nbCores(parser, "", "Number of cores", {ARG_NB_CORES2}, NB_CORES_DEFAULT_INT);
+		args::Flag arg_containedOnly(parser, "", "", {ARG_CONTAINED_ONLY});
 		args::Flag arg_cutInternal(parser, "", "", {ARG_CUT_INTERNAL});
 		args::Flag arg_noDump(parser, "", "", {ARG_NO_DUMP});
 		//args::Flag arg_isFinalAssembly(parser, "", "Is final multi-k pass", {ARG_FINAL});
@@ -144,6 +147,11 @@ public:
 		_cut_contigInternal = false;
 		if(arg_cutInternal){
 			_cut_contigInternal = true;
+		}
+
+		_removeContainedOnly = false;
+		if(arg_containedOnly){
+			_removeContainedOnly = true;
 		}
 
 		if (_outputFilename_contigs.find(".gz") == std::string::npos) {
@@ -1264,7 +1272,16 @@ public:
 		if(_dontOuputContigs) return;
 
 
+		if(_removeContainedOnly){
+			if(duplicatuionRate < 0.95){
+				string header = ">" + read._header + '\n';
+				gzwrite(_outputContigFile, (const char*)&header[0], header.size());
+				string contigSequence = read._seq + '\n';
+				gzwrite(_outputContigFile, (const char*)&contigSequence[0], contigSequence.size());
+			}
 
+			return;
+		}
 
 
 
