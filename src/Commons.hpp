@@ -1,5 +1,7 @@
 /*
 
+- Mock a refaire potentiellement a cause du len(ref) < 1000000 qui trainait
+
 - restester le graph based filter complet
 - Polisher: est ce que la collect des n windows est la meilleur formule (max vs distance)
 - purgeDups: identity 0.95 -> 0.98 ?

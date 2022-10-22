@@ -1804,29 +1804,26 @@ public:
 
 		if(contigSequence.size() == 0){
 			_logFile << "Empty contig " << kminmersInfos.size() << endl;
-			//return;
+			return;
+		}
+
+
+		string linearOrCircular;
+		if(isCircular){
+			linearOrCircular = "c";
 		}
 		else{
-			string linearOrCircular;
-			if(isCircular){
-				linearOrCircular = "c";
-			}
-			else{
-				linearOrCircular = "l";
-			}
-
-			//_logFile << contigSequence.size() << endl;
-
-			string header = ">ctg" + to_string(_contigIndex) + linearOrCircular + '\n';
-			gzwrite(_basespaceContigFile, (const char*)&header[0], header.size());
-			contigSequence +=  '\n';
-			gzwrite(_basespaceContigFile, (const char*)&contigSequence[0], contigSequence.size());
-			_nbBps += contigSequence.size();
+			linearOrCircular = "l";
 		}
 
+		//_logFile << contigSequence.size() << endl;
 
+		string header = ">ctg" + to_string(_contigIndex) + linearOrCircular + '\n';
+		gzwrite(_basespaceContigFile, (const char*)&header[0], header.size());
+		contigSequence +=  '\n';
+		gzwrite(_basespaceContigFile, (const char*)&contigSequence[0], contigSequence.size());
 
-
+		_nbBps += contigSequence.size();
 
 		_contigIndex += 1;
 		

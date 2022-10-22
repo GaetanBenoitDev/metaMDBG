@@ -1503,27 +1503,13 @@ public:
 		_logFile << "Check sum: " << checkSum << endl;
 		//getchar();
 
-		generateContigPathFile();
+		//generateContigPathFile();
 	}
 	
+	/*
 	void generateContigPathFile(){
 
 		_graph->saveUnitigGraph(_inputDir + "/minimizer_graph_u_cleaned.gfa", nullptr, _minimizerSize, _nbCores, true);
-		/*
-        unordered_set<u_int32_t> selectedUnitigIndex;
-		unordered_set<u_int32_t> writtenUnitigs;
-
-        for(const Unitig& u: _graph->_unitigs){
-            if(u._startNode == -1) continue;
-
-			if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._startNode)) != writtenUnitigs.end()) continue;
-			if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(u._endNode)) != writtenUnitigs.end()) continue;
-
-			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._startNode));
-			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(u._endNode));
-
-            selectedUnitigIndex.insert(u._index);
-		}*/
 
 		_logFile << "Generating contig path file" << endl;
 		ifstream contigFile(_inputDir + "/contigs.nodepath");
@@ -1587,6 +1573,7 @@ public:
 		//_logFile << "Nb contigs: " << nbContigs << endl;
 		
 	}
+	*/
 /*
 Nb contigs: 384
 Nb nodes (checksum): 258228925
