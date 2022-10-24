@@ -53,6 +53,6 @@ make -j 3
 	-t            Number of cores [3]
 ```
 
-MetaMDBG will generate polished contigs in outputDir (file named "contigs_polished.fasta.gz").
+MetaMDBG will generate contigs in outputDir ("contigs.fasta.gz").
 
 
