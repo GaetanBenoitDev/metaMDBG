@@ -51,7 +51,7 @@ public:
 		outfile.close();
 
 		cerr << endl;
-		cerr << "Contig filename: " << _outputDir + "/contigs_polished.fasta.gz" << endl;
+		cerr << "Contig filename: " << _outputDir + "/contigs.fasta.gz" << endl;
 		cerr << "done!" << endl;
 	}
 
