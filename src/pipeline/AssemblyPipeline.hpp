@@ -472,10 +472,15 @@ public:
 			cerr << "Polishing contigs..." << endl;
 			//./bin/metaMDBG polish ~/workspace/run/overlap_test_201/contigs_uncorrected.fasta.gz ~/workspace/run/overlap_test_201/ ~/workspace/data/overlap_test/genome_201_50x/simulatedReads_0.fastq.gz ~/workspace/data/overlap_test/genome_201_50x/simulatedReads_0.fastq.gz -t 15 --qual
 			//getchar();
-			command = _filename_exe + " polish " + contigFilename_uncorrected + " " + _outputDir + " " + readFilenames + " " + " -t " + to_string(_nbCores) + " --circ -n 50";
+			command = _filename_exe + " polish " + contigFilename_uncorrected + " " + _tmpDir + " " + readFilenames + " " + " -t " + to_string(_nbCores) + " --circ -n 50";
 			executeCommand(command);
 			//generatedContigs = true;
 
+			cerr << "Purging strain duplication..." << endl;
+			string polishedContigFilename = _tmpDir + "/contigs_polished.fasta.gz";
+			string polishedContigFilenamederep = _outputDir + "/contigs.fasta.gz ";
+			command = _filename_exe + " derep " + polishedContigFilename + " " + polishedContigFilenamederep + " " + _tmpDir + " -t " + to_string(_nbCores);
+			executeCommand(command);
 
 		}
 		else{

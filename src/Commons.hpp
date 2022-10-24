@@ -1,15 +1,13 @@
 /*
 
 - Mock a refaire potentiellement a cause du len(ref) < 1000000 qui trainait
+- enelver derepOld des commands
+- ajouter des options de strain dereplication dans le main executable (mode: contained, overlap, internal, identity etc)
 
 - restester le graph based filter complet
 - Polisher: est ce que la collect des n windows est la meilleur formule (max vs distance)
-- purgeDups: identity 0.95 -> 0.98 ?
 
 - tout ce qui est écrit dans le cerr doit aussi etre ecrit dans les logs sinon c'est illisible
-- besoin de tester une meilleur metric pour le best hit du polisher (align length * identity par exemple), a test sur les gros dataset
-
-- derep: do not cut circular contigs overlap
 
 - args help: augmenter la largeur du break line
 - afficher performances (time, memory) à la fin de l'execution
