@@ -1,7 +1,10 @@
 /*
 
+- pas de message d'erreur quand wfmash crash (pas bon env)
+
+- derep: arreter d'ajouter le suffix _0 dans le header si on enleve que les overlap
+
 - Mock a refaire potentiellement a cause du len(ref) < 1000000 qui trainait
-- enelver derepOld des commands
 - ajouter des options de strain dereplication dans le main executable (mode: contained, overlap, internal, identity etc)
 
 - restester le graph based filter complet
@@ -679,6 +682,7 @@ public:
 
 	static void executeCommand(const string& command, const string& outputDir, ofstream& logFile){
 
+		const string& failedFilename = outputDir + "/failed.txt";
 		static double _maxMemoryUsage = 0;
 		static string s = "Maximumresidentsetsize(kbytes):";
 
@@ -686,15 +690,34 @@ public:
 		logFile << endl;
 		logFile << command << endl;
 
-		string command2 = "{ time -v " + command + "; } 2> " + outputDir + "/time.txt";
+		string command2 = "{ /usr/bin/time -v " + command + "; } 2> " + outputDir + "/time.txt";
 
+		//cout << command2 << endl;
 		int ret = system(command2.c_str());
+		//cout << ret  << " " << (ret != 0) << endl;
 		if(ret != 0){
 			logFile.close();
+
 			cerr << endl;
-			cerr << "Command failed: " << ret << endl;
-			cerr << "Logs: " << outputDir + "/logs.txt" << endl;
+			cerr << "ERROR (logs: " << outputDir + "/logs.txt)" << endl;
+			//cerr << "Command failed: " << ret << endl;
+			//cerr << "Logs: " << outputDir + "/logs.txt" << endl;
+
+			ofstream outfile(failedFilename);
+			outfile.close();
+
 			exit(ret);
+		}
+
+		if(fs::exists(failedFilename)){
+
+			logFile << endl;
+			logFile << command << endl;
+			logFile.close();
+			cerr << endl;
+			cerr << "ERROR (logs: " << outputDir + "/logs.txt)" << endl;
+			//cerr << "Logs: " << outputDir + "/logs.txt" << endl;
+			exit(1);
 		}
 
 		ifstream infile(outputDir + "/time.txt");
@@ -702,7 +725,7 @@ public:
 		double maxMem = 0;
 
 		while(std::getline(infile, line)){
-
+			//cout << line << endl;
     		//line.erase(std::remove_if(line.begin(), line.end(), ::istab), line.end());
     		line.erase(std::remove_if(line.begin(), line.end(), ::isspace), line.end());
 			if(line.empty()) continue;
@@ -716,14 +739,15 @@ public:
 			}
 
 			maxMem = stod(line);
-			maxMem /= 1024;
-			maxMem /= 1024;
+			maxMem /= 1000;
+			maxMem /= 1000;
 			_maxMemoryUsage = max(_maxMemoryUsage, maxMem);
 		}
 		infile.close();
 		//cout << "Max memory: " << _maxMemoryUsage << " GB" << endl;
 		//getchar();
 
+		//cout << outputDir + "/memoryTrack.txt" << endl;
 		ofstream outfileMem(outputDir + "/memoryTrack.txt", std::ios_base::app);
 		outfileMem << command << endl;
 		outfileMem << "Peak memory (GB): " << maxMem << endl;

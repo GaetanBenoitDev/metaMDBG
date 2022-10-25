@@ -255,7 +255,7 @@ public:
 		_file_duplicatedContigs = ofstream(_outputDir + "/duplicatedContigs.txt");
 		
 		
-		openLogFile(_tmpDir);
+		openLogFile(_outputDir);
 
 		_logFile << "Contigs: " << _inputFilename_contigs << endl;
 		//_logFile << "Cut contigs ends: " << _cut_contigEnds << endl;
@@ -316,16 +316,16 @@ public:
 		string contigFilenameBgzip = _tmpDir + "/__tmp_contigs_bgzip.fasta.gz";
 
 		string command = "zcat " + _inputFilename_contigs + " | bgzip --threads " + to_string(_nbCores) + " -c > " + contigFilenameBgzip;
-		Utils::executeCommand(command, _tmpDir, _logFile);
+		Utils::executeCommand(command, _outputDir, _logFile);
 
 		command = "samtools faidx " + contigFilenameBgzip;
-		Utils::executeCommand(command, _tmpDir, _logFile);
+		Utils::executeCommand(command, _outputDir, _logFile);
 		//-N 2 -p 0 --secondary=yes -I 2GB -x map-hifi -c -x asm20
 		//string command = "minimap2 -m 500 --dual=no -H -DP -c -I 100M -t " + to_string(_nbCores) + " " + _inputFilename_contigs + " " + _inputFilename_contigs + " > " + mapFilename;
 		//Utils::executeCommand(command, _tmpDir, _logFile);
 
 		command = "wfmash " + contigFilenameBgzip + " -t " + to_string(_nbCores) + " > " + _outputFilename_mapping; //-l 5000 -p 80
-		Utils::executeCommand(command, _tmpDir, _logFile);
+		Utils::executeCommand(command, _outputDir, _logFile);
 
 		fs::remove(contigFilenameBgzip);
 
@@ -1321,11 +1321,13 @@ public:
 					if(length >= 500){
 						string header = read._header;
 
+						if(_cut_contigInternal){
+							char lastChar = header[header.size()-1];
+							header.pop_back();
 
-						char lastChar = header[header.size()-1];
-						header.pop_back();
+							header += "_" + to_string(subSeqIndex) + lastChar;
+						}
 
-						header += "_" + to_string(subSeqIndex) + lastChar;
 						
 						string subSeq = seq.substr(startPos, length);
 
@@ -1357,10 +1359,13 @@ public:
 			long length = endPos-startPos-1;
 			if(length > 500){
 				string header = read._header;
-				char lastChar = header[header.size()-1];
-				header.pop_back();
+				
+				if(_cut_contigInternal){
+					char lastChar = header[header.size()-1];
+					header.pop_back();
 
-				header += "_" + to_string(subSeqIndex) + lastChar;
+					header += "_" + to_string(subSeqIndex) + lastChar;
+				}
 				
 				string subSeq = seq.substr(startPos, length);
 

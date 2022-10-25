@@ -36,6 +36,11 @@ public:
 		ofstream fileLogs(_tmpDir + "/logs.txt");
 		fileLogs.close();
 
+		const string& failedFilename = _tmpDir + "/failed.txt";
+		if(fs::exists(failedFilename)){
+			fs::remove(_tmpDir + "/failed.txt");
+		}
+
 		openLogFile(_tmpDir);
 
 		auto start = high_resolution_clock::now();
