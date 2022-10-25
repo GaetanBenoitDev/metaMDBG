@@ -1,8 +1,6 @@
 /*
 
-- pas de message d'erreur quand wfmash crash (pas bon env)
-
-- derep: arreter d'ajouter le suffix _0 dans le header si on enleve que les overlap
+- add derep in global command and manual
 
 - Mock a refaire potentiellement a cause du len(ref) < 1000000 qui trainait
 - ajouter des options de strain dereplication dans le main executable (mode: contained, overlap, internal, identity etc)
@@ -12,8 +10,6 @@
 
 - tout ce qui est écrit dans le cerr doit aussi etre ecrit dans les logs sinon c'est illisible
 
-- args help: augmenter la largeur du break line
-- afficher performances (time, memory) à la fin de l'execution
 - release une version de metaMDBG, celle que j'utilise pour le papier sans changement
 
 Paralelisation:
@@ -588,6 +584,34 @@ class Utils{
 
 
 public:
+
+	static string	formatTimeToHumanReadable(std::chrono::seconds secs)
+	{
+		using namespace std;
+		using namespace std::chrono;
+		bool neg = secs < 0s;
+		if (neg)
+			secs = -secs;
+		auto h = duration_cast<hours>(secs);
+		secs -= h;
+		auto m = duration_cast<minutes>(secs);
+		secs -= m;
+		std::string result;
+		if (neg)
+			result.push_back('-');
+		if (h < 10h)
+			result.push_back('0');
+		result += to_string(h/1h);
+		result += ':';
+		if (m < 10min)
+			result.push_back('0');
+		result += to_string(m/1min);
+		result += ':';
+		if (secs < 10s)
+			result.push_back('0');
+		result += to_string(secs/1s);
+		return result;
+	}
 
 	static string shortenHeader(const string& header){
 

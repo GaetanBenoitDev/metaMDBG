@@ -50,14 +50,49 @@ public:
 
 		auto stop = high_resolution_clock::now();
 
+
+		/*
+		string maxMemStr = "Peakmemory(GB):";
+		ifstream infile(_tmpDir + "/perf.txt");
+		string line;
+		double peakMemory = 0;
+
+		while(std::getline(infile, line)){
+			//cout << line << endl;
+    		//line.erase(std::remove_if(line.begin(), line.end(), ::istab), line.end());
+    		line.erase(std::remove_if(line.begin(), line.end(), ::isspace), line.end());
+			if(line.empty()) continue;
+
+			size_t pos = line.find(maxMemStr);
+			if (pos != std::string::npos){
+				line.erase(pos, maxMemStr.length());
+			}
+			else{
+				continue;
+			}
+
+
+			peakMemory = stod(line);
+			break;
+		}
+		infile.close();
+		*/
+
 		//cout << "Duration: " << duration_cast<seconds>(stop - start).count() << "s" << endl;
 		ofstream outfile(_tmpDir + "/perf.txt", std::ios_base::app);
-		outfile << "Duration (s): " << duration_cast<seconds>(stop - start).count() << endl;
+		outfile << "Run time (hh:mm:ss): " << Utils::formatTimeToHumanReadable(duration_cast<seconds>(stop - start)) << endl;
 		outfile.close();
 
+		ifstream perfFile(_tmpDir + "/perf.txt");
+
 		cerr << endl;
+		cerr <<  perfFile.rdbuf();
+		//cerr << "Peak memory (GB)    : " << peakMemory << endl;
+		//cerr << "Run time (hh:mm:ss) : " << Utils::formatTimeToHumanReadable(duration_cast<seconds>(stop - start)) << endl;
 		cerr << "Contig filename: " << _outputDir + "/contigs.fasta.gz" << endl;
 		cerr << "done!" << endl;
+
+		perfFile.close();
 	}
 
 	void parseArgs(int argc, char* argv[]){
