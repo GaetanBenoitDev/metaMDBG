@@ -9,6 +9,7 @@ class Mapping_BinToMDBG : public Tool{
     
 public:
 
+	string _tmpDir;
 	string _mdbgDir;
 	string _binDir;
 	string _outputFilename;
@@ -16,7 +17,7 @@ public:
 	MinimizerParser* _minimizerParser;
 	size_t _minimizerSize;
 	size_t _kminmerSize;
-	size_t _kminmerSizeFirst;
+	//size_t _kminmerSizeFirst;
 	float _minimizerDensity;
 
 	MDBG* _mdbg;
@@ -65,6 +66,7 @@ public:
 		}
 		*/
 		args::ArgumentParser parser("derep", ""); //"This is a test program.", "This goes after the options."
+		args::Positional<std::string> arg_tmpDir(parser, "tmpDir", "", args::Options::Required);
 		args::Positional<std::string> arg_mdbgDir(parser, "mdbgDir", "", args::Options::Required);
 		args::Positional<std::string> arg_binDir(parser, "binDir", "", args::Options::Required);
 		args::Positional<std::string> arg_outputFilename(parser, "outputFilename", "", args::Options::Required);
@@ -98,6 +100,7 @@ public:
 			exit(0);
 		}
 
+		_tmpDir = args::get(arg_tmpDir);
 		_mdbgDir = args::get(arg_mdbgDir);
 		_binDir = args::get(arg_binDir);
 		_outputFilename = args::get(arg_outputFilename);
@@ -125,7 +128,7 @@ public:
 		//cout << "Nb reads: " << _nbReads << endl;
 		cout << endl;
 
-		_kminmerSizeFirst = 4;
+		//_kminmerSizeFirst = 4;
 
 		_minimizerParser = new MinimizerParser(_minimizerSize, _minimizerDensity);
 	}
@@ -147,6 +150,8 @@ public:
 		//binReads();
 	}
 
+
+
 	unordered_map<KmerVec, vector<string>> _kmerVec_to_binIndexes;
 	unordered_map<u_int32_t, vector<u_int32_t>> _nodeName_to_unitigIndexes;
 	//unordered_map<KmerVec, string> _kmervec_to_binIndex;
@@ -167,7 +172,12 @@ public:
 			if(file.eof()) break;
 			file.read((char*)&unitigIndex, sizeof(unitigIndex));
 
+			//cout << unitigIndex << endl;
 			_nodeName_to_unitigIndexes[nodeName].push_back(unitigIndex);
+
+			//if(unitigIndex == 4052){
+			//	cout << nodeName << endl;
+			//}
 		}
 
 		file.close();
@@ -197,6 +207,10 @@ public:
 				//cout << binName << endl;
 				//_currentBinIndex = stoull(binName);
 
+				_nbContigs = 0;
+				countBinNbContigs(filename);
+
+				if(_nbContigs > 50) continue;
 
 				extract_truth_kminmers_bin(filename);
 
@@ -206,6 +220,19 @@ public:
 		}
 
 		//_outputFile.close();
+	}
+
+	size_t _nbContigs;
+	
+	void countBinNbContigs(const string& binFilename){
+
+		auto fp = std::bind(&Mapping_BinToMDBG::countBinNbContigs_read, this, std::placeholders::_1);
+		ReadParser readParser(binFilename, true, false, _logFile);
+		readParser.parse(fp);
+	}
+
+	void countBinNbContigs_read(const Read& read){
+		_nbContigs += 1;
 	}
 
 
@@ -233,57 +260,69 @@ public:
 
 		vector<KmerVec> kminmers; 
 		vector<ReadKminmer> kminmersInfo;
-		MDBG::getKminmers(_minimizerSize, _kminmerSizeFirst, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex, false);
+		MDBG::getKminmers(_minimizerSize, _kminmerSize, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, readIndex, false);
+
+		_contigKminmers.clear();
+		_higherNbKminmers = 0;
 
 		for(size_t i=0; i<kminmers.size(); i++){
+			KmerVec& vec = kminmers[i];
+			_contigKminmers.insert(vec);
+		}
+
+		extractContigSequence();
+		//cout <<"seq:" <<  _originalContigKminmers.size() << endl;
+		for(size_t i=0; i<_originalContigKminmers.size(); i++){
 
 
 			//cout << i << endl;
-			KmerVec& vec = kminmers[i];
+			KmerVec& vec = _originalContigKminmers[i];
 			_kmerVec_to_binIndexes[vec].push_back(_currentBinName);
-			//cout << _currentBinIndex << endl;
-			/*
-			cout << "oue?" << endl;
-			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()) continue;
-
-			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
-			cout << nodeName << endl;
-
-			if(_nodeName_to_unitigIndexes.find(nodeName) == _nodeName_to_unitigIndexes.end()) continue;
-			*/
-
-			//if(_kmervec_to_unitigName.find(vec) == _kmervec_to_unitigName.end()) continue;
-
-			//string unitigName = _kmervec_to_unitigName[vec];
-
-			//if(_writtenUnitigNames.find(unitigName) != _writtenUnitigNames.end()) continue;
-
-			//_outputFile << unitigName << "," << _currentBinIndex << endl;
-			//_writtenUnitigNames.insert(unitigName);
-			//_kmervec_to_unitigName[vec] = read._header;
-			/*
-			if(_mdbg->_dbg_nodes.find(vec) != _mdbg->_dbg_nodes.end()){
-
-				u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
-				
-
-				_evaluation_hifiasmGroundTruth_nodeName_to_unitigName[_mdbg->_dbg_nodes[vec]._index].push_back(read._header);
-				_evaluation_hifiasmGroundTruth_path.push_back(_mdbg->_dbg_nodes[vec]._index);
-
-
-			}
-			else{
-				_evaluation_hifiasmGroundTruth_path.push_back(-1);
-			}
-			*/
-
 
 		}
 
 
 	}
 
+	int _higherNbKminmers;
+	unordered_set<KmerVec> _contigKminmers;
+	vector<KmerVec> _originalContigKminmers;
+
+	void extractContigSequence(){
+
+		const string& filename_contigs = _tmpDir + "/contig_data.txt";
+		KminmerParser parser(filename_contigs, -1, _kminmerSize, false, false);
+		auto fp = std::bind(&Mapping_BinToMDBG::extractContigSequence_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5);
+		parser.parse(fp);
+
+	}
+
+	void extractContigSequence_read(const vector<u_int64_t>& readMinimizers, const vector<KmerVec>& vecs, const vector<ReadKminmer>& kminmersInfos, bool isCircular, u_int32_t readIndex){
+		
+
+		//cout << readMinimizers.size() << endl;
+		
+		int nbKminmers = 0;
+
+		for(u_int32_t i=0; i<vecs.size(); i++){
+			
+			KmerVec vec = vecs[i];
+
+			if(_contigKminmers.find(vec) != _contigKminmers.end()){
+				nbKminmers += 1;
+			}
+		}
+
+		//cout << readMinimizers.size() << " " << nbKminmers << endl;
+
+		if(nbKminmers > _higherNbKminmers){
+			_higherNbKminmers = nbKminmers;
+			_originalContigKminmers = vecs;
+		}
+	}
+
 	void mapToMdbg(){
+
 
 		for(const auto& it : _mdbg->_dbg_nodes){
 
@@ -291,8 +330,20 @@ public:
 			u_int32_t nodeName = it.second._index;
 
 			//cout << nodeName << endl;
-			if(_nodeName_to_unitigIndexes.find(nodeName) == _nodeName_to_unitigIndexes.end()) continue;
+			//if(_nodeName_to_unitigIndexes.find(nodeName) == _nodeName_to_unitigIndexes.end()) continue;
 
+			const vector<string>& binIndexes = _kmerVec_to_binIndexes[vec];
+
+			//cout << nodeName << " " << binIndexes.size() << endl;
+
+			for(u_int32_t unitigIndex : _nodeName_to_unitigIndexes[nodeName]){
+				for(const string& binName : binIndexes){
+					_unitigIndex_to_binIndexes[unitigIndex].push_back(binName);
+					//cout << unitigIndex << " " << binName << endl;
+				}
+			}
+
+			/*
 			vector<u_int64_t> minimizers = vec._kmers;
 			//vector<u_int64_t> minimizers = vec._kmers;
 			//if(it.second._isReversed){
@@ -302,7 +353,7 @@ public:
 			vector<u_int64_t> minimizers_pos;//(minimizers.size());
 			vector<KmerVec> kminmers; 
 			vector<ReadKminmer> kminmersInfo;
-			MDBG::getKminmers(_minimizerSize, _kminmerSizeFirst, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, 0, false);
+			MDBG::getKminmers(_minimizerSize, _kminmerSize, minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, 0, false);
 
 			for(const KmerVec& vec : kminmers){
 
@@ -317,7 +368,8 @@ public:
 					}
 				}
 			}
-			
+			*/
+		
 		}
 	}
 	

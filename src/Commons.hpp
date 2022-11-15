@@ -1,11 +1,18 @@
 /*
 
-- add derep in global command and manual
+- Dans les première phase du multi, ne pas ollapse les bubbles si leur source et sink sont très abondante (on ne mergera donc pas deux organismes, et il ne devrait pas break vu que c'est abondante)
+
+- polisher enlever tous ce qui est circ (c'est pas correct car incomplet)
+
+- remove scg annotation stuff (.hmm)
+- progressive fitlering: set le max en fonction de l'unitig le plus abondant
+- ajouter option maxRepeatSize = 100000 dasn l'assembleur
+- check whitin contig contamination
+- add strain derep options in global command and manual
 
 - Mock a refaire potentiellement a cause du len(ref) < 1000000 qui trainait
-- ajouter des options de strain dereplication dans le main executable (mode: contained, overlap, internal, identity etc)
 
-- restester le graph based filter complet
+
 - Polisher: est ce que la collect des n windows est la meilleur formule (max vs distance)
 
 - tout ce qui est écrit dans le cerr doit aussi etre ecrit dans les logs sinon c'est illisible
@@ -15,6 +22,7 @@
 Paralelisation:
 	- ToBasespace: read indexing phmap
 	- ToMinsapce: phmap
+	- GraphSimplify: loopRepeat with/whithout middle
 
 ContigPolisher:
 	- read mal mapper sur les bord des contig circulaire (double mapping)
@@ -547,6 +555,7 @@ struct KminmerList{
 	vector<u_int64_t> _readMinimizers;
 	vector<ReadKminmerComplete> _kminmersInfo;
 	Read _read;
+	bool _isCircular;
 	//vector<KmerVec> _kminmers;
 	//vector<ReadKminmer> _kminmersInfo;
 };
@@ -894,6 +903,30 @@ public:
 		return nbShared;
 	}
 
+	template<typename T>
+	static u_int64_t getNbSharedElements(const vector<T>& reads1, const vector<T>& reads2){
+
+		size_t i=0;
+		size_t j=0;
+		u_int64_t nbShared = 0;
+
+		while(i < reads1.size() && j < reads2.size()){
+			if(reads1[i] == reads2[j]){
+				nbShared += 1;
+				i += 1;
+				j += 1;
+			}
+			else if(reads1[i] < reads2[j]){
+				i += 1;
+			}
+			else{
+				j += 1;
+			}
+
+		}
+
+		return nbShared;
+	}
 	
 	template<typename T>
 	static u_int64_t collectSharedElements(const vector<T>& reads1, const vector<T>& reads2, unordered_set<T>& sharedReads){
@@ -2730,7 +2763,7 @@ public:
 			//cout << size << " " << isCircular << endl;
 			file_readData.read((char*)&minimizers[0], size*sizeof(u_int64_t));
 			if(_usePos) file_readData.read((char*)&minimizersPosOffsets[0], size*sizeof(u_int16_t));
-			if(_hasQuality) file_readData.read((char*)&minimizerQualities[0], size*sizeof(u_int8_t));
+			//if(_hasQuality) file_readData.read((char*)&minimizerQualities[0], size*sizeof(u_int8_t));
 
 			//if(_isReadProcessed.size() > 0 && _isReadProcessed.find(readIndex) != _isReadProcessed.end()){
 			//	readIndex += 1;
@@ -2798,7 +2831,7 @@ public:
 			if(_usePos){
 				file_readData.read((char*)&minimizersPosOffsets[0], size*sizeof(u_int16_t));
 			}
-			if(_hasQuality) file_readData.read((char*)&minimizerQualities[0], size*sizeof(u_int8_t));
+			//if(_hasQuality) file_readData.read((char*)&minimizerQualities[0], size*sizeof(u_int8_t));
 			
 			//cout << "----" << endl;
 			vector<u_int64_t> minimizersPos; 
@@ -2855,7 +2888,7 @@ public:
 			if(_usePos){
 				file_readData.read((char*)&minimizersPosOffsets[0], size*sizeof(u_int16_t));
 			}
-			if(_hasQuality) file_readData.read((char*)&minimizerQualities[0], size*sizeof(u_int8_t));
+			//if(_hasQuality) file_readData.read((char*)&minimizerQualities[0], size*sizeof(u_int8_t));
 			
 			//cout << "----" << endl;
 			vector<u_int64_t> minimizersPos; 
@@ -3068,6 +3101,7 @@ public:
 			vector<u_int8_t> minimizerQualities; 
 			u_int32_t size;
 			KminmerList kminmerList;
+			bool isCircular;
 			//KminmerList kminmer;
 
 			while(true){
@@ -3092,12 +3126,11 @@ public:
 						minimizerQualities.resize(size, -1);
 
 						
-						bool isCircular;
 						file_readData.read((char*)&isCircular, sizeof(isCircular));
 
 						file_readData.read((char*)&minimizers[0], size*sizeof(u_int64_t));
 						//if(_usePos) file_readData.read((char*)&minimizersPosOffsets[0], size*sizeof(u_int16_t));
-						if(_hasQuality) file_readData.read((char*)&minimizerQualities[0], size*sizeof(u_int8_t));
+						//if(_hasQuality) file_readData.read((char*)&minimizerQualities[0], size*sizeof(u_int8_t));
 					}
 
 				}
@@ -3137,6 +3170,7 @@ public:
 				kminmerList._readMinimizers = minimizers;
 				//kminmerList._kminmers = kminmers;
 				kminmerList._kminmersInfo = kminmersInfo;
+				kminmerList._isCircular = isCircular;
 				functorSub(kminmerList);
 			}
 		}

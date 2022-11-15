@@ -1693,6 +1693,10 @@ public:
 			//if(breaking_points_.size() > 0) breaking_points_.emplace_back(last_match);
 				
 			for (uint32_t j = 0; j < breaking_points_.size(); j += 2) {
+
+				if(breaking_points_[j].second >= readSequence.size()) return;
+				if(breaking_points_[j + 1].second >= readSequence.size()) return;
+
 				if (breaking_points_[j + 1].second - breaking_points_[j].second < 0.02 * _windowLength) {
 					continue;
 				}

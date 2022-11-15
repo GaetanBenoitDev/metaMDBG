@@ -11,11 +11,13 @@
 //#include "contigFeatures/KminmerCounter.hpp"
 //#include "contigFeatures/KmerCounter.hpp"
 #include "mapping/Mapping.hpp"
+#include "mapping/ReferencePath.hpp"
 //#include "mapping/Mapping_BinReads.hpp"
 //#include "mapping/Mapping_ContigToMDBG.hpp"
 #include "mapping/Mapping_BinToMDBG.hpp"
 #include "polish/ContigPolisher.hpp"
 #include "polish/PurgeDups.hpp"
+//#include "assembly/Circulizer.hpp"
 //#include "toBasespace/Dereplicater.hpp"
 //#include "polish/PurgeGraph.hpp"
 
@@ -101,6 +103,9 @@ int main (int argc, char* argv[])
     		//else if(programName == "toBasespaceFast"){
             //    ToBasespaceNoCorrection().run (argc, args);
     		//}
+    		//else if(programName == "circ"){
+            //    Circulizer().run (argc, args);
+    		//}
     		else if(programName == "toBasespace"){
                 ToBasespace().run (argc, args);
     		}
@@ -130,6 +135,9 @@ int main (int argc, char* argv[])
     		//}
     		else if(programName == "mapBin"){
                 Mapping().run (argc, args);
+    		}
+    		else if(programName == "mapRef"){
+                ReferencePath().run (argc, args);
     		}
     		//else if(programName == "map-binreads"){
             //    Mapping_BinReads().run (argc, args);
