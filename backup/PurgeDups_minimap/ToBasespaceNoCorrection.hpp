@@ -7,7 +7,6 @@
 //#include "../utils/edlib.h"
 //#include "../utils/spoa/include/spoa/spoa.hpp"
 #include "../utils/DnaBitset.hpp"
-#include "ContainedRemover.hpp"
 #include "OverlapRemover.hpp"
 //#include <seqan/align.h>
 //#include <seqan/graph_msa.h>
@@ -195,13 +194,9 @@ public:
 		_mdbg->load(mdbg_filename, false);
 		_logFile << "MDBG nodes: " << _mdbg->_dbg_nodes.size() << endl;
 
-
-		ContainedRemover containedRemover(_inputDir, _inputFilenameContig, _kminmerSize, _logFile, _nbCores);
-		containedRemover.execute();
-
 		//_logFile << _inputFilenameContig_fasta << endl;
-		OverlapRemover overlapRemover(_inputDir, _inputFilenameContig, _kminmerSize, _logFile);
-		overlapRemover.execute();
+		//OverlapRemover overlapRemover(_inputDir, _inputFilenameContig, _kminmerSize, _logFile, _nbCores);
+		//overlapRemover.execute();
 		
 		//removeOverlaps();
 

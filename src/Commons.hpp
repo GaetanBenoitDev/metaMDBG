@@ -1,33 +1,46 @@
 /*
 
+- truc desactivé:
+	- GraphSimplify: auto currentAbundance 
+	- GenerateContigs: discard circular tag for contig < 300000
+
+- contig polisher: plus de window pour les espece plus abondante ? (fraction du contig coverage)
+- OverlapRemover : ligne 595: tester d'enlever le +1 de if(contig._minimizers.size() <= _kminmerSize+1){
+- determinstic node a un imapct sur la qualité des resultats sur donées dimulé, voir si c'est le cas sur AD
+- to test ToBasespace: limit nb reads per nodename
+
 - Dans les première phase du multi, ne pas ollapse les bubbles si leur source et sink sont très abondante (on ne mergera donc pas deux organismes, et il ne devrait pas break vu que c'est abondante)
+- polisher circ detection incomplete (il faudrait ajouter la partie manquante au backbone)
 
-- polisher enlever tous ce qui est circ (c'est pas correct car incomplet)
-
-- remove scg annotation stuff (.hmm)
-- progressive fitlering: set le max en fonction de l'unitig le plus abondant
-- ajouter option maxRepeatSize = 100000 dasn l'assembleur
 - check whitin contig contamination
 - add strain derep options in global command and manual
-
-- Mock a refaire potentiellement a cause du len(ref) < 1000000 qui trainait
-
-
-- Polisher: est ce que la collect des n windows est la meilleur formule (max vs distance)
 
 - tout ce qui est écrit dans le cerr doit aussi etre ecrit dans les logs sinon c'est illisible
 
 - release une version de metaMDBG, celle que j'utilise pour le papier sans changement
 
 Paralelisation:
-	- ToBasespace: read indexing phmap
-	- ToMinsapce: phmap
-	- GraphSimplify: loopRepeat with/whithout middle
+	- OverlapRemover: " parallelisation ligne 475 for(long i=0; i<_contigs.size(); i++){ en lisant sequenciellement avec une result queue comme dans readSelection"
+		- prototype dans backup mais fonctionne pas :/
 
 ContigPolisher:
 	- read mal mapper sur les bord des contig circulaire (double mapping)
 
 - ajouter une progress bar global
+
+---------------------------------- FIXED
+
+- pas ouf le systeme de verification de crash des programme (la seg fault devrait apparaitre dans cerr, pas sur pour le truc du ficher faield.txt)
+
+- [Fixed] CreateGraph: determinstic sutff always enabled, remove for speed gain
+
+- [Fixed temporaire] pb avec le abundance filter: les repeat se font output en premier et peuvent créé des faux unitig circulaires
+	- on pourrait empecher les petit unitig d'etre circulaire dans les premiere passes, sinon il faut reussir a savoir si se sont des repeats
+
+- multi-k: en fait le +1 est nécessaire que au debut probablement, on pourrait faire un plus grand pas dans les grande valeur de k
+	- update:on trouve moins de component circulaire 
+
+- contig polisher: fix lost circularity tag for small contigs (< 1M)
 
 */
 
@@ -85,6 +98,7 @@ struct Read{
 	string _header;
 	string _seq;
 	string _qual;
+	u_int64_t _datasetIndex;
 };
 
 
@@ -266,7 +280,7 @@ struct MinimizerPair{
 struct DbgNode{
 	u_int32_t _index;
 	u_int32_t _abundance;
-	u_int32_t _quality;
+	//u_int32_t _quality;
 	//u_int16_t _length;
 	//u_int16_t _overlapLength_start;
 	//u_int16_t _overlapLength_end;
@@ -411,7 +425,7 @@ struct ReadKminmerComplete{
 	u_int32_t _seq_length_start;
 	u_int32_t _seq_length_end;
 	u_int32_t _length;
-	u_int8_t _quality;
+	//u_int8_t _quality;
 };
 
 struct ReadNodeName{
@@ -526,6 +540,7 @@ struct KminmerEdge{
 typedef phmap::parallel_flat_hash_map<KmerVec, DbgNode, phmap::priv::hash_default_hash<KmerVec>, phmap::priv::hash_default_eq<KmerVec>, std::allocator<std::pair<KmerVec, DbgNode>>, 4, std::mutex> MdbgNodeMap;
 typedef phmap::parallel_flat_hash_map<KmerVec, vector<KminmerEdge>, phmap::priv::hash_default_hash<KmerVec>, phmap::priv::hash_default_eq<KmerVec>, std::allocator<std::pair<KmerVec, vector<KminmerEdge>>>, 4, std::mutex> MdbgEdgeMap;
 typedef phmap::parallel_flat_hash_map<KmerVec, vector<KminmerEdge2>, phmap::priv::hash_default_hash<KmerVec>, phmap::priv::hash_default_eq<KmerVec>, std::allocator<std::pair<KmerVec, vector<KminmerEdge2>>>, 4, std::mutex> MdbgEdgeMap2;
+//typedef phmap::parallel_flat_hash_set<KmerVec, phmap::priv::hash_default_hash<KmerVec>, phmap::priv::hash_default_eq<KmerVec>, std::allocator<KmerVec>, 4, std::mutex> KminmerSet;
 
 
 //unordered_map<KmerVec, DbgNode> _dbg_nodes;
@@ -560,6 +575,14 @@ struct KminmerList{
 	//vector<ReadKminmer> _kminmersInfo;
 };
 
+struct NodePath{
+	u_int64_t _readIndex;
+	vector<u_int32_t> _nodePath;
+	bool _isCircular;
+	//vector<KmerVec> _kminmers;
+	//vector<ReadKminmer> _kminmersInfo;
+};
+
 class Commons{
 
 public:
@@ -583,6 +606,20 @@ public:
 		inputFile.close();
 
 
+	}
+
+	static size_t getMultikStep(size_t k){
+		return 1;
+
+		if(k < 20){
+			return 1;
+		}
+		else if(k < 40){
+			return 2;
+		}
+		else{
+			return 5;
+		}
 	}
 
 };
@@ -718,6 +755,7 @@ public:
 		const string& failedFilename = outputDir + "/failed.txt";
 		static double _maxMemoryUsage = 0;
 		static string s = "Maximumresidentsetsize(kbytes):";
+		static string stringCpu = "PercentofCPUthisjobgot:";
 
 		logFile << endl;
 		logFile << endl;
@@ -756,6 +794,7 @@ public:
 		ifstream infile(outputDir + "/time.txt");
 		string line;
 		double maxMem = 0;
+		string cpu;
 
 		while(std::getline(infile, line)){
 			//cout << line << endl;
@@ -766,15 +805,18 @@ public:
 			size_t pos = line.find(s);
 			if (pos != std::string::npos){
 				line.erase(pos, s.length());
-			}
-			else{
-				continue;
+				maxMem = stod(line);
+				maxMem /= 1000;
+				maxMem /= 1000;
+				_maxMemoryUsage = max(_maxMemoryUsage, maxMem);
 			}
 
-			maxMem = stod(line);
-			maxMem /= 1000;
-			maxMem /= 1000;
-			_maxMemoryUsage = max(_maxMemoryUsage, maxMem);
+			pos = line.find(stringCpu);
+			if (pos != std::string::npos){
+				line.erase(pos, stringCpu.length());
+				cpu = line;
+			}
+
 		}
 		infile.close();
 		//cout << "Max memory: " << _maxMemoryUsage << " GB" << endl;
@@ -783,7 +825,8 @@ public:
 		//cout << outputDir + "/memoryTrack.txt" << endl;
 		ofstream outfileMem(outputDir + "/memoryTrack.txt", std::ios_base::app);
 		outfileMem << command << endl;
-		outfileMem << "Peak memory (GB): " << maxMem << endl;
+		outfileMem << "\tPeak memory (GB): " << maxMem << endl;
+		outfileMem << "\tCPU: " << cpu << endl;
 		outfileMem.close();
 
 		ofstream outfile(outputDir + "/perf.txt");
@@ -901,6 +944,33 @@ public:
 		}
 
 		return nbShared;
+	}
+
+	template<typename T>
+	static bool sharedAllElements(const vector<T>& reads1, const vector<T>& reads2){
+
+		size_t i=0;
+		size_t j=0;
+		u_int64_t nbShared = 0;
+
+		while(i < reads1.size() && j < reads2.size()){
+			if(reads1[i] == reads2[j]){
+				nbShared += 1;
+				i += 1;
+				j += 1;
+			}
+			else if(reads1[i] < reads2[j]){
+				i += 1;
+			}
+			else{
+				if(nbShared == reads2.size()) return true;
+				return false;
+			}
+
+		}
+
+		if(nbShared == reads2.size()) return true;
+		return false;
 	}
 
 	template<typename T>
@@ -1328,7 +1398,7 @@ public:
 			//KmerVecSorterData& d = kmerVecs[i];
 			u_int32_t nodeName = it.second._index;
 			u_int32_t abundance = it.second._abundance;
-			u_int32_t quality = it.second._quality;
+			//u_int32_t quality = it.second._quality;
 
 			//if(quality==0){
 			//	cout << "omg " << nodeName << endl;
@@ -1350,7 +1420,7 @@ public:
 
 			kminmerFile.write((const char*)&nodeName, sizeof(nodeName));
 			kminmerFile.write((const char*)&abundance, sizeof(abundance));
-			kminmerFile.write((const char*)&quality, sizeof(quality));
+			//kminmerFile.write((const char*)&quality, sizeof(quality));
 		}
 
 		kminmerFile.close();
@@ -1375,19 +1445,19 @@ public:
 
 			u_int32_t nodeName;
 			u_int32_t abundance;
-			u_int32_t quality;
+			//u_int32_t quality;
 			//bool isReversed = false;
 
 			kminmerFile.read((char*)&nodeName, sizeof(nodeName));
 			kminmerFile.read((char*)&abundance, sizeof(abundance));
-			kminmerFile.read((char*)&quality, sizeof(quality));
+			//kminmerFile.read((char*)&quality, sizeof(quality));
 
 
 			//if(removeUniqueKminmer && abundance == 1) continue;
 			KmerVec vec;
 			vec._kmers = minimizerSeq;
 
-			_dbg_nodes[vec] = {nodeName, abundance, quality};
+			_dbg_nodes[vec] = {nodeName, abundance};
 		}
 
 		kminmerFile.close();
@@ -2173,14 +2243,14 @@ public:
 						seq_length_end = read_pos_end - pos_last_minimizer; 
 					}
 
-					u_int8_t minQuality = -1;
-					for(size_t i=indexFirstMinimizer; i<=indexLastMinimizer; i++){
-						if(minimizerQualities[i] < minQuality){
-							minQuality = minimizerQualities[i];
-						}
-					}
+					//u_int8_t minQuality = -1;
+					//for(size_t i=indexFirstMinimizer; i<=indexLastMinimizer; i++){
+					//	if(minimizerQualities[i] < minQuality){
+					//		minQuality = minimizerQualities[i];
+					//	}
+					//}
 
-					kminmers.push_back({vec, isReversed, read_pos_start, read_pos_end, seq_length_start, seq_length_end, length, minQuality});
+					kminmers.push_back({vec, isReversed, read_pos_start, read_pos_end, seq_length_start, seq_length_end, length});
 					break;
 				}
 
@@ -2292,6 +2362,7 @@ public:
 		//#pragma omp for
 		//cout << _nbCores << endl;
 
+		u_int64_t datasetIndex = 0;
 		u_int64_t readIndex = -1;
 
 		for(const string& filename : _filenames){
@@ -2333,10 +2404,10 @@ public:
 							readIndex += 1;
 
 							if(seq->qual.l == 0){
-								read = {readIndex, string(seq->name.s), string(seq->seq.s)};
+								read = {readIndex, string(seq->name.s), string(seq->seq.s), "", datasetIndex};
 							}
 							else{
-								read = {readIndex, string(seq->name.s), string(seq->seq.s), string(seq->qual.s)};
+								read = {readIndex, string(seq->name.s), string(seq->seq.s), string(seq->qual.s), datasetIndex};
 							}
 						}
 
@@ -2362,7 +2433,7 @@ public:
 			
 			kseq_destroy(seq);	
 			gzclose(fp);
-
+			datasetIndex += 1;
 		}
 
 		_logFile << "Parsing file done (nb reads: " << (readIndex+1) << ")" << endl;
@@ -3050,6 +3121,105 @@ public:
 };
 
 
+class NodePathParserParallel{
+
+public:
+
+	string _inputFilename;
+	int _nbCores;
+
+	NodePathParserParallel(){
+	}
+
+	NodePathParserParallel(const string& inputFilename, int nbCores){
+		_inputFilename = inputFilename;
+		_nbCores = nbCores;
+	}
+
+	template<typename Functor>
+	void parse(const Functor& functor){
+
+		ifstream file_readData(_inputFilename);
+
+		u_int64_t readIndex = -1;
+
+		#pragma omp parallel num_threads(_nbCores)
+		{
+
+			bool isEOF = false;
+			Functor functorSub(functor);
+			
+			u_int64_t size;
+			vector<u_int32_t> nodePath;
+			bool isCircular;
+			NodePath nodePathObject;
+
+			while(true){
+				
+
+				#pragma omp critical
+				{
+					/*
+					//vector<u_int64_t> supportingReads;
+					u_int64_t size;
+					contigFile.read((char*)&size, sizeof(size));
+					
+
+					if(contigFile.eof()) break;
+
+					bool isCircular;
+					contigFile.read((char*)&isCircular, sizeof(isCircular));
+
+					nodePath.resize(size);
+					//supportingReads.resize(size);
+					contigFile.read((char*)&nodePath[0], size * sizeof(u_int32_t));
+					*/
+
+
+					file_readData.read((char*)&size, sizeof(size));
+
+					if(file_readData.eof()) isEOF = true;
+
+					if(!isEOF){
+
+						readIndex += 1;
+
+						nodePathObject = {readIndex};
+
+						nodePath.resize(size);
+
+						
+						file_readData.read((char*)&isCircular, sizeof(isCircular));
+
+						file_readData.read((char*)&nodePath[0], size*sizeof(u_int32_t));
+						//if(_usePos) file_readData.read((char*)&minimizersPosOffsets[0], size*sizeof(u_int16_t));
+						//if(_hasQuality) file_readData.read((char*)&minimizerQualities[0], size*sizeof(u_int8_t));
+					}
+
+				}
+
+				
+
+				//if(_isReadProcessed.size() > 0 && _isReadProcessed.find(readIndex) != _isReadProcessed.end()){
+				//	readIndex += 1;
+				//	continue;
+				//}
+
+				//cout << "----" << endl;
+
+				if(isEOF) break;
+
+				nodePathObject._nodePath = nodePath;
+				nodePathObject._isCircular = isCircular;
+
+				functorSub(nodePathObject);
+			}
+		}
+
+		file_readData.close();
+
+	}
+};
 
 
 class KminmerParserParallel{
@@ -3171,6 +3341,106 @@ public:
 				//kminmerList._kminmers = kminmers;
 				kminmerList._kminmersInfo = kminmersInfo;
 				kminmerList._isCircular = isCircular;
+				functorSub(kminmerList);
+			}
+		}
+
+		file_readData.close();
+
+	}
+
+	template<typename Functor>
+	void parseSequences(const Functor& functor){
+	//void parse(const std::function<void(vector<u_int64_t>, vector<KmerVec>, vector<ReadKminmer>, u_int64_t)>& fun){
+
+		ifstream file_readData(_inputFilename);
+
+		u_int64_t readIndex = -1;
+
+		#pragma omp parallel num_threads(_nbCores)
+		{
+
+			bool isEOF = false;
+			Functor functorSub(functor);
+			vector<u_int64_t> minimizers;
+			vector<u_int16_t> minimizersPosOffsets; 
+			vector<u_int8_t> minimizerQualities; 
+			u_int32_t size;
+			KminmerList kminmerList;
+			bool isCircular;
+			//KminmerList kminmer;
+
+			while(true){
+				
+
+				#pragma omp critical
+				{
+
+					
+					file_readData.read((char*)&size, sizeof(size));
+
+					if(file_readData.eof()) isEOF = true;
+
+					if(!isEOF){
+
+						readIndex += 1;
+
+						kminmerList = {readIndex};
+
+						minimizers.resize(size);
+						minimizersPosOffsets.resize(size);
+						minimizerQualities.resize(size, -1);
+
+						
+						file_readData.read((char*)&isCircular, sizeof(isCircular));
+
+						file_readData.read((char*)&minimizers[0], size*sizeof(u_int64_t));
+						//if(_usePos) file_readData.read((char*)&minimizersPosOffsets[0], size*sizeof(u_int16_t));
+						//if(_hasQuality) file_readData.read((char*)&minimizerQualities[0], size*sizeof(u_int8_t));
+					}
+
+				}
+
+				
+
+				//if(_isReadProcessed.size() > 0 && _isReadProcessed.find(readIndex) != _isReadProcessed.end()){
+				//	readIndex += 1;
+				//	continue;
+				//}
+
+				//cout << "----" << endl;
+
+				if(isEOF) break;
+
+				/*
+				vector<u_int64_t> minimizersPos; 
+				if(size > 0){
+					u_int64_t pos = minimizersPosOffsets[0];
+					minimizersPos.push_back(pos);
+					for(size_t i=1; i<minimizersPosOffsets.size(); i++){
+						pos += minimizersPosOffsets[i];
+						minimizersPos.push_back(pos);
+						//cout << minimizersPosOffsets[i] << " " << pos << endl;
+					}
+				}
+				
+
+				//vector<KmerVec> kminmers; 
+				//vector<ReadKminmer> kminmersInfo;
+				vector<u_int64_t> rlePositions;
+				vector<ReadKminmerComplete> kminmersInfo;
+				//MDBG::getKminmers(_l, _k, minimizers, minimizersPos, kminmers, kminmersInfo, rlePositions, 0, false);
+				MDBG::getKminmers_complete(_k, minimizers, minimizersPos, kminmersInfo, readIndex, minimizerQualities);
+				
+				//fun(minimizers, kminmers, kminmersInfo, readIndex);
+				kminmerList._readMinimizers = minimizers;
+				//kminmerList._kminmers = kminmers;
+				kminmerList._kminmersInfo = kminmersInfo;
+				kminmerList._isCircular = isCircular;
+				*/
+				kminmerList._readMinimizers = minimizers;
+				kminmerList._isCircular = isCircular;
+
 				functorSub(kminmerList);
 			}
 		}
@@ -3310,6 +3580,11 @@ public:
 
 	void openLogFile(const string& dir){
 		_logFile = ofstream(dir + "/logs.txt", std::ios_base::app);
+
+		const string& failedFilename = dir + "/failed.txt";
+		if(fs::exists(failedFilename)){
+			fs::remove(dir + "/failed.txt");
+		}
 	}
 
 	void closeLogFile(){

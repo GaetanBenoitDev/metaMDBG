@@ -1482,6 +1482,11 @@ public:
 
 		size_t length1 = _contigLengths[contigIndex1];
 		size_t length2 = _contigLengths[contigIndex2];
+		return cal_tnf_dist(c1, c2, length1, length2);
+	}
+
+	Distance cal_tnf_dist(const vector<float>& c1, const vector<float>& c2, size_t length1, size_t length2) {
+
 		//if(d1._length < 2500) return 1;
 		//if(d2._length < 2500) return 1;
 		/*
@@ -1542,7 +1547,6 @@ public:
 		//cout << prob << " " << d << " " << b << " " << c << endl;
 		return prob;
 	}
-
 	/*
 	double computeAbundanceCorrelation_new(const vector<float>& cov1, const vector<float>& cov2) {
 

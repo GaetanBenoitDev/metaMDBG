@@ -53,6 +53,7 @@ public:
     size_t _kminmerSize;
     size_t _kminmerSizeFirst;
     size_t _kminmerSizePrev;
+	size_t _kminmerSizeLast;
 	string _filename_noKminmerReads;
 	//ofstream _file_noKminmerReads;
 	int _nbCores;
@@ -75,6 +76,11 @@ public:
 	string _filename_inputContigs;
 	string _filename_solidKminmers;
 
+	string _filename_smallContigs;
+	//string _filename_smallContigsNew;
+	//string _filename_smallContigsPrev;
+	//string _filename_smallContigs;
+
 	unordered_set<u_int32_t> writtenNodeNames;
 	unordered_set<KmerVec> _kminmerExist;
 	ofstream _kminmerFile;
@@ -87,6 +93,7 @@ public:
 	//vector<u_int32_t> _evaluation_readToDataset;
 	bool _parseReads;
 	MDBG* _mdbg;
+	//MDBG* _mdbgFirst;
 	MDBG* _mdbgSaved;
 	//MDBG* _mdbgInit;
 	KminmerAbundanceMap _kminmerAbundances;
@@ -94,6 +101,7 @@ public:
 	MdbgEdgeMap2 _mdbgEdges2;
 	MDBG* _mdbgNoFilter;
 	bool _parsingContigs;
+	bool _savingSmallContigs;
 	u_int32_t _node_id;
 	//MinimizerPairMap* _minimizerPairMap;
 
@@ -132,6 +140,239 @@ public:
 	void dumpEdge(u_int32_t nodeNameFrom, u_int8_t nodeNameFromOri, u_int32_t nodeNameTo, u_int8_t nodeNameToOri);
 	void indexEdges();
 	void computeEdges();
+
+	
+
+
+
+
+
+
+
+	/*
+	struct Contig{
+		u_int64_t _readIndex;
+		vector<u_int32_t> _nodepath;
+		vector<u_int64_t> _minimizers;
+		//vector<vector<u_int64_t>> _kmerVecs;
+		//vector<u_int32_t> _nodepath_sorted;
+	};
+
+	vector<Contig> _contigs_current;
+	vector<Contig> _contigs_prev;
+
+	static bool ContigComparator_ByLength(const Contig &a, const Contig &b){
+
+		if(a._nodepath.size() == b._nodepath.size()){
+			for(size_t i=0; i<a._nodepath.size() && i<b._nodepath.size(); i++){
+				if(BiGraph::nodeIndex_to_nodeName(a._nodepath[i]) == BiGraph::nodeIndex_to_nodeName(b._nodepath[i])){
+					continue;
+				}
+				else{
+					return BiGraph::nodeIndex_to_nodeName(a._nodepath[i]) > BiGraph::nodeIndex_to_nodeName(b._nodepath[i]);
+				}
+			}
+		}
+
+
+		return a._nodepath.size() > b._nodepath.size();
+	}
+	*/
+	/*
+	//phmap::parallel_flat_hash_map<u_int32_t, vector<u_int32_t>> _nodeName_to_contigs;
+	//phmap::parallel_flat_hash_set<u_int32_t> _invalidContigIndex;
+	unordered_set<u_int32_t> isUnitigDuplicated;
+
+	void checkDuplication(){
+
+
+		ofstream bannedKminmers(_outputDir + "/bannedKminmers/bannedKminmers_" + to_string(_kminmerSizePrev) + ".txt");
+		cout << "Removing duplication" << endl;
+		
+		ofstream colorFile(_outputDir + "/color.csv");
+		colorFile << "Name,Color" << endl;
+
+		cout << "wirte: " << _kminmerSizePrev << endl;
+		bannedKminmers.write((const char*)&_kminmerSizePrev, sizeof(_kminmerSizePrev));
+
+		//KminmerParserParallel parser(_filename_output, _minimizerSize, _kminmerSizeFirst, false, false);
+		//auto fp = std::bind(&ToMinspace::loadContigs_min_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
+		//parser.parseMinspace(fp);
+
+		KminmerParserParallel parser(_outputDir + "/unitig_data.txt", _minimizerSize, _kminmerSizeFirst, false, false, _nbCores);
+		parser.parse(LoadContigKminmerFunctor(*this, _contigs_current));
+
+		KminmerParserParallel parser2(_outputDir + "/unitig_data_prev.txt", _minimizerSize, _kminmerSizeFirst, false, false, _nbCores);
+		parser2.parse(LoadContigKminmerFunctor(*this, _contigs_prev));
+
+		for(size_t i=0; i<_contigs_current.size(); i++){
+
+			const Contig& contigCurrent = _contigs_current[i];
+
+			for(size_t j=0; j<_contigs_prev.size(); j++){
+
+				const Contig& contigPrev = _contigs_prev[j];
+
+				if(contigCurrent._nodepath == contigPrev._nodepath){
+
+					isUnitigDuplicated.insert(contigCurrent._readIndex);
+					//for(const vector<u_int64_t>& vec : contigCurrent._kmerVecs){
+					//	bannedKminmers.write((const char*)&vec[0], vec.size()*sizeof(uint64_t));
+					//}
+
+					cout << "duplicate " << contigCurrent._nodepath.size() << endl;
+
+					vector<u_int64_t> rlePositions;
+					vector<u_int64_t> minimizers_pos;//(minimizers.size());
+					vector<KmerVec> kminmers; 
+					vector<ReadKminmer> kminmersInfo;
+					MDBG::getKminmers(_minimizerSize, _kminmerSizePrev, contigCurrent._minimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, 0, false);
+
+					for(const KmerVec& vec : kminmers){
+						//bannedKminmers.write((const char*)&vec._kmers[0], vec._kmers.size()*sizeof(uint64_t));
+						u_int32_t nodeName = _kmerVec_to_nodeName[vec];
+						colorFile << nodeName << ",red" << endl;
+					}
+
+					//if(contigCurrent._nodepath.size() > 500){
+					//	cout << "duplicate " << contigCurrent._nodepath.size() << endl;
+					//}
+				}
+			}
+		}
+
+		bannedKminmers.close();
+		colorFile.close();
+		//getchar();
+	}
+
+	class LoadContigKminmerFunctor {
+
+		public:
+
+		CreateMdbg& _graph;
+		vector<Contig>& _contigs;
+
+		LoadContigKminmerFunctor(CreateMdbg& graph, vector<Contig>& contigs) : _graph(graph), _contigs(contigs){
+
+		}
+
+		LoadContigKminmerFunctor(const LoadContigKminmerFunctor& copy) : _graph(copy._graph), _contigs(copy._contigs){
+
+		}
+
+		~LoadContigKminmerFunctor(){
+			//delete _minimizerParser;
+		}
+
+
+
+		void operator () (const KminmerList& kminmerList) {
+
+
+			u_int64_t readIndex = kminmerList._readIndex;
+			const vector<u_int64_t>& readMinimizers = kminmerList._readMinimizers;
+			//const vector<KmerVec>& kminmers = kminmerList._kminmers;
+			const vector<ReadKminmerComplete>& kminmersInfos = kminmerList._kminmersInfo;
+
+			vector<u_int32_t> nodepath;
+			//vector<vector<u_int64_t>> kmerVecs;
+
+			for(size_t i=0; i<kminmersInfos.size(); i++){
+				
+				const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
+
+				KmerVec vec = kminmerInfo._vec;
+				
+				if(_graph._mdbgFirst->_dbg_nodes.find(vec) == _graph._mdbgFirst->_dbg_nodes.end()){
+					_graph._logFile << "Not found kminmer" << endl;
+					//getchar();
+					continue;
+				}
+
+
+
+				u_int32_t nodeName = _graph._mdbgFirst->_dbg_nodes[vec]._index;
+				nodepath.push_back(nodeName);
+				//kmerVecs.push_back(vec._kmers);
+
+				//#pragma omp critical
+				//{
+					
+				//	vector<u_int32_t>& contigIndexes = _graph._nodeName_to_contigs[nodeName]; 
+				//	if(std::find(contigIndexes.begin(), contigIndexes.end(), readIndex) == contigIndexes.end()){
+				//		contigIndexes.push_back(readIndex);
+				//	}
+				//}
+				
+
+			}
+
+			//_nbContigs += 1;
+
+			#pragma omp critical
+			{
+				//vector<u_int32_t> nodepath_sorted = nodepath;
+				//std::sort(nodepath_sorted.begin(), nodepath_sorted.end());
+				_contigs.push_back({readIndex, nodepath, readMinimizers});
+				//cout << "load contig: " << nodepath.size() << endl;
+			}
+			
+		}
+	};
+
+
+	vector<phmap::parallel_flat_hash_set<KmerVec>> _bannedKminmers;
+	unordered_map<KmerVec, u_int32_t> _kmerVec_to_nodeName;
+
+	void loadBannedKminmers(){
+		
+		//phmap::parallel_flat_hash_set<KmerVec> lol;
+		cout << "loading banned kminmers" << endl;
+
+		_bannedKminmers.resize(_kminmerSize+1);
+
+		string bannedDir = _outputDir + "/bannedKminmers/";
+		string ext = ".txt";
+		
+
+		for (auto &p : fs::recursive_directory_iterator(bannedDir)){
+			if (p.path().extension() == ext){
+				string filename =  p.path();
+				//cout << filename << endl;
+				ifstream bannedKminmers(filename);
+
+				ifstream file(filename);
+
+    			size_t kminmerSize;
+
+				file.read((char*)&kminmerSize, sizeof(kminmerSize));
+				//cout << "load kminmer size: " << kminmerSize << endl;
+
+				while(true){
+
+					vector<u_int64_t> minimizerSeq;
+
+					minimizerSeq.resize(kminmerSize);
+					file.read((char*)&minimizerSeq[0], kminmerSize*sizeof(u_int64_t));
+
+					if(file.eof()) break;
+
+					KmerVec vec;
+					vec._kmers = minimizerSeq;
+					//cout << vec._kmers[0] << endl;
+					//cout << vec._kmers.size() << endl;
+					//lol.insert(vec.normalize());
+					_bannedKminmers[kminmerSize].insert(vec.normalize());
+				}
+			}
+		}
+
+		//cout << "done" << endl;
+
+	}
+	*/
+
 	//void createMDBG_collectKminmers_minspace_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex);
 
 	//void createSimilarityGraph(GraphInfo* graphInfo);
@@ -258,6 +499,7 @@ public:
 	*/
 
 	vector<u_int32_t> _contigsNbNodes;
+	u_int64_t _nbSmallContigs;
 
 	class IndexContigFunctor { 
 
@@ -350,7 +592,40 @@ public:
 			//delete _minimizerParser;
 		}
 
-		
+		/*
+		bool isValid(const vector<u_int64_t>& readMinimizers){
+			
+			//cout << "is valid: " << readMinimizers.size() << endl;
+
+			for(size_t kminmerSize=_kminmerSizeFirst; kminmerSize<_kminmerSize; kminmerSize+=1){
+
+				if(kminmerSize >= _graph._bannedKminmers.size()) return true; //pass k=4 and k =5
+
+				const phmap::parallel_flat_hash_set<KmerVec>& bannedKminmers = _graph._bannedKminmers[kminmerSize];
+
+				//cout << kminmerSize << " " << bannedKminmers.size() << endl;
+				if(bannedKminmers.size() == 0) continue;
+				//vector<phmap::parallel_flat_hash_set<KmerVec>> _bannedKminmers;
+				
+				vector<u_int64_t> rlePositions;
+				vector<u_int64_t> minimizers_pos;//(minimizers.size());
+				vector<KmerVec> kminmers; 
+				vector<ReadKminmer> kminmersInfo;
+				MDBG::getKminmers(_minimizerSize, kminmerSize, readMinimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, 0, false);
+
+				for(const KmerVec& vec : kminmers){
+					if(bannedKminmers.find(vec) != bannedKminmers.end()){
+						//cout << "no" << endl;
+						return false;
+					}
+				}
+			}
+
+			//cout << "yes" << endl;
+			return true;
+		}
+		*/
+
 		float getAbundance(const vector<u_int64_t>& readMinimizers, const ReadKminmerComplete& kminmerInfo){
 
 			const KmerVec& vec = kminmerInfo._vec;
@@ -492,6 +767,26 @@ public:
 		}
 		*/
 
+		bool isInGraph(const vector<ReadKminmerComplete>& kminmersInfos){
+
+			if(kminmersInfos.size() == 0) return false;
+
+			for(size_t i=0; i<kminmersInfos.size(); i++){
+					
+
+				//const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
+
+				const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
+				const KmerVec& vec = kminmerInfo._vec;
+
+				if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
+					return false;
+				}
+			}
+
+			return true;
+		}
+
 		void operator () (const KminmerList& kminmerList) {
 
 
@@ -500,7 +795,80 @@ public:
 			//const vector<KmerVec>& kminmers = kminmerList._kminmers;
 			const vector<ReadKminmerComplete>& kminmersInfos = kminmerList._kminmersInfo;
 
+			if(_graph._savingSmallContigs){
 
+				if(_extractingContigs && _kminmerSize > 8 && kminmersInfos.size() < _kminmerSize*2 && getAbundance(readMinimizers) > 1){
+
+					if(!isInGraph(kminmersInfos)){
+						#pragma omp critical
+						{
+							u_int32_t contigSize = readMinimizers.size();
+							_graph._fileSmallContigs.write((const char*)&contigSize, sizeof(contigSize));
+
+							bool isCircular = kminmerList._isCircular;
+							_graph._fileSmallContigs.write((const char*)&isCircular, sizeof(isCircular));
+							_graph._fileSmallContigs.write((const char*)&readMinimizers[0], contigSize*sizeof(u_int64_t));
+							//cout << "small contig" << endl;
+							//getchar();
+
+							if(kminmersInfos.size() > 0){
+								_graph._nbSmallContigs += 1;
+							}
+						}
+					
+					}
+					
+				}
+
+
+				return;
+			}
+
+
+			/*
+			if(_extractingContigs && _kminmerSize > 8 && kminmersInfos.size() < _kminmerSize*2 && getAbundance(readMinimizers) > 1){
+
+				bool isInGraph = true;
+				
+				for(size_t i=0; i<kminmersInfos.size(); i++){
+					
+
+					//const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
+
+					const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
+					const KmerVec& vec = kminmerInfo._vec;
+
+					if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
+						isInGraph = false;
+						break;
+					}
+				}
+
+				//if(kminmersInfos.size() == 0){
+					//cout << isInGraph << endl;
+				//}
+
+				if(!isInGraph){
+					#pragma omp critical
+					{
+						u_int32_t contigSize = readMinimizers.size();
+						_graph._fileSmallContigs.write((const char*)&contigSize, sizeof(contigSize));
+
+						bool isCircular = kminmerList._isCircular;
+						_graph._fileSmallContigs.write((const char*)&isCircular, sizeof(isCircular));
+						_graph._fileSmallContigs.write((const char*)&readMinimizers[0], contigSize*sizeof(u_int64_t));
+						//cout << "small contig" << endl;
+						//getchar();
+						_graph._nbSmallContigs += 1;
+					}
+				
+				}
+
+			}
+
+			*/
+
+			/*
 			if(_extractingContigs && _kminmerSize > 8 && kminmersInfos.size() == 0 && getAbundance(readMinimizers) > 1){
 
 				#pragma omp critical
@@ -508,14 +876,54 @@ public:
 					u_int32_t contigSize = readMinimizers.size();
 					_graph._fileSmallContigs.write((const char*)&contigSize, sizeof(contigSize));
 
-					bool isCircular = false;
+					bool isCircular = kminmerList._isCircular;
 					_graph._fileSmallContigs.write((const char*)&isCircular, sizeof(isCircular));
 					_graph._fileSmallContigs.write((const char*)&readMinimizers[0], contigSize*sizeof(u_int64_t));
 					//cout << "small contig" << endl;
 					//getchar();
 				}
+				
+				return;
+			}
+			*/
+
+			
+			if(_extractingContigs && kminmersInfos.size() < _kminmerSize*2 ){ //&& getAbundance(readMinimizers) > 1
+				return;
+			}
+			
+
+			/*
+			//if(!isValid(readMinimizers)){
+			if(_extractingContigs && _graph.isUnitigDuplicated.find(readIndex) != _graph.isUnitigDuplicated.end()){	
+				#pragma omp critical
+				{
+					//cout << "Invalid: " << readMinimizers.size() << endl;
+					u_int32_t contigSize = readMinimizers.size();
+					_graph._fileSmallContigs.write((const char*)&contigSize, sizeof(contigSize));
+
+					bool isCircular = kminmerList._isCircular;
+					_graph._fileSmallContigs.write((const char*)&isCircular, sizeof(isCircular));
+					_graph._fileSmallContigs.write((const char*)&readMinimizers[0], contigSize*sizeof(u_int64_t));
+				}
+
+				return;
+			}
+			*/
+			
+			if(_extractingContigs){
+				//u_int64_t length = _kminmerLengthMean + ((kminmersInfos.size()-1) * (_kminmerLengthMean-_kminmerOverlapMean));
+				//if(length < 50000) return;
+				//#pragma omp critical
+				//{
+				//	cout << kminmersInfos.size() << " " << kminmerList._isCircular << endl;
+
+					//if(kminmersInfos.size() < 200) return;
+				//}
+
 			}
 
+			//if(_extractingContigs && kminmersInfos.size() < 200) return;
 			/*
 			double abundanceCutoff = 0;
 			if(!_isFirstPass){
@@ -716,7 +1124,7 @@ public:
 
 						_mdbg->_dbg_nodes.lazy_emplace_l(vec, 
 						[this, &kminmerInfo](MdbgNodeMap::value_type& v) { // key exist
-							v.second._quality += kminmerInfo._quality;
+							//v.second._quality += kminmerInfo._quality;
 							if(_isFirstPass){
 								v.second._abundance += 1;
 							}
@@ -744,8 +1152,8 @@ public:
 								node._abundance = kminmerAbundance; 
 							}
 
-							node._quality = 0;
-							node._quality += kminmerInfo._quality;
+							//node._quality = 0;
+							//node._quality += kminmerInfo._quality;
 
 							ctor(vec, node); 
 
@@ -913,7 +1321,7 @@ public:
 					DbgNode node = {nodeName, 2};
 
 					node._abundance = 1;
-					node._quality = kminmerInfo._quality;
+					//node._quality = kminmerInfo._quality;
 					//node._quality += kminmerInfo._quality;
 
 					ctor(vec, node); 
@@ -1109,7 +1517,7 @@ public:
 
 				_mdbg->_dbg_nodes.lazy_emplace_l(vec, 
 				[this, &kminmerInfo](MdbgNodeMap::value_type& v) { // key exist
-					v.second._quality += kminmerInfo._quality;
+					//v.second._quality += kminmerInfo._quality;
 					//if(_isFirstPass){
 					//	v.second._abundance += 1;
 					//}
@@ -1125,7 +1533,7 @@ public:
 
 					node._abundance = kminmerAbundance; 
 
-					node._quality = 0;
+					//node._quality = 0;
 					//node._quality += kminmerInfo._quality;
 
 					ctor(vec, node); 

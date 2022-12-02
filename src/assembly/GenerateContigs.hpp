@@ -283,7 +283,7 @@ public:
 		
 
 		ifstream kminmerFile(_inputDir + "/kminmerData_min.txt");
-        _graph->_graphSuccessors->_nodeDatas.resize(_graph->_graphSuccessors->_nbNodes/2, {0, 0, 0});
+        _graph->_graphSuccessors->_nodeDatas.resize(_graph->_graphSuccessors->_nbNodes/2, {0, 0});
 
 		u_int64_t abSum = 0;
 		u_int64_t qualSum = 0;
@@ -298,15 +298,15 @@ public:
 
 			u_int32_t nodeName;
 			u_int32_t abundance;
-			u_int32_t quality;
+			//u_int32_t quality;
 			//bool isReversed = false;
 
 			kminmerFile.read((char*)&nodeName, sizeof(nodeName));
 			kminmerFile.read((char*)&abundance, sizeof(abundance));
-			kminmerFile.read((char*)&quality, sizeof(quality));
+			//kminmerFile.read((char*)&quality, sizeof(quality));
 
 			abSum += abundance;
-			qualSum += quality;
+			//qualSum += quality;
 
 			//cout << nodeName << " " << abSum << endl;
 
@@ -319,7 +319,7 @@ public:
 			//KmerVec vec;
 			//vec._kmers = minimizerSeq;
 
-			_graph->_graphSuccessors->_nodeDatas[nodeName] = {abundance, (u_int32_t)_kminmerLengthMean, quality};
+			_graph->_graphSuccessors->_nodeDatas[nodeName] = {abundance, (u_int32_t)_kminmerLengthMean};
 			//_graph->_graphSuccessors->_nodeLengths[nodeName] = _kminmerLengthMean;
 			//_kminmerAbundances[vec] = abundance;
 		}
@@ -345,8 +345,19 @@ public:
 	
     //void debug_writeGfaErrorfree(unitigDatas, crushBubble, smallBubbleOnly, detectRoundabout, insertBubble, saveAllState, doesSaveUnitigGraph, MDBG* mdbg, size_t minimizerSize, size_t nbCores, bool useLocalAbundanceFilter, bool removeLongTips){
 
+
+		//if(_kminmerSize > 4){
+		//GfaParser::binaryGraph_to_gfa(_gfaFilename, _kminmerLengthMean, _kminmerOverlapMean, _gfaFilename+".gfa", _graph->_graphSuccessors->_nodeDatas);
+		//if(_kminmerSize > 45){
+		//	getchar();
+		//}
+		//	cout << "lala" << endl;
+		//	getchar();
+		//}
+
 	  //_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, true, false, true, true, _mdbg, _minimizerSize, _nbCores, true, false);
 		//_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false, false, false, true, _mdbg, _minimizerSize, _nbCores, false, false);
+		
 		_graph->debug_writeGfaErrorfree(2000, 2000, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false, false, false, true, _mdbg, _minimizerSize, _nbCores, false, false);
 		
 		
@@ -991,6 +1002,7 @@ public:
 
 	void generateContigs2(const string& outputFilename){
 
+		size_t nextMultikStep = Commons::getMultikStep(_kminmerSize);
 
 
 		_processedNodeNames = vector<bool>(_graph->_isNodeRemoved.size()/2, false);
@@ -1199,6 +1211,14 @@ public:
                 _graph->getPredecessors_unitig(u._index, 0, predecessors);
 
 				if(successors.size() == 0 && predecessors.size() == 0 && u._abundance == 1) continue;
+				//if(u._nbNodes < _kminmerSize*2) continue;
+
+				//if(u._length < 20000 && successors.size() >= 2 && predecessors.size() >= 2) continue;
+				//cout << nodePath.size() << " " << successors.size() << " " << predecessors.size() << endl;
+				//bool isSingleton = successors.size() == 0 && predecessors.size() == 0;
+				//if(isSingleton && u._length < 20000) continue;
+
+				
 				//if(_kminmerSize == 41){
 				//	if(u._abundance <= 1) continue;
 				//}
@@ -1317,6 +1337,30 @@ public:
 
 				bool isCircular = u._startNode == u._endNode;
 
+				/*
+				if(u._length < 300000){
+					isCircular = false;
+				}
+
+				if(isCircular && nodePath.size() > nextMultikStep){
+					//cout << nodePath.size() << " " << nextMultikStep << endl;
+					nodePath.pop_back();
+					for(size_t i=0; i<nextMultikStep && i < nodePath.size(); i++){
+						nodePath.push_back(nodePath[i]);
+					}
+				}
+				*/
+
+				//if(isCircular){
+				//	nodePath.pop_back();
+				//}
+				//if(isCircular && u._nbNodes > 2){
+				//	cout << "circular " << u._nbNodes << endl;
+				//	cout << BiGraph::nodeIndex_to_nodeName(u._startNode) << endl;
+				//	getchar();
+				//}
+				//isCircular = isSingleton;
+				//cout << "Is singleton: " << isSingleton << endl;
 				u_int64_t size = nodePath.size();
 
 				//gzwrite(outputContigFile_min, (const char*)&size, sizeof(size));
@@ -1675,7 +1719,7 @@ Nb nodes (checksum): 165166644
 		gzclose(outputContigFile_min);
 	}
 	*/
-
+	
 };
 
 

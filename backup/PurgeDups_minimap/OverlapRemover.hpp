@@ -6,6 +6,8 @@
 #include "../Commons.hpp"
 
 
+
+
 class OverlapRemover {
   
 
@@ -14,44 +16,15 @@ public:
 	string _inputDir;
 	string _inputFilenameContig;
 	size_t _kminmerSize;
+	int _nbCores;
 	ofstream& _logFile;
 
-	OverlapRemover(const string& inputDir, const string& inputFilenameContig, size_t kminmerSize, ofstream& logFile) : _logFile(logFile){
+	OverlapRemover(const string& inputDir, const string& inputFilenameContig, size_t kminmerSize, ofstream& logFile, int nbCores) : _logFile(logFile){
 		_inputDir = inputDir;
 		_inputFilenameContig = inputFilenameContig;
 		_kminmerSize = kminmerSize-1;
+		_nbCores = nbCores;
 	}
-
-	/*
-	struct ContigOverlap{
-		u_int64_t _contigIndex;
-		vector<u_int64_t> _minimizers;
-		vector<u_int32_t> _nodepath;
-		vector<u_int32_t> _nodepath_sorted;
-	};
-
-
-	static bool ContigOverlapComparator_ByLength(const ContigOverlap &a, const ContigOverlap &b){
-
-		if(a._nodepath.size() == b._nodepath.size()){
-			for(size_t i=0; i<a._nodepath.size() && i<b._nodepath.size(); i++){
-				if(BiGraph::nodeIndex_to_nodeName(a._nodepath[i]) == BiGraph::nodeIndex_to_nodeName(b._nodepath[i])){
-					continue;
-				}
-				else{
-					return BiGraph::nodeIndex_to_nodeName(a._nodepath[i]) > BiGraph::nodeIndex_to_nodeName(b._nodepath[i]);
-				}
-			}
-		}
-
-
-		return a._nodepath.size() > b._nodepath.size();
-	}
-
-
-	unordered_map<KmerVec, u_int32_t> _edgesToIndex;
-	u_int32_t _edgeIndex;
-	*/
 
 	struct Contig{
 		u_int32_t _contigIndex;
@@ -79,17 +52,24 @@ public:
 
 
 
+
 	vector<Contig> _contigs;
+	//typedef u_int32_t KminmerIndex;
 
-	struct KminmerIndex{
-		u_int32_t _contigIndex;
+	//struct KminmerIndex{
+	//	u_int32_t _contigIndex;
 		//u_int32_t _pos;
-	};
+	//};
 
-	unordered_map<u_int32_t, vector<KminmerIndex>> _kminmerIndex;
+	typedef phmap::parallel_flat_hash_map<KmerVec, u_int32_t, phmap::priv::hash_default_hash<KmerVec>, phmap::priv::hash_default_eq<KmerVec>, std::allocator<std::pair<KmerVec, u_int32_t>>, 4, std::mutex> KminmerIndexMapLala;
+	typedef phmap::parallel_flat_hash_map<u_int32_t, vector<u_int32_t>, phmap::priv::hash_default_hash<u_int32_t>, phmap::priv::hash_default_eq<u_int32_t>, std::allocator<std::pair<u_int32_t, vector<u_int32_t>>>, 4, std::mutex> KminmerReadIndexMap;
 
-	static bool KminmerIndexComparator(const KminmerIndex &a, const KminmerIndex &b){
-		return a._contigIndex < b._contigIndex;
+
+	//unordered_map<u_int32_t, vector<KminmerIndex>> _kminmerIndex;
+	KminmerReadIndexMap _kminmerIndex;
+
+	static bool KminmerIndexComparator(const u_int32_t &a, const u_int32_t &b){
+		return a < b;
 	}
 
 
@@ -123,10 +103,32 @@ public:
 
 			if(!isModification) break;
 
-			vector<Contig> contigsTmp = _contigs;
+			ofstream outputFile(_inputFilenameContig);
+			u_int64_t nbContigs = 0;
+
+			for(size_t i=0; i<_contigs.size(); i++){
+				if(_contigs[i]._minimizers.size() == 0) continue;
+				
+				u_int32_t contigSize = _contigs[i]._minimizers.size();
+				outputFile.write((const char*)&contigSize, sizeof(contigSize));
+				outputFile.write((const char*)&_contigs[i].isCircular, sizeof(_contigs[i].isCircular));
+				outputFile.write((const char*)&_contigs[i]._minimizers[0], contigSize*sizeof(u_int64_t));
+
+				//_logFile << contigSize << endl;
+				nbContigs += 1;
+			}
+			outputFile.close();
+
+
+			//vector<Contig> contigsTmp = _contigs;
 			_contigs.clear();
 			_kminmerIndex.clear();
 
+
+			cout << "Nb contigs: " << nbContigs << endl;
+
+			indexContigs();
+			/*
 			u_int32_t contigIndex = 0;
 
 			for(size_t i=0; i<contigsTmp.size(); i++){
@@ -143,13 +145,14 @@ public:
 			}
 
 			cout << "Nb contigs: " << contigIndex << endl;
-		
+			*/
+
 			//getchar();
 		}
 		
 		removeOverlapsSelf();
 
-		ofstream outputFile(_inputFilenameContig + ".nooverlaps");
+		ofstream outputFile(_inputFilenameContig);
 		u_int64_t nbContigs = 0;
 
 		for(size_t i=0; i<_contigs.size(); i++){
@@ -165,8 +168,8 @@ public:
 		}
 		outputFile.close();
 
-		fs::remove(_inputFilenameContig);
-		fs::rename(_inputFilenameContig + ".nooverlaps", _inputFilenameContig);
+		//fs::remove(_inputFilenameContig);
+		//fs::rename(_inputFilenameContig + ".nooverlaps", _inputFilenameContig);
 
 		_logFile << nbContigs << endl;
 		//getchar();
@@ -198,8 +201,7 @@ public:
 		*/
 	}
 
-
-	unordered_map<KmerVec, u_int32_t> _kminmerToIndex;
+	KminmerIndexMapLala _kminmerToIndex;
 	u_int32_t _kminmerID;
 
 	void indexKminmers(){
@@ -207,14 +209,21 @@ public:
 		_logFile << "Indexing kminmers" << endl;
 
 		_kminmerID = 0;
-
+		/*
 		KminmerParser parser(_inputFilenameContig, -1, _kminmerSize, false, false);
 		auto fp = std::bind(&OverlapRemover::indexKminmers_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5);
 		parser.parse(fp);
+		*/
+	
+		KminmerParserParallel parser(_inputFilenameContig, -1, _kminmerSize, false, false, _nbCores);
+		parser.parse(IndexKminmerFunctor(*this));
+
 	}
 
+	/*
 	void indexKminmers_read(const vector<u_int64_t>& readMinimizers, const vector<KmerVec>& vecs, const vector<ReadKminmer>& kminmersInfos, bool isCircular, u_int32_t readIndex){
 		
+		cout << readIndex << endl;
 		for(u_int32_t i=0; i<vecs.size(); i++){
 			
 			KmerVec vec = vecs[i];
@@ -225,18 +234,162 @@ public:
 			}
 		}
 	}
+	*/
+
+	class IndexKminmerFunctor {
+
+		public:
+
+		OverlapRemover& _graph;
+
+		IndexKminmerFunctor(OverlapRemover& graph) : _graph(graph){
+		}
+
+		IndexKminmerFunctor(const IndexKminmerFunctor& copy) : _graph(copy._graph){
+		}
+
+		~IndexKminmerFunctor(){
+		}
+
+		void operator () (const KminmerList& kminmerList) {
+
+
+			u_int64_t readIndex = kminmerList._readIndex;
+			const vector<u_int64_t>& readMinimizers = kminmerList._readMinimizers;
+			//const vector<KmerVec>& kminmers = kminmerList._kminmers;
+			const vector<ReadKminmerComplete>& kminmersInfos = kminmerList._kminmersInfo;
+
+
+			for(size_t i=0; i<kminmersInfos.size(); i++){
+
+				const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
+				const KmerVec& vec = kminmerInfo._vec;
+
+				bool isNewKey = false;
+
+				_graph._kminmerToIndex.lazy_emplace_l(vec, 
+				[](KminmerIndexMapLala::value_type& v) { // key exist
+				},           
+				[&vec, &isNewKey](const KminmerIndexMapLala::constructor& ctor) { // key inserted
+					
+					
+					isNewKey = true;
+
+
+					u_int32_t nodeName = -1;
+
+					ctor(vec, nodeName); 
+
+				}); // construct value_type in place when key not present
+
+				
+				if(isNewKey){
+
+					u_int32_t nodeName;
+
+					#pragma omp critical
+					{
+
+						
+						nodeName = _graph._kminmerID;
+						_graph._kminmerID += 1;
+						
+
+					}
+
+					auto set_value = [&nodeName](KminmerIndexMapLala::value_type& v) { v.second = nodeName; };
+					_graph._kminmerToIndex.modify_if(vec, set_value);
+				}
+			}
+		}
+
+	};
 
 	void indexContigs(){
 
 		_logFile << "Indexing contigs" << endl;
 
+		/*
 		KminmerParser parser(_inputFilenameContig, -1, _kminmerSize, false, false);
 		auto fp = std::bind(&OverlapRemover::indexContigs_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5);
 		parser.parse(fp);
 
 		//_kminmerToIndex.clear();
+		*/
+
+		KminmerParserParallel parser(_inputFilenameContig, -1, _kminmerSize, false, false, _nbCores);
+		parser.parse(IndexContigFunctor(*this));
 	}
 
+
+	class IndexContigFunctor {
+
+		public:
+
+		OverlapRemover& _graph;
+
+		IndexContigFunctor(OverlapRemover& graph) : _graph(graph){
+		}
+
+		IndexContigFunctor(const IndexContigFunctor& copy) : _graph(copy._graph){
+		}
+
+		~IndexContigFunctor(){
+		}
+
+		void operator () (const KminmerList& kminmerList) {
+
+
+			unordered_set<u_int32_t> indexedKminmer;
+
+			u_int64_t readIndex = kminmerList._readIndex;
+			const vector<u_int64_t>& readMinimizers = kminmerList._readMinimizers;
+			//const vector<KmerVec>& kminmers = kminmerList._kminmers;
+			const vector<ReadKminmerComplete>& kminmersInfos = kminmerList._kminmersInfo;
+
+			vector<u_int32_t> nodepath;
+
+			
+			for(size_t i=0; i<kminmersInfos.size(); i++){
+
+				const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
+				const KmerVec& vec = kminmerInfo._vec;
+				u_int32_t kminmerID = _graph._kminmerToIndex[vec];
+
+				nodepath.push_back(kminmerID);
+
+				if(indexedKminmer.find(kminmerID) == indexedKminmer.end()){
+
+					_graph._kminmerIndex.lazy_emplace_l(kminmerID, 
+					[&readIndex](KminmerReadIndexMap::value_type& v) { // key exist
+						v.second.push_back(readIndex);
+					},           
+					[&kminmerID, &readIndex](const KminmerReadIndexMap::constructor& ctor) { // key inserted
+						
+						vector<u_int32_t> indexes;
+						indexes.push_back(readIndex);
+
+						ctor(kminmerID, indexes); 
+
+					}); // construct value_type in place when key not present
+
+
+					//_kminmerIndex[kminmerID].push_back({readIndex});
+					indexedKminmer.insert(kminmerID);
+				}
+
+			}
+			
+
+			#pragma omp critical(indexContigFunctor)
+			{
+				_graph._contigs.push_back({readIndex, readMinimizers, nodepath, kminmerList._isCircular});
+			}
+		}
+
+	};
+
+	
 	void indexContigs_read(const vector<u_int64_t>& readMinimizers, const vector<KmerVec>& vecs, const vector<ReadKminmer>& kminmersInfos, bool isCircular, u_int32_t readIndex){
 
 		unordered_set<u_int32_t> indexedKminmer;
@@ -249,7 +402,7 @@ public:
 			u_int32_t kminmerID = _kminmerToIndex[vec];
 
 			if(indexedKminmer.find(kminmerID) == indexedKminmer.end()){
-				_kminmerIndex[kminmerID].push_back({readIndex});
+				_kminmerIndex[kminmerID].push_back(readIndex);
 				indexedKminmer.insert(kminmerID);
 			}
 
@@ -259,6 +412,7 @@ public:
 		
 		_contigs.push_back({readIndex, readMinimizers, nodepath, isCircular});
 	}
+	
 
 
 
@@ -275,28 +429,34 @@ public:
 		//std::sort(_contigs.begin(), _contigs.end(), ContigComparator_ByLength);
 		//bool isModification = false;
 
-		
-		for(long i=0; i<_contigs.size(); i++){
 
-			Contig& contig = _contigs[i];
-			//_logFile << "---------------------" << endl;
-			//_logFile << i << " " << contig._minimizers.size() << endl;
+		#pragma omp parallel num_threads(_nbCores)
+		{
 
-			if(contig._minimizers.size() == 0) continue;
+			#pragma omp for
+			for(long i=0; i<_contigs.size(); i++){
 
-			long n = longestPrefixSuffix(contig)-1;
+				Contig& contig = _contigs[i];
+				//_logFile << "---------------------" << endl;
+				//_logFile << i << " " << contig._minimizers.size() << endl;
 
-			if(n <= 0) continue;
-			
+				if(contig._minimizers.size() == 0) continue;
 
-			//_logFile << "lala1: " << n << endl;
-			
-			contig._kminmers.resize(contig._kminmers.size()-n);
-			//_logFile << contig._minimizers.size() << endl;
-			contig._minimizers.resize(contig._minimizers.size()-n);
+				long n = longestPrefixSuffix(contig)-1;
 
-			//_logFile << "lala2: " << longestPrefixSuffix(contig) << endl;
+				if(n <= 0) continue;
+				
+
+				//_logFile << "lala1: " << n << endl;
+				
+				contig._kminmers.resize(contig._kminmers.size()-n);
+				//_logFile << contig._minimizers.size() << endl;
+				contig._minimizers.resize(contig._minimizers.size()-n);
+
+				//_logFile << "lala2: " << longestPrefixSuffix(contig) << endl;
+			}
 		}
+
 	}
 
 	bool removeOverlaps(){
@@ -312,7 +472,6 @@ public:
 		std::sort(_contigs.begin(), _contigs.end(), ContigComparator_ByLength);
 		bool isModification = false;
 
-		
 		for(long i=0; i<_contigs.size(); i++){
 
 			Contig& contig = _contigs[i];
@@ -359,10 +518,10 @@ public:
 				isModification = true;
 				for(size_t i=0; i<contig._kminmers.size(); i++){
 					
-					for(KminmerIndex& mIndex : _kminmerIndex[contig._kminmers[i]]){
-						if(mIndex._contigIndex == contig._contigIndex){//} && mIndex._pos == i){
+					for(u_int32_t& mIndex : _kminmerIndex[contig._kminmers[i]]){
+						if(mIndex == contig._contigIndex){//} && mIndex._pos == i){
 							//_logFile << "Removed: " << mIndex._contigIndex << " " << mIndex._pos << endl;
-							mIndex._contigIndex = -1;
+							mIndex = -1;
 							//mIndex._pos = -1;
 							break;
 						}
@@ -378,10 +537,10 @@ public:
 				isModification = true;
 				for(size_t i=0; i<overlapSizeLeft; i++){
 					
-					for(KminmerIndex& mIndex : _kminmerIndex[contig._kminmers[i]]){
-						if(mIndex._contigIndex == contig._contigIndex){//} && mIndex._pos == i){
+					for(u_int32_t& mIndex : _kminmerIndex[contig._kminmers[i]]){
+						if(mIndex == contig._contigIndex){//} && mIndex._pos == i){
 							//_logFile << "Removed: " << mIndex._contigIndex << " " << mIndex._pos << endl;
-							mIndex._contigIndex = -1;
+							mIndex = -1;
 							//mIndex._pos = -1;
 							break;
 						}
@@ -393,10 +552,10 @@ public:
 					size_t ii = contig._kminmers.size()-1-i;
 					
 					//_logFile << contig._minimizers.size()-1-i << " " << m << endl;
-					for(KminmerIndex& mIndex : _kminmerIndex[contig._kminmers[ii]]){
-						if(mIndex._contigIndex == contig._contigIndex){//} && mIndex._pos == i){
+					for(u_int32_t& mIndex : _kminmerIndex[contig._kminmers[ii]]){
+						if(mIndex == contig._contigIndex){//} && mIndex._pos == i){
 							//_logFile << "Removed: " << mIndex._contigIndex << " " << mIndex._pos << endl;
-							mIndex._contigIndex = -1;
+							mIndex = -1;
 							//mIndex._pos = -1;
 							break;
 						}
@@ -451,22 +610,22 @@ public:
 			//if(contig._kminmers.size() > 0)	getchar();
 
 		}
-
+		
 		return isModification;
 	}
 
 	u_int32_t computeOverlapSize_left(const Contig& contig){
 
-		vector<KminmerIndex> currentContigIndex;
+		vector<u_int32_t> currentContigIndex;
 		u_int64_t overlapSize = 0;
 
 		for(size_t p=0; p<contig._kminmers.size(); p++){
 
-			vector<KminmerIndex> nextContigIndex;
+			vector<u_int32_t> nextContigIndex;
 
-			for(const KminmerIndex& mIndex : _kminmerIndex[contig._kminmers[p]]){
-				if(mIndex._contigIndex == -1) continue;
-				if(mIndex._contigIndex == contig._contigIndex) continue;
+			for(const u_int32_t& mIndex : _kminmerIndex[contig._kminmers[p]]){
+				if(mIndex == -1) continue;
+				if(mIndex == contig._contigIndex) continue;
 
 				if(p == 0){
 					//validContigIndex.insert(mIndex._contigIndex);
@@ -481,7 +640,7 @@ public:
 
 			
 			if(p > 0){
-				vector<KminmerIndex> sharedContigIndexValid;
+				vector<u_int32_t> sharedContigIndexValid;
 
 				std::sort(currentContigIndex.begin(), currentContigIndex.end(), KminmerIndexComparator);
 				std::sort(nextContigIndex.begin(), nextContigIndex.end(), KminmerIndexComparator);
@@ -499,7 +658,7 @@ public:
 
 					//_logFile << p << " " << currentContigIndex[i]._contigIndex << " " << nextContigIndex[j]._contigIndex << endl;
 
-					if(currentContigIndex[i]._contigIndex == nextContigIndex[j]._contigIndex){
+					if(currentContigIndex[i] == nextContigIndex[j]){
 
 						//if(contig._minimizers.size() > 1000){
 						//	_logFile << p << " " << nextContigIndex[j]._contigIndex << endl;
@@ -513,7 +672,7 @@ public:
 						i += 1;
 						j += 1;
 					}
-					else if(currentContigIndex[i]._contigIndex < nextContigIndex[j]._contigIndex){
+					else if(currentContigIndex[i] < nextContigIndex[j]){
 						i += 1;
 					}
 					else{
@@ -535,16 +694,16 @@ public:
 	u_int32_t computeOverlapSize_right(const Contig& contig){
 
 		long firstPos = contig._kminmers.size()-1;
-		vector<KminmerIndex> currentContigIndex;
+		vector<u_int32_t> currentContigIndex;
 		u_int64_t overlapSize = 0;
 
 		for(long p=contig._kminmers.size()-1; p>=0; p--){
 
-			vector<KminmerIndex> nextContigIndex;
+			vector<u_int32_t> nextContigIndex;
 
-			for(const KminmerIndex& mIndex : _kminmerIndex[contig._kminmers[p]]){
-				if(mIndex._contigIndex == contig._contigIndex) continue;
-				if(mIndex._contigIndex == -1) continue;
+			for(const u_int32_t& mIndex : _kminmerIndex[contig._kminmers[p]]){
+				if(mIndex == contig._contigIndex) continue;
+				if(mIndex == -1) continue;
 
 				if(p == firstPos){
 					//validContigIndex.insert(mIndex._contigIndex);
@@ -559,7 +718,7 @@ public:
 
 			
 			if(p < firstPos){
-				vector<KminmerIndex> sharedContigIndexValid;
+				vector<u_int32_t> sharedContigIndexValid;
 
 				std::sort(currentContigIndex.begin(), currentContigIndex.end(), KminmerIndexComparator);
 				std::sort(nextContigIndex.begin(), nextContigIndex.end(), KminmerIndexComparator);
@@ -577,7 +736,7 @@ public:
 
 					//_logFile << p << " " << currentContigIndex[i]._contigIndex << " " << nextContigIndex[j]._contigIndex << endl;
 
-					if(currentContigIndex[i]._contigIndex == nextContigIndex[j]._contigIndex){
+					if(currentContigIndex[i] == nextContigIndex[j]){
 
 						sharedContigIndexValid.push_back(nextContigIndex[j]);
 						//if(nextContigIndex[j]._pos == currentContigIndex[i]._pos+1){
@@ -587,7 +746,7 @@ public:
 						i += 1;
 						j += 1;
 					}
-					else if(currentContigIndex[i]._contigIndex < nextContigIndex[j]._contigIndex){
+					else if(currentContigIndex[i] < nextContigIndex[j]){
 						i += 1;
 					}
 					else{
@@ -656,8 +815,6 @@ public:
 		// non overlapping parts.
 		return (res > n/2)? res/2 : res;
 	}
-
-
 
 };	
 

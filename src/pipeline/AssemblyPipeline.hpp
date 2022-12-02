@@ -36,10 +36,10 @@ public:
 		ofstream fileLogs(_tmpDir + "/logs.txt");
 		fileLogs.close();
 
-		const string& failedFilename = _tmpDir + "/failed.txt";
-		if(fs::exists(failedFilename)){
-			fs::remove(_tmpDir + "/failed.txt");
-		}
+		//const string& failedFilename = _tmpDir + "/failed.txt";
+		//if(fs::exists(failedFilename)){
+		//	fs::remove(_tmpDir + "/failed.txt");
+		//}
 
 		openLogFile(_tmpDir);
 
@@ -152,6 +152,12 @@ public:
 	    if(!fs::exists (_outputDir)) fs::create_directories(_outputDir); 
 	    if(!fs::exists (_tmpDir)) fs::create_directories(_tmpDir); 
 		
+		//string bannedDir = _tmpDir + "/bannedKminmers/";
+	    //if(fs::exists (bannedDir)){
+		//	fs::remove_all(bannedDir);
+		//}
+		//fs::create_directories(bannedDir); 
+
 		_inputFilename = _tmpDir + "/input.txt";
 		Commons::createInputFile(args::get(arg_readFilenames), _inputFilename);
 		//if (arg_l) { 
@@ -290,6 +296,8 @@ public:
 		
 	}
 
+
+
     void execute_pipeline(){
 		//float density = 0.005;
 		//u_int16_t minimizerSize = 21;
@@ -299,7 +307,7 @@ public:
 		u_int64_t meanReadLength = computeMeanReadLength(_inputFilename);
 		_lastK = meanReadLength*_minimizerDensity*2.0f; //1.2f; //2.0f; //*0.95
 		_meanReadLength = meanReadLength;
-		//_lastK = 41;
+		//_lastK = 36;
 		
 
 		sort(_readLengths.begin(), _readLengths.end());
@@ -315,7 +323,7 @@ public:
 		_readLengths.clear();
 		//return scores[size * 0.1];
 
-
+		
 
 		cerr << "Mean read length: " << meanReadLength << endl;
 		cerr << "Min k: " << _firstK << endl;
@@ -327,6 +335,8 @@ public:
 
 		ofstream fileSmallContigs(_tmpDir + "/small_contigs.bin");
 		fileSmallContigs.close();
+		//ofstream fileJoints(_tmpDir + "/joint_data.txt");
+		//fileJoints.close();
 
 		writeParameters(_minimizerSize, _firstK, _minimizerDensity, _firstK, _firstK, _lastK);
 		//createInputFile(false);
@@ -341,7 +351,11 @@ public:
 		u_int64_t pass = 0;
 		u_int32_t prevK = -1;
 
-		for(size_t k=_firstK; k<_lastK; k+=1){
+		//for(size_t k=_firstK; k<_lastK; k+=1){
+
+		size_t k = _firstK;
+
+		while(k < _lastK){
 
 
 			cerr << "Multi-k pass: " << k << "/" << _lastK << endl;
@@ -405,8 +419,11 @@ public:
 			//getchar();
 			//if(pass >= 2) break;
 			//if(k > 30) getchar();
+
+			k += Commons::getMultikStep(k);
 		}
 
+		cerr << "Multi-k pass: " << _lastK << "/" << _lastK << endl;
 
 		executePass(_lastK, prevK, pass);
 		_logFile << "pass done" << endl;
@@ -464,14 +481,20 @@ public:
 
 			//getchar();
 
-			command = _filename_exe + " toMinspace " + " " + _tmpDir + " " + _tmpDir + "/contigs.nodepath" + " " + _tmpDir + "/contig_data.txt";
+			command = _filename_exe + " toMinspace " + " " + _tmpDir + " " + _tmpDir + "/contigs.nodepath" + " " + _tmpDir + "/contig_data.txt -t "+ to_string(_nbCores);
 			executeCommand(command);
+
 			
+			//command = _filename_exe + " circ " + " " + _tmpDir + " " + _tmpDir + "/pass_k4" + " " + " -t " + to_string(_nbCores);
+			//executeCommand(command);
+
+			//command = _filename_exe + " toMinspace " + " " + _tmpDir + " " + _tmpDir + "/contigs.nodepath" + " " + _tmpDir + "/contig_data.txt";
+			//executeCommand(command);
 
 			cerr << "Removing overlaps and duplication..." << endl;
 
 			appendSmallContigs();
-
+			
 			string contigFilenameCompressed = _tmpDir + "/contigs_H_" + to_string(k) + ".fasta.gz ";
 			//getchar();
 			command = _filename_exe + " toBasespaceFast " + " " + _tmpDir + " " + _tmpDir + "/contig_data.txt " + " " + contigFilenameCompressed + " " + _inputFilename + " -t " + to_string(_nbCores);
@@ -483,7 +506,7 @@ public:
 			executeCommand(command);
 
 			dereplicate();
-
+			
 			/*
 
 		
@@ -532,7 +555,12 @@ public:
 			//getchar();
 			
 
-			command = _filename_exe + " toMinspace " + " " + _tmpDir + " " + _tmpDir + "/contigs.nodepath" + " " + _tmpDir + "/unitig_data.txt";
+			if(k > _firstK){
+				const auto copyOptions = fs::copy_options::overwrite_existing;
+				fs::copy(_tmpDir + "/unitig_data.txt", _tmpDir + "/unitig_data_prev.txt", copyOptions);
+			}
+
+			command = _filename_exe + " toMinspace " + " " + _tmpDir + " " + _tmpDir + "/contigs.nodepath" + " " + _tmpDir + "/unitig_data.txt -t " + to_string(_nbCores);
 			executeCommand(command);
 
 			//getchar();
@@ -604,8 +632,11 @@ public:
 
 
 	ofstream _fileContigsAppend;
+	u_int64_t _nbSmallContigs;
 
 	void appendSmallContigs(){
+
+		_nbSmallContigs = 0;
 		_logFile << "Append small contigs" << endl;
 
 		string contigFilename = _tmpDir + "/contig_data.txt";
@@ -618,6 +649,7 @@ public:
 
 		_fileContigsAppend.close();
 
+		cout << "Nb small contigs: " << _nbSmallContigs << endl;
 	}
 
 	void appendSmallContigs_read(const vector<u_int64_t>& readMinimizers, u_int64_t readIndex){
@@ -628,6 +660,8 @@ public:
 		bool isCircular = false;
 		_fileContigsAppend.write((const char*)&isCircular, sizeof(isCircular));
 		_fileContigsAppend.write((const char*)&readMinimizers[0], contigSize*sizeof(u_int64_t));
+
+		_nbSmallContigs += 1;
 	}
 
 	void savePassData(u_int64_t k){
@@ -757,6 +791,7 @@ public:
 		//getchar();
 	}
 };	
+
 
 
 #endif 

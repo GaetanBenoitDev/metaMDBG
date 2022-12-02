@@ -36,7 +36,7 @@ struct BubbleSide{
     u_int32_t _unitigIndex;
     u_int32_t _nbNodes;
     u_int32_t _nodeIndexSum;
-    u_int32_t _quality;
+    //u_int32_t _quality;
 };
 
 struct Bubble{
@@ -56,9 +56,9 @@ struct Unitig{
     u_int32_t _length;
     u_int32_t _nbNodes;
     vector<u_int32_t> _nodes;
-    u_int32_t _quality;
-    u_int32_t _debug_nodeIndexSource;
-    u_int32_t _debug_nodeIndexSum;
+    //u_int32_t _quality;
+    //u_int32_t _debug_nodeIndexSource;
+    //u_int32_t _debug_nodeIndexSum;
 };
 
 struct ComplexArea{
@@ -247,9 +247,9 @@ public:
 		return a._length > b._length;
 	}
 
-	static bool UnitigComparator_BySum_debug(const Unitig &a, const Unitig &b){
-		return a._debug_nodeIndexSum < b._debug_nodeIndexSum;
-	}
+	//static bool UnitigComparator_BySum_debug(const Unitig &a, const Unitig &b){
+	//	return a._debug_nodeIndexSum < b._debug_nodeIndexSum;
+	//}
 
 	static bool UnitigComparator_ByLength_Reverse(const Unitig &a, const Unitig &b){
 		return a._length < b._length;
@@ -2251,7 +2251,7 @@ public:
                             sum += nodeIndex;
                         }
                         
-                        bubbleSides.push_back({unitigIndex, _unitigs[unitigIndex]._nbNodes, _unitigs[unitigIndex]._startNode, _unitigs[unitigIndex]._quality});
+                        bubbleSides.push_back({unitigIndex, _unitigs[unitigIndex]._nbNodes, _unitigs[unitigIndex]._startNode}); //_unitigs[unitigIndex]._quality
                     }
 
 
@@ -3191,8 +3191,8 @@ public:
 
 
                         vector<BubbleSide> bubbleSides;
-                        bubbleSides.push_back({utg_2._index, _unitigs[utg_2._index]._nbNodes, _unitigs[utg_2._index]._startNode, _unitigs[utg_2._index]._quality});
-                        bubbleSides.push_back({utg_3._index, _unitigs[utg_3._index]._nbNodes, _unitigs[utg_3._index]._startNode, _unitigs[utg_3._index]._quality});
+                        bubbleSides.push_back({utg_2._index, _unitigs[utg_2._index]._nbNodes, _unitigs[utg_2._index]._startNode}); //_unitigs[utg_2._index]._quality
+                        bubbleSides.push_back({utg_3._index, _unitigs[utg_3._index]._nbNodes, _unitigs[utg_3._index]._startNode}); //_unitigs[utg_3._index]._quality
 
                         std::sort(bubbleSides.begin(), bubbleSides.end(), BubbleSideComparator);
 
@@ -3829,6 +3829,7 @@ public:
                 //_logFile << _graphSuccessors->nodeIndex_to_nodeName(node, dummy) << endl;
                 u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(node);
 
+                /*
                 u_int32_t quality = _graph->_graphSuccessors->_nodeDatas[nodeName]._quality;
                 if(quality < minQuality){
                     minQuality = quality;
@@ -3838,6 +3839,7 @@ public:
                 }
 
                 qualitySum += quality;
+                */
 
                 if(_graph->_graphSuccessors->_nodeDatas[nodeName]._abundance > abundance_max){
                     abundance_max = _graph->_graphSuccessors->_nodeDatas[nodeName]._abundance;
@@ -4071,8 +4073,8 @@ public:
 
 
                     
-                    _unitigs.push_back({_graph->_nextUnitigIndex, startNode, endNode, median, length, nbNodes, nodes, maxQuality, nodeIndex, sum*nbNodes});
-                    _unitigs.push_back({unitigIndexRC, nodeIndex_toReverseDirection(endNode), nodeIndex_toReverseDirection(startNode), median, length, nbNodes, nodesRC, maxQuality, nodeIndex, sum*nbNodes});
+                    _unitigs.push_back({_graph->_nextUnitigIndex, startNode, endNode, median, length, nbNodes, nodes});//, maxQuality, nodeIndex, sum*nbNodes});
+                    _unitigs.push_back({unitigIndexRC, nodeIndex_toReverseDirection(endNode), nodeIndex_toReverseDirection(startNode), median, length, nbNodes, nodesRC});//, maxQuality, nodeIndex, sum*nbNodes});
 
                     if(_rebuild){
                         _graph->_unitigIndexToClean.insert(_graph->_nextUnitigIndex);
@@ -5256,6 +5258,18 @@ public:
 
         compact(false, unitigDatas);
 
+        /*
+        currentAbundance = 0;
+        abundanceCutoff_min = 0;
+        for(const Unitig& u : _unitigs){
+            if(u._abundance > abundanceCutoff_min){
+                abundanceCutoff_min = u._abundance;
+                currentAbundance = u._abundance;
+            }
+        }
+        */
+
+        _logFile << "Max abundance: " << abundanceCutoff_min << endl;
         /*
         u_int64_t nbErrorRemoved = removeErrors_3(k, 2000, unitigDatas, detectRoundabout, maxBubbleLength, insertBubble, saveAllState, doesSaveUnitigGraph, mdbg, minimizerSize, nbCores);
         

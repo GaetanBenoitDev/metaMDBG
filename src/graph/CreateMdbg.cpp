@@ -117,6 +117,7 @@ void CreateMdbg::parseArgs(int argc, char* argv[]){
 	gzread(file_parameters, (char*)&_kminmerLengthMean, sizeof(_kminmerLengthMean));
 	gzread(file_parameters, (char*)&_kminmerOverlapMean, sizeof(_kminmerOverlapMean));
 	gzread(file_parameters, (char*)&_kminmerSizePrev, sizeof(_kminmerSizePrev));
+	gzread(file_parameters, (char*)&_kminmerSizeLast, sizeof(_kminmerSizeLast));
 	gzclose(file_parameters);
 
 	openLogFile(_outputDir);
@@ -197,7 +198,9 @@ void CreateMdbg::createMDBG (){
 		_bloomFilter = new BloomCacheCoherent<u_int64_t>(16000000000ull);
 	}
 
-	_fileSmallContigs = ofstream(_outputDir + "/small_contigs.bin", std::ios_base::app);
+	_filename_smallContigs = _outputDir + "/small_contigs.bin";
+	_fileSmallContigs = ofstream(_filename_smallContigs, std::ios_base::app);
+	_nbSmallContigs = 0;
 	/*
 	double nbFP = 0;
 
@@ -233,6 +236,8 @@ void CreateMdbg::createMDBG (){
 	_mdbgNoFilter = new MDBG(_kminmerSize);
 	_mdbgSaved = new MDBG(_kminmerSize);
 
+
+
 	//string inputFilename = _inputFilename;
 
 	if(!_isFirstPass){
@@ -251,12 +256,12 @@ void CreateMdbg::createMDBG (){
 
 			u_int32_t nodeName;
 			u_int32_t abundance;
-			u_int32_t quality;
+			//u_int32_t quality;
 			//bool isReversed = false;
 
 			kminmerFile.read((char*)&nodeName, sizeof(nodeName));
 			kminmerFile.read((char*)&abundance, sizeof(abundance));
-			kminmerFile.read((char*)&quality, sizeof(quality));
+			//kminmerFile.read((char*)&quality, sizeof(quality));
 
 
 			if(abundance == 1) continue;
@@ -264,6 +269,7 @@ void CreateMdbg::createMDBG (){
 			vec._kmers = minimizerSeq;
 
 			_kminmerAbundances[vec] = {abundance, 0};
+			//_kmerVec_to_nodeName[vec] = nodeName;
 		}
 
 		kminmerFile.close();
@@ -271,6 +277,16 @@ void CreateMdbg::createMDBG (){
 
 
 	}
+
+	/*
+	if(_kminmerSize >= 6){
+		_mdbgFirst = new MDBG(_kminmerSizeFirst);
+		_mdbgFirst->load(_outputDir + "/kminmerData_min_init.txt", false);
+		checkDuplication();
+		delete _mdbgFirst;
+		//loadBannedKminmers();
+	}
+	*/
 
 	string inputFilename_min;
 	bool usePos = false;
@@ -298,6 +314,7 @@ void CreateMdbg::createMDBG (){
 		_logFile << "Building mdbg" << endl;
 		KminmerParserParallel parser2(inputFilename_min, _minimizerSize, _kminmerSize, usePos, true, _nbCores);
 		parser2.parse(IndexKminmerFunctor(*this, false));
+		_logFile << "Indexed: " << _mdbg->_dbg_nodes.size() << endl;;
 		//auto fp = std::bind(&CreateMdbg::createMDBG_collectKminmers_minspace_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 		//parser.parseMinspace(fp);
 
@@ -306,6 +323,7 @@ void CreateMdbg::createMDBG (){
 				
 			KminmerParserParallel parser2(inputFilename_min, _minimizerSize, _kminmerSize, usePos, true, _nbCores);
 			parser2.parse(FilterKminmerFunctor(*this));
+			_logFile << "Indexed: " << _mdbgSaved->_dbg_nodes.size() << endl;;
 
 
 			for(auto& it : _mdbgSaved->_dbg_nodes){
@@ -313,12 +331,25 @@ void CreateMdbg::createMDBG (){
 
 				u_int32_t nodeName = it.second._index;
 				u_int32_t abundance = it.second._abundance;
-				u_int32_t quality = it.second._quality;
+				//u_int32_t quality = it.second._quality;
 
 				//cout << nodeName << " " << abundance << endl;
 
-				_mdbg->_dbg_nodes[vec] = {nodeName, abundance, quality};
+				_mdbg->_dbg_nodes[vec] = {nodeName, abundance};
 			}
+
+			/*
+    		auto it = _mdbg->_dbg_nodes.begin();
+			while (it != _mdbg->_dbg_nodes.end()) {
+				// Check if key's first character is F
+				if (it->second._abundance < 500) {
+					// erase() function returns the iterator of the next
+					// to last deleted element.
+					it = _mdbg->_dbg_nodes.erase(it);
+				} else
+					it++;
+			}
+			*/
 
 			delete _mdbgSaved;
 		}
@@ -334,7 +365,7 @@ void CreateMdbg::createMDBG (){
 		//KminmerParserParallel parser4(filename_contigs, _minimizerSize, _kminmerSizePrev, false, false, 1);
 		//parser4.parse(IndexContigFunctor(*this));
 
-		_logFile << "Filling bloom filter" << endl;
+		//_logFile << "Filling bloom filter" << endl;
 		//KminmerParserParallel parser(filename_uncorrectedReads, _minimizerSize, _kminmerSize, false, _nbCores);
 		//parser.parse(FillBloomFilter(*this));
 
@@ -343,11 +374,16 @@ void CreateMdbg::createMDBG (){
 		//parser2.parse(FilterKminmerFunctor2(*this));
 		parser2.parse(IndexKminmerFunctor(*this, false));
 
+
 		_parsingContigs = true;
+		_savingSmallContigs = false;
 
 		KminmerParserParallel parser3(filename_contigs, _minimizerSize, _kminmerSize, false, false, _nbCores);
 		parser3.parse(IndexKminmerFunctor(*this, true));
 		
+		_savingSmallContigs = true;
+		KminmerParserParallel parser4(filename_contigs, _minimizerSize, _kminmerSize, false, false, _nbCores);
+		parser4.parse(IndexKminmerFunctor(*this, true));
 	}
 
 	auto stop = high_resolution_clock::now();
@@ -387,6 +423,10 @@ void CreateMdbg::createMDBG (){
 	_contigAbundances.clear();
 	_fileSmallContigs.close();
 
+	cout << "Nb small contigs written: " << _nbSmallContigs << endl;
+	//if(_kminmerSize == _kminmerSizeLast){
+	//	removeDuplicatedSmallContigs();
+	//}
 }
 
 
@@ -400,7 +440,7 @@ void CreateMdbg::createMDBG (){
 struct KmerVecSorterData{
 	vector<u_int64_t> _minimizers;
 	u_int32_t _abundance;
-	u_int32_t _quality;
+	//u_int32_t _quality;
 };
 
 static bool KmerVecComparator(const KmerVecSorterData &a, const KmerVecSorterData &b){
@@ -702,14 +742,14 @@ void CreateMdbg::computeDeterministicNodeNames(){
 
 		
 		u_int32_t abundance;
-		u_int32_t quality;
+		//u_int32_t quality;
 
 		kminmerFile.read((char*)&nodeName, sizeof(nodeName));
 		kminmerFile.read((char*)&abundance, sizeof(abundance));
-		kminmerFile.read((char*)&quality, sizeof(quality));
+		//kminmerFile.read((char*)&quality, sizeof(quality));
 		//vec._kmers = minimizerSeq;
 
-		kmerVecs.push_back({minimizerSeq, abundance, quality});
+		kmerVecs.push_back({minimizerSeq, abundance});
 
 	}
 
@@ -729,7 +769,7 @@ void CreateMdbg::computeDeterministicNodeNames(){
 		//KmerVecSorterData& d = kmerVecs[i];
 		//u_int32_t nodeName = it.second._index;
 		u_int32_t abundance = entry._abundance;
-		u_int32_t quality = entry._quality;
+		//u_int32_t quality = entry._quality;
 
 		//if(quality==0){
 		//	cout << "omg " << nodeName << endl;
@@ -751,7 +791,7 @@ void CreateMdbg::computeDeterministicNodeNames(){
 
 		kminmerFileOut.write((const char*)&nodeName, sizeof(nodeName));
 		kminmerFileOut.write((const char*)&abundance, sizeof(abundance));
-		kminmerFileOut.write((const char*)&quality, sizeof(quality));
+		//kminmerFileOut.write((const char*)&quality, sizeof(quality));
 
 		//cout << nodeName << " " <<  abundance << endl;
 		
@@ -798,12 +838,12 @@ void CreateMdbg::indexEdges(){
 
 				
 				u_int32_t abundance;
-				u_int32_t quality;
+				//u_int32_t quality;
 
 				if(!isEOF){
 					kminmerFile.read((char*)&nodeName, sizeof(nodeName));
 					kminmerFile.read((char*)&abundance, sizeof(abundance));
-					kminmerFile.read((char*)&quality, sizeof(quality));
+					//kminmerFile.read((char*)&quality, sizeof(quality));
 					vec._kmers = minimizerSeq;
 				}
 
@@ -1000,12 +1040,12 @@ void CreateMdbg::computeEdges(){
 
 				
 				u_int32_t abundance;
-				u_int32_t quality;
+				//u_int32_t quality;
 
 				if(!isEOF){
 					kminmerFile.read((char*)&nodeName, sizeof(nodeName));
 					kminmerFile.read((char*)&abundance, sizeof(abundance));
-					kminmerFile.read((char*)&quality, sizeof(quality));
+					//kminmerFile.read((char*)&quality, sizeof(quality));
 					vec._kmers = minimizerSeq;
 				}
 

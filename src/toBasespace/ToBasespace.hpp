@@ -123,26 +123,26 @@ public:
 	//unordered_set<u_int32_t> _requiredCopiers_left;
 	//unordered_set<u_int32_t> _requiredCopiers_right;
 
-	unordered_map<u_int32_t, vector<DnaBitset*>> _kminmerSequenceCopies_all_entire;
-	unordered_map<u_int32_t, vector<DnaBitset*>> _kminmerSequenceCopies_all_left;
-	unordered_map<u_int32_t, vector<DnaBitset*>> _kminmerSequenceCopies_all_right;
+	phmap::parallel_flat_hash_map<u_int32_t, vector<DnaBitset*>> _kminmerSequenceCopies_all_entire;
+	phmap::parallel_flat_hash_map<u_int32_t, vector<DnaBitset*>> _kminmerSequenceCopies_all_left;
+	phmap::parallel_flat_hash_map<u_int32_t, vector<DnaBitset*>> _kminmerSequenceCopies_all_right;
 	
 	//unordered_set<u_int32_t> isKminmerRepeated;
 
-	unordered_map<ReadNodeName, DnaBitset*> _repeatedKminmerSequence_entire;
-	unordered_map<ReadNodeName, DnaBitset*> _repeatedKminmerSequence_left;
-	unordered_map<ReadNodeName, DnaBitset*> _repeatedKminmerSequence_right;
+	phmap::parallel_flat_hash_map<ReadNodeName, DnaBitset*> _repeatedKminmerSequence_entire;
+	phmap::parallel_flat_hash_map<ReadNodeName, DnaBitset*> _repeatedKminmerSequence_left;
+	phmap::parallel_flat_hash_map<ReadNodeName, DnaBitset*> _repeatedKminmerSequence_right;
 
 	//unordered_map<ReadNodeName, VariantQueue> _repeatedKminmerSequence_copies_entire;
 	//unordered_map<ReadNodeName, VariantQueue> _repeatedKminmerSequence_copies_left;
 	//unordered_map<ReadNodeName, VariantQueue> _repeatedKminmerSequence_copies_right;
 
-	unordered_map<u_int32_t, DnaBitset*> _kminmerSequence_entire;
-	unordered_map<u_int32_t, DnaBitset*> _kminmerSequence_left;
-	unordered_map<u_int32_t, DnaBitset*> _kminmerSequence_right;
-	unordered_map<u_int32_t, vector<ReadSequence>> _kminmerSequence_entire_multi;
-	unordered_map<u_int32_t, vector<ReadSequence>> _kminmerSequence_left_multi;
-	unordered_map<u_int32_t, vector<ReadSequence>> _kminmerSequence_right_multi;
+	phmap::parallel_flat_hash_map<u_int32_t, DnaBitset*> _kminmerSequence_entire;
+	phmap::parallel_flat_hash_map<u_int32_t, DnaBitset*> _kminmerSequence_left;
+	phmap::parallel_flat_hash_map<u_int32_t, DnaBitset*> _kminmerSequence_right;
+	phmap::parallel_flat_hash_map<u_int32_t, vector<ReadSequence>> _kminmerSequence_entire_multi;
+	phmap::parallel_flat_hash_map<u_int32_t, vector<ReadSequence>> _kminmerSequence_left_multi;
+	phmap::parallel_flat_hash_map<u_int32_t, vector<ReadSequence>> _kminmerSequence_right_multi;
 	//unordered_map<u_int32_t, vector<DnaBitset*>> _kminmerSequenceCopies_left;
 	//unordered_map<u_int32_t, vector<DnaBitset*>> _kminmerSequenceCopies_right;
 
@@ -288,7 +288,7 @@ public:
 		_minimizerParser = new MinimizerParser(_minimizerSize, _minimizerDensity);
 	}
 
-	vector<vector<u_int64_t>> _unitigDatas;
+	vector<vector<u_int32_t>> _unitigDatas;
 	ofstream _contigFileSupported;
 	ifstream _contigFileSupported_input;
 
@@ -310,8 +310,6 @@ public:
 
 
 
-		_logFile << "Indexing reads" << endl;
-		_unitigDatas.resize(_mdbg->_dbg_nodes.size());
 		indexReads();
 
 		//_logFile << "Loading original mdbg" << endl;
@@ -640,7 +638,7 @@ public:
 	//MDBG* _mdbgInit;
 	//size_t _originalKminmerSize;
 	u_int64_t _nbContigs;
-	unordered_map<u_int32_t, u_int32_t> _kminmerCounts;
+	phmap::parallel_flat_hash_map<u_int32_t, u_int32_t> _kminmerCounts;
 
 	/*
 	void loadContigs_fasta (const string& contigFilename){
@@ -674,11 +672,67 @@ public:
 
 	void indexReads(){
 
-		KminmerParser parser(_inputDir + "/read_data_init.txt", _minimizerSize, _kminmerSize, false, true);
-		auto fp = std::bind(&ToBasespace::indexReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5);
-		parser.parse(fp);
+
+		_logFile << "Indexing reads" << endl;
+		_unitigDatas.resize(_mdbg->_dbg_nodes.size());
+		
+		KminmerParserParallel parser(_inputDir + "/read_data_init.txt", _minimizerSize, _kminmerSize, false, true, _nbCores);
+		//parser2.parse(FilterKminmerFunctor2(*this));
+		parser.parse(IndexReadsFunctor(*this));
+
+		//KminmerParser parser(_inputDir + "/read_data_init.txt", _minimizerSize, _kminmerSize, false, true);
+		//auto fp = std::bind(&ToBasespace::indexReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5);
+		//parser.parse(fp);
 	}
 
+	class IndexReadsFunctor {
+
+		public:
+
+		ToBasespace& _generateContigs;
+
+		IndexReadsFunctor(ToBasespace& generateContigs) : _generateContigs(generateContigs){
+		}
+
+		IndexReadsFunctor(const IndexReadsFunctor& copy) : _generateContigs(copy._generateContigs){
+		}
+
+		~IndexReadsFunctor(){
+		}
+
+		void operator () (const KminmerList& kminmerList) {
+
+			u_int64_t readIndex = kminmerList._readIndex;
+
+			for(size_t i=0; i<kminmerList._kminmersInfo.size(); i++){
+			
+				
+				//_logFile << readIndex << " " << i << endl;
+				const ReadKminmerComplete& kminmerInfo = kminmerList._kminmersInfo[i];
+
+				KmerVec vec = kminmerInfo._vec;
+				
+				if(_generateContigs._mdbg->_dbg_nodes.find(vec) == _generateContigs._mdbg->_dbg_nodes.end()){
+					continue;
+				}
+				
+				u_int32_t nodeName = _generateContigs._mdbg->_dbg_nodes[vec]._index;
+
+				#pragma omp critical(indexReadsFunctor)
+				{
+					//if(_generateContigs._unitigDatas[nodeName].size() < 50){
+					_generateContigs._unitigDatas[nodeName].push_back(readIndex);
+					//}
+				}
+
+				
+
+			}
+
+		}
+	};
+
+	/*
 	void indexReads_read(const vector<u_int64_t>& minimizers, const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, bool isCircular, u_int64_t readIndex){//}, const vector<KmerVec>& kminmers_k3, const vector<ReadKminmer>& kminmersInfos_k3){
 
 		for(const KmerVec& vec : kminmers){
@@ -686,10 +740,14 @@ public:
 			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()) continue;
 
 			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
+			
+			if(_unitigDatas[nodeName].size() > 50) continue;
+
 			//_logFile << nodeName << " " << readIndex << endl;
 			_unitigDatas[nodeName].push_back(readIndex);
 		}
 	}
+	*/
 
 
 	struct Contig{
@@ -857,6 +915,7 @@ public:
 			//_logFile << "----------------------" << endl;
 			vector<u_int64_t> supportingReads;
 
+			//cout << kminmerList._readMinimizers.size() << endl;
 			//_logFile << readIndex << " " << kminmersInfos.size() << endl;
 			for(size_t i=0; i<kminmerList._kminmersInfo.size(); i++){
 				
@@ -945,7 +1004,7 @@ public:
 
 		u_int64_t getBestSupportingRead(u_int32_t nodeName, size_t nodeNamePosition, const vector<ReadKminmerComplete>& kminmersInfos){
 
-			const vector<u_int64_t>& reads = _toBasespace._unitigDatas[nodeName];
+			const vector<u_int32_t>& reads = _toBasespace._unitigDatas[nodeName];
 
 			u_int64_t maxNbmatches = 0;
 			u_int64_t bestReadIndex = -1;
@@ -980,7 +1039,7 @@ public:
 		u_int64_t getBestSupportingRead_direction(u_int32_t nodeName, size_t nodeNamePosition, const vector<ReadKminmerComplete>& kminmersInfos, int inc){
 			
 			u_int64_t readIndex = -1;
-			vector<u_int64_t> sharedElements;
+			vector<u_int32_t> sharedElements;
 
 			long i = nodeNamePosition;
 
@@ -1001,7 +1060,7 @@ public:
 						Utils::collectSharedElements(_toBasespace._unitigDatas[nodeName], _toBasespace._unitigDatas[nodeName2], sharedElements);
 					}
 					else{
-						vector<u_int64_t> sharedElementTmp;
+						vector<u_int32_t> sharedElementTmp;
 						Utils::collectSharedElements(sharedElements, _toBasespace._unitigDatas[nodeName2], sharedElementTmp);
 						sharedElements = sharedElementTmp;
 					}
@@ -1044,7 +1103,7 @@ public:
 
 					u_int32_t nodeName2 = _toBasespace._mdbg->_dbg_nodes[vec]._index;
 
-					vector<u_int64_t>& readIndexes = _toBasespace._unitigDatas[nodeName2];
+					vector<u_int32_t>& readIndexes = _toBasespace._unitigDatas[nodeName2];
 					if(std::find(readIndexes.begin(), readIndexes.end(), readIndex) == readIndexes.end()){
 						break; 
 					}
@@ -1491,9 +1550,9 @@ public:
 
 	};
 
-	unordered_set<u_int32_t> _isDoneNodeName_entire;
-	unordered_set<u_int32_t> _isDoneNodeName_left;
-	unordered_set<u_int32_t> _isDoneNodeName_right;
+	phmap::parallel_flat_hash_set<u_int32_t> _isDoneNodeName_entire;
+	phmap::parallel_flat_hash_set<u_int32_t> _isDoneNodeName_left;
+	phmap::parallel_flat_hash_set<u_int32_t> _isDoneNodeName_right;
 
 	//void extractKminmerSequences_allVariants_read(const Read& read){
 

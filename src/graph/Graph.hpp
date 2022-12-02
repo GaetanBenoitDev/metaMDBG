@@ -555,7 +555,7 @@ int main()
 struct NodeData{
     u_int32_t _abundance;
     u_int32_t _length;
-    u_int32_t _quality;
+    //u_int32_t _quality;
 };
 
 class BiGraph{

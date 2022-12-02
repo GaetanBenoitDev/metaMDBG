@@ -17,9 +17,11 @@
 #include "mapping/Mapping_BinToMDBG.hpp"
 #include "polish/ContigPolisher.hpp"
 #include "polish/PurgeDups.hpp"
+//#include "contigFeatures/KminmerCounter.hpp"
 //#include "assembly/Circulizer.hpp"
 //#include "toBasespace/Dereplicater.hpp"
 //#include "polish/PurgeGraph.hpp"
+//#include "mapping/ContigDecontaminator.hpp"
 
 void displayHelp(string programName){
 	cout << " Program: metaMDBG (assembly of long and accurate metagenomics reads)" << endl;
@@ -145,6 +147,9 @@ int main (int argc, char* argv[])
     		else if(programName == "map-binToMDBG"){
                 Mapping_BinToMDBG().run (argc, args);
     		}
+    		//else if(programName == "decontaminate"){
+                //ContigDecontaminator().run (argc, args);
+    		//}
     		//else if(programName == "map-contigToMDBG"){
             //    Mapping_ContigToMDBG().run (argc, args);
     		//}

@@ -122,6 +122,7 @@ public:
 	string _inputFilename_contigs;
 	int _nbCores;
 	size_t _windowLength;
+	size_t _windowLengthVariance;
 	size_t _maxWindowCopies;
 	//string _mapperOutputExeFilename;
 	bool _useQual;
@@ -178,6 +179,7 @@ public:
 		string _quality;
 		u_int32_t _posStart;
 		u_int32_t _posEnd;
+		float _score;
 	};
 
 	ContigPolisher(): Tool (){
@@ -303,9 +305,10 @@ public:
 
 
 		_windowLength = 500;
+		_windowLengthVariance = _windowLength*0.01;
 		_maxWindowCopies = args::get(arg_nbWindows);; //21;
 		_qualityThreshold = 10.0;
-		_minContigLength = 1000000;
+		_minContigLength = 0;
 
 		_tmpDir = _outputDir + "/tmp/";
 		if(!fs::exists(_tmpDir)){
@@ -321,6 +324,8 @@ public:
 		Commons::createInputFile(args::get(arg_readFilenames), _inputFilename_reads);
 
 		openLogFile(_tmpDir);
+
+
 
 		_logFile << "Contigs: " << _inputFilename_contigs << endl;
 		_logFile << "Reads: " << _inputFilename_reads << endl;
@@ -1879,7 +1884,7 @@ public:
 				if(_contigPolisher._maxWindowCopies == 0 || windows.size() < (_contigPolisher._maxWindowCopies-1)){
 
 
-					windows.push_back({new DnaBitset2(windowSequence), windowQualities, posStart, posEnd});
+					windows.push_back({new DnaBitset2(windowSequence), windowQualities, posStart, posEnd, al.score()});
 
 					/*
 					if(al._contigIndex == 1 && windowIndex == 2){
@@ -1925,11 +1930,11 @@ public:
 				
 				if(!interrupt){
 
-					//u_int64_t largestAligmenet = 0;
-					//u_int64_t largestAligmenetIndex = 0;
+					float score = al.score();
 
-					
-					size_t largerWindowIndex = 0;
+					u_int64_t incompleteWindowIndex = -1;
+					//u_int64_t minWindowSize = -1;
+
 					u_int64_t largerDistanceWindow = 0;
 
 					for(size_t i=0; i<windows.size(); i++){
@@ -1937,21 +1942,81 @@ public:
 						const Window& window = windows[i];
 						u_int64_t distance = abs(((long)window._sequence->m_len) - ((long)_windowLength));
 
-						if(distance > largerDistanceWindow){
-							largerDistanceWindow = distance;
-							largerWindowIndex = i;
+						if(distance > _contigPolisher._windowLengthVariance){
+							if(distance > largerDistanceWindow){
+								largerDistanceWindow = distance;
+								incompleteWindowIndex = i;
+							}
 						}
 					}
 
 
-					u_int64_t distance = abs(((long)windowSequence.size()) - ((long)_windowLength));
+					//u_int64_t distance = abs(((long)windowSequence.size()) - ((long)_windowLength));
 
-					if(distance < largerDistanceWindow){
-						Window& window = windows[largerWindowIndex];
+					if(incompleteWindowIndex != -1){
+						Window& window = windows[incompleteWindowIndex];
 						delete window._sequence;
-						windows[largerWindowIndex] = {new DnaBitset2(windowSequence), windowQualities, posStart, posEnd};
+						windows[incompleteWindowIndex] = {new DnaBitset2(windowSequence), windowQualities, posStart, posEnd, score};
 					}
-					
+					else{
+						//u_int64_t largestAligmenet = 0;
+						//u_int64_t largestAligmenetIndex = 0;
+
+						/*
+						size_t largerWindowIndex = 0;
+						u_int64_t largerDistanceWindow = 0;
+
+						for(size_t i=0; i<windows.size(); i++){
+
+							const Window& window = windows[i];
+							u_int64_t distance = abs(((long)window._sequence->m_len) - ((long)_windowLength));
+
+							if(distance > largerDistanceWindow){
+								largerDistanceWindow = distance;
+								largerWindowIndex = i;
+							}
+						}
+
+
+						u_int64_t distance = abs(((long)windowSequence.size()) - ((long)_windowLength));
+
+						if(distance < largerDistanceWindow){
+							Window& window = windows[largerWindowIndex];
+							delete window._sequence;
+							windows[largerWindowIndex] = {new DnaBitset2(windowSequence), windowQualities, posStart, posEnd};
+						}
+						*/
+
+						
+
+        				static float maxVal = std::numeric_limits<float>::max();
+						size_t largerWindowIndex = 0;
+						//u_int64_t largerDistanceWindow = 0;
+						float lowestScore = maxVal;
+						
+						for(size_t i=0; i<windows.size(); i++){
+
+							const Window& window = windows[i];
+							//u_int64_t distance = abs(((long)window._sequence->m_len) - ((long)_windowLength));
+							//float score =
+
+							if(window._score < lowestScore){
+								lowestScore = window._score;
+								largerWindowIndex = i;
+							}
+						}
+
+						//u_int64_t distance = abs(((long)windowSequence.size()) - ((long)_windowLength));
+
+						if(score > lowestScore){
+							Window& window = windows[largerWindowIndex];
+							delete window._sequence;
+							windows[largerWindowIndex] = {new DnaBitset2(windowSequence), windowQualities, posStart, posEnd, score};
+						}
+
+					}
+
+
 
 				} 
 
@@ -2171,6 +2236,11 @@ public:
 						char* dnaStr = window._sequence->to_string();
 
 
+						//#pragma omp critical(indexWindow)
+						//{
+						//	if(window._sequence->m_len < 495 || window._sequence->m_len > 505)
+						//	cout << window._sequence->m_len << endl;
+						//}
 						/*
 						std::vector<uint32_t> rank;
 						rank.reserve(sequences.size());
