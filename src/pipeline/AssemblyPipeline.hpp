@@ -307,7 +307,7 @@ public:
 		u_int64_t meanReadLength = computeMeanReadLength(_inputFilename);
 		_lastK = meanReadLength*_minimizerDensity*2.0f; //1.2f; //2.0f; //*0.95
 		_meanReadLength = meanReadLength;
-		//_lastK = 36;
+		//_lastK = 33;
 		
 
 		sort(_readLengths.begin(), _readLengths.end());
@@ -679,6 +679,7 @@ public:
 
 
 		//if(fs::exists(_tmpDir + "/read_index.txt")) fs::copy(_tmpDir + "/read_index.txt", dir + "/read_index.txt");
+		if(fs::exists(_tmpDir + "/minimizer_graph.gfa.gfa")) fs::copy(_tmpDir + "/minimizer_graph.gfa.gfa", dir + "/minimizer_graph.gfa.gfa");
 		if(fs::exists(_tmpDir + "/minimizer_graph_u.gfa")) fs::copy(_tmpDir + "/minimizer_graph_u.gfa", dir + "/minimizer_graph_u.gfa");
 		fs::copy(_tmpDir + "/minimizer_graph_u_cleaned.gfa", dir + "/assembly_graph.gfa");
 		//fs::copy(_tmpDir + "/contigs_path.csv", dir + "/contigs_path.csv");

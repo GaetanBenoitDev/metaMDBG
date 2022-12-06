@@ -1337,11 +1337,13 @@ public:
 
 				bool isCircular = u._startNode == u._endNode;
 
-				/*
-				if(u._length < 300000){
+				
+				if(isCircular && u._length < 300000){
 					isCircular = false;
+					nodePath.pop_back();
 				}
 
+				/*
 				if(isCircular && nodePath.size() > nextMultikStep){
 					//cout << nodePath.size() << " " << nextMultikStep << endl;
 					nodePath.pop_back();

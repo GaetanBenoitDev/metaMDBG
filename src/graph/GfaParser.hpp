@@ -364,45 +364,7 @@ public:
 
         
         ifstream infile(filename);
-        /*
-
-
-        if(nbNodes == 0){
-
-            while(true){
-                u_int8_t type;
-                infile.read((char*)&type, sizeof(type));
-
-                if(infile.eof())break;
-
-
-                if(type == isS){
-
-                    u_int32_t nodeName;
-                    u_int32_t abundance;
-
-                    infile.read((char*)&nodeName, sizeof(nodeName));
-                    infile.read((char*)&abundance, sizeof(abundance));
-
-                    nbNodes += 1;
-                }
-                else{
-
-                    u_int32_t nodeName1;
-                    u_int32_t nodeName2;
-                    u_int8_t ori1;
-                    u_int8_t ori2;
-
-                    infile.read((char*)&nodeName1, sizeof(nodeName1));
-                    infile.read((char*)&ori1, sizeof(ori1));
-                    infile.read((char*)&nodeName2, sizeof(nodeName2));
-                    infile.read((char*)&ori2, sizeof(ori2));
-                }
-
-            }
-            
-        }
-        */
+       
 
         u_int32_t nbNodes;
         
@@ -410,35 +372,84 @@ public:
         infile.seekg(0, std::ios::beg);
 
         infile.read((char*)&nbNodes, sizeof(nbNodes));
-        //nbNodes = 5000000;
-        //cout << "to remove" << endl;
-        //BiGraph* graph = new BiGraph(nbNodes);
-
 
         unordered_set<u_int32_t> isWrittenNodeName;
 
         while(true){
-            
 
+                u_int32_t nodeName1;
+                u_int32_t nodeName2;
+                u_int8_t ori1;
+                u_int8_t ori2;
 
-            //u_int8_t type;
-            //infile.read((char*)&type, sizeof(type));
+                string ori1str = ";";
+                string ori2str = ";";
+                infile.read((char*)&nodeName1, sizeof(nodeName1));
 
+                if(infile.eof())break;
 
+                infile.read((char*)&ori1, sizeof(ori1));
+                infile.read((char*)&nodeName2, sizeof(nodeName2));
+                infile.read((char*)&ori2, sizeof(ori2));
 
-            //if(type == isS){
+                bool fromOrient = ori1 == edgePlus;
+                bool toOrient = ori2 == edgePlus;
 
-            //    u_int32_t nodeName;
-            //    u_int32_t abundance;
+                if(fromOrient){
+                    ori1str = "+";
+                }
+                else{
+                    ori1str = "-";
+                }
 
-            //    infile.read((char*)&nodeName, sizeof(nodeName));
-            //    infile.read((char*)&abundance, sizeof(abundance));
-                //graph->_nodeAbundances[nodeName] = abundance;
-                //graph->_nodeLengths[nodeName] = kminmerLengthMean;
+                if(toOrient){
+                    ori2str = "+";
+                }
+                else{
+                    ori2str = "-";
+                }
+                
+                if(isWrittenNodeName.find(nodeName1) == isWrittenNodeName.end()){
+                    isWrittenNodeName.insert(nodeName1);
+                    outputFile << "S" << "\t" << nodeName1 << "\t" << "*" << "\t" << "LN:i:" << nodeDatas[nodeName1]._length << "\t" << "dp:i:" << nodeDatas[nodeName1]._abundance << endl;
+                }
 
-            //    nbNodes += 1;
-            //}
-            //else{
+                if(isWrittenNodeName.find(nodeName2) == isWrittenNodeName.end()){
+                    isWrittenNodeName.insert(nodeName2);
+                    outputFile << "S" << "\t" << nodeName2 << "\t" << "*" << "\t" << "LN:i:" << nodeDatas[nodeName2]._length << "\t" << "dp:i:" << nodeDatas[nodeName2]._abundance << endl;
+                }
+
+                outputFile << "L" << "\t" << nodeName1 << "\t" << ori1str << "\t" << nodeName2 << "\t" << ori2str << "\t" << kminmerOverlapMean << "M" << endl;
+	
+
+        }
+        outputFile.close();
+
+    }
+
+    static void binaryGraph_to_gfa(const string& filename, float kminmerLengthMean, float kminmerOverlapMean, const string& outputFilename, const vector<NodeData>& nodeDatas, const vector<bool>& isNodeRemoved){
+
+        ofstream outputFile(outputFilename);
+        
+        u_int8_t isS = 0;
+        u_int8_t isL = 1;
+        u_int8_t edgePlus = 0;
+        u_int8_t edgeMinus = 1;
+
+        
+        ifstream infile(filename);
+       
+
+        u_int32_t nbNodes;
+        
+        infile.clear();
+        infile.seekg(0, std::ios::beg);
+
+        infile.read((char*)&nbNodes, sizeof(nbNodes));
+
+        unordered_set<u_int32_t> isWrittenNodeName;
+
+        while(true){
 
                 u_int32_t nodeName1;
                 u_int32_t nodeName2;
@@ -472,16 +483,8 @@ public:
                     ori2str = "-";
                 }
 
-                /*
-                string& from = (*fields)[1];
-                bool fromOrient = (*fields)[2] == "+";
-                string& to = (*fields)[3];
-                bool toOrient = (*fields)[4] == "+";
-                u_int16_t overlap = std::stoull((*fields)[5]);
-
-                u_int32_t from_id = std::stoull(from);
-                u_int32_t to_id = std::stoull(to);
-                */
+                if(isNodeRemoved[BiGraph::nodeName_to_nodeIndex(nodeName1, false)]) continue;
+                if(isNodeRemoved[BiGraph::nodeName_to_nodeIndex(nodeName2, false)]) continue;
                 
                 if(isWrittenNodeName.find(nodeName1) == isWrittenNodeName.end()){
                     isWrittenNodeName.insert(nodeName1);
@@ -494,29 +497,12 @@ public:
                 }
 
                 outputFile << "L" << "\t" << nodeName1 << "\t" << ori1str << "\t" << nodeName2 << "\t" << ori2str << "\t" << kminmerOverlapMean << "M" << endl;
-		
-
-                //if(nodeName1 == nodeName2) continue; //self loop
-
-                //graph->addEdge(nodeName1, fromOrient, nodeName2, toOrient, kminmerOverlapMean);
-
-            //}
+	
 
         }
-
-
-
-
-
-        //cout << "allo ?? : " << graph->_nbNodes << endl;
-        //cout << graph->_nodeAbundances.size() << endl;
-        //GfaParser::getNodeData(filename, graph->_nodeAbundances, graph->_nodeLengths);
-        //cout << graph->_nodeAbundances.size() << endl;
         outputFile.close();
 
     }
-
-
     /*
     UnitigGraph* createGraph(const string& filename, vector<int32_t>& node_to_unitig, vector<u_int32_t>& unitigLengths){
 

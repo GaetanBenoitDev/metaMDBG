@@ -1,5 +1,7 @@
 /*
 
+- essayer de travailler sur un unitig graphe seulement après le 1er compactage
+
 - truc desactivé:
 	- GraphSimplify: auto currentAbundance 
 	- GenerateContigs: discard circular tag for contig < 300000
@@ -756,6 +758,7 @@ public:
 		static double _maxMemoryUsage = 0;
 		static string s = "Maximumresidentsetsize(kbytes):";
 		static string stringCpu = "PercentofCPUthisjobgot:";
+		static string stringTime = "Elapsed(wallclock)time(h:mm:ssorm:ss):";
 
 		logFile << endl;
 		logFile << endl;
@@ -795,6 +798,7 @@ public:
 		string line;
 		double maxMem = 0;
 		string cpu;
+		string time;
 
 		while(std::getline(infile, line)){
 			//cout << line << endl;
@@ -817,6 +821,11 @@ public:
 				cpu = line;
 			}
 
+			pos = line.find(stringTime);
+			if (pos != std::string::npos){
+				line.erase(pos, stringTime.length());
+				time = line;
+			}
 		}
 		infile.close();
 		//cout << "Max memory: " << _maxMemoryUsage << " GB" << endl;
@@ -825,7 +834,8 @@ public:
 		//cout << outputDir + "/memoryTrack.txt" << endl;
 		ofstream outfileMem(outputDir + "/memoryTrack.txt", std::ios_base::app);
 		outfileMem << command << endl;
-		outfileMem << "\tPeak memory (GB): " << maxMem << endl;
+		outfileMem << "\tTime: " << time << endl;
+		outfileMem << "\tMemory (GB): " << maxMem << endl;
 		outfileMem << "\tCPU: " << cpu << endl;
 		outfileMem.close();
 

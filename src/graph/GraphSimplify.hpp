@@ -5258,7 +5258,7 @@ public:
 
         compact(false, unitigDatas);
 
-        /*
+        
         currentAbundance = 0;
         abundanceCutoff_min = 0;
         for(const Unitig& u : _unitigs){
@@ -5267,7 +5267,7 @@ public:
                 currentAbundance = u._abundance;
             }
         }
-        */
+        
 
         _logFile << "Max abundance: " << abundanceCutoff_min << endl;
         /*
@@ -5497,6 +5497,97 @@ public:
                         resizeUnitigs();
                     }
 
+
+
+                    /*
+                    tip(50000, false, currentSaveState, false, true, false, currentCutoff);
+                    
+                    float localCutoff = 1;
+                    //float aplha = 0.1;
+
+                    for(size_t i=0; i<maxAbundance; i++){
+                        while(true){
+
+                            bool isTipRemoved = false;
+
+                            while(true){
+                                compact(true, unitigDatas);
+                                u_int64_t nbRemoved = tip(_kminmerSize, false, currentSaveState, true, false, false, localCutoff);
+                                #ifdef PRINT_DEBUG_SIMPLIFICATION
+                                    _logFile << "Nb tip removed: " << nbRemoved << endl;
+                                #endif
+                                if(nbRemoved > 0){
+                                    isModification = true;
+                                    isModSub = true;
+                                    isTipRemoved = true;
+                                }
+                                else{
+                                    break;
+                                }
+                            }
+
+
+                            //_logFile << "Tip 1: " << getChecksumGlobal_utg() << " " << getChecksumGlobal_abundanceUtg() << endl;
+                            //getchar();
+
+                            //_logFile << "Tip 1: " << getChecksumGlobal() << " " << _tip_checksum << endl;
+                            //getchar();
+
+                            if(isTipRemoved) continue;
+
+                            while(true){
+                                compact(true, unitigDatas);
+                                u_int64_t nbRemoved = tip(_kminmerSize*2, false, currentSaveState, true, false, false, localCutoff);
+                                #ifdef PRINT_DEBUG_SIMPLIFICATION
+                                    _logFile << "Nb tip removed: " << nbRemoved << endl;
+                                #endif
+                                if(nbRemoved > 0){
+                                    isModification = true;
+                                    isModSub = true;
+                                    isTipRemoved = true;
+                                }
+                                else{
+                                    break;
+                                }
+                            }
+
+                            //_logFile << "Tip 2: " << getChecksumGlobal_utg() << " " << getChecksumGlobal_abundanceUtg() << endl;
+                            //getchar();
+                            //_logFile << "Tip 2: " << getChecksumGlobal() << " " << _tip_checksum << endl;
+                            //getchar();
+
+                            if(isTipRemoved) continue;
+
+                            while(true){
+                                compact(true, unitigDatas);
+                                u_int64_t nbRemoved = tip(50000, false, currentSaveState, false, false, false, localCutoff);
+                                #ifdef PRINT_DEBUG_SIMPLIFICATION
+                                    _logFile << "Nb tip removed: " << nbRemoved << endl;
+                                #endif
+                                if(nbRemoved > 0){
+                                    isModification = true;
+                                    isModSub = true;
+                                    isTipRemoved = true;
+                                }
+                                else{
+                                    break;
+                                }
+                            }
+
+
+                            //_logFile << "Tip 3: " << getChecksumGlobal_utg() << " " << getChecksumGlobal_abundanceUtg() << endl;
+                            //getchar();
+                            //_logFile << "Tip 3: " << getChecksumGlobal() << " " << _tip_checksum << " " << _unitigs.size() << endl;
+                            //getchar();
+
+                            if(!isTipRemoved) break;
+                        }
+
+                        localCutoff = localCutoff * (1+aplha);
+                    }
+                    */
+
+                    
                     tip(50000, false, currentSaveState, false, true, false);
                     
                     
