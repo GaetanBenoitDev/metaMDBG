@@ -1339,8 +1339,8 @@ public:
 
 				
 				if(isCircular && u._length < 300000){
-					isCircular = false;
-					nodePath.pop_back();
+					//isCircular = false;
+					//nodePath.pop_back();
 				}
 
 				/*

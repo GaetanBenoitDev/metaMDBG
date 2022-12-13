@@ -5258,7 +5258,7 @@ public:
 
         compact(false, unitigDatas);
 
-        
+        /*
         currentAbundance = 0;
         abundanceCutoff_min = 0;
         for(const Unitig& u : _unitigs){
@@ -5267,6 +5267,7 @@ public:
                 currentAbundance = u._abundance;
             }
         }
+        */
         
 
         _logFile << "Max abundance: " << abundanceCutoff_min << endl;
@@ -5399,7 +5400,7 @@ public:
 
                 isModSub = false;
                 
-                
+                /*
                 while(true){
                     compact(true, unitigDatas);
 
@@ -5414,7 +5415,7 @@ public:
 
                     
                 }
-                
+                */
                 
                 
                 
