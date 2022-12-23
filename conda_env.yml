@@ -1,9 +1,7 @@
 name: metaMDBG
 channels:
-  - anaconda
   - conda-forge
   - bioconda
-  - defaults
 dependencies:
   - zlib
   - openmp
