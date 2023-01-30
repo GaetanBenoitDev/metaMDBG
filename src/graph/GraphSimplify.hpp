@@ -5387,6 +5387,7 @@ public:
                 currentAbundance = u._abundance;
             }
         }
+        */
         
 
         _logFile << "Max abundance: " << abundanceCutoff_min << endl;
@@ -5519,7 +5520,7 @@ public:
 
                 isModSub = false;
                 
-                
+                /*
                 while(true){
                     compact(true, unitigDatas);
 
@@ -5534,7 +5535,7 @@ public:
 
                     
                 }
-                
+                */
                 
                 
                 
