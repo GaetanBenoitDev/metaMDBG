@@ -142,7 +142,7 @@ public:
 				contigIndex += 1;
 			}
 
-			cout << "Nb contigs: " << contigIndex << endl;
+			_logFile << "Nb contigs: " << contigIndex << endl;
 		
 			//getchar();
 		}

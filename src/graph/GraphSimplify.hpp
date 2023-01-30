@@ -12,6 +12,7 @@
 #define MDBG_METAG_GRAPHSIMPLIFY
 
 #include "Commons.hpp"
+#include "ProgressiveAbundanceFilter.hpp"
 #include <limits>
 //#include "contigFeatures/ContigFeature.hpp"
 //#include <experimental/filesystem>
@@ -124,7 +125,7 @@ public:
     //unordered_set<DbgEdge, hash_pair> _isEdgeRemoved;
     //unordered_set<DbgEdge, hash_pair> _isEdgeUnsupported;
 
-
+    u_int32_t _nbNodes;
     vector<Bubble> _bubbles;
     unordered_set<u_int32_t> _isNodeInvalid_tmp;
     unordered_set<u_int32_t> _isUnitigInvalid_tmp;
@@ -158,8 +159,11 @@ public:
 	float _kminmerLengthMean;
 	float _kminmerOverlapMean;
 
+    UnitigGraph* _unitigGraph;
+
     GraphSimplify(const string& inputGfaFilename, const string& outputDir, u_int32_t nbNodes, size_t kminmerSize, int nbCores, float kminmerLengthMean, float kminmerOverlapMean, ofstream& logFile) : _logFile(logFile){
 
+        _unitigGraph = nullptr;
         _kminmerLengthMean = kminmerLengthMean;
         _kminmerOverlapMean = kminmerOverlapMean;
 
@@ -175,6 +179,7 @@ public:
         _nbCores = nbCores;
 
         _graphSuccessors = GfaParser::createBiGraph_binary(inputGfaFilename, true, nbNodes, kminmerLengthMean, kminmerOverlapMean);
+        _nbNodes = _graphSuccessors->_nbNodes;
         _isCopy = false;
 
         //_logFile << "lala " << _graphSuccessors->_nodeAbundances.size() << " " << _graphSuccessors->_nodeLengths.size() << endl;
@@ -3419,6 +3424,50 @@ public:
     }
     */
 
+    void addUnitigGraphEdges(){
+
+        _logFile << "Add unitig graph edges" << endl;
+        _logFile << "Unitig graph nb nodes: " << _unitigGraph->_nodes.size() << endl;
+
+        for(size_t i=0; i<_unitigGraph->_nodes.size(); i++){
+            
+            UnitigGraph::Node* node = _unitigGraph->_nodes[i];
+
+            u_int32_t endNode = node->endNode();
+            vector<u_int32_t> successors;
+            getSuccessors(endNode, 0, successors);
+                
+            //_logFile << "c" << endl;
+
+            for(u_int32_t nodeIndex : successors){
+                u_int32_t toUnitigIndex = _unitigGraph->_nodeIndex_to_unitigIndex[nodeIndex];
+                _unitigGraph->addSuccessor(node->_unitigIndex, toUnitigIndex);
+            }
+
+            u_int32_t startNode = node->startNode();
+            vector<u_int32_t> predecessors;
+            getPredecessors(startNode, 0, predecessors);
+                
+            //_logFile << "c" << endl;
+
+            for(u_int32_t nodeIndex : predecessors){
+                u_int32_t toUnitigIndex = _unitigGraph->_nodeIndex_to_unitigIndex[nodeIndex];
+                _unitigGraph->addPredecessors(node->_unitigIndex, toUnitigIndex);
+            }
+
+        }
+
+        for(size_t i=0; i<_unitigGraph->_nodes.size(); i++){
+            
+            UnitigGraph::Node* node = _unitigGraph->_nodes[i];
+
+            std::sort(node->_successors.begin(), node->_successors.end(), UnitigGraph::NodeComparator);
+            std::sort(node->_predecessors.begin(), node->_predecessors.end(), UnitigGraph::NodeComparator);
+
+        }
+
+    }
+
     unordered_set<u_int32_t> _unitigIndexToClean;
     double _abCircular;
 
@@ -3427,6 +3476,14 @@ public:
 
         _logFile << "\tCompacting" << endl;
         //if(rebuild && _rebuildInvalidUnitigs.size() == 0) return;
+
+        if(!rebuild){
+            if(_unitigGraph != nullptr){
+                delete _unitigGraph;
+            }
+
+            _unitigGraph = new UnitigGraph(_nbNodes, _kminmerLengthMean, _kminmerOverlapMean, _kminmerLengthMean-_kminmerOverlapMean, _graphSuccessors->_nodeDatas);
+        }
 
         _unitigIndexToClean.clear();
 
@@ -3518,7 +3575,8 @@ public:
         //for(size_t nodeIndex=0; nodeIndex<_graphSuccessors->_nbNodes; nodeIndex++){
 
         srand(time(NULL));
-        std::random_shuffle(nodes.begin(), nodes.end());
+        //std::sort(nodes.begin(), nodes.end(), UnitigComparator_ByIndex);
+        //std::random_shuffle(nodes.begin(), nodes.end());
 
         /*
         for (u_int32_t nodeIndex : nodes){
@@ -3534,7 +3592,7 @@ public:
         UnitigFunctor functor(this, rebuild);
         size_t i=0;
 
-        #pragma omp parallel num_threads(_nbCores)
+        #pragma omp parallel num_threads(1)
         {
 
             UnitigFunctor functorSub(functor);
@@ -3566,6 +3624,9 @@ public:
 
         }
 
+        if(!rebuild){
+            addUnitigGraphEdges();
+        }
         //std::sort(_unitigs.begin(), _unitigs.end(), UnitigComparator_ByIndex);
         
 
@@ -3583,6 +3644,8 @@ public:
         //    getchar();
         //}
         _logFile << "\tdone: " << _unitigs.size() << endl;
+        
+        
         /*
         for(u_int32_t unitigIndex : _possibleTips){
             _logFile << "-" << endl;
@@ -3710,12 +3773,24 @@ public:
 
 		void operator () (u_int32_t nodeIndex) {
 
+
             bool exist = false;
             #pragma omp critical(unitig)
             {
                 if(_nodeToUnitig[nodeIndex] != -1) exist = true;
                 //if(_nodeToUnitig.find(nodeIndex) != _nodeToUnitig.end()) exist = true;
             }
+
+            /*
+            if(nodeIndex == 11838996){
+                cout << "haha " <<  exist << " " << _nodeToUnitig[nodeIndex] << endl;
+
+                for(u_int32_t nodeIndex : _graph->_unitigs[_nodeToUnitig[nodeIndex]]._nodes){
+                    cout << nodeIndex << endl;
+                }
+            }
+            */
+
             if(exist) return;
 
             vector<u_int32_t> neighbors;
@@ -3961,6 +4036,35 @@ public:
                 }
 
                 /*
+                bool exists = false;
+                for(u_int32_t nodeIndex : nodes){
+                    if(nodeIndex == 11838996){
+                        exist = true;
+                    }
+                }
+                if(exist){
+                    cout << "-----" << endl;
+                    for(u_int32_t nodeIndex : nodes){
+                        cout << nodeIndex << endl;
+                    }
+                    cout << isValid << endl;
+                }
+                exist = false;
+                for(u_int32_t nodesRC : nodes){
+                    if(nodeIndex == 11838996){
+                        exist = true;
+                    }
+                }
+                if(exist){
+                    cout << "-----" << endl;
+                    for(u_int32_t nodeIndex : nodesRC){
+                        cout << nodeIndex << endl;
+                    }
+                    cout << isValid << endl;
+                }
+                */
+
+                /*
                 bool isHere = false;
                 for(u_int32_t nodeIndex : nodes){
                     if(nodeIndex == 7294223){
@@ -4072,7 +4176,14 @@ public:
                     //_nodeToUnitig[nodeIndex_toReverseDirection(endNode)] = unitigIndexRC;
 
 
-                    
+
+                    if(isCircular && nodes.size() > 1){
+                        nodes.pop_back();
+                        nodesRC.erase(nodesRC.begin());
+                    }
+                    _graph->_unitigGraph->addNode(nodes, median, length);
+                    _graph->_unitigGraph->addNode(nodesRC, median, length);
+
                     _unitigs.push_back({_graph->_nextUnitigIndex, startNode, endNode, median, length, nbNodes, nodes});//, maxQuality, nodeIndex, sum*nbNodes});
                     _unitigs.push_back({unitigIndexRC, nodeIndex_toReverseDirection(endNode), nodeIndex_toReverseDirection(startNode), median, length, nbNodes, nodesRC});//, maxQuality, nodeIndex, sum*nbNodes});
 
@@ -4132,6 +4243,10 @@ public:
         }
 
 	};
+
+
+
+
 
     /*
     void computeUnitig(u_int32_t nodeIndex, const vector<UnitigData>& unitigDatas, bool rebuild){
@@ -5258,7 +5373,12 @@ public:
 
         compact(false, unitigDatas);
 
+        //_unitigGraph->save("/home/gats/workspace/run/unitigGraph.gfa");
+    
         
+        return;
+        
+       
         currentAbundance = 0;
         abundanceCutoff_min = 0;
         for(const Unitig& u : _unitigs){
@@ -6203,7 +6323,7 @@ public:
         //getchar();
         if(!saveStateExist){
 
-            _logFile << "saving state: " << currentCutoff << endl;
+            cout << "saving state: " << currentCutoff << endl;
 
             //getchar();
             compact(true, unitigDatas);

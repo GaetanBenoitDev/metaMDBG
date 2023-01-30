@@ -377,7 +377,7 @@ void CreateMdbg::createMDBG (){
 
 		_parsingContigs = true;
 		_savingSmallContigs = false;
-
+		
 		KminmerParserParallel parser3(filename_contigs, _minimizerSize, _kminmerSize, false, false, _nbCores);
 		parser3.parse(IndexKminmerFunctor(*this, true));
 		
@@ -423,7 +423,7 @@ void CreateMdbg::createMDBG (){
 	_contigAbundances.clear();
 	_fileSmallContigs.close();
 
-	cout << "Nb small contigs written: " << _nbSmallContigs << endl;
+	_logFile << "Nb small contigs written: " << _nbSmallContigs << endl;
 	//if(_kminmerSize == _kminmerSizeLast){
 	//	removeDuplicatedSmallContigs();
 	//}

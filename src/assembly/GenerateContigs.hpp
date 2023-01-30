@@ -216,12 +216,21 @@ public:
 	unordered_map<u_int64_t, vector<u_int32_t>> _debug_readPath;
     vector<bool> _isBubble;
 
+	class X
+	{
+		public: 
+		void operator()(float cutoff) {}
+	};
+
 	void execute (){
 
 
 		loadGraph();
+		//exit(1);
 		//generateUnitigs();
-		generateContigs2(_inputDir + "/contigs.nodepath");
+		//generateContigs2(_inputDir + "/contigs.nodepath");
+		generateContigs3();
+
 		//exit(1);
 		
 		//if(_kminmerSize == 4){
@@ -358,8 +367,28 @@ public:
 	  //_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, true, false, true, true, _mdbg, _minimizerSize, _nbCores, true, false);
 		//_graph->debug_writeGfaErrorfree(0, 0, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false, false, false, true, _mdbg, _minimizerSize, _nbCores, false, false);
 		
+		//indexReads();
+
 		_graph->debug_writeGfaErrorfree(2000, 2000, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false, false, false, true, _mdbg, _minimizerSize, _nbCores, false, false);
+		//removeUnsupportedEdges();
+		//_graph->_unitigGraph->save("/home/gats/workspace/run/minimizer_graph_u.gfa");
+		//getchar();
 		
+        _progressiveAbundanceFilter = new ProgressiveAbundanceFilter(_graph->_unitigGraph, _inputDir, _kminmerSize, true, _logFile);
+		X dummy;
+
+		//delete _graph->_graphSuccessors;
+		_processedNodeNames = vector<bool>(_graph->_isNodeRemoved.size()/2, false);
+		delete _graph;
+
+        _progressiveAbundanceFilter->execute(dummy);
+
+		//cout << _graph->_unitigGraph->computeChecksum_successor() << endl;
+		//if(_kminmerSize == 20) exit(1);
+
+
+        //_unitigGraph->save("/home/gats/workspace/run/unitigGraph_cleaned.gfa");
+
 		
 		//_graph->debug_selectUnitigIndex();
 		//_graph->debug_writeGfaErrorfree(2000, 2000, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false, false, false, false, _mdbg, _minimizerSize, _nbCores, false, true);
@@ -367,6 +396,245 @@ public:
 		//delete _mdbg;
 		
 	}
+
+	ProgressiveAbundanceFilter* _progressiveAbundanceFilter;
+
+	/*
+	u_int64_t computeSharedReads(UnitigGraph::Node* unitig1, UnitigGraph::Node* unitig2){
+
+		const vector<u_int32_t>& source_readIndexes = _nodeName_to_readIndexes[BiGraph::nodeIndex_to_nodeName(unitig1->endNode())];
+		const vector<u_int32_t>& readIndex = _nodeName_to_readIndexes[BiGraph::nodeIndex_to_nodeName(unitig2->startNode())];
+
+
+		size_t i=0;
+		size_t j=0;
+		u_int64_t nbShared = 0;
+
+		while(i < source_readIndexes.size() && j < readIndex.size()){
+
+			if(source_readIndexes[i] == readIndex[j]){
+				nbShared += 1;
+				i += 1;
+				j += 1;
+			}
+			else if(source_readIndexes[i] < readIndex[j]){
+				i += 1;
+			}
+			else{
+				j += 1;
+			}
+
+		}
+
+		return nbShared;
+	}
+
+	//vector<vector<ReadNodePos>> _nodeName_to_readIndexes;
+	vector<vector<u_int32_t>> _nodeName_to_readIndexes;
+	unordered_set<u_int32_t> _startEndNodeNames;
+
+	void removeUnsupportedEdges(){
+
+		cout << "Indexing reads" << endl;
+
+
+		for(UnitigGraph::Node* node : _graph->_unitigGraph->_nodes){
+			if(node->_unitigIndex == -1) continue;
+			_startEndNodeNames.insert(BiGraph::nodeIndex_to_nodeName(node->startNode()));
+			_startEndNodeNames.insert(BiGraph::nodeIndex_to_nodeName(node->endNode()));
+		}
+
+		_nodeName_to_readIndexes.resize(_graph->_graphSuccessors->_nbNodes/2);
+
+		string mdbg_filename = _inputDir + "/kminmerData_min.txt";
+		_mdbg = new MDBG(_kminmerSize);
+		_mdbg->load(mdbg_filename, false);
+
+		KminmerParserParallel parser(_filename_readMinimizers, _minimizerSize, _kminmerSize, false, false, _nbCores);
+		parser.parse(IndexReadsFunctor(*this));
+
+		delete _mdbg;
+		_startEndNodeNames.clear();
+
+
+		for(UnitigGraph::Node* node : _graph->_unitigGraph->_nodes){
+			if(node->_unitigIndex == -1) continue;
+
+
+			vector<UnitigGraph::Node*> preds = node->_predecessors;
+
+			for(UnitigGraph::Node* predecessor : preds){
+				
+				if(predecessor->_unitigIndex == -1) continue;
+		
+				u_int64_t nbSharedReads = computeSharedReads(predecessor, node);
+				if(nbSharedReads > 0) continue;
+
+				_graph->_unitigGraph->removePredecessor(node, predecessor);
+				//recompactNodes.insert(predecessor);
+				_graph->_unitigGraph->recompact(predecessor);
+				cout << "Remove unsupported edge" << endl;
+				//getchar();
+
+			}
+
+		}
+
+		cout << "done" << endl;
+		_nodeName_to_readIndexes.clear();
+	}
+
+	unordered_set<u_int32_t> _validReadIndex;
+	unordered_set<u_int32_t> _isNodeNamePalindrome;
+
+	class IndexReadsFunctor {
+
+		public:
+
+		GenerateContigs& _parent;
+
+		IndexReadsFunctor(GenerateContigs& parent) : _parent(parent){
+		}
+
+		IndexReadsFunctor(const IndexReadsFunctor& copy) : _parent(copy._parent){
+		}
+
+		~IndexReadsFunctor(){
+		}
+
+		void operator () (const KminmerList& kminmerList) {
+
+
+			u_int32_t readIndex = kminmerList._readIndex;
+
+
+			for(u_int16_t i=0; i<kminmerList._kminmersInfo.size(); i++){
+			
+				
+				const ReadKminmerComplete& kminmerInfo = kminmerList._kminmersInfo[i];
+
+				KmerVec vec = kminmerInfo._vec;
+				
+				if(_parent._mdbg->_dbg_nodes.find(vec) == _parent._mdbg->_dbg_nodes.end()){
+					continue;
+				}
+				u_int32_t nodeName = _parent._mdbg->_dbg_nodes[vec]._index;
+				
+				if(_parent._startEndNodeNames.find(nodeName) == _parent._startEndNodeNames.end()) continue;
+
+				//u_int32_t nodeIndex = BiGraph::nodeName_to_nodeIndex(nodeName, !kminmerInfo._isReversed);
+				
+				#pragma omp critical(indexReadsFunctor)
+				{
+
+					_parent._nodeName_to_readIndexes[nodeName].push_back(readIndex);
+					//cout << nodeName << " " << _parent._nodeName_to_readIndexes[nodeName].size() << endl;
+				}
+
+				
+
+			}
+
+		}
+	};
+	*/
+
+	/*
+	phmap::parallel_flat_hash_set<vector<u_int32_t>> _nodeName_to_readIndexes;
+
+	void indexReads(){
+
+		for(u_int32_t nodeIndex=0; nodeIndex < _graph->_graphSuccessors->_nbNodes; nodeIndex++){
+			const vector<AdjNode>& successors = _graph->_graphSuccessors->_nodes[nodeIndex];
+			if(successors.size() > 1){
+				_nodeName_to_readIndexes[BiGraph::nodeIndex_to_nodeName(nodeIndex)] = {};
+				for(const AdjNode& node : successors){
+					_nodeName_to_readIndexes[BiGraph::nodeIndex_to_nodeName(node._index)] = {};
+				}
+			}
+
+		}
+
+		//_nodeName_to_readIndexes.resize(_graph->_graphSuccessors->_nbNodes/2);
+
+		_logFile << "Indexing reads" << endl;
+		string mdbg_filename = _inputDir + "/kminmerData_min.txt";
+		_mdbg = new MDBG(_kminmerSize);
+		_mdbg->load(mdbg_filename, false);
+
+		KminmerParserParallel parser(_filename_readMinimizers, _minimizerSize, _kminmerSize, false, false, _nbCores);
+		parser.parse(IndexReadsFunctor(*this));
+
+		delete _mdbg;
+
+		for(u_int32_t nodeIndex=0; nodeIndex < _graph->_graphSuccessors->_nbNodes; nodeIndex++){
+			const vector<AdjNode>& successors = _graph->_graphSuccessors->_nodes[nodeIndex];
+			if(successors.size() > 1){
+				for(const AdjNode& node : successors){
+					u_int32_t nodeIndex_nn = node._index;
+					if(Utils::shareAny(_nodeName_to_readIndexes[BiGraph::nodeIndex_to_nodeName(nodeIndex)], _nodeName_to_readIndexes[BiGraph::nodeIndex_to_nodeName(nodeIndex_nn)])){
+						continue;
+					}
+					cout << "unsupported edge: " << BiGraph::nodeIndex_to_nodeName(nodeIndex) << " " << BiGraph::nodeIndex_to_nodeName(nodeIndex_nn) << endl;
+					getchar();
+				}
+			}
+
+
+		}
+	}
+
+
+	class IndexReadsFunctor {
+
+		public:
+
+		GenerateContigs& _generateContigs;
+
+		IndexReadsFunctor(GenerateContigs& generateContigs) : _generateContigs(generateContigs){
+		}
+
+		IndexReadsFunctor(const IndexReadsFunctor& copy) : _generateContigs(copy._generateContigs){
+		}
+
+		~IndexReadsFunctor(){
+		}
+
+		//void collectBestSupportingReads_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, bool isCircular, u_int64_t readIndex){
+
+		void operator () (const KminmerList& kminmerList) {
+
+			u_int64_t readIndex = kminmerList._readIndex;
+
+			for(size_t i=0; i<kminmerList._kminmersInfo.size(); i++){
+			
+				
+				//_logFile << readIndex << " " << i << endl;
+				const ReadKminmerComplete& kminmerInfo = kminmerList._kminmersInfo[i];
+
+				KmerVec vec = kminmerInfo._vec;
+				
+				if(_generateContigs._mdbg->_dbg_nodes.find(vec) == _generateContigs._mdbg->_dbg_nodes.end()){
+					continue;
+				}
+				
+				u_int32_t nodeName = _generateContigs._mdbg->_dbg_nodes[vec]._index;
+
+				if(_nodeName_to_readIndexes.find(nodeName) == _nodeName_to_readIndexes.end()) continue;
+
+				#pragma omp critical(indexReadsFunctor)
+				{
+					_generateContigs._nodeName_to_readIndexes[nodeName].push_back(readIndex);
+				}
+
+				
+
+			}
+
+		}
+	};
+	*/
+	
 
 	/*
 	void indexReads_read(const vector<u_int64_t>& minimizers, const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex){//}, const vector<KmerVec>& kminmers_k3, const vector<ReadKminmer>& kminmersInfos_k3){
@@ -1363,7 +1631,7 @@ public:
 				//}
 				//isCircular = isSingleton;
 				//cout << "Is singleton: " << isSingleton << endl;
-				u_int64_t size = nodePath.size();
+				u_int32_t size = nodePath.size();
 
 				//gzwrite(outputContigFile_min, (const char*)&size, sizeof(size));
 				//gzwrite(outputContigFile_min, (const char*)&nodePath[0], size * sizeof(u_int32_t));
@@ -1721,6 +1989,105 @@ Nb nodes (checksum): 165166644
 		gzclose(outputContigFile_min);
 	}
 	*/
+
+	void generateContigs3(){
+
+		_logFile << "Generating contigs" << endl;
+		size_t nextMultikStep = Commons::getMultikStep(_kminmerSize);
+
+
+		ofstream outputContigFile(_inputDir + "/contigs.nodepath");
+
+		float prevCutoff = -1;
+		u_int64_t contigIndex = 0;
+
+
+		u_int64_t checksumTotal = 0;
+		//unordered_set<u_int32_t> processedNodeNames;
+
+
+
+		for(long i=_progressiveAbundanceFilter->_cutoffIndexes.size()-1; i>=0; i--){
+
+			ProgressiveAbundanceFilter::CutoffIndex cutoffIndex = _progressiveAbundanceFilter->_cutoffIndexes[i];
+			float cutoff = cutoffIndex._cutoffValue;
+			_logFile << cutoff << endl;
+
+        	ifstream nodepathFile(_inputDir + "/filter/unitigs_" + to_string(cutoffIndex._cutoffIndex) + ".bin");
+
+			_minUnitigAbundance = cutoff / 0.5;
+
+			while(true){
+
+				bool isCircular = false;
+				bool isRepeatSide = false;
+				float contigAbundance = -1;
+				vector<u_int32_t> nodePath;
+				u_int32_t size;
+				nodepathFile.read((char*)&size, sizeof(size));
+				
+				if(nodepathFile.eof()) break;
+
+
+				nodepathFile.read((char*)&isCircular, sizeof(isCircular));
+				nodepathFile.read((char*)&isRepeatSide, sizeof(isRepeatSide));
+				nodepathFile.read((char*)&contigAbundance, sizeof(contigAbundance));
+
+				nodePath.resize(size);
+				nodepathFile.read((char*)&nodePath[0], size * sizeof(u_int32_t));
+
+				if(isRepeatSide) continue;
+				if(contigAbundance < _minUnitigAbundance) continue;
+				if(isContigAssembled(nodePath)) continue;
+
+				u_int64_t checksum = 0;
+				for(u_int32_t nodeIndex : nodePath){
+					checksum += BiGraph::nodeIndex_to_nodeName(nodeIndex);
+				}
+				checksum *= nodePath.size();
+				checksumTotal += checksum;
+
+
+				if(isCircular && nodePath.size() > 1){
+					nodePath.push_back(nodePath[0]);
+				}
+
+				size = nodePath.size();
+				//cout << size << "  " << nodePath.size() << " " << contigAbundance << endl;
+				outputContigFile.write((const char*)&size, sizeof(size));
+				outputContigFile.write((const char*)&isCircular, sizeof(isCircular));
+				outputContigFile.write((const char*)&nodePath[0], size * sizeof(u_int32_t));
+
+				//if(size > 100)
+				//	cout << "contig: " << size << endl;
+
+				for(u_int32_t nodeIndex : nodePath){
+					u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
+					//cout << nodeName << endl;
+					_processedNodeNames[nodeName] = true;
+					_nodeNameAbundances[nodeName] = {contigAbundance, (u_int32_t)nodePath.size()};
+
+
+				}
+
+
+
+				contigIndex += 1;
+			}
+
+			nodepathFile.close();
+		}
+
+
+		outputContigFile.close();
+				//if(_kminmerSize > 18){
+				//	getchar();
+				//}
+		//cout << "Checksum: " << checksumTotal << endl;
+		//getchar();
+	}
+
+
 	
 };
 

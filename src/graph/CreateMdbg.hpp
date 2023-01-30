@@ -889,8 +889,11 @@ public:
 
 			
 			if(_extractingContigs && kminmersInfos.size() < _kminmerSize*2 ){ //&& getAbundance(readMinimizers) > 1
-				return;
+				//if(isInGraph(kminmersInfos)) return;
+				//return;
 			}
+
+			
 			
 
 			/*

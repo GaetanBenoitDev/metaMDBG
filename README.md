@@ -10,8 +10,9 @@ Contact: gaetanbenoitdev at gmail dot com
 - cmake 3.10+
 - zlib
 - openmp
-- minimap2
+- minimap2 2.24+
 - wfmash
+- samtools 1.6+
 ```
 
 ## Conda Installation
@@ -33,6 +34,7 @@ make -j 3
 After successful installation, an executable named metaMDBG will appear in build/bin.
 
 ## Installation from source
+Required dependencies to be installed manually.
 
 ```
 git clone https://github.com/GaetanBenoitDev/metaMDBG.git

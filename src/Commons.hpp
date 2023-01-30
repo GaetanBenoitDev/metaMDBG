@@ -1,18 +1,25 @@
+
 /*
 
-- essayer de travailler sur un unitig graphe seulement après le 1er compactage
+- isRepeatSide: tester > _kminmerSize*2 au lieu de 50k length
+- last superbubble in circular component not removed (cycle including source)
+
+- unitig graph:
+	- memory a optimiser (le graphSUccessor et graphSImplify peuvent etre detruit une fois que le unitg graph est construit)
+	
 
 - truc desactivé:
 	- GraphSimplify: auto currentAbundance 
-	- GenerateContigs: discard circular tag for contig < 300000
+
 
 - contig polisher: plus de window pour les espece plus abondante ? (fraction du contig coverage)
 - OverlapRemover : ligne 595: tester d'enlever le +1 de if(contig._minimizers.size() <= _kminmerSize+1){
-- determinstic node a un imapct sur la qualité des resultats sur donées dimulé, voir si c'est le cas sur AD
+- determinstic node a un imapct sur la qualité des resultats sur donées simulé, voir si c'est le cas sur AD
 - to test ToBasespace: limit nb reads per nodename
 
 - Dans les première phase du multi, ne pas ollapse les bubbles si leur source et sink sont très abondante (on ne mergera donc pas deux organismes, et il ne devrait pas break vu que c'est abondante)
 - polisher circ detection incomplete (il faudrait ajouter la partie manquante au backbone)
+- polisher circ detection: update pour gerer les petit contig sur lequel des read entier pourrait mapper sur toute leur longeur
 
 - check whitin contig contamination
 - add strain derep options in global command and manual
@@ -31,8 +38,6 @@ ContigPolisher:
 - ajouter une progress bar global
 
 ---------------------------------- FIXED
-
-- pas ouf le systeme de verification de crash des programme (la seg fault devrait apparaitre dans cerr, pas sur pour le truc du ficher faield.txt)
 
 - [Fixed] CreateGraph: determinstic sutff always enabled, remove for speed gain
 
@@ -589,6 +594,21 @@ class Commons{
 
 public:
 
+	static string inputFileToFilenames(const string& inputFilename){
+
+		string filenames = " ";
+		ifstream inputFile(inputFilename);
+		std::string line;
+
+		while (std::getline(inputFile, line)){
+
+			filenames += line + " ";
+		}
+
+		return filenames;
+
+	}
+
 	static void createInputFile(auto& paths, const string& filename){
 
 		//string inputFilenames = _inputFilename;
@@ -599,9 +619,30 @@ public:
 		//GfaParser::tokenize(inputFilenames, fields, ',');
 
 		for(auto &&path : paths){
+
+			string filename = path;
+
+
+    		//filename.erase(std::remove_if(filename.begin(), filename.end(), ::isspace), filename.end());
+			//if(filename.empty()) continue;
+			
+			if(!fs::exists (filename)){
+				cerr << "File not found: " << filename << endl;
+				exit(1);
+			}
+
+			if(fs::is_directory(filename)){
+				cerr << "Input file (" << filename << ") is a directory (need fasta/fastq filenames)" << endl;
+				exit(1);
+			}
+			//else{
+			//	cerr << "File not found: " << line << endl;
+			//	exit(1);
+			//}
+
 			//string filenameAbs = fs::absolute(filename);
 			//cout << path << endl; //" " << fs::canonical(filename) << " " << fs::weakly_canonical(filename) << endl;
-			inputFile << path << endl;
+			inputFile << filename << endl;
 		}
 
 		//delete fields;
@@ -1250,7 +1291,8 @@ public:
 		return false;
 	}
 
-	static bool shareAny(const vector<u_int64_t>& utg1, const vector<u_int64_t>& utg2){
+	template<typename T>
+	static bool shareAny(const vector<T>& utg1, const vector<T>& utg2){
 
 		if(utg1.size() == 0 || utg2.size() == 0) return true;
 		//cout << "------------------- " << utg1._index << endl;
@@ -1568,7 +1610,6 @@ public:
 
 		//unordered_set<u_int64_t> bannedMinimizers;
 		vector<bool> bannedPositions(minimizers.size(), false);
-
 
 
 
@@ -2346,19 +2387,29 @@ public:
 
 		while (std::getline(infile, line)){
 
+
+			_nbDatasets += 1;
+			_filenames.push_back(line);
+
+			/*
     		line.erase(std::remove_if(line.begin(), line.end(), ::isspace), line.end());
 			if(line.empty()) continue;
 
 			fs::path path(line);
 
 			if(fs::exists (path)){
-				_nbDatasets += 1;
-				_filenames.push_back(line);
+				
+				if(fs::is_directory(path)){
+					cerr << line << " is a directory (need fasta/fastq filename)" << line << endl;
+					exit(1);
+				}
+
 			}
 			else{
 				cerr << "File not found: " << line << endl;
 				exit(1);
 			}
+			*/
 		}
 
 
@@ -2510,16 +2561,16 @@ public:
     		line.erase(std::remove_if(line.begin(), line.end(), ::isspace), line.end());
 			if(line.empty()) continue;
 
-			fs::path path(line);
+			//fs::path path(line);
 
-			if(fs::exists (path)){
+			//if(fs::exists (path)){
 				_nbDatasets += 1;
 				_filenames.push_back(line);
-			}
-			else{
-				cerr << "File not found: " << line << endl;
-				exit(1);
-			}
+			//}
+			//else{
+			//	cerr << "File not found: " << line << endl;
+			//	exit(1);
+			//}
 		}
 
 
@@ -3159,7 +3210,7 @@ public:
 			bool isEOF = false;
 			Functor functorSub(functor);
 			
-			u_int64_t size;
+			u_int32_t size;
 			vector<u_int32_t> nodePath;
 			bool isCircular;
 			NodePath nodePathObject;

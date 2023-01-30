@@ -18,14 +18,14 @@
 #include "polish/ContigPolisher.hpp"
 #include "polish/PurgeDups.hpp"
 //#include "contigFeatures/KminmerCounter.hpp"
-//#include "assembly/Circulizer.hpp"
+#include "assembly/Circulizer2.hpp"
 //#include "toBasespace/Dereplicater.hpp"
 //#include "polish/PurgeGraph.hpp"
 //#include "mapping/ContigDecontaminator.hpp"
 
 void displayHelp(string programName){
 	cout << " Program: metaMDBG (assembly of long and accurate metagenomics reads)" << endl;
-	cout << " Version: 1" << endl;
+	cout << " Version: 0.2" << endl;
 	cout << " Contact: Gaëtan Benoit (gaetanbenoitdev@gmail.com)" << endl;
 	cout << endl;
 	cout << " Usage: " + programName + " [command]" << endl;
@@ -105,9 +105,9 @@ int main (int argc, char* argv[])
     		//else if(programName == "toBasespaceFast"){
             //    ToBasespaceNoCorrection().run (argc, args);
     		//}
-    		//else if(programName == "circ"){
-            //    Circulizer().run (argc, args);
-    		//}
+    		else if(programName == "circ"){
+                Circulizer2().run (argc, args);
+    		}
     		else if(programName == "toBasespace"){
                 ToBasespace().run (argc, args);
     		}

@@ -720,9 +720,9 @@ public:
 
 				#pragma omp critical(indexReadsFunctor)
 				{
-					//if(_generateContigs._unitigDatas[nodeName].size() < 50){
-					_generateContigs._unitigDatas[nodeName].push_back(readIndex);
-					//}
+					if(_generateContigs._unitigDatas[nodeName].size() < 50){
+						_generateContigs._unitigDatas[nodeName].push_back(readIndex);
+					}
 				}
 
 				
