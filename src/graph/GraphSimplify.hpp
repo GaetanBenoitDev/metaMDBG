@@ -5378,7 +5378,7 @@ public:
         
         return;
         
-       
+        /*
         currentAbundance = 0;
         abundanceCutoff_min = 0;
         for(const Unitig& u : _unitigs){
