@@ -2616,7 +2616,8 @@ public:
 
 	bool isRepeatSide(UnitigGraph::Node* node){
 
-		if(node->_length > 50000) return false;
+		//if(node->_length > 50000) return false;
+		if(node->_nodes.size() > _kminmerSize*2) return false;
 		if(node->_successors.size() == 0) return false;
 		if(node->_predecessors.size() == 0) return false;
 

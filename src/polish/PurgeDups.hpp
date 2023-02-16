@@ -81,9 +81,7 @@ public:
 	void parseArgs(int argc, char* argv[]){
 
 
-		char ARG_MIN_IDENTITY = 'i';
-		char ARG_CIRCULAR_LENGTH = 'c';
-		char ARG_LINEAR_LENGTH = 'l';
+
 
 		string ARG_CUT_INTERNAL = "cutinternal";
 		string ARG_CONTAINED_ONLY = "containedOnly";
@@ -99,8 +97,8 @@ public:
 		//args::ValueFlag<int> arg_l(parser, "", "Minimizer length", {ARG_MINIMIZER_LENGTH2}, 13);
 		//args::ValueFlag<float> arg_d(parser, "", "Minimizer density", {ARG_MINIMIZER_DENSITY2}, 0.005f);
 		//args::ValueFlag<std::string> arg_contigs(parser, "", "", {ARG_INPUT_FILENAME_CONTIG}, "");
-		args::ValueFlag<int> arg_length(parser, "", "Do not remove contigs with length > minLength (0 = disable)", {ARG_LINEAR_LENGTH}, 1000000);
-		args::ValueFlag<float> arg_minIdentity(parser, "", "Minimum identity for strains (0-1)", {ARG_MIN_IDENTITY}, 0.99);
+		args::ValueFlag<int> arg_length(parser, "", "Use contigs with length > l as reference for strain duplication purging", {ARG_LINEAR_LENGTH}, 1000000);
+		args::ValueFlag<float> arg_minIdentity(parser, "", "Minimum identity for strain purging (0-1)", {ARG_MIN_IDENTITY}, 0.99);
 		args::ValueFlag<int> arg_nbCores(parser, "", "Number of cores", {ARG_NB_CORES2}, NB_CORES_DEFAULT_INT);
 		args::Flag arg_containedOnly(parser, "", "", {ARG_CONTAINED_ONLY});
 		args::Flag arg_cutInternal(parser, "", "", {ARG_CUT_INTERNAL});

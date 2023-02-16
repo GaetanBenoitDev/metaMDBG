@@ -190,7 +190,6 @@ public:
 	void parseArgs(int argc, char* argv[]){
 
 
-		char ARG_NB_WINDOWS = 'n';
 		string ARG_NO_QUAL = "noqual";
 		string filenameExe = argv[0];
 		//_logFile << filenameExe << endl;

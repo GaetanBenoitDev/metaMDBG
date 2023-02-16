@@ -1,6 +1,10 @@
 
 /*
 
+- add strain derep options in global command and manual (need to remove error tips still)
+- release une version de metaMDBG, celle que j'utilise pour le papier sans changement
+
+
 - isRepeatSide: tester > _kminmerSize*2 au lieu de 50k length
 - last superbubble in circular component not removed (cycle including source)
 
@@ -15,18 +19,14 @@
 - contig polisher: plus de window pour les espece plus abondante ? (fraction du contig coverage)
 - OverlapRemover : ligne 595: tester d'enlever le +1 de if(contig._minimizers.size() <= _kminmerSize+1){
 - determinstic node a un imapct sur la qualité des resultats sur donées simulé, voir si c'est le cas sur AD
-- to test ToBasespace: limit nb reads per nodename
 
 - Dans les première phase du multi, ne pas ollapse les bubbles si leur source et sink sont très abondante (on ne mergera donc pas deux organismes, et il ne devrait pas break vu que c'est abondante)
 - polisher circ detection incomplete (il faudrait ajouter la partie manquante au backbone)
 - polisher circ detection: update pour gerer les petit contig sur lequel des read entier pourrait mapper sur toute leur longeur
 
 - check whitin contig contamination
-- add strain derep options in global command and manual
 
 - tout ce qui est écrit dans le cerr doit aussi etre ecrit dans les logs sinon c'est illisible
-
-- release une version de metaMDBG, celle que j'utilise pour le papier sans changement
 
 Paralelisation:
 	- OverlapRemover: " parallelisation ligne 475 for(long i=0; i<_contigs.size(); i++){ en lisant sequenciellement avec une result queue comme dans readSelection"
@@ -46,8 +46,6 @@ ContigPolisher:
 
 - multi-k: en fait le +1 est nécessaire que au debut probablement, on pourrait faire un plus grand pas dans les grande valeur de k
 	- update:on trouve moins de component circulaire 
-
-- contig polisher: fix lost circularity tag for small contigs (< 1M)
 
 */
 
@@ -137,11 +135,12 @@ struct Read{
 
 typedef u_int32_t ReadIndexType;
 
+
 const string ARG_INPUT_FILENAME = "i";
 const string ARG_INPUT_FILENAME_TRUTH = "itruth";
 const string ARG_OUTPUT_DIR = "o";
 const string ARG_OUTPUT_FILENAME = "f";
-const string ARG_MINIMIZER_LENGTH = "l";
+const string ARG_MINIMIZER_LENGTH = "k";
 const string ARG_KMINMER_LENGTH = "k";
 const string ARG_MINIMIZER_DENSITY = "d";
 const string ARG_DEBUG = "debug";
@@ -157,7 +156,11 @@ const string ARG_FIRST_PASS = "firstpass";
 const string ARG_FASTA = "fasta";
 const string ARG_NB_CORES = "t";
 const string ARG_EVAL = "eval";
-const string ARG_BLOOM_FILTER = "nofilter";
+const string ARG_BLOOM_FILTER = "nofilter";		
+const char ARG_MIN_IDENTITY = 'i';
+const char ARG_CIRCULAR_LENGTH = 'c';
+const char ARG_LINEAR_LENGTH = 'l';
+const char ARG_NB_WINDOWS = 'n';
 
 const string NB_CORES_DEFAULT = "3";
 const int NB_CORES_DEFAULT_INT = 3;
@@ -169,7 +172,7 @@ const int NB_CORES_DEFAULT_INT = 3;
 const char ARG_INPUT_FILENAME2 = 'i';
 const char ARG_OUTPUT_DIR2 = 'o';
 const char ARG_OUTPUT_FILENAME2 = 'f';
-const char ARG_MINIMIZER_LENGTH2 = 'l';
+const char ARG_MINIMIZER_LENGTH2 = 'k';
 const char ARG_KMINMER_LENGTH2 = 'k';
 const char ARG_MINIMIZER_DENSITY2 = 'd';
 const char ARG_INPUT_FILENAME_CONTIG2 = 'c';
@@ -450,6 +453,27 @@ struct MinimizerPair_Edge{
 	MinimizerPair _to;
 };
 
+
+struct ContigPosition{
+	u_int32_t _contigIndex;
+	u_int32_t _contigPosition;
+
+	bool operator==(const ContigPosition &other) const{
+		return _contigIndex == other._contigIndex && _contigPosition == other._contigPosition;
+	}
+
+};
+
+struct ReadPosition{
+	u_int32_t _readIndex;
+	u_int32_t _readPosition;
+
+	bool operator==(const ReadPosition &other) const{
+		return _readIndex == other._readIndex && _readPosition == other._readPosition;
+	}
+
+};
+
 /*
 namespace std {
 	template <>
@@ -495,6 +519,43 @@ namespace std {
 			//return ((hash<u_int64_t>()(k._first) ^ (hash<u_int64_t>()(k._second) << 1)) >> 1);
 		}
 	};
+
+	template <>
+	struct hash<ContigPosition>{
+		std::size_t operator()(const ContigPosition& k) const{
+			//using std::size_t;
+			//using std::hash;
+			//using std::string;
+
+			std::size_t seed = 2;
+			seed ^= k._contigIndex + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+			seed ^= k._contigPosition + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+			//auto hash1 = hash<T1>{}(p._from);
+			//auto hash2 = hash<T2>{}(p._to);
+			return seed;
+
+			//return ((hash<u_int64_t>()(k._first) ^ (hash<u_int64_t>()(k._second) << 1)) >> 1);
+		}
+	};
+
+	template <>
+	struct hash<ReadPosition>{
+		std::size_t operator()(const ReadPosition& k) const{
+			//using std::size_t;
+			//using std::hash;
+			//using std::string;
+
+			std::size_t seed = 2;
+			seed ^= k._readIndex + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+			seed ^= k._readPosition + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+			//auto hash1 = hash<T1>{}(p._from);
+			//auto hash2 = hash<T2>{}(p._to);
+			return seed;
+
+			//return ((hash<u_int64_t>()(k._first) ^ (hash<u_int64_t>()(k._second) << 1)) >> 1);
+		}
+	};
+
 }
 
 namespace std {

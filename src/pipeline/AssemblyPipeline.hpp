@@ -28,6 +28,10 @@ public:
 	size_t _meanReadLength;
 	string _tmpDir;
 
+	u_int64_t _contigPolishing_nbReadFragments;
+	u_int64_t _strainPurging_minContigLength;
+	double _strainPurging_minIdentity;
+
 	AssemblyPipeline(): Tool (){
 	}
 
@@ -103,8 +107,11 @@ public:
 		args::PositionalList<std::string> arg_readFilenames(parser, "reads", "Read filename(s) (separated by space)", args::Options::Required);
 		args::ValueFlag<int> arg_l(parser, "", "Minimizer length", {ARG_MINIMIZER_LENGTH2}, 13);
 		args::ValueFlag<float> arg_d(parser, "", "Minimizer density", {ARG_MINIMIZER_DENSITY2}, 0.005f);
-		args::ValueFlag<int> arg_nbCores(parser, "", "Number of cores", {ARG_NB_CORES2}, NB_CORES_DEFAULT_INT);
+		args::ValueFlag<int> arg_nbWindows(parser, "", "Maximum read coverage used for contig correction (increase for better correction)", {ARG_NB_WINDOWS}, 50);
+		args::ValueFlag<int> arg_length(parser, "", "Use contigs with length > l as references for strain duplication purging", {ARG_LINEAR_LENGTH}, 1000000);
+		args::ValueFlag<float> arg_minIdentity(parser, "", "Minimum identity for strain purging (0-1)", {ARG_MIN_IDENTITY}, 0.99);
 		args::Flag arg_bf(parser, "", "Disable unique kminmer filter prior to graph construction", {ARG_BLOOM_FILTER});
+		args::ValueFlag<int> arg_nbCores(parser, "", "Number of cores", {ARG_NB_CORES2}, NB_CORES_DEFAULT_INT);
 		args::Flag arg_help(parser, "", "", {'h', "help"}, args::Options::Hidden);
 		//args::HelpFlag help(parser, "help", "Display this help menu", {'h'});
 		//args::CompletionFlag completion(parser, {"complete"});
@@ -142,6 +149,11 @@ public:
 		_minimizerSize = args::get(arg_l);
 		_minimizerDensity = args::get(arg_d);
 		_nbCores = args::get(arg_nbCores);
+
+		_contigPolishing_nbReadFragments = args::get(arg_nbWindows);
+		_strainPurging_minContigLength = args::get(arg_length);
+		_strainPurging_minIdentity = args::get(arg_minIdentity);
+		_strainPurging_minIdentity = min(_strainPurging_minIdentity, 0.999); //Some duplication is required to remove erroneous contigs
 
 		_useInitialKminmerFilter = true;
 		if(arg_bf){
@@ -535,14 +547,14 @@ public:
 			cerr << "Polishing contigs..." << endl;
 			//./bin/metaMDBG polish ~/workspace/run/overlap_test_201/contigs_uncorrected.fasta.gz ~/workspace/run/overlap_test_201/ ~/workspace/data/overlap_test/genome_201_50x/simulatedReads_0.fastq.gz ~/workspace/data/overlap_test/genome_201_50x/simulatedReads_0.fastq.gz -t 15 --qual
 			//getchar();
-			command = _filename_exe + " polish " + contigFilename_uncorrected + " " + _tmpDir + " " + Commons::inputFileToFilenames(_inputFilename) + " " + " -t " + to_string(_nbCores) + " -n 50"; //--circ
+			command = _filename_exe + " polish " + contigFilename_uncorrected + " " + _tmpDir + " " + Commons::inputFileToFilenames(_inputFilename) + " " + " -t " + to_string(_nbCores) + " -n " + to_string(_contigPolishing_nbReadFragments); //--circ
 			executeCommand(command);
 			//generatedContigs = true;
 
 			cerr << "Purging strain duplication..." << endl;
 			string polishedContigFilename = _tmpDir + "/contigs_polished.fasta.gz";
 			string polishedContigFilenamederep = _outputDir + "/contigs.fasta.gz ";
-			command = _filename_exe + " derep " + polishedContigFilename + " " + polishedContigFilenamederep + " " + _tmpDir + " -t " + to_string(_nbCores);
+			command = _filename_exe + " derep " + polishedContigFilename + " " + polishedContigFilenamederep + " " + _tmpDir + " -t " + to_string(_nbCores) + " -l " + to_string(_strainPurging_minContigLength) + " -i " + to_string(_strainPurging_minIdentity);
 			executeCommand(command);
 
 		}

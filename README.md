@@ -58,3 +58,10 @@ make -j 3
 MetaMDBG will generate contigs in outputDir ("contigs.fasta.gz").
 
 
+## License
+
+rust-mdbg is freely available under the [MIT License](https://opensource.org/license/mit-0/).
+
+## Citation
+
+ongoing
