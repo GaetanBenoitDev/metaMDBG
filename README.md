@@ -12,7 +12,7 @@ Contact: gaetanbenoitdev at gmail dot com
 - openmp
 - minimap2 2.24+
 - wfmash
-- samtools 1.6+
+- samtools 1.6+ (using htslib)
 ```
 
 ## Conda Installation
@@ -34,7 +34,7 @@ make -j 3
 After successful installation, an executable named metaMDBG will appear in build/bin.
 
 ## Installation from source
-Required dependencies to be installed manually.
+Required dependencies to be installed manually. We highly recommend installing using Conda as the software might not work depending on dependencies versions.
 
 ```
 git clone https://github.com/GaetanBenoitDev/metaMDBG.git
