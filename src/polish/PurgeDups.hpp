@@ -235,8 +235,8 @@ public:
 		}
 
 		fs::path outputContigPath(_outputFilename_contigs);
-		string contigDir = outputContigPath.parent_path();
-		if(!fs::exists(contigDir)){
+		fs::directory_entry contigDir(outputContigPath.parent_path());
+		if(!contigDir.path().empty() && !contigDir.exists()){
 			fs::create_directories(contigDir);
 		}
 
