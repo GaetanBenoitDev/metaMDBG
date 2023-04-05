@@ -313,7 +313,8 @@ public:
 
 		string contigFilenameBgzip = _tmpDir + "/__tmp_contigs_bgzip.fasta.gz";
 
-		string command = "zcat " + _inputFilename_contigs + " | bgzip --threads " + to_string(_nbCores) + " -c > " + contigFilenameBgzip;
+		string catCmd = (_inputFilename_contigs.rfind(".gz") != _inputFilename_contigs.size()-3) ? "cat" : "zcat";
+		string command = catCmd + " " + _inputFilename_contigs + " | bgzip --threads " + to_string(_nbCores) + " -c > " + contigFilenameBgzip;
 		Utils::executeCommand(command, _outputDir, _logFile);
 
 		command = "samtools faidx " + contigFilenameBgzip;
