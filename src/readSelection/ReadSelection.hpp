@@ -24,13 +24,14 @@ public:
 	//bool _isFirstPass;
 	int _nbCores;
 	
-
+	vector<u_int32_t> _allReadSizes;
 	u_int64_t _debug_nbMinimizers;
 
     struct ReadWriter{
         u_int64_t _readIndex;
         vector<u_int64_t> _minimizers;
 		vector<u_int8_t> _minimizerQualities;
+		u_int32_t _readSize;
         //u_int32_t _prevNodeIndex;
     };
 
@@ -42,6 +43,7 @@ public:
 
 	priority_queue<ReadWriter, vector<ReadWriter> , ReadWriter_Comparator> _readWriterQueue;
 	u_int64_t _nextReadIndexWriter;
+	ofstream _file_readStats;
 	//unordered_map<u_int64_t, u_int64_t> _minimizerCounts;
 	//unordered_map<KmerVec, KminmerData> _kminmersData;
 	//gzFile _file_minimizerPos;
@@ -156,6 +158,7 @@ public:
 
     void readSelection(){
 
+
 		_nextReadIndexWriter = 0;
 		_debug_nbMinimizers = 0;
 		_file_readData = ofstream(_filename_readMinimizers);
@@ -187,17 +190,87 @@ public:
 		*/
 
 		_file_readData.close();
+
+
+
+	
+		computeReadStats();
+
 		//delete _minimizerParser;
     }
 
-    
+	void computeReadStats(){
+
+		_file_readStats = ofstream(_inputDir + "/read_stats.txt");
+
+		
+		std::sort(_allReadSizes.begin(),  _allReadSizes.end(), std::greater<u_int32_t>());
+
+		//u_int32_t n=_allReadSizes.size();
+		//u_int32_t max=_allReadSizes[0];                 	
+		//u_int32_t  sum = accumulate(_allReadSizes.begin(), _allReadSizes.end(), 0.0);
+		vector<u_int64_t> readLengthCumuls;
+		u_int64_t cumul = 0;
+
+		for(size_t i=0; i<_allReadSizes.size(); i++){
+			cumul += _allReadSizes[i];
+			readLengthCumuls.push_back(cumul);
+		}
+
+		std::reverse(_allReadSizes.begin(), _allReadSizes.end());
+		std::reverse(readLengthCumuls.begin(), readLengthCumuls.end());
+
+		u_int32_t n50 = 0;
+		u_int64_t halfsize = readLengthCumuls[0]/2;
+
+		for(size_t i=0; i<_allReadSizes.size(); i++){
+			//if(i < 10){
+			//cout << _allReadSizes[i] << " " << readLengthCumuls[i] << " " << halfsize << endl;
+			//}
+			if(readLengthCumuls[i] < halfsize){
+				n50 = _allReadSizes[i];
+				break;
+			}
+		}
+
+		//cout << "N50: " << n50 << endl;
+		/*
+		float mean = bases*1. / n;
+
+		u_int32_t n50=0,l50=0;
+		u_int32_t done=0;
+		u_int32_t t50=0;
+		u_int32_t ii=0;
+		while(done<1){
+			t50+=_allReadSizes[ii];
+			if(t50 > bases*0.5) 
+				done=1;
+			ii++;
+		}
+
+		n50=ii;
+		l50=_allReadSizes[n50];  //counting from 0
+		*/
+		//std::cout << std::fixed << std::setprecision(0) <<  "Bases= " << bases << " contigs= "<< n << " mean_length= " 
+		//<< mean << " longest= " << max << " N50= "<< l50 << " n= " << n50   //counting from 1
+		//<< std::endl;  
+
+		//cout << n50 << " " << l50 << endl;
+		
+
+		//u_int32_t median = Utils::compute_median(_allReadSizes);
+		_file_readStats.write((const char*)&n50, sizeof(n50));
+
+		_file_readStats.close();
+		
+	}
 
 	void writeRead(const Read& read, const vector<u_int64_t>& minimizers, const vector<u_int8_t>& minimizerQualities){
 
 		//#pragma omp critical(dataupdate)
 		#pragma omp critical
 		{
-			_readWriterQueue.push({read._index, minimizers, minimizerQualities});
+			_readWriterQueue.push({read._index, minimizers, minimizerQualities, (u_int32_t) read._seq.size()});
 			//_logFile << _readWriterQueue.size() << " " << read._index << " " << _nextReadIndexWriter << endl;
 
 			while(!_readWriterQueue.empty()){
@@ -223,6 +296,8 @@ public:
 
 					_file_readData.write((const char*)&readWriter._minimizers[0], size*sizeof(u_int64_t));
 					//_file_readData.write((const char*)&readWriter._minimizerQualities[0], size*sizeof(u_int8_t));
+
+					_allReadSizes.push_back(readWriter._readSize);
 
 					_readWriterQueue.pop();
 					_nextReadIndexWriter += 1;

@@ -285,6 +285,14 @@ public:
 		cerr << "Density: " << _minimizerDensity << endl;
 		cerr << endl;
 
+		_logFile << endl;
+		_logFile << "Input: " << _inputFilename << endl;
+		_logFile << "Dir: " << _outputDir << endl;
+		_logFile << "Minimizer length: " << _minimizerSize << endl;
+		//cout << "Kminmer length: " << _kminmerSize << endl;
+		_logFile << "Density: " << _minimizerDensity << endl;
+		_logFile << endl;
+
 		_filename_exe = argv[0];
 		/*
 		//_outputDir = getInput()->get(STR_INPUT_DIR) ? getInput()->getStr(STR_INPUT_DIR) : "";
@@ -314,17 +322,49 @@ public:
 
 
     void execute_pipeline(){
+
+
+
+		string command = "";
+		writeParameters(_minimizerSize, _firstK, _minimizerDensity, _firstK, _firstK, _lastK);
+		//createInputFile(false);
+
+		cerr << "Converting reads to minimizers..." << endl;
+		_logFile << "Converting reads to minimizers..." << endl;
+
+		//Read selection
+		command = _filename_exe + " readSelection " + _tmpDir + " " + _tmpDir + "/read_data_init.txt" + " " + _inputFilename + " -t " + to_string(_nbCores);
+		executeCommand(command);
+
+
+
+
+
+
+
+
+
 		//float density = 0.005;
 		//u_int16_t minimizerSize = 21;
 
 		_firstK = 4;
 
-		u_int64_t meanReadLength = computeMeanReadLength(_inputFilename);
-		_lastK = meanReadLength*_minimizerDensity*2.0f; //1.2f; //2.0f; //*0.95
-		_meanReadLength = meanReadLength;
+		ifstream file_readStats(_tmpDir + "/read_stats.txt");
+	
+		u_int32_t n50ReadLength;
+		file_readStats.read((char*)&n50ReadLength, sizeof(n50ReadLength));
+
+		file_readStats.close();
+
+
+		//u_int64_t meanReadLength = computeMeanReadLength(_inputFilename);
+		_lastK = n50ReadLength*_minimizerDensity*2.0f; //1.2f; //2.0f; //*0.95
+		_lastK = max(_lastK, _firstK+1);
+		_meanReadLength = n50ReadLength;
 		//_lastK = 10;
 		
 
+		/*
 		sort(_readLengths.begin(), _readLengths.end());
 		_logFile << _readLengths[_readLengths.size() * 0.1] << endl;
 		_logFile << _readLengths[_readLengths.size() * 0.2] << endl;
@@ -337,30 +377,27 @@ public:
 		_logFile << _readLengths[_readLengths.size() * 0.9] << endl;
 		_readLengths.clear();
 		//return scores[size * 0.1];
+		*/
 
 		
-
-		cerr << "Mean read length: " << meanReadLength << endl;
+		//cerr << "Mean read length: " << meanReadLength << endl;
+		cerr << "N50 read length: " << n50ReadLength << endl;
 		cerr << "Min k: " << _firstK << endl;
 		cerr << "Max k: " << _lastK << endl;
 		cerr << endl;
+		_logFile << "N50 read length: " << n50ReadLength << endl;
+		_logFile << "Min k: " << _firstK << endl;
+		_logFile << "Max k: " << _lastK << endl;
+		_logFile << endl;
 
 
-		string command = "";
 
 		ofstream fileSmallContigs(_tmpDir + "/small_contigs.bin");
 		fileSmallContigs.close();
 		//ofstream fileJoints(_tmpDir + "/joint_data.txt");
 		//fileJoints.close();
 
-		writeParameters(_minimizerSize, _firstK, _minimizerDensity, _firstK, _firstK, _lastK);
-		//createInputFile(false);
 
-		cerr << "Converting reads to minimizers..." << endl;
-
-		//Read selection
-		command = _filename_exe + " readSelection " + _tmpDir + " " + _tmpDir + "/read_data_init.txt" + " " + _inputFilename + " -t " + to_string(_nbCores);
-		executeCommand(command);
 		
 
 		u_int64_t pass = 0;
@@ -374,6 +411,7 @@ public:
 
 
 			cerr << "Multi-k pass: " << k << "/" << _lastK << endl;
+			_logFile << "Multi-k pass: " << k << "/" << _lastK << endl;
 			//cout << "Start asm: " << k << endl;
 
 
@@ -439,6 +477,7 @@ public:
 		}
 
 		cerr << "Multi-k pass: " << _lastK << "/" << _lastK << endl;
+		_logFile << "Multi-k pass: " << _lastK << "/" << _lastK << endl;
 
 		executePass(_lastK, prevK, pass);
 		_logFile << "pass done" << endl;
@@ -505,6 +544,7 @@ public:
 			//executeCommand(command);
 
 			cerr << "Removing overlaps and duplication..." << endl;
+			_logFile << "Removing overlaps and duplication..." << endl;
 
 			appendSmallContigs();
 			
@@ -537,6 +577,7 @@ public:
 			*/
 		
 			cerr << "Constructing base-space contigs..." << endl;
+			_logFile << "Constructing base-space contigs..." << endl;
 
 			const string contigFilename_uncorrected = _tmpDir + "/contigs_uncorrected.fasta.gz";
 			command = _filename_exe + " toBasespace " + " " + _tmpDir + " " + _tmpDir + "/contig_data.txt " + " " + contigFilename_uncorrected + " " + _inputFilename  + " -t " + to_string(_nbCores);
@@ -545,6 +586,7 @@ public:
 			//getchar();
 
 			cerr << "Polishing contigs..." << endl;
+			_logFile << "Polishing contigs..." << endl;
 			//./bin/metaMDBG polish ~/workspace/run/overlap_test_201/contigs_uncorrected.fasta.gz ~/workspace/run/overlap_test_201/ ~/workspace/data/overlap_test/genome_201_50x/simulatedReads_0.fastq.gz ~/workspace/data/overlap_test/genome_201_50x/simulatedReads_0.fastq.gz -t 15 --qual
 			//getchar();
 			command = _filename_exe + " polish " + contigFilename_uncorrected + " " + _tmpDir + " " + Commons::inputFileToFilenames(_inputFilename) + " " + " -t " + to_string(_nbCores) + " -n " + to_string(_contigPolishing_nbReadFragments); //--circ
@@ -552,6 +594,7 @@ public:
 			//generatedContigs = true;
 
 			cerr << "Purging strain duplication..." << endl;
+			_logFile << "Polishing contigs..." << endl;
 			string polishedContigFilename = _tmpDir + "/contigs_polished.fasta.gz";
 			string polishedContigFilenamederep = _outputDir + "/contigs.fasta.gz ";
 			command = _filename_exe + " derep " + polishedContigFilename + " " + polishedContigFilenamederep + " " + _tmpDir + " -t " + to_string(_nbCores) + " -l " + to_string(_strainPurging_minContigLength) + " -i " + to_string(_strainPurging_minIdentity);
@@ -770,6 +813,7 @@ public:
 	}
 	*/
 
+	/*
 	vector<u_int64_t> _readLengths;
 	u_int64_t _readLengthSum;
 	u_int64_t _readLengthN;
@@ -800,6 +844,7 @@ public:
 		_readLengthN += 1;
 		_readLengths.push_back(read._seq.size());
 	}
+	*/
 
 	void executeCommand(const string& command){
 
@@ -840,6 +885,7 @@ public:
 
 
 		cerr << "Checking dependencies: bgzip (wfmash package) ";
+		_logFile << "Checking dependencies: bgzip (wfmash package) ";
 		string command = "cat " + filename + " | bgzip --threads " + to_string(_nbCores) + " -c > " + filenameBzip;
 		Utils::executeCommand(command, _tmpDir, _logFile);
 
@@ -852,6 +898,7 @@ public:
 		}
 
 		cerr << "Checking dependencies: samtools ";
+		_logFile << "Checking dependencies: samtools ";
 		command = "samtools faidx " + filenameBzip;
 		Utils::executeCommand(command, _tmpDir, _logFile);
 
@@ -864,6 +911,7 @@ public:
 		}
 
 		cerr << "Checking dependencies: wfmash ";
+		_logFile << "Checking dependencies: wfmash ";
 		command = "wfmash " + filenameBzip + " -t " + to_string(_nbCores) + " > " + outputFilename_mapping; //-l 5000 -p 80
 		Utils::executeCommand(command, _tmpDir, _logFile);
 
@@ -876,6 +924,7 @@ public:
 		}
 
 		cerr << "Checking dependencies: minimap2 ";
+		_logFile << "Checking dependencies: minimap2 ";
 		command = "minimap2 -x map-hifi " + filename + " " + filename + " > " + outputFilename_mapping_minimap;
 		Utils::executeCommand(command, _tmpDir, _logFile);
 
