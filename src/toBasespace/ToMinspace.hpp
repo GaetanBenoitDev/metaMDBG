@@ -641,6 +641,8 @@ public:
 
 	void createMinimizerContigs(){
 
+		_nextReadIndexWriter = 0;
+
 		_checksum = 0;
 		size_t firstK = _kminmerSizeFirst;
 
@@ -878,7 +880,7 @@ public:
 				//_checksum += checkmSumLocal*nodePath.size();
 			}
 
-
+			/*
 			#pragma omp critical(createMinimizerContigs)
 			{
 				u_int32_t contigSize = contigSequence.size();
@@ -889,19 +891,62 @@ public:
 				_graph._outputFile.write((const char*)&contigSequence[0], contigSize*sizeof(u_int64_t));
 
 				//cout << contigSequence.size() << endl;
-				/*
-				if(contigSequence.size() > 200){
-					for(u_int64_t m : contigSequence){
-						cout << m << " ";
-					}
-					cout << endl;
-				}*/
-			}
 
+			}
+			*/
+			_graph.writeRead(nodePathObject._readIndex, contigSequence, nodePathObject._isCircular);
 		}
 
 	};
 
+    struct ReadWriter{
+        u_int64_t _readIndex;
+		vector<u_int64_t> _contigSequence;
+		bool _isCircular;
+    };
+
+    struct ReadWriter_Comparator {
+        bool operator()(ReadWriter const& p1, ReadWriter const& p2){
+            return p1._readIndex > p2._readIndex;
+        }
+    };
+
+	priority_queue<ReadWriter, vector<ReadWriter> , ReadWriter_Comparator> _readWriterQueue;
+	u_int64_t _nextReadIndexWriter;
+
+	void writeRead(u_int64_t readIndex, const vector<u_int64_t>& contigSequence, bool isCircular){
+
+		//#pragma omp critical(dataupdate)
+		#pragma omp critical
+		{
+			_readWriterQueue.push({readIndex, contigSequence, isCircular});
+			//_logFile << _readWriterQueue.size() << " " << read._index << " " << _nextReadIndexWriter << endl;
+
+			while(!_readWriterQueue.empty()){
+
+				const ReadWriter& readWriter = _readWriterQueue.top();
+
+				if(readWriter._readIndex == _nextReadIndexWriter){
+
+
+					u_int32_t contigSize = readWriter._contigSequence.size();
+					_outputFile.write((const char*)&contigSize, sizeof(contigSize));
+					_outputFile.write((const char*)&readWriter._isCircular, sizeof(readWriter._isCircular));
+					_outputFile.write((const char*)&readWriter._contigSequence[0], contigSize*sizeof(u_int64_t));
+
+					_readWriterQueue.pop();
+					_nextReadIndexWriter += 1;
+				}
+				else{
+					break;
+				}
+			}
+			
+			//_logFile << readIndex << endl;
+			//_file_readData.write((const char*)&minimizerPosOffset[0], size*sizeof(u_int16_t));
+		}
+
+	}
 	/*
 	struct Contig{
 		u_int64_t _readIndex;

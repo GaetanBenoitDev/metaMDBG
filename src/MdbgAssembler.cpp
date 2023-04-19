@@ -19,6 +19,7 @@
 #include "polish/PurgeDups.hpp"
 //#include "contigFeatures/KminmerCounter.hpp"
 #include "assembly/Circulizer2.hpp"
+#include "graph/GenerateGfa.hpp"
 //#include "toBasespace/Dereplicater.hpp"
 //#include "polish/PurgeGraph.hpp"
 //#include "mapping/ContigDecontaminator.hpp"
@@ -34,6 +35,7 @@ void displayHelp(string programName){
 	cout << " \tasm      : perform read assembly" << endl;
 	cout << " \tpolish   : polish contigs" << endl;
 	cout << " \tderep    : purge strain duplication" << endl;
+	cout << " \tgenGFA   : generate an assembly graph (.gfa). Required a finished metaMDBG run" << endl;
 	//cout << "\treadSelection      : transform readset into its minimizer reprentation" << endl;
 	//cout << "\tdgraph   : create minimizer de-bruijn graph" << endl;
 
@@ -147,6 +149,9 @@ int main (int argc, char* argv[])
     		//}
     		else if(programName == "map-binToMDBG"){
                 Mapping_BinToMDBG().run (argc, args);
+    		}
+    		else if(programName == "genGFA"){
+                GenerateGfa().run (argc, args);
     		}
     		//else if(programName == "decontaminate"){
                 //ContigDecontaminator().run (argc, args);

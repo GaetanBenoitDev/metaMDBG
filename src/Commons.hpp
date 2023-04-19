@@ -163,7 +163,7 @@ const char ARG_LINEAR_LENGTH = 'l';
 const char ARG_NB_WINDOWS = 'n';
 
 const string NB_CORES_DEFAULT = "3";
-const int NB_CORES_DEFAULT_INT = 3;
+const int NB_CORES_DEFAULT_INT = 1;
 //const string FILENAME_NO_KMINMER_READS = "reads_noKminmers.bin";
 
 

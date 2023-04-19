@@ -1691,15 +1691,19 @@ public:
     void save(const string& outputFilename, float referenceAbundance){
 
         //_logFile << "Saving unitig graph: " << outputFilename << endl;
-        
+
+		ofstream outputContigFile(outputFilename + ".unitigs.nodepath");
+		//ofstream outputContigFileToUnitigIndex(outputFilename + ".unitigs.index");
+
 		unordered_set<u_int32_t> writtenUnitigs;
 
         unordered_set<u_int32_t> selectedUnitigIndex;
 
-        ofstream colorFile(outputFilename + "_color.csv");
-        colorFile << "Name,Color" << endl;
+        //ofstream colorFile(outputFilename + "_color.csv");
+        //colorFile << "Name,Color" << endl;
 
-        ofstream file_nodeNameToUnitigIndex(outputFilename + ".nodeToUnitig");
+
+        //ofstream file_nodeNameToUnitigIndex(outputFilename + ".nodeToUnitig");
 
         for(Node* node : _nodes){
             //if(node == nullptr) continue;
@@ -1714,12 +1718,13 @@ public:
 
             selectedUnitigIndex.insert(node->_unitigIndex);
 
-            for(u_int32_t nodeIndex : node->_nodes){
-                u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
-		        file_nodeNameToUnitigIndex.write((const char*)&nodeName, sizeof(nodeName));
-		        file_nodeNameToUnitigIndex.write((const char*)&node->_unitigIndex, sizeof(node->_unitigIndex));
-            }
+            //for(u_int32_t nodeIndex : node->_nodes){
+            //    u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
+		    //    file_nodeNameToUnitigIndex.write((const char*)&nodeName, sizeof(nodeName));
+		    //    file_nodeNameToUnitigIndex.write((const char*)&node->_unitigIndex, sizeof(node->_unitigIndex));
+            //}
 
+            /*
             if(referenceAbundance != 0){
                 if(node->_abundance / referenceAbundance < 1.3){
                     colorFile << node->_unitigIndex << "," << "blue" << endl;
@@ -1728,9 +1733,10 @@ public:
                     colorFile << node->_unitigIndex << "," << "red" << endl;
                 }
             }
+            */
         }
 
-        file_nodeNameToUnitigIndex.close();
+        //file_nodeNameToUnitigIndex.close();
 
         
         ofstream outputFile(outputFilename);
@@ -1770,9 +1776,22 @@ public:
                 //isVisited.insert(unitigIndex_toReverseDirection(unitigIndex));
                 //linkedUnitigIndex.insert(unitigIndex);
 
-                outputFile << "S" << "\t" << unitigIndex << "\t" << "*" << "\t" << "LN:i:" << _nodes[unitigIndex]->_length << "\t" << "dp:i:" << _nodes[unitigIndex]->_abundance << endl;
+                outputFile << "S" << "\tutg" << unitigIndex << "\t" << "*" << "\t" << "LN:i:" << _nodes[unitigIndex]->_length << "\t" << "dp:i:" << _nodes[unitigIndex]->_abundance << endl;
 
+                UnitigGraph::Node* nodeCurrent = _nodes[unitigIndex];
 
+                bool isCircular = nodeCurrent->isCircular();
+				vector<u_int32_t> nodePath = nodeCurrent->_nodes;
+				if(isCircular && nodePath.size() > 1){
+					nodePath.push_back(nodePath[0]);
+				}
+
+				u_int32_t size = nodePath.size();
+				outputContigFile.write((const char*)&size, sizeof(size));
+				outputContigFile.write((const char*)&isCircular, sizeof(isCircular));
+				outputContigFile.write((const char*)&nodePath[0], size * sizeof(u_int32_t));
+
+                //outputContigFileToUnitigIndex.write((const char*)&unitigIndex, sizeof(unitigIndex));
                 //vector<u_int32_t> successors;
                 //getSuccessors_unitig(unitigIndex, 0, successors);
 
@@ -1787,8 +1806,8 @@ public:
                         ori2 = "-";
                     }
                     
-                    u_int32_t overlap = 600;
-                    outputFile << "L" << "\t" << unitigIndex << "\t" << ori << "\t" << unitigIndexN << "\t" << ori2 << "\t" << overlap << "M" << endl;
+                    u_int32_t overlap = 1;
+                    outputFile << "L" << "\tutg" << unitigIndex << "\t" << ori << "\tutg" << unitigIndexN << "\t" << ori2 << "\t" << overlap << "M" << endl;
                     queue.push(unitigIndexN);
 
                     //if(unitigIndexN > 100000){
@@ -1813,8 +1832,8 @@ public:
                         ori2 = "-";
                     }
                     
-                    u_int32_t overlap = 600;
-                    outputFile << "L" << "\t" << unitigIndexN << "\t" << ori2 << "\t" << unitigIndex << "\t" << ori << "\t" << overlap << "M" << endl;
+                    u_int32_t overlap = 1;
+                    outputFile << "L" << "\tutg" << unitigIndexN << "\t" << ori2 << "\tutg" << unitigIndex << "\t" << ori << "\t" << overlap << "M" << endl;
                     queue.push(unitigIndexN);
 
 
@@ -1831,10 +1850,15 @@ public:
 
 
         outputFile.close();
-        colorFile.close();
+        //colorFile.close();
+        outputContigFile.close();
+        //outputContigFileToUnitigIndex.close();
 
         //_logFile << "\tdone" << endl;
     }
+
+
+
 };
 
 /*

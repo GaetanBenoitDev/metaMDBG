@@ -1958,7 +1958,7 @@ public:
 
                 cout << nbUnitigs << endl;
                 */
-                _unitigGraph->save(_tmpDir + "/minimizer_graph_u_cleaned.gfa", 0);
+                _unitigGraph->save(_tmpDir + "/assembly_graph.gfa", 0);
                 //exit(1);
 
                 

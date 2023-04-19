@@ -618,7 +618,14 @@ public:
 			command = _filename_exe + " toMinspace " + " " + _tmpDir + " " + _tmpDir + "/contigs.nodepath" + " " + _tmpDir + "/unitig_data.txt -t " + to_string(_nbCores);
 			executeCommand(command);
 
+			command = _filename_exe + " toMinspace " + " " + _tmpDir + " " + _tmpDir + "/assembly_graph.gfa.unitigs.nodepath" + " " + _tmpDir + "/assembly_graph.gfa.unitigs -t " + to_string(_nbCores);
+			executeCommand(command);
 			//getchar();
+			
+			//const string contigFilename_uncorrected = _tmpDir + "/contigs_uncorrected.fasta.gz";
+			//command = _filename_exe + " toBasespace " + " " + _tmpDir + " " + _tmpDir + "/assembly_graph.gfa.unitigs " + " " + _tmpDir + "/unitigs.fasta.gz " + _inputFilename  + " -t " + to_string(_nbCores);
+			//if(pass == 0) command += " --firstpass";
+			//executeCommand(command);
 		}	
 			
 		savePassData(k);
@@ -735,21 +742,23 @@ public:
 
 
 		//if(fs::exists(_tmpDir + "/read_index.txt")) fs::copy(_tmpDir + "/read_index.txt", dir + "/read_index.txt");
-		if(fs::exists(_tmpDir + "/minimizer_graph.gfa.gfa")) fs::copy(_tmpDir + "/minimizer_graph.gfa.gfa", dir + "/minimizer_graph.gfa.gfa");
-		if(fs::exists(_tmpDir + "/minimizer_graph_u.gfa")) fs::copy(_tmpDir + "/minimizer_graph_u.gfa", dir + "/minimizer_graph_u.gfa");
-		if(fs::exists(_tmpDir + "/minimizer_graph_u_cleaned.gfa")) fs::copy(_tmpDir + "/minimizer_graph_u_cleaned.gfa", dir + "/assembly_graph.gfa");
+		//if(fs::exists(_tmpDir + "/minimizer_graph.gfa.gfa")) fs::copy(_tmpDir + "/minimizer_graph.gfa.gfa", dir + "/minimizer_graph.gfa.gfa");
+		//if(fs::exists(_tmpDir + "/minimizer_graph_u.gfa")) fs::copy(_tmpDir + "/minimizer_graph_u.gfa", dir + "/minimizer_graph_u.gfa");
+		if(fs::exists(_tmpDir + "/assembly_graph.gfa")) fs::copy(_tmpDir + "/assembly_graph.gfa", dir + "/assembly_graph.gfa");
+		if(fs::exists(_tmpDir + "/assembly_graph.gfa.unitigs")) fs::copy(_tmpDir + "/assembly_graph.gfa.unitigs", dir + "/assembly_graph.gfa.unitigs");
+		//if(fs::exists(_tmpDir + "/assembly_graph.gfa.unitigs.index")) fs::copy(_tmpDir + "/assembly_graph.gfa.unitigs.index", dir + "/assembly_graph.gfa.unitigs.index");
 		//fs::copy(_tmpDir + "/contigs_path.csv", dir + "/contigs_path.csv");
 		//fs::copy(_tmpDir + "/minimizer_graph_cleaned.gfa", dir + "/minimizer_graph_cleaned.gfa");
 		fs::copy(_tmpDir + "/parameters.gz", dir + "/parameters.gz");
 
-		if(k == _firstK || k == _lastK){
-			fs::copy(_tmpDir + "/minimizer_graph.gfa", dir + "/minimizer_graph.gfa");
-			fs::copy(_tmpDir + "/kminmerData_min.txt", dir + "/kminmerData_min.txt");
-			if(fs::exists(_tmpDir + "/nodeName_to_unitigIndex.bin")) fs::copy(_tmpDir + "/nodeName_to_unitigIndex.bin", dir + "/nodeName_to_unitigIndex.bin");
+		//if(k == _firstK || k == _lastK){
+			//fs::copy(_tmpDir + "/minimizer_graph.gfa", dir + "/minimizer_graph.gfa");
+			//fs::copy(_tmpDir + "/kminmerData_min.txt", dir + "/kminmerData_min.txt");
+			//if(fs::exists(_tmpDir + "/nodeName_to_unitigIndex.bin")) fs::copy(_tmpDir + "/nodeName_to_unitigIndex.bin", dir + "/nodeName_to_unitigIndex.bin");
 			//if(fs::exists(_tmpDir + "/groundtruth_position.csv")) fs::copy(_tmpDir + "/groundtruth_position.csv", dir + "/groundtruth_position.csv");
 			//if(fs::exists(_tmpDir + "/read_path.txt")) fs::copy(_tmpDir + "/read_path.txt", dir + "/read_path.txt");
 			//if(fs::exists(_tmpDir + "/read_path_cleaned.txt")) fs::copy(_tmpDir + "/read_path_cleaned.txt", dir + "/read_path_cleaned.txt");
-		}
+		//}
 		//fs::copy(_tmpDir + "/mdbg_nodes_init.gz", dir + "/mdbg_nodes_init.gz", copyOptions);
 
 		//fs::copy(_tmpDir + "/unitig_data.txt", dir + "/unitig_data.txt"); //Debug

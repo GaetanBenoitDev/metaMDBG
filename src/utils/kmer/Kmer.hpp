@@ -969,6 +969,7 @@ public:
 	u_int32_t _seed;
 	u_int64_t* _hash_otpt;
 	double _minimizerBound;
+	size_t _trimBps;
 
 	MinimizerParser(u_int16_t minimizerSize, double minimizerDensity){
 		_minimizerSize = minimizerSize;
@@ -977,6 +978,7 @@ public:
 		_hash_otpt = new u_int64_t[2];
 		u_int64_t maxHashValue = -1;
 		_minimizerBound = minimizerDensity * maxHashValue;
+		_trimBps = 1; 
 	}
 
 	~MinimizerParser(){
@@ -1000,7 +1002,7 @@ public:
 
 		if(kmers.size() == 0) return;
 
-		for(u_int64_t pos=1; pos<kmers.size()-1; pos++){
+		for(u_int64_t pos=_trimBps; pos<kmers.size()-_trimBps; pos++){
 
 			//cout << itKmer->value().getVal() << endl;
 			//cout << itKmer->value() << endl;
