@@ -47,7 +47,6 @@ make -j 3
 
 ## Usage
 
-### Basic usage
 ```
 ./metaMDBG asm outputDir reads... {OPTIONS}
 
@@ -58,16 +57,19 @@ make -j 3
 
 MetaMDBG will generate polished contigs in outputDir ("contigs.fasta.gz").
 
-### Advanced usage
+## Advanced usage
  
-- Set minimizer length to 16 and use 0.2% of k-mer for assembly.
 ```
+# Minimizer settings: set k-mer length to 16 and use 0.2% of total k-mers for assembly.
 ./metaMDBG asm ./outputDir reads.fastq.gz -k 16 -d 0.002
+
+# Stop assembly when reaching a k-mer length of 5000 bps.
+./metaMDBG asm ./outputDir reads.fastq.gz -m 5000
 ```
-- Set minimizer length to 16 and use 0.2% of k-mer for assembly.
-```
-./metaMDBG asm ./outputDir reads.fastq.gz -k 16 -d 0.002
-```
+
+## Other commands
+
+todo
 
 ## License
 
@@ -75,4 +77,3 @@ metaMDBG is freely available under the [MIT License](https://opensource.org/lice
 
 ## Citation
 
-ongoing
