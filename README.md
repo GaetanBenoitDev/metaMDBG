@@ -7,7 +7,7 @@ Contact: gaetanbenoitdev at gmail dot com
 
 ### Conda
 
-Choose a directory to install metaMDBG, then copy-paste all the following commands.
+First choose an installation directory, then copy-paste all the following commands.
 This will create a conda environment, named metaMDBG, with all dependencies installed.
 After successful installation, an executable named metaMDBG will appear in ./build/bin.
 
