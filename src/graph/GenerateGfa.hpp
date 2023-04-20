@@ -98,14 +98,16 @@ public:
 			}
 
 			generateAssemblyGraph();
+			
+			cerr << endl;
+			cerr << "Assembly graph filename: " << _finalFilename << endl;
+			cerr << "Done!" << endl;
+
 		}
 
 		closeLogFile();
 
 
-		cerr << endl;
-		cerr << "Assembly graph filename: " << _finalFilename << endl;
-		cerr << "Done!" << endl;
 	}
 
 	void displayAvailableK(){
