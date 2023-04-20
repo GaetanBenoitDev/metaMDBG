@@ -60,16 +60,28 @@ MetaMDBG will generate polished contigs in outputDir ("contigs.fasta.gz").
 ## Advanced usage
  
 ```
-# Minimizer settings: set k-mer length to 16 and use 0.2% of total k-mers for assembly.
+# Set minimizer length to 16 and use only 0.2% of total k-mers for assembly.
 ./metaMDBG asm ./outputDir reads.fastq.gz -k 16 -d 0.002
 
 # Stop assembly when reaching a k-mer length of 5000 bps.
 ./metaMDBG asm ./outputDir reads.fastq.gz -m 5000
 ```
 
-## Other commands
+## Generating an assembly graph
 
-todo
+Assembly graph (.gfa) can be generated after a successful run of metaMDBG.
+First, display the available k-min-mer size and their corresponding sequence length in bps.
+```
+./metaMDBG gfa ./outputDir 0
+```
+Note that lower k values will produce graph with high connectivity but shorter unitigs, while higher k graphs will be more fragmented but with longer unitigs.
+
+Then, choose a k value and produce the graph.
+```
+./metaMDBG gfa ./outputDir 21
+```
+
+Note that sequence in the gfa are not polished, they will have the same error rate as in the original reads.
 
 ## License
 
