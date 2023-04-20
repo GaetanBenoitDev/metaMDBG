@@ -73,7 +73,7 @@ MetaMDBG will generate polished contigs in outputDir ("contigs.fasta.gz").
 
 ## Generating an assembly graph
 
-After a successful run of metaMDBG, assembly graph (.gfa) can be generated with the following commands.
+After a successful run of metaMDBG, assembly graph (.gfa) can be generated with the following command.
 ```
 ./metaMDBG gfa ./assemblyDir k
 ```
