@@ -23,6 +23,7 @@ public:
 
 	size_t _firstK;
 	size_t _lastK;
+	u_int64_t _maxAssemblyLength;
 
 	string _inputFilenameComplete;
 	size_t _meanReadLength;
@@ -107,6 +108,7 @@ public:
 		args::PositionalList<std::string> arg_readFilenames(parser, "reads", "Read filename(s) (separated by space)", args::Options::Required);
 		args::ValueFlag<int> arg_l(parser, "", "Minimizer length", {ARG_MINIMIZER_LENGTH2}, 13);
 		args::ValueFlag<float> arg_d(parser, "", "Minimizer density", {ARG_MINIMIZER_DENSITY2}, 0.005f);
+		args::ValueFlag<int> arg_maxK(parser, "", "Stop assembly when reaching this k-mer length in bps (e.g. 5000)", {ARG_MAXK}, 0);
 		args::ValueFlag<int> arg_nbWindows(parser, "", "Maximum read coverage used for contig correction (increase for better correction)", {ARG_NB_WINDOWS}, 50);
 		args::ValueFlag<int> arg_length(parser, "", "Use contigs with length > l as references for strain duplication purging", {ARG_LINEAR_LENGTH}, 1000000);
 		args::ValueFlag<float> arg_minIdentity(parser, "", "Minimum identity for strain purging (0-1)", {ARG_MIN_IDENTITY}, 0.99);
@@ -149,6 +151,11 @@ public:
 		_minimizerSize = args::get(arg_l);
 		_minimizerDensity = args::get(arg_d);
 		_nbCores = args::get(arg_nbCores);
+
+		_maxAssemblyLength = 0;
+		if(arg_maxK){
+			_maxAssemblyLength = args::get(arg_maxK);
+		}
 
 		_contigPolishing_nbReadFragments = args::get(arg_nbWindows);
 		_strainPurging_minContigLength = args::get(arg_length);
@@ -359,10 +366,17 @@ public:
 
 		//u_int64_t meanReadLength = computeMeanReadLength(_inputFilename);
 		_lastK = n50ReadLength*_minimizerDensity*2.0f; //1.2f; //2.0f; //*0.95
-		_lastK = max(_lastK, _firstK+1);
 		_meanReadLength = n50ReadLength;
 		//_lastK = 10;
-		
+
+		if(_maxAssemblyLength > 0){
+			int minimizerSize = _minimizerSize;
+			int maxAssemblyLength = _maxAssemblyLength;
+			int maxK = ((maxAssemblyLength-minimizerSize) * _minimizerDensity) + 1;;
+			_lastK = max(0, maxK);
+		}
+
+		_lastK = max(_lastK, _firstK+1);
 
 		/*
 		sort(_readLengths.begin(), _readLengths.end());

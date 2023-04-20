@@ -175,6 +175,7 @@ const char ARG_OUTPUT_FILENAME2 = 'f';
 const char ARG_MINIMIZER_LENGTH2 = 'k';
 const char ARG_KMINMER_LENGTH2 = 'k';
 const char ARG_MINIMIZER_DENSITY2 = 'd';
+const char ARG_MAXK = 'm';
 const char ARG_INPUT_FILENAME_CONTIG2 = 'c';
 const char ARG_INPUT_FILENAME_ABUNDANCE2 = 'a';
 const char ARG_NB_CORES2 = 't';
