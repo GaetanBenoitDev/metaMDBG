@@ -95,7 +95,7 @@ MetaMDBG will generate the assembly graph in the GFA format in assemblyDir (e.g.
 Note 1) Unitig sequences in the gfa file are not polished, they have the same error rate as in the original reads. Note 2) To generate the unitig sequences, a pass on the original reads that generated the assembly is required, if you have moved the original readsets, you will need to edit the file ./assemblyDir/tmp/input.txt with the new paths.
 
 ## Low-memory contig polisher
-MetaMDBG contig polisher can be used on any set of contigs. You may be interested by this software if you have memory issues with exsting correction software. Note that the correction method is the same as [Racon](https://github.com/isovic/racon).
+MetaMDBG contig polisher can be used on any set of contigs. You may be interested by this standalone tool if you have memory issues with exsting correction software. Note that the correction method is the same as [Racon](https://github.com/isovic/racon).
 ```
 ./metaMDBG polish contigs tmpDir reads...
 
