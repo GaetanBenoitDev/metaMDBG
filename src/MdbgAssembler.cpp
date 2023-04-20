@@ -35,7 +35,7 @@ void displayHelp(string programName){
 	cout << " \tasm      : perform read assembly" << endl;
 	cout << " \tpolish   : polish contigs" << endl;
 	cout << " \tderep    : purge strain duplication" << endl;
-	cout << " \tgenGFA   : generate an assembly graph (.gfa). Required a finished metaMDBG run" << endl;
+	cout << " \tgfa      : generate an assembly graph (.gfa). Require a finished metaMDBG run" << endl;
 	//cout << "\treadSelection      : transform readset into its minimizer reprentation" << endl;
 	//cout << "\tdgraph   : create minimizer de-bruijn graph" << endl;
 
@@ -150,7 +150,7 @@ int main (int argc, char* argv[])
     		else if(programName == "map-binToMDBG"){
                 Mapping_BinToMDBG().run (argc, args);
     		}
-    		else if(programName == "genGFA"){
+    		else if(programName == "gfa"){
                 GenerateGfa().run (argc, args);
     		}
     		//else if(programName == "decontaminate"){
