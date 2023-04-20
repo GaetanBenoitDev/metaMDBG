@@ -55,7 +55,7 @@ make -j 3
 	-t            Number of cores [3]
 	
 Examples:
-./metaMDBG asm ./path/to/assemblyDir reads.fastq.gz -t 4                     #single sample assembly
+./metaMDBG asm ./path/to/assemblyDir reads.fastq.gz -t 4                                        #single-sample assembly
 ./metaMDBG asm ./path/to/assemblyDir reads_A.fastq.gz reads_B.fastq.gz reads_C.fastq.gz -t 4    #co-assembly
 ```
 
