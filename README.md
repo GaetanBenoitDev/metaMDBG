@@ -91,7 +91,7 @@ Then, choose a k value and produce the graph.
 ```
 
 MetaMDBG will generate the assembly graph in the GFA format in assemblyDir (e.g. "assemblyGraph_k21_4013bps.gfa").
-Note that unitig sequences in the gfa are not polished, they have the same error rate as in the original reads.
+Note 1) that unitig sequences in the gfa are not polished, they have the same error rate as in the original reads. Note 2) To generate the unitig sequences, a pass on the original reads that generated the assembly is required, if you have moved the original readsets, you will need to edit the file ./assemblyDir/tmp/input.txt with the new paths.
 
 ## Low-memory contig polisher
 MetaMDBG contig polisher can be used on any set of contigs. You may be interested by this software if you have memory issues with exsting correction software. Note that the correction method is the same as [Racon](https://github.com/isovic/racon).
