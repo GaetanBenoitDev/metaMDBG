@@ -3,9 +3,9 @@ MetaMDBG is a lightweight assembler for long and accurate metagenomics reads.
 Developper: Gaëtan Benoit  
 Contact: gaetanbenoitdev at gmail dot com
 
-# Installation
+## Installation
 
-## Conda
+### Conda
 
 Choose a directory to install metaMDBG, then copy-paste all the following commands.
 This will create a conda environment, named metaMDBG, with all dependencies installed.
@@ -25,7 +25,7 @@ cmake ..
 make -j 3
 ```
 
-## Building from source
+### Building from source
 
 **Prerequisites**
 - gcc 9.4+
