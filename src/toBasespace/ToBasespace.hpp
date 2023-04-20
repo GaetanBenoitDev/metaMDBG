@@ -2377,7 +2377,7 @@ public:
 
 			//_logFile << contigSequence.size() << endl;
 
-			string header = ">ctg" + to_string(_contigIndex) + linearOrCircular + '\n';
+			string header = ">ctg" + to_string(readIndex) + linearOrCircular + '\n';
 			gzwrite(_basespaceContigFile, (const char*)&header[0], header.size());
 			contigSequence +=  '\n';
 			gzwrite(_basespaceContigFile, (const char*)&contigSequence[0], contigSequence.size());

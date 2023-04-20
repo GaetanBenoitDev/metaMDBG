@@ -250,10 +250,10 @@ public:
 		args::Positional<std::string> arg_contigs(parser, "contigs", "Contig filename to be corrected", args::Options::Required);
 		args::Positional<std::string> arg_outputDir(parser, "outputDir", "Output dir for contigs and temporary files", args::Options::Required);
 		args::PositionalList<std::string> arg_readFilenames(parser, "reads", "Read filename(s) used for correction (separated by space)", args::Options::Required);
-		args::ValueFlag<int> arg_nbWindows(parser, "", "Max window variants to use for correction (increase for better results) (0=best results but slow, 20=good result and fast)", {ARG_NB_WINDOWS}, 0);
-		args::ValueFlag<int> arg_nbCores(parser, "", "Number of cores", {ARG_NB_CORES2}, NB_CORES_DEFAULT_INT);
+		args::ValueFlag<int> arg_nbWindows(parser, "", "Maximum read coverage used for contig correction (increase for better correction)", {ARG_NB_WINDOWS}, 0);
 		args::Flag arg_noQual(parser, "", "Do not use qualities during correction", {ARG_NO_QUAL});
-		args::Flag arg_useCirculize(parser, "", "Check if contigs are circular and add a flag in contig header (l: linear, c: circular)", {ARG_CIRCULARIZE});
+		args::ValueFlag<int> arg_nbCores(parser, "", "Number of cores", {ARG_NB_CORES2}, NB_CORES_DEFAULT_INT);
+		//args::Flag arg_useCirculize(parser, "", "Check if contigs are circular and add a flag in contig header (l: linear, c: circular)", {ARG_CIRCULARIZE});
 		args::Flag arg_help(parser, "", "", {'h', "help"}, args::Options::Hidden);
 		//args::HelpFlag help(parser, "help", "Display this help menu", {'h'});
 		//args::CompletionFlag completion(parser, {"complete"});
@@ -298,9 +298,9 @@ public:
 		}
 
 		_circularize = false;
-		if(arg_useCirculize){
-			_circularize = true;
-		}
+		//if(arg_useCirculize){
+		//	_circularize = true;
+		//}
 
 
 		_windowLength = 500;
