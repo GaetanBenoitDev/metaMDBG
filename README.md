@@ -69,19 +69,24 @@ MetaMDBG will generate polished contigs in outputDir ("contigs.fasta.gz").
 
 ## Generating an assembly graph
 
-Assembly graph (.gfa) can be generated after a successful run of metaMDBG.
-First, display the available k-min-mer size and their corresponding sequence length in bps.
+After a successful run of metaMDBG, assembly graph (.gfa) can be generated with the following commands.
+```
+./metaMDBG gfa outputDir k
+```
+
+The k parameter correspond to the level of resolution of the graph: lower k values will produce graph with high connectivity but shorter unitigs, while higher k graphs will be more fragmented but with longer unitigs.
+
+First, display the available k values and their corresponding sequence length in bps (this sequence length in bps is equivalent to the k-mer size that would be used in a traditional de-Brujin graph).
 ```
 ./metaMDBG gfa ./outputDir 0
 ```
-Note that lower k values will produce graph with high connectivity but shorter unitigs, while higher k graphs will be more fragmented but with longer unitigs.
 
 Then, choose a k value and produce the graph.
 ```
 ./metaMDBG gfa ./outputDir 21
 ```
 
-Note that sequence in the gfa are not polished, they will have the same error rate as in the original reads.
+Note that unitig sequences in the gfa are not polished, they have the same error rate as in the original reads.
 
 ## License
 
