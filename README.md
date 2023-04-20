@@ -54,9 +54,9 @@ make -j 3
 	reads...      Read filename(s) (separated by space)
 	-t            Number of cores [3]
 	
-Example:
-./metaMDBG asm ./path/to/assemblyDir reads_1.fastq.gz -t 4
-./metaMDBG asm ./path/to/assemblyDir reads_1.fastq.gz reads_2.fastq.gz reads_3.fastq.gz -t 4
+Examples:
+./metaMDBG asm ./path/to/assemblyDir reads_1.fastq.gz -t 4                     #single sample assembly
+./metaMDBG asm ./path/to/assemblyDir reads_1.fastq.gz reads_2.fastq.gz -t 4    #co-assembly
 ```
 
 MetaMDBG will generate polished contigs in outputDir ("contigs.fasta.gz").
