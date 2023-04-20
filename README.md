@@ -75,7 +75,7 @@ MetaMDBG will generate polished contigs in outputDir ("contigs.fasta.gz").
 
 After a successful run of metaMDBG, assembly graph (.gfa) can be generated with the following command.
 ```
-./metaMDBG gfa ./assemblyDir k
+./metaMDBG gfa assemblyDir k
 ```
 
 Assembly dir must be a metaMDBG output dir (the one containing the contig file "contigs.fasta.gz"). The k parameter correspond to the level of resolution of the graph: lower k values will produce graph with high connectivity but shorter unitigs, while higher k graphs will be more fragmented but with longer unitigs.
