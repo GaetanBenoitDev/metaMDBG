@@ -3,19 +3,13 @@ MetaMDBG is a lightweight assembler for long and accurate metagenomics reads.
 Developper: Gaëtan Benoit  
 Contact: gaetanbenoitdev at gmail dot com
 
-## Dependencies
+## Installation
 
-```
-- gcc 9.4+
-- cmake 3.10+
-- zlib
-- openmp
-- minimap2 2.24+
-- wfmash
-- samtools 1.6+ (using htslib)
-```
+# Conda
 
-## Conda Installation
+Choose a directory to install metaMDBG, then copy-paste all the following commands.
+This will create a conda environment, named metaMDBG, with all dependencies installed.
+After successful installation, an executable named metaMDBG will appear in build/bin.
 
 ```
 git clone https://github.com/GaetanBenoitDev/metaMDBG.git
@@ -31,10 +25,16 @@ cmake ..
 make -j 3
 ```
 
-After successful installation, an executable named metaMDBG will appear in build/bin.
+# Building from source
 
-## Installation from source
-Required dependencies to be installed manually. We highly recommend installing using Conda as the software might not work depending on dependencies versions.
+**Prerequisites**
+- gcc 9.4+
+- cmake 3.10+
+- zlib
+- openmp
+- minimap2 2.24+
+- wfmash
+- samtools 1.6+ (using htslib)
 
 ```
 git clone https://github.com/GaetanBenoitDev/metaMDBG.git
