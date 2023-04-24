@@ -567,7 +567,7 @@ public:
 		ReadParserParallel readParser(contigFilename, true, false, 1, _logFile);
 		readParser.parse(LoadContigIndexFunctor(*this));
 
-		KminmerParserParallel parser(contigDataFilename, _minimizerSize, _kminmerSize, false, false, 1);
+		KminmerParserParallel parser(contigDataFilename, _minimizerSize, _kminmerSize, false, false, _nbCores);
 		parser.parse(GenerateContigPathFunctor(*this));
 
 		_validContigIndex.clear();
@@ -626,36 +626,35 @@ public:
 			u_int32_t contigIndex = kminmerList._readIndex;
 			if(_parent._validContigIndex.find(contigIndex) == _parent._validContigIndex.end()) return;
 
-			#pragma omp critical
-			{
+			u_int32_t _prevUnitigIndex = -1;
+			vector<u_int32_t> path;
 
-				u_int32_t _prevUnitigIndex = -1;
-				vector<u_int32_t> path;
+			for(size_t i=0; i<kminmerList._kminmersInfo.size(); i++){
+				
+				//_logFile << readIndex << " " << i << endl;
+				const ReadKminmerComplete& kminmerInfo = kminmerList._kminmersInfo[i];
 
-				for(size_t i=0; i<kminmerList._kminmersInfo.size(); i++){
-					
-					//_logFile << readIndex << " " << i << endl;
-					const ReadKminmerComplete& kminmerInfo = kminmerList._kminmersInfo[i];
+				KmerVec vec = kminmerInfo._vec;
 
-					KmerVec vec = kminmerInfo._vec;
+				bool orientation = !kminmerInfo._isReversed;
 
-					bool orientation = !kminmerInfo._isReversed;
-
-					if(_parent._kmerVec_to_unitigIndex.find(vec) == _parent._kmerVec_to_unitigIndex.end()){
-						//cout << "can't find kmerVec ???" << endl;
-						continue;
-					}
-
-					u_int32_t unitigIndex = _parent._kmerVec_to_unitigIndex[vec];
-
-					if(unitigIndex != _prevUnitigIndex){
-						_prevUnitigIndex = unitigIndex;
-						//cout << unitigIndex << endl;
-						path.push_back(unitigIndex);
-					}
-					//_toBasespace._kmerVecIndex[vec].push_back({(u_int32_t) kminmerList._readIndex, (u_int32_t) i});
+				if(_parent._kmerVec_to_unitigIndex.find(vec) == _parent._kmerVec_to_unitigIndex.end()){
+					//cout << "can't find kmerVec ???" << endl;
+					continue;
 				}
 
+				u_int32_t unitigIndex = _parent._kmerVec_to_unitigIndex[vec];
+
+				if(unitigIndex != _prevUnitigIndex){
+					_prevUnitigIndex = unitigIndex;
+					//cout << unitigIndex << endl;
+					path.push_back(unitigIndex);
+				}
+				//_toBasespace._kmerVecIndex[vec].push_back({(u_int32_t) kminmerList._readIndex, (u_int32_t) i});
+			}
+
+			#pragma omp critical
+			{
 
 				_parent._contigPathFile << _parent._contigIndex_to_headers[contigIndex];
 				for(u_int32_t unitigIndex : path){
@@ -681,7 +680,7 @@ public:
 
 		_readPathFile = ofstream(_readPathFilename);
 
-		KminmerParserParallel parser(readDataFilename, _minimizerSize, _kminmerSize, false, false, 1);
+		KminmerParserParallel parser(readDataFilename, _minimizerSize, _kminmerSize, false, false, _nbCores);
 		parser.parse(GenerateReadPathFunctor(*this));
 
 		_readPathFile.close();
@@ -707,35 +706,36 @@ public:
 			
 			u_int32_t readIndex = kminmerList._readIndex;
 
+			u_int32_t _prevUnitigIndex = -1;
+			vector<u_int32_t> path;
+
+			for(size_t i=0; i<kminmerList._kminmersInfo.size(); i++){
+				
+				//_logFile << readIndex << " " << i << endl;
+				const ReadKminmerComplete& kminmerInfo = kminmerList._kminmersInfo[i];
+
+				KmerVec vec = kminmerInfo._vec;
+
+				bool orientation = !kminmerInfo._isReversed;
+
+				if(_parent._kmerVec_to_unitigIndex.find(vec) == _parent._kmerVec_to_unitigIndex.end()){
+					//cout << "can't find kmerVec ???" << endl;
+					continue;
+				}
+
+				u_int32_t unitigIndex = _parent._kmerVec_to_unitigIndex[vec];
+
+				if(unitigIndex != _prevUnitigIndex){
+					_prevUnitigIndex = unitigIndex;
+					//cout << unitigIndex << endl;
+					path.push_back(unitigIndex);
+				}
+				//_toBasespace._kmerVecIndex[vec].push_back({(u_int32_t) kminmerList._readIndex, (u_int32_t) i});
+			}
+
 			#pragma omp critical
 			{
 
-				u_int32_t _prevUnitigIndex = -1;
-				vector<u_int32_t> path;
-
-				for(size_t i=0; i<kminmerList._kminmersInfo.size(); i++){
-					
-					//_logFile << readIndex << " " << i << endl;
-					const ReadKminmerComplete& kminmerInfo = kminmerList._kminmersInfo[i];
-
-					KmerVec vec = kminmerInfo._vec;
-
-					bool orientation = !kminmerInfo._isReversed;
-
-					if(_parent._kmerVec_to_unitigIndex.find(vec) == _parent._kmerVec_to_unitigIndex.end()){
-						//cout << "can't find kmerVec ???" << endl;
-						continue;
-					}
-
-					u_int32_t unitigIndex = _parent._kmerVec_to_unitigIndex[vec];
-
-					if(unitigIndex != _prevUnitigIndex){
-						_prevUnitigIndex = unitigIndex;
-						//cout << unitigIndex << endl;
-						path.push_back(unitigIndex);
-					}
-					//_toBasespace._kmerVecIndex[vec].push_back({(u_int32_t) kminmerList._readIndex, (u_int32_t) i});
-				}
 
 
 				_parent._readPathFile << "r" << readIndex;
