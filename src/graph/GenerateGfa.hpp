@@ -302,6 +302,16 @@ public:
 			_minimizerParser->parse(rleSequence, minimizers, minimizers_pos);
 
 
+			u_int32_t overlapSizePlus = 0;
+			u_int32_t overlapSizeMinus = 0;
+
+			if(minimizers.size() < _parent._kminmerSize){
+
+			}
+			else{
+				overlapSizePlus = read._seq.size() - rlePositions[minimizers_pos[minimizers.size()-_parent._kminmerSize+1]];
+				overlapSizeMinus = rlePositions[minimizers_pos[_parent._kminmerSize-2]+_parent._minimizerSize];
+			}
 			//rlePositions[pos]; i<rlePositions[pos+_readSelection._minimizerSize]
 
 			//cout << read._seq << " " << read._seq.size() << endl;
@@ -310,8 +320,6 @@ public:
 			//	cout << i << ": " << rlePositions[minimizers_pos[i]] << endl;
 			//}
 
-			u_int32_t overlapSizePlus = read._seq.size() - rlePositions[minimizers_pos[minimizers.size()-_parent._kminmerSize+1]];
-			u_int32_t overlapSizeMinus = rlePositions[minimizers_pos[_parent._kminmerSize-2]+_parent._minimizerSize];
 
 			//cout << overlapSizeMinus << " " << overlapSizePlus << endl;
 			//cout << readIndex << " " << minimizers.size() << endl;
