@@ -13,7 +13,7 @@ Choose an installation directory, then copy-paste the following commands.
 # Download metaMDBG repository  
 git clone https://github.com/GaetanBenoitDev/metaMDBG.git
 
-# Create conda environment
+# Create metaMDBG conda environment
 cd metaMDBG
 conda env create -f conda_env.yml
 conda activate metaMDBG
