@@ -1,4 +1,4 @@
-MetaMDBG is a lightweight assembler for long and accurate metagenomics reads.
+MetaMDBG is a fast and low-memory assembler for long and accurate metagenomics reads. Its core data structure is the [minimizer de-Brujin graph](https://github.com/ekimb/rust-mdbg) (MDBG), which have been reimplemetend specifically for metagenomics assembly. MetaMDBG combines an efficient multi-k approach in minimizer-space for dealing with the wide range of abundances found in metagenomes and a novel abundance-based filtering strategy for simplifying strain complexity.
 
 Developper: Gaëtan Benoit  
 Contact: gaetanbenoitdev at gmail dot com
@@ -106,15 +106,13 @@ Examples:
 ```
 ## Results
 
-MetaMDBG is an assembler for long and accurate metagenomics reads. Its core data structure is the [minimizer de-Brujin graph](https://github.com/ekimb/rust-mdbg) (MDBG), which we have reimplemetend specifically for metagenomics assembly. The key novelties of metaMDBG are:
-- an efficient multi-k approach in minimizer-space for dealing with the wide range of abundances found in metagenomes
-- an abundance-based filtering strategy, called ‘local progressive abundance filter’, for simplifying strain complexity, inter-genomic repeats and complex error patterns
+Assembly quality and performances on three HiFi Pacbio metagenomics samples.
 
-| Sample | Accessions | # bases (Gb) | Run time (h) | Peak memory (GB) |
-| --- | --- | --- | --- | --- | 
-| Human Gut | SRR15275213 | 18.5 | 108 | 22 |
-| Anaerobic Digester | ERR10905742 | 64.7  | 587 | 811 |
-| Sheep rumen | SRR14289618 | 206.4 | 153 | 439 |
+| Sample | Accessions | # bases (Gb) | Run time (h) | Peak memory (GB) | >1Mb near-complete circular contigs | Near-complete MAGs | 
+| --- | --- | --- | --- | --- | --- | --- | 
+| Human Gut | SRR15275213 | 18.5 | 108 | 22 | 266 | 447 | 
+| Anaerobic Digester | ERR10905742 | 64.7  | 587 | 811 | 34 | 70 | 
+| Sheep rumen | SRR14289618 | 206.4 | 153 | 439 | 62 | 130 | 
 
 
 ## License
