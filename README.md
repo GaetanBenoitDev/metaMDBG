@@ -114,6 +114,8 @@ Assembly quality and performances on three HiFi PacBio metagenomics samples (usi
 | Anaerobic Digester | ERR10905742 | 64.7  | 13 | 7 | 62 | 130 | 
 | Sheep rumen | SRR14289618 | 206.4 | 108 | 22 | 266 | 447 | 
 
+Near-complete: ≥95% completeness and ≤5 contamination (assessed by checkM)
+MAGs: computed by metabat2
 
 ## License
 
