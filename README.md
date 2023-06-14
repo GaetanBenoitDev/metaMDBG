@@ -57,9 +57,9 @@ make -j 3
 ```sh
 ./metaMDBG asm outputDir reads... {OPTIONS}
 
-	outputDir     Output dir for contigs and temporary files
-	reads...      Read filename(s) (separated by space)
-	-t            Number of cores [3]
+	outputDir     # Output dir for contigs and temporary files
+	reads...      # Read filename(s) (separated by space)
+	-t            # Number of cores [3]
 	
 Examples:
 ./metaMDBG asm ./path/to/assemblyDir reads.fastq.gz -t 4                                        #single-sample assembly
