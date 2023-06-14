@@ -110,13 +110,11 @@ MetaMDBG is an assembler for long and accurate metagenomics reads. Its core data
 - an efficient multi-k approach in minimizer-space for dealing with the wide range of abundances found in metagenomes
 - an abundance-based filtering strategy, called ‘local progressive abundance filter’, for simplifying strain complexity, inter-genomic repeats and complex error patterns
 
-
-| Assembler | Run time (h) | Peak memory (GB) |
-| --- | --- | --- | 
-| metaMDBG | 108 | 22 |
-| hifiasm-meta | 587 | 811 |
-| metaflye | 153 | 439 |
-| rust-mdbg | 10 | 22 |
+| Sample | Accessions | # bases (Gb) | Run time (h) | Peak memory (GB) |
+| --- | --- | --- | --- | --- | 
+| Human Gut | SRR15275213 | 18.5 | 108 | 22 |
+| Anaerobic Digester | ERR10905742 | 64.7  | 587 | 811 |
+| Sheep rumen | SRR14289618 | 206.4 | 153 | 439 |
 
 
 ## License
