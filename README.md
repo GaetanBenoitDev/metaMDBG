@@ -106,9 +106,9 @@ Examples:
 ```
 ## Results
 
-Assembly quality and performances on three HiFi Pacbio metagenomics samples.
+Assembly quality and performances on three HiFi Pacbio metagenomics samples using 16 cores.
 
-| Sample | Accessions | # bases (Gb) | Run time (h) | Peak memory (GB) | >1Mb near-complete circular contigs | Near-complete MAGs | 
+| Sample | Accession | # bases (Gb) | Wall clock time (h) | Peak memory (GB) | >1Mb near-complete circular contigs | Near-complete MAGs | 
 | --- | --- | --- | --- | --- | --- | --- | 
 | Human Gut | SRR15275213 | 18.5 | 7 | 6 | 34 | 70 | 
 | Anaerobic Digester | ERR10905742 | 13  | 7 | 811 | 62 | 130 | 
