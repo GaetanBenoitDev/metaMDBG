@@ -10,7 +10,7 @@ Contact: gaetanbenoitdev at gmail dot com
 Choose an installation directory, then copy-paste all the following commands.
 
 ```
-[//]: # Download metaMDBG repository  
+<!-- # Download metaMDBG repository -->  
 git clone https://github.com/GaetanBenoitDev/metaMDBG.git
 
 #Create conda environment
