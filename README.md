@@ -112,15 +112,10 @@ MetaMDBG is an assembler for long and accurate metagenomics reads. Its core data
 
 
 | Assembler | Run time (h) | Peak memory (GB) |
-
-| --- | --- | --- | --- | 
-
+| --- | --- | --- | 
 | metaMDBG | 108 | 22 |
-
 | hifiasm-meta | 587 | 811 |
-
 | metaflye | 153 | 439 |
-
 | rust-mdbg | 10 | 22 |
 
 
