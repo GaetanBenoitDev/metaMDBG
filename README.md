@@ -104,6 +104,19 @@ Examples:
 ./metaMDBG polish assembly.fasta.gz ./tmpDir reads_1.fastq.gz reads_2.fastq.gz -t 4         #Multiple read sets
 ./metaMDBG polish assembly.fasta.gz ./tmpDir reads_1.fastq.gz reads_2.fastq.gz -t 4 -n 20   #Change maximum read coverage used for correction (here 20x)
 ```
+## Results
+
+MetaMDBG is an assembler for long and accurate metagenomics reads. Its core data structure is the [minimizer de-Brujin graph](https://github.com/ekimb/rust-mdbg) (MDBG), which we have reimplemetend specifically for metagenomics assembly. The key novelties of metaMDBG are:
+- an efficient multi-k approach in minimizer-space for dealing with the wide range of abundances found in metagenomes
+- an abundance-based filtering strategy, called ‘local progressive abundance filter’, for simplifying strain complexity, inter-genomic repeats and complex error patterns
+
+| Assembler | Run time (h) | Peak memory (GB) |
+| --- | --- | --- | --- | 
+| metaMDBG | 108 | 22 |
+| hifiasm-meta | 587 | 811 |
+| metaflye | 153 | 439 |
+| rust-mdbg | 10 | 22 |
+
 
 ## License
 
