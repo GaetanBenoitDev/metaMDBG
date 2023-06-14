@@ -9,7 +9,7 @@ Contact: gaetanbenoitdev at gmail dot com
 
 Choose an installation directory, then copy-paste the following commands.
 
-```
+```sh
 # Download metaMDBG repository  
 git clone https://github.com/GaetanBenoitDev/metaMDBG.git
 
@@ -43,7 +43,7 @@ After successful installation, an executable named metaMDBG will appear in ./bui
 - wfmash
 - samtools 1.6+ (using htslib)
 
-```
+```sh
 git clone https://github.com/GaetanBenoitDev/metaMDBG.git
 cd metaMDBG
 mkdir build
@@ -54,7 +54,7 @@ make -j 3
 
 ## Usage
 
-```
+```sh
 ./metaMDBG asm outputDir reads... {OPTIONS}
 
 	outputDir     Output dir for contigs and temporary files
@@ -70,7 +70,7 @@ MetaMDBG will generate polished contigs in outputDir ("contigs.fasta.gz").
 
 ## Advanced usage
  
-```
+```sh
 # Set minimizer length to 16 and use only 0.2% of total k-mers for assembly.
 ./metaMDBG asm ./outputDir reads.fastq.gz -k 16 -d 0.002
 
@@ -81,19 +81,19 @@ MetaMDBG will generate polished contigs in outputDir ("contigs.fasta.gz").
 ## Generating an assembly graph
 
 After a successful run of metaMDBG, assembly graph (.gfa) can be generated with the following command.
-```
+```sh
 ./metaMDBG gfa assemblyDir k --contigpath --readpath
 ```
 
 Assembly dir must be a metaMDBG output dir (the one containing the contig file "contigs.fasta.gz"). The k parameter correspond to the level of resolution of the graph: lower k values will produce graph with high connectivity but shorter unitigs, while higher k graphs will be more fragmented but with longer unitigs. The two optional parameters --contigpath and --readpath allow to generate the path of contigs and reads in the graph respectivelly.
 
 First, display the available k values and their corresponding sequence length in bps (those sequence length in bps are equivalent to the k-mer size that would be used in a traditional de-Brujin graph).
-```
+```sh
 ./metaMDBG gfa ./assemblyDir 0
 ```
 
 Then, choose a k value and produce the graph (optionnaly add parameters --contigpath and/or --readpath).
-```
+```sh
 ./metaMDBG gfa ./assemblyDir 21
 ```
 
@@ -103,7 +103,7 @@ Note 1) Unitig sequences in the gfa file are not polished, they have the same er
 
 ## Low-memory contig polisher
 MetaMDBG contig polisher can be used on any set of contigs. You may be interested by this standalone tool if you have memory issues with exsting correction software. Note that the correction method is the same as [Racon](https://github.com/isovic/racon).
-```
+```sh
 ./metaMDBG polish contigs tmpDir reads...
 
 Examples:
