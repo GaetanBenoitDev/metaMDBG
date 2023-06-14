@@ -7,23 +7,23 @@ Contact: gaetanbenoitdev at gmail dot com
 
 ### Conda
 
-Choose an installation directory, then copy-paste all the following commands.
+Choose an installation directory, then copy-paste the following commands.
 
 ```
-<!-- # Download metaMDBG repository -->  
+# Download metaMDBG repository  
 git clone https://github.com/GaetanBenoitDev/metaMDBG.git
 
-#Create conda environment
+# Create conda environment
 cd metaMDBG
 conda env create -f conda_env.yml
 conda activate metaMDBG
 conda env config vars set CPATH=${CONDA_PREFIX}/include:${CPATH}
 conda deactivate
 
-#Activate metaMDBG environment
+# Activate metaMDBG environment
 conda activate metaMDBG
 
-#Compile the software
+# Compile the software
 mkdir build
 cd build
 cmake ..
