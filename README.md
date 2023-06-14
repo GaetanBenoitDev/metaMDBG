@@ -8,11 +8,9 @@ Contact: gaetanbenoitdev at gmail dot com
 ### Conda
 
 Choose an installation directory, then copy-paste all the following commands.
-This will create a conda environment, named metaMDBG, with all dependencies installed.
-After successful installation, an executable named metaMDBG will appear in ./build/bin.
 
 ```
-# Download metaMDBG repository
+<!--- # Download metaMDBG repository --->
 git clone https://github.com/GaetanBenoitDev/metaMDBG.git
 
 #Create conda environment
@@ -31,6 +29,8 @@ cd build
 cmake ..
 make -j 3
 ```
+
+After successful installation, an executable named metaMDBG will appear in ./build/bin.
 
 ### Building from source
 
