@@ -110,9 +110,9 @@ Assembly quality and performances on three HiFi Pacbio metagenomics samples.
 
 | Sample | Accessions | # bases (Gb) | Run time (h) | Peak memory (GB) | >1Mb near-complete circular contigs | Near-complete MAGs | 
 | --- | --- | --- | --- | --- | --- | --- | 
-| Human Gut | SRR15275213 | 18.5 | 108 | 22 | 266 | 447 | 
-| Anaerobic Digester | ERR10905742 | 64.7  | 587 | 811 | 34 | 70 | 
-| Sheep rumen | SRR14289618 | 206.4 | 153 | 439 | 62 | 130 | 
+| Human Gut | SRR15275213 | 18.5 | 7 | 6 | 34 | 70 | 
+| Anaerobic Digester | ERR10905742 | 13  | 7 | 811 | 62 | 130 | 
+| Sheep rumen | SRR14289618 | 206.4 | 108 | 22 | 266 | 447 | 
 
 
 ## License
