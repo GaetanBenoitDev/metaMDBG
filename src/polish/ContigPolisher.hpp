@@ -136,6 +136,7 @@ public:
 	string _outputFilename_mapping;
 	u_int64_t _maxMemory;
 	double _qualityThreshold;
+	bool _isMetaMDBG;
 
 	//abpoa_para_t *abpt;
 	
@@ -191,6 +192,7 @@ public:
 
 
 		string ARG_NO_QUAL = "noqual";
+		string ARG_IS_METAMDBG = "metaMDBG";
 		string filenameExe = argv[0];
 		//_logFile << filenameExe << endl;
 
@@ -252,6 +254,7 @@ public:
 		args::PositionalList<std::string> arg_readFilenames(parser, "reads", "Read filename(s) used for correction (separated by space)", args::Options::Required);
 		args::ValueFlag<int> arg_nbWindows(parser, "", "Maximum read coverage used for contig correction (increase for better correction)", {ARG_NB_WINDOWS}, 0);
 		args::Flag arg_noQual(parser, "", "Do not use qualities during correction", {ARG_NO_QUAL});
+		args::Flag arg_isMetaMDBG(parser, "", "Do not use qualities during correction", {ARG_IS_METAMDBG}, args::Options::Hidden);
 		args::ValueFlag<int> arg_nbCores(parser, "", "Number of cores", {ARG_NB_CORES2}, NB_CORES_DEFAULT_INT);
 		//args::Flag arg_useCirculize(parser, "", "Check if contigs are circular and add a flag in contig header (l: linear, c: circular)", {ARG_CIRCULARIZE});
 		args::Flag arg_help(parser, "", "", {'h', "help"}, args::Options::Hidden);
@@ -295,6 +298,11 @@ public:
 		_useQual = true;
 		if(arg_noQual){
 			_useQual = false;
+		}
+
+		_isMetaMDBG = false;
+		if(arg_isMetaMDBG){
+			_isMetaMDBG = true;
 		}
 
 		_circularize = false;
@@ -574,7 +582,7 @@ public:
 
 		//u_int64_t contigIndex = read._index; //Utils::contigName_to_contigIndex(read._header);
 
-		bool isCircular = false;
+		u_int8_t isCircular = CONTIG_LINEAR
 		u_int64_t nbSupportingReads = countCircularReads(contigName);
 
 		//char lastChar = read._header[read._header.size()-1];
@@ -891,7 +899,7 @@ public:
 
 
 		_contigStats.clear();
-		_contigCoverages.clear();
+		//_contigCoverages.clear();
 
 		_logFile << "Nb partitions: " << _nbPartitions << endl;
 
@@ -2526,6 +2534,22 @@ public:
 
 
 			string header = _contigHeaders[contigIndex];
+
+			if(_isMetaMDBG){
+				if(header.find("rc") != string::npos){
+					string h = header.substr(0, header.size()-2);
+					header = h + "_" + to_string(_contigCoverages[contigIndex]) + "x_rc";
+				}
+				else if(header[header.size()-1] == 'c'){
+					string h = header.substr(0, header.size()-1);
+					header = h + "_" + to_string(_contigCoverages[contigIndex]) + "x_c";
+				}
+				else{
+					string h = header.substr(0, header.size()-1);
+					header = h + "_" + to_string(_contigCoverages[contigIndex]) + "x_l";
+				}
+
+			}
 			/*
 			if(_circularize){
 				

@@ -425,17 +425,32 @@ public:
 
 	}
 
-	void dumpDereplicatedContigs_read(const vector<u_int64_t>& readMinimizers, bool isCircular, u_int64_t readIndex){
+	void dumpDereplicatedContigs_read(const vector<u_int64_t>& readMinimizers, u_int8_t isCircular, u_int64_t readIndex){
 
 		u_int32_t contigSize = readMinimizers.size();
 		_outputContigFileTmp.write((const char*)&contigSize, sizeof(contigSize));
 
 		if(_startingContigs.find(readIndex) == _startingContigs.end()){
-			_outputContigFileTmp.write((const char*)&isCircular, sizeof(isCircular));
+			if(isCircular){
+				//cout << "1" << endl;
+				_outputContigFileTmp.write((const char*)&CONTIG_CIRCULAR, sizeof(isCircular));
+			}
+			else{
+				//cout << "2" << endl;
+				_outputContigFileTmp.write((const char*)&CONTIG_LINEAR, sizeof(isCircular));
+			}
 		}
 		else{
 			isCircular = _startingContigs[readIndex]._isCircular;
-			_outputContigFileTmp.write((const char*)&isCircular, sizeof(isCircular));
+			if(isCircular){
+				//cout << "3" << endl;
+				_outputContigFileTmp.write((const char*)&CONTIG_CIRCULAR_RESCUED, sizeof(isCircular));
+			}
+			else{
+				//cout << "4" << endl;
+				_outputContigFileTmp.write((const char*)&CONTIG_LINEAR, sizeof(isCircular));
+			}
+			//_outputContigFileTmp.write((const char*)&isCircular, sizeof(isCircular));
 		}
 		_outputContigFileTmp.write((const char*)&readMinimizers[0], contigSize*sizeof(u_int64_t));
 

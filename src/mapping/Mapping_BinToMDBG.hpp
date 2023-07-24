@@ -297,7 +297,7 @@ public:
 
 	}
 
-	void extractContigSequence_read(const vector<u_int64_t>& readMinimizers, const vector<KmerVec>& vecs, const vector<ReadKminmer>& kminmersInfos, bool isCircular, u_int32_t readIndex){
+	void extractContigSequence_read(const vector<u_int64_t>& readMinimizers, const vector<KmerVec>& vecs, const vector<ReadKminmer>& kminmersInfos, u_int8_t isCircular, u_int32_t readIndex){
 		
 
 		//cout << readMinimizers.size() << endl;

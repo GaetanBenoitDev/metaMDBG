@@ -291,7 +291,7 @@ public:
 					u_int32_t size = readWriter._minimizers.size();
 					_file_readData.write((const char*)&size, sizeof(size));
 
-					bool isCircular = false;
+					u_int8_t isCircular = CONTIG_LINEAR;
 					_file_readData.write((const char*)&isCircular, sizeof(isCircular));
 
 					_file_readData.write((const char*)&readWriter._minimizers[0], size*sizeof(u_int64_t));

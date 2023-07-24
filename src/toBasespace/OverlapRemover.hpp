@@ -57,7 +57,7 @@ public:
 		u_int32_t _contigIndex;
 		vector<u_int64_t> _minimizers;
 		vector<u_int32_t> _kminmers;
-		bool isCircular;
+		u_int8_t isCircular;
 	};
 
 	static bool ContigComparator_ByLength(const Contig &a, const Contig &b){
@@ -213,7 +213,7 @@ public:
 		parser.parse(fp);
 	}
 
-	void indexKminmers_read(const vector<u_int64_t>& readMinimizers, const vector<KmerVec>& vecs, const vector<ReadKminmer>& kminmersInfos, bool isCircular, u_int32_t readIndex){
+	void indexKminmers_read(const vector<u_int64_t>& readMinimizers, const vector<KmerVec>& vecs, const vector<ReadKminmer>& kminmersInfos, u_int8_t isCircular, u_int32_t readIndex){
 		
 		for(u_int32_t i=0; i<vecs.size(); i++){
 			
@@ -237,7 +237,7 @@ public:
 		//_kminmerToIndex.clear();
 	}
 
-	void indexContigs_read(const vector<u_int64_t>& readMinimizers, const vector<KmerVec>& vecs, const vector<ReadKminmer>& kminmersInfos, bool isCircular, u_int32_t readIndex){
+	void indexContigs_read(const vector<u_int64_t>& readMinimizers, const vector<KmerVec>& vecs, const vector<ReadKminmer>& kminmersInfos, u_int8_t isCircular, u_int32_t readIndex){
 
 		unordered_set<u_int32_t> indexedKminmer;
 		vector<u_int32_t> nodepath;

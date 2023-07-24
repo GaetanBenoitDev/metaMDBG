@@ -797,7 +797,7 @@ public:
 
 			if(_graph._savingSmallContigs){
 
-				if(_extractingContigs && _kminmerSize > 8 && kminmersInfos.size() < _kminmerSize*2 && getAbundance(readMinimizers) > 1){
+				if(_extractingContigs && _kminmerSize > 8 && kminmersInfos.size() <= 0 && getAbundance(readMinimizers) > 1){
 
 					if(!isInGraph(kminmersInfos)){
 						#pragma omp critical
@@ -805,7 +805,7 @@ public:
 							u_int32_t contigSize = readMinimizers.size();
 							_graph._fileSmallContigs.write((const char*)&contigSize, sizeof(contigSize));
 
-							bool isCircular = kminmerList._isCircular;
+							u_int8_t isCircular = kminmerList._isCircular;
 							_graph._fileSmallContigs.write((const char*)&isCircular, sizeof(isCircular));
 							_graph._fileSmallContigs.write((const char*)&readMinimizers[0], contigSize*sizeof(u_int64_t));
 							//cout << "small contig" << endl;
@@ -854,7 +854,7 @@ public:
 						u_int32_t contigSize = readMinimizers.size();
 						_graph._fileSmallContigs.write((const char*)&contigSize, sizeof(contigSize));
 
-						bool isCircular = kminmerList._isCircular;
+						u_int8_t isCircular = kminmerList._isCircular;
 						_graph._fileSmallContigs.write((const char*)&isCircular, sizeof(isCircular));
 						_graph._fileSmallContigs.write((const char*)&readMinimizers[0], contigSize*sizeof(u_int64_t));
 						//cout << "small contig" << endl;
@@ -876,7 +876,7 @@ public:
 					u_int32_t contigSize = readMinimizers.size();
 					_graph._fileSmallContigs.write((const char*)&contigSize, sizeof(contigSize));
 
-					bool isCircular = kminmerList._isCircular;
+					u_int8_t isCircular = kminmerList._isCircular;
 					_graph._fileSmallContigs.write((const char*)&isCircular, sizeof(isCircular));
 					_graph._fileSmallContigs.write((const char*)&readMinimizers[0], contigSize*sizeof(u_int64_t));
 					//cout << "small contig" << endl;
@@ -905,7 +905,7 @@ public:
 					u_int32_t contigSize = readMinimizers.size();
 					_graph._fileSmallContigs.write((const char*)&contigSize, sizeof(contigSize));
 
-					bool isCircular = kminmerList._isCircular;
+					u_int8_t isCircular = kminmerList._isCircular;
 					_graph._fileSmallContigs.write((const char*)&isCircular, sizeof(isCircular));
 					_graph._fileSmallContigs.write((const char*)&readMinimizers[0], contigSize*sizeof(u_int64_t));
 				}
@@ -1421,7 +1421,7 @@ public:
 					u_int32_t contigSize = readMinimizers.size();
 					_graph._fileSmallContigs.write((const char*)&contigSize, sizeof(contigSize));
 
-					bool isCircular = false;
+					u_int8_t isCircular = false;
 					_graph._fileSmallContigs.write((const char*)&isCircular, sizeof(isCircular));
 					_graph._fileSmallContigs.write((const char*)&readMinimizers[0], contigSize*sizeof(u_int64_t));
 					//cout << "small contig" << endl;

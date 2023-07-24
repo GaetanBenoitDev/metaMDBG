@@ -297,19 +297,6 @@ public:
 
     void execute (){
 		
-		/*
-		cout << "TODO: activate parallelistion tobasespace _nbCores" << endl;
-		cout << "TODO: activate parallelistion tobasespace _nbCores" << endl;
-		cout << "TODO: activate parallelistion tobasespace _nbCores" << endl;
-		cout << "TODO: activate parallelistion tobasespace _nbCores" << endl;
-		cout << "TODO: activate parallelistion tobasespace _nbCores" << endl;
-		cout << "TODO: activate parallelistion tobasespace _nbCores" << endl;
-		cout << "TODO: activate parallelistion tobasespace _nbCores" << endl;
-		cout << "TODO: activate parallelistion tobasespace _nbCores" << endl;
-		cout << "TODO: activate parallelistion tobasespace _nbCores" << endl;
-		cout << "TODO: activate parallelistion tobasespace _nbCores" << endl;
-		cout << "TODO: activate parallelistion tobasespace _nbCores" << endl;
-		*/
 
 		_checksum = 0;
 		_bestSupportChecksum = 0;
@@ -1186,7 +1173,7 @@ public:
 
 
 	/*
-	void indexReads_read(const vector<u_int64_t>& minimizers, const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, bool isCircular, u_int64_t readIndex){//}, const vector<KmerVec>& kminmers_k3, const vector<ReadKminmer>& kminmersInfos_k3){
+	void indexReads_read(const vector<u_int64_t>& minimizers, const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int8_t isCircular, u_int64_t readIndex){//}, const vector<KmerVec>& kminmers_k3, const vector<ReadKminmer>& kminmersInfos_k3){
 
 		for(const KmerVec& vec : kminmers){
 			
@@ -1239,7 +1226,7 @@ public:
 
 	}
 
-	void loadContigs_min_read2(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, bool isCircular, u_int64_t readIndex){
+	void loadContigs_min_read2(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int8_t isCircular, u_int64_t readIndex){
 
 		//_logFile << kminmersInfos.size() << " " << (_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) << endl;
 		//if(_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) return;
@@ -1360,7 +1347,7 @@ public:
 		~CollectBestSupportingReadsFunctor(){
 		}
 
-		//void collectBestSupportingReads_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, bool isCircular, u_int64_t readIndex){
+		//void collectBestSupportingReads_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int8_t isCircular, u_int64_t readIndex){
 
 		void operator () (const KminmerList& kminmerList) {
 			//if(_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) return;
@@ -2089,7 +2076,7 @@ public:
 
 	}
 
-	void createBaseContigs_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, bool isCircular, u_int64_t readIndex){
+	void createBaseContigs_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int8_t isCircular, u_int64_t readIndex){
 
 		//cout << kminmersInfos.size() << endl;
 		//if(_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) return;
@@ -2367,12 +2354,16 @@ public:
 			//return;
 		}
 		else{
+			//cout << "lala:" << ((u_int32_t) isCircular) << endl;
 			string linearOrCircular;
-			if(isCircular){
+			if(isCircular == CONTIG_LINEAR){
+				linearOrCircular = "l";
+			}
+			else if(isCircular == CONTIG_CIRCULAR){
 				linearOrCircular = "c";
 			}
-			else{
-				linearOrCircular = "l";
+			else if(isCircular == CONTIG_CIRCULAR_RESCUED){
+				linearOrCircular = "rc";
 			}
 
 			//_logFile << contigSequence.size() << endl;

@@ -968,7 +968,7 @@ public:
             return _nodes[_nodes.size()-1];
         }
 
-        bool isCircular(){
+        u_int8_t isCircular(){
             return _nodes.size() > 1 && (_successors.size() == 1) && (_predecessors.size() == 1) && (_successors[0] == this) && (_predecessors[0] == this);  //_nodes.size() > 1 && (startNode() == endNode());
         }
         void mergeWith(Node* node2, u_int32_t kminmerLength, u_int32_t kminmerLengthNonOverlap, const vector<NodeData>& nodeDatas){
@@ -1780,7 +1780,7 @@ public:
 
                 UnitigGraph::Node* nodeCurrent = _nodes[unitigIndex];
 
-                bool isCircular = nodeCurrent->isCircular();
+                u_int8_t isCircular = nodeCurrent->isCircular();
 				vector<u_int32_t> nodePath = nodeCurrent->_nodes;
 				if(isCircular && nodePath.size() > 1){
 					nodePath.push_back(nodePath[0]);
@@ -1857,7 +1857,197 @@ public:
         //_logFile << "\tdone" << endl;
     }
 
+	/*
+    void saveBin(const string& outputFilename){
 
+
+        ofstream outputFile(outputFilename);
+
+        u_int32_t nbNodes = _nodes.size();
+
+	    outputFile.write((const char*)&nbNodes, sizeof(nbNodes));
+        for(Node* node : _nodes){
+            if(node->_unitigIndex == -1) continue;
+
+
+	        outputFile.write((const char*)&node->_unitigIndex, sizeof(node->_unitigIndex));
+	        outputFile.write((const char*)&node->_abundance, sizeof(node->_abundance));
+
+            u_int32_t unitigNbNodes = node->_nodes.size();
+	        outputFile.write((const char*)&unitigNbNodes, sizeof(unitigNbNodes));
+
+            for(u_int32_t nodeIndex : node->_nodes){
+	            outputFile.write((const char*)&nodeIndex, sizeof(nodeIndex));
+            }
+
+            u_int32_t nbSuccessors = node->_successors.size();
+            outputFile.write((const char*)&nbSuccessors, sizeof(nbSuccessors));
+
+            for(Node* node_nn : node->_successors){
+	            outputFile.write((const char*)&node_nn->_unitigIndex, sizeof(node_nn->_unitigIndex));
+            }
+
+
+            u_int32_t nbPredecessors = node->_predecessors.size();
+            outputFile.write((const char*)&nbPredecessors, sizeof(nbPredecessors));
+
+            for(Node* node_nn : node->_predecessors){
+	            outputFile.write((const char*)&node_nn->_unitigIndex, sizeof(node_nn->_unitigIndex));
+            }
+        }
+
+		unordered_set<u_int32_t> writtenUnitigs;
+
+        unordered_set<u_int32_t> selectedUnitigIndex;
+
+        //ofstream colorFile(outputFilename + "_color.csv");
+        //colorFile << "Name,Color" << endl;
+
+
+        //ofstream file_nodeNameToUnitigIndex(outputFilename + ".nodeToUnitig");
+
+        for(Node* node : _nodes){
+            //if(node == nullptr) continue;
+            if(node->_unitigIndex == -1) continue;
+            //cout << node->_unitigIndex << endl;
+
+			if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(node->startNode())) != writtenUnitigs.end()) continue;
+			if(writtenUnitigs.find(BiGraph::nodeIndex_to_nodeName(node->endNode())) != writtenUnitigs.end()) continue;
+
+			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(node->startNode()));
+			writtenUnitigs.insert(BiGraph::nodeIndex_to_nodeName(node->endNode()));
+
+            selectedUnitigIndex.insert(node->_unitigIndex);
+
+            //for(u_int32_t nodeIndex : node->_nodes){
+            //    u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
+		    //    file_nodeNameToUnitigIndex.write((const char*)&nodeName, sizeof(nodeName));
+		    //    file_nodeNameToUnitigIndex.write((const char*)&node->_unitigIndex, sizeof(node->_unitigIndex));
+            //}
+
+        }
+
+        //file_nodeNameToUnitigIndex.close();
+
+        
+        ofstream outputFile(outputFilename);
+
+
+        unordered_set<u_int32_t> isVisited;
+
+
+
+        for(Node* node : _nodes){
+            //if(node == nullptr) continue;
+            if(node->_unitigIndex == -1) continue;
+
+
+            if(selectedUnitigIndex.find(node->_unitigIndex) == selectedUnitigIndex.end()) continue;
+            if(isVisited.find(node->_unitigIndex) != isVisited.end()) continue;
+
+            queue<u_int32_t> queue;
+            queue.push(node->_unitigIndex);
+
+            while(queue.size() > 0){
+                u_int32_t unitigIndex = queue.front();
+                queue.pop();
+
+                //cout << unitigIndex << endl;
+                //cout << unitigIndex << endl;
+                //cout << (_nodes[unitigIndex] == nullptr) << endl;
+                if(isVisited.find(unitigIndex) != isVisited.end()) continue;
+                isVisited.insert(unitigIndex);
+
+                string ori = "+";
+                if(selectedUnitigIndex.find(unitigIndex) == selectedUnitigIndex.end()){
+                    unitigIndex = unitigIndex_toReverseDirection(unitigIndex);
+                    ori = "-";
+                }
+
+                //isVisited.insert(unitigIndex_toReverseDirection(unitigIndex));
+                //linkedUnitigIndex.insert(unitigIndex);
+
+                outputFile << "S" << "\tutg" << unitigIndex << "\t" << "*" << "\t" << "LN:i:" << _nodes[unitigIndex]->_length << "\t" << "dp:i:" << _nodes[unitigIndex]->_abundance << endl;
+
+                UnitigGraph::Node* nodeCurrent = _nodes[unitigIndex];
+
+                u_int8_t isCircular = nodeCurrent->isCircular();
+				vector<u_int32_t> nodePath = nodeCurrent->_nodes;
+				if(isCircular && nodePath.size() > 1){
+					nodePath.push_back(nodePath[0]);
+				}
+
+				u_int32_t size = nodePath.size();
+				outputContigFile.write((const char*)&size, sizeof(size));
+				outputContigFile.write((const char*)&isCircular, sizeof(isCircular));
+				outputContigFile.write((const char*)&nodePath[0], size * sizeof(u_int32_t));
+
+                //outputContigFileToUnitigIndex.write((const char*)&unitigIndex, sizeof(unitigIndex));
+                //vector<u_int32_t> successors;
+                //getSuccessors_unitig(unitigIndex, 0, successors);
+
+                for(Node* nodeSuccessor : _nodes[unitigIndex]->_successors){
+                    
+
+                    u_int32_t unitigIndexN = nodeSuccessor->_unitigIndex;
+
+                    string ori2 = "+";
+                    if(selectedUnitigIndex.find(unitigIndexN) == selectedUnitigIndex.end()){
+                        unitigIndexN = unitigIndex_toReverseDirection(unitigIndexN);
+                        ori2 = "-";
+                    }
+                    
+                    u_int32_t overlap = 1;
+                    outputFile << "L" << "\tutg" << unitigIndex << "\t" << ori << "\tutg" << unitigIndexN << "\t" << ori2 << "\t" << overlap << "M" << endl;
+                    queue.push(unitigIndexN);
+
+                    //if(unitigIndexN > 100000){
+                        //cout << "wtf succ: " << unitigIndex << " -> " << unitigIndexN << endl;
+                        //getchar();
+                    //}
+                }
+
+                
+                //vector<u_int32_t> predecessors;
+                //getPredecessors_unitig(unitigIndex, 0, predecessors);
+                //for(u_int32_t unitigIndexN : predecessors){
+
+                for(Node* nodePredecessor : _nodes[unitigIndex]->_predecessors){
+
+
+                    u_int32_t unitigIndexN = nodePredecessor->_unitigIndex;
+
+                    string ori2 = "+";
+                    if(selectedUnitigIndex.find(unitigIndexN) == selectedUnitigIndex.end()){
+                        unitigIndexN = unitigIndex_toReverseDirection(unitigIndexN);
+                        ori2 = "-";
+                    }
+                    
+                    u_int32_t overlap = 1;
+                    outputFile << "L" << "\tutg" << unitigIndexN << "\t" << ori2 << "\tutg" << unitigIndex << "\t" << ori << "\t" << overlap << "M" << endl;
+                    queue.push(unitigIndexN);
+
+
+                    //if(unitigIndexN > 100000){
+                    //    cout << "wtf pred: " << unitigIndex << " -> " << unitigIndexN << endl;
+                    //    getchar();
+                    //}
+                }
+                
+
+            }
+        }
+
+
+
+        outputFile.close();
+        //colorFile.close();
+        outputContigFile.close();
+        //outputContigFileToUnitigIndex.close();
+
+        //_logFile << "\tdone" << endl;
+    }
+    */
 
 };
 

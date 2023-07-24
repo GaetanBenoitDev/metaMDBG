@@ -222,12 +222,12 @@ public:
 		_finalFilename = _outputDir + "/assemblyGraph_k" + to_string(_kminmerSize) + "_" + to_string(kToKmerSize(_kminmerSize, _minimizerSize, _minimizerDensity)) + "bps.gfa";
 		_finalFilenameNoSeq = _outputDir + "/assemblyGraph_k" + to_string(_kminmerSize) + "_" + to_string(kToKmerSize(_kminmerSize, _minimizerSize, _minimizerDensity)) + "bps.noseq.gfa";
 		_contigPathFilename = _outputDir + "/assemblyGraph_k" + to_string(_kminmerSize) + "_" + to_string(kToKmerSize(_kminmerSize, _minimizerSize, _minimizerDensity)) + "bps_contigpath.tsv";
-		_readPathFilename = _outputDir + "/assemblyGraph_k" + to_string(_kminmerSize) + "_" + to_string(kToKmerSize(_kminmerSize, _minimizerSize, _minimizerDensity)) + "bps_readath.tsv";
+		_readPathFilename = _outputDir + "/assemblyGraph_k" + to_string(_kminmerSize) + "_" + to_string(kToKmerSize(_kminmerSize, _minimizerSize, _minimizerDensity)) + "bps_readpath.tsv";
 
 		cerr << "Generating assembly graph for k value: " << _k << " (corresponding sequence length = " << kToKmerSize(_kminmerSize, _minimizerSize, _minimizerDensity) << " bps)" << endl;
 
 		cerr << "Generating unitig sequences..." << endl;
-		createUnitigSequences();
+		//createUnitigSequences();
 
 		cerr << "Loading unitig sequences..." << endl;
 		loadUnitigs();
@@ -306,7 +306,10 @@ public:
 			u_int32_t overlapSizeMinus = 0;
 
 			if(minimizers.size() < _parent._kminmerSize){
+				cout << read._header << endl;
+				//cout << "lala " << minimizers.size() << " " << read._seq.size() << " " << rleSequence.size() << endl;
 
+				
 			}
 			else{
 				overlapSizePlus = read._seq.size() - rlePositions[minimizers_pos[minimizers.size()-_parent._kminmerSize+1]];

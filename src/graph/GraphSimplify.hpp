@@ -3800,7 +3800,7 @@ public:
             u_int32_t startNode = nodeIndex;
             u_int32_t endNode = nodeIndex;
 
-            bool isCircular = false;
+            u_int8_t isCircular = CONTIG_LINEAR;
 
             int lala1 = 0;
             int lala2 = 0;
@@ -4274,7 +4274,7 @@ public:
         u_int32_t startNode = nodeIndex;
         u_int32_t endNode = nodeIndex;
 
-        bool isCircular = false;
+        u_int8_t isCircular = CONTIG_LINEAR
 
         int lala1 = 0;
         int lala2 = 0;
@@ -5063,7 +5063,7 @@ public:
 
         return; // unitig._nodes;
 
-        bool isCircular = false;
+        u_int8_t isCircular = CONTIG_LINEAR;
 
         nodes.clear();
         u_int32_t node = unitig._startNode;

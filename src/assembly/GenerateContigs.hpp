@@ -600,7 +600,7 @@ public:
 		~IndexReadsFunctor(){
 		}
 
-		//void collectBestSupportingReads_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, bool isCircular, u_int64_t readIndex){
+		//void collectBestSupportingReads_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int8_t isCircular, u_int64_t readIndex){
 
 		void operator () (const KminmerList& kminmerList) {
 
@@ -1535,7 +1535,7 @@ public:
 				
 
 				/*
-				bool isCircular = false;
+				u_int8_t isCircular = false;
 				if(_isFinalAssembly){
 					if(u._startNode == u._endNode){ //Circular
 						isCircular = true;
@@ -1603,7 +1603,7 @@ public:
 				//}
 				//if(nodePath.size() <= 0) continue;
 
-				bool isCircular = u._startNode == u._endNode;
+				u_int8_t isCircular = u._startNode == u._endNode;
 
 				
 				if(isCircular && u._length < 300000){
@@ -1843,7 +1843,7 @@ public:
 
 			if(contigFile.eof()) break;
 
-			bool isCircular;
+			u_int8_t isCircular;
 			contigFile.read((char*)&isCircular, sizeof(isCircular));
 
 			nodePath.resize(size);
@@ -2019,7 +2019,7 @@ Nb nodes (checksum): 165166644
 
 			while(true){
 
-				bool isCircular = false;
+				u_int8_t isCircular = CONTIG_LINEAR;
 				bool isRepeatSide = false;
 				float contigAbundance = -1;
 				vector<u_int32_t> nodePath;

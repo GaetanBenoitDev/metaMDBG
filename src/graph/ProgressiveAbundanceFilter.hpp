@@ -1392,6 +1392,18 @@ public:
             }
         };
 
+        struct TipComparatorAbundance {
+            bool operator()(UnitigGraph::Node* p1, UnitigGraph::Node* p2) const{
+                if(p1->_abundance == p2->_abundance){
+                    if(p1->_nodes.size() == p2->_nodes.size()){
+                        return p1->startNode() > p2->startNode();
+                    }
+                    return p1->_nodes.size() < p2->_nodes.size();
+                }
+                //return p1->_nodes.size() < p2->_nodes.size();
+                return p1->_abundance < p2->_abundance;
+            }
+        };
 
         //vector<UnitigGraph::Node*> _queue;
         //vector<UnitigGraph::Node*> _nextQueue;
@@ -1418,7 +1430,7 @@ public:
                 //if(node->_length > _maxLength) continue;
                 //if(node->_unitigIndex % 2 == 1) continue;
 
-                if(isTipAny(node)){
+                if(isTipAny(node, true)){
                     _queue.insert(node);
                     //_nextQueue.push_back(node);
                 }
@@ -1684,7 +1696,7 @@ public:
                 UnitigGraph::Node* node = *top;
                 _queue.erase(top);
 
-                if(!isTipAny(node)){
+                if(!isTipAny(node, true)){
                     //_nextQueue.push_back(node);
                     continue;
                 }
@@ -1729,10 +1741,10 @@ public:
                     _unitigGraph->recompact(predecessor);
 
 
-                    if(isTipAny(predecessor)){
+                    if(isTipAny(predecessor, true)){
                         _queue.insert(predecessor);
                     }
-                    if(isTipAny(predecessor_rc)){
+                    if(isTipAny(predecessor_rc, true)){
                         _queue.insert(predecessor_rc);
                     }
                     
@@ -1774,7 +1786,7 @@ public:
             return isModification;
         }
 
-        bool isTipAny(const UnitigGraph::Node* node){
+        bool isTipAny(const UnitigGraph::Node* node, bool checkNeighborTip){
 
             //if(node == nullptr) return false;
             if(node->_unitigIndex == -1) return false;
@@ -1786,9 +1798,44 @@ public:
             //if(node->_predecessors.size() != 1) return false;
             if(node->_predecessors.size() == 0) return false;
 
+            /*
+            if(checkNeighborTip){
+                if(node->_predecessors.size() == 1){
+
+                    bool isEndTip = true;
+
+
+                    u_int32_t maxAbundance = 0;
+
+                    UnitigGraph::Node* nodeParent = node->_predecessors[0];
+                    for(UnitigGraph::Node* nodeSuccessor : nodeParent->_successors){
+
+                        if(nodeSuccessor == node) continue;
+                        
+                        if(!isTipAny(nodeSuccessor, false)){
+                            isEndTip = false;
+                        }
+                        if(nodeSuccessor->_abundance > maxAbundance){
+                            maxAbundance = nodeSuccessor->_abundance;
+                        }
+                    }
+
+                    if(isEndTip){
+                        if(node->_abundance <= maxAbundance){
+                            return true;
+                        }
+                        else{
+                            return false;
+                        }
+                    }
+                }
+            }
+            */
+
             return true;
         }
 
+        /*
         bool isTip(const UnitigGraph::Node* node, bool useK, u_int64_t maxLength){
 
             //if(node == nullptr) return false;
@@ -1811,6 +1858,7 @@ public:
 
             return true;
         }
+        */
     };
 
     UnitigGraph* _unitigGraph;
@@ -1959,6 +2007,7 @@ public:
                 cout << nbUnitigs << endl;
                 */
                 _unitigGraph->save(_tmpDir + "/assembly_graph.gfa", 0);
+                //getchar();
                 //exit(1);
 
                 
@@ -2089,6 +2138,7 @@ public:
                 isModification = true;
                 isModificationSub = true;
             }
+            
 
             //_logFile << "Nb unitigs: " << _unitigGraph->nbUnitigs() << endl;
             
@@ -2577,7 +2627,7 @@ public:
             outputFile.write((const char*)&size, sizeof(size));
             
 
-            bool isCircular = node->isCircular();
+            u_int8_t isCircular = node->isCircular();
             //if(isCircular) continue;
             //isCircular = false;
             outputFile.write((const char*)&isCircular, sizeof(isCircular));

@@ -676,7 +676,7 @@ public:
 	unordered_map<u_int32_t, vector<u_int64_t>> _dupLala;
 
 
-	void loadSmallContigs_read(const vector<u_int64_t>& readMinimizers, bool isCircular, u_int64_t readIndex){
+	void loadSmallContigs_read(const vector<u_int64_t>& readMinimizers, u_int8_t isCircular, u_int64_t readIndex){
 		_contigs.push_back({readIndex, readMinimizers});
 
 		if(_laodingPrev){
@@ -758,7 +758,7 @@ public:
 		
 	}
 
-	void rewriteContigs_read(const vector<u_int64_t>& readMinimizers, bool isCircular, u_int64_t readIndex){
+	void rewriteContigs_read(const vector<u_int64_t>& readMinimizers, u_int8_t isCircular, u_int64_t readIndex){
 
 		if(_duplicatedSmallContigs.find(readIndex) != _duplicatedSmallContigs.end()) return;
 

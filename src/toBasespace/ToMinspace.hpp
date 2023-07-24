@@ -224,7 +224,7 @@ public:
 
 			if(contigFile.eof()) break;
 
-			bool isCircular;
+			u_int8_t isCircular;
 			contigFile.read((char*)&isCircular, sizeof(isCircular));
 
 			nodePath.resize(size);
@@ -684,7 +684,7 @@ public:
 			if(contigFile.eof()) break;
 
 
-			bool isCircular;
+			u_int8_t isCircular;
 			contigFile.read((char*)&isCircular, sizeof(isCircular));
 			//u_int8_t isCircular;
 			//gzread(contigFile, (char*)&isCircular, sizeof(isCircular));
@@ -914,7 +914,7 @@ public:
 	priority_queue<ReadWriter, vector<ReadWriter> , ReadWriter_Comparator> _readWriterQueue;
 	u_int64_t _nextReadIndexWriter;
 
-	void writeRead(u_int64_t readIndex, const vector<u_int64_t>& contigSequence, bool isCircular){
+	void writeRead(u_int64_t readIndex, const vector<u_int64_t>& contigSequence, u_int8_t isCircular){
 
 		//#pragma omp critical(dataupdate)
 		#pragma omp critical
@@ -1122,7 +1122,7 @@ public:
 		fs::rename(tmpFilename, _inputDir + "/unitig_data.txt");
 	}
 
-	void rewriteContigs_read(const vector<u_int64_t>& readMinimizers, bool isCircular, u_int64_t readIndex){
+	void rewriteContigs_read(const vector<u_int64_t>& readMinimizers, u_int8_t isCircular, u_int64_t readIndex){
 
 		if(_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) return;
 

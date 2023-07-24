@@ -389,7 +389,7 @@ public:
 	}
 	*/
 
-	void loadContigs_min_read2(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, bool isCircular, u_int64_t readIndex){
+	void loadContigs_min_read2(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int8_t isCircular, u_int64_t readIndex){
 
 		//if(_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) return;
 
@@ -602,7 +602,7 @@ public:
 	ofstream _contigFile_bitset;
 	u_int64_t _contigIndex;
 
-	void createBaseContigs_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, bool isCircular, u_int64_t readIndex){
+	void createBaseContigs_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int8_t isCircular, u_int64_t readIndex){
 
 
 		//if(_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) return;
@@ -1197,7 +1197,7 @@ public:
 
 	}
 
-	void dumpDereplicatedContigs_read(const vector<u_int64_t>& readMinimizers, bool isCircular, u_int64_t readIndex){
+	void dumpDereplicatedContigs_read(const vector<u_int64_t>& readMinimizers, u_int8_t isCircular, u_int64_t readIndex){
 		
 		if(_duplicatedContigIndex.find(readIndex) != _duplicatedContigIndex.end()) return;
 

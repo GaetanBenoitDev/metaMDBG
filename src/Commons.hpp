@@ -1,4 +1,5 @@
 
+
 /*
 
 - add strain derep options in global command and manual (need to remove error tips still)
@@ -167,7 +168,9 @@ const int NB_CORES_DEFAULT_INT = 1;
 //const string FILENAME_NO_KMINMER_READS = "reads_noKminmers.bin";
 
 
-
+const u_int8_t CONTIG_LINEAR = 0; 
+const u_int8_t CONTIG_CIRCULAR = 1;
+const u_int8_t CONTIG_CIRCULAR_RESCUED = 2;
 
 const char ARG_INPUT_FILENAME2 = 'i';
 const char ARG_OUTPUT_DIR2 = 'o';
@@ -639,7 +642,7 @@ struct KminmerList{
 	vector<u_int64_t> _readMinimizers;
 	vector<ReadKminmerComplete> _kminmersInfo;
 	Read _read;
-	bool _isCircular;
+	u_int8_t _isCircular;
 	//vector<KmerVec> _kminmers;
 	//vector<ReadKminmer> _kminmersInfo;
 };
@@ -697,6 +700,9 @@ public:
 				cerr << "Input file (" << filename << ") is a directory (need fasta/fastq filenames)" << endl;
 				exit(1);
 			}
+
+
+			filename = fs::canonical(fs::absolute(filename));
 			//else{
 			//	cerr << "File not found: " << line << endl;
 			//	exit(1);
@@ -2928,7 +2934,7 @@ public:
 		_hasQuality = hasQuality;
 	}
 
-	void parse(const std::function<void(vector<u_int64_t>, vector<KmerVec>, vector<ReadKminmer>, bool, u_int64_t)>& fun){
+	void parse(const std::function<void(vector<u_int64_t>, vector<KmerVec>, vector<ReadKminmer>, u_int8_t, u_int64_t)>& fun){
 
 		ifstream file_readData(_inputFilename, std::ios::binary);
 
@@ -2951,7 +2957,7 @@ public:
 			minimizerQualities.resize(size, 0);
 
 
-			bool isCircular;
+			u_int8_t isCircular;
 			file_readData.read((char*)&isCircular, sizeof(isCircular));
 
 			//cout << size << " " << isCircular << endl;
@@ -2994,7 +3000,7 @@ public:
 
 	
 	//template<typename SizeType>
-	void parseMinspace(const std::function<void(vector<u_int64_t>, vector<ReadKminmerComplete>, bool, u_int64_t)>& fun){
+	void parseMinspace(const std::function<void(vector<u_int64_t>, vector<ReadKminmerComplete>, u_int8_t, u_int64_t)>& fun){
 
 		ifstream file_readData(_inputFilename, std::ios::binary);
 
@@ -3016,7 +3022,7 @@ public:
 			minimizerQualities.resize(size, 0);
 
 
-			bool isCircular;
+			u_int8_t isCircular;
 			file_readData.read((char*)&isCircular, sizeof(isCircular));
 
 			//cout << size << " " << isCircular << endl;
@@ -3052,7 +3058,7 @@ public:
 
 	}
 	
-	void parseSequences(const std::function<void(vector<u_int64_t>, bool, u_int64_t)>& fun){
+	void parseSequences(const std::function<void(vector<u_int64_t>, u_int8_t, u_int64_t)>& fun){
 
 		ifstream file_readData(_inputFilename, std::ios::binary);
 
@@ -3074,7 +3080,7 @@ public:
 			minimizerQualities.resize(size, 0);
 
 
-			bool isCircular;
+			u_int8_t isCircular;
 			file_readData.read((char*)&isCircular, sizeof(isCircular));
 
 
@@ -3274,7 +3280,7 @@ public:
 			
 			u_int32_t size;
 			vector<u_int32_t> nodePath;
-			bool isCircular;
+			u_int8_t isCircular;
 			NodePath nodePathObject;
 
 			while(true){
@@ -3290,7 +3296,7 @@ public:
 
 					if(contigFile.eof()) break;
 
-					bool isCircular;
+					u_int8_t isCircular;
 					contigFile.read((char*)&isCircular, sizeof(isCircular));
 
 					nodePath.resize(size);
@@ -3394,7 +3400,7 @@ public:
 			vector<u_int8_t> minimizerQualities; 
 			u_int32_t size;
 			KminmerList kminmerList;
-			bool isCircular;
+			u_int8_t isCircular;
 			//KminmerList kminmer;
 
 			while(true){
@@ -3490,7 +3496,7 @@ public:
 			vector<u_int8_t> minimizerQualities; 
 			u_int32_t size;
 			KminmerList kminmerList;
-			bool isCircular;
+			u_int8_t isCircular;
 			//KminmerList kminmer;
 
 			while(true){
