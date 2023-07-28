@@ -69,7 +69,7 @@ Examples:
 MetaMDBG will generate polished contigs in outputDir ("contigs.fasta.gz").
 
 ## Contig information
-Contig information, such as weither it is circular or not, are contained in contig headers in the resulting assembly file.
+Contig information, such as whether it is circular or not, are contained in contig headers in the resulting assembly file.
 Examples:
 
 ```sh
