@@ -68,6 +68,25 @@ Examples:
 
 MetaMDBG will generate polished contigs in outputDir ("contigs.fasta.gz").
 
+## Contig information
+Contig information, such as weither it is circular or not, are contained in contig headers in the resulting assembly file.
+Examples:
+
+```sh
+>ctg1_13x_l
+ACGTAGCTTATAGCGAGTATCG...
+>ctg2_678x_c
+ATTATTGATTAGGGCTATGCAT...
+>ctg3_14x_rc
+AATTCCGGCGGCGTATTATTAC...
+```
+Headers are composed of 3 fields separated by underscores.
+* Field 1: the name of the contig
+* Field 2: estimated coverage for this contig (obtained throught read mapping)
+* Field 3: can be "l" (linear), "c" (circular) or "rc" (rescued circular)
+
+Long circular contigs are likely to be complete. Rescued circular are likely to be complete, but it is not guarranted so we recommend using validation methods on them.
+
 ## Advanced usage
  
 ```sh
