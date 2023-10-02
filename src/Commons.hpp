@@ -55,7 +55,7 @@ ContigPolisher:
 
 //#include <gatb/gatb_core.hpp>
 #include "utils/MurmurHash3.h"
-#include "zlib.h"
+#include <zlib.h>
 #include <string>
 #include <sstream>
 #include <unordered_set>
