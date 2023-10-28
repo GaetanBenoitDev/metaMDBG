@@ -227,7 +227,7 @@ public:
 		cerr << "Generating assembly graph for k value: " << _k << " (corresponding sequence length = " << kToKmerSize(_kminmerSize, _minimizerSize, _minimizerDensity) << " bps)" << endl;
 
 		cerr << "Generating unitig sequences..." << endl;
-		//createUnitigSequences();
+		createUnitigSequences();
 
 		cerr << "Loading unitig sequences..." << endl;
 		loadUnitigs();
