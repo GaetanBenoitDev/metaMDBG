@@ -8,7 +8,7 @@ Contact: gaetanbenoitdev at gmail dot com
 ### Conda
 
 ```sh
-conda install -c bioconda -c conda-forge metamdbg
+conda install -c conda-forge -c bioconda metamdbg
 ```
 ### Building from source
 
