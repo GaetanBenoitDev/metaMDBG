@@ -13,55 +13,61 @@ conda install -c conda-forge -c bioconda metamdbg
 ### Building from source (using conda)
 
 <details><summary>See details</summary>
+<p>
+Choose an installation directory, then copy-paste the following commands.
+	
+```sh
+# Download metaMDBG repository  
+git clone https://github.com/GaetanBenoitDev/metaMDBG.git
 
-	Choose an installation directory, then copy-paste the following commands.
-	
-	```sh
-	# Download metaMDBG repository  
-	git clone https://github.com/GaetanBenoitDev/metaMDBG.git
-	
-	# Create metaMDBG conda environment
-	cd metaMDBG
-	conda env create -f conda_env.yml
-	conda activate metaMDBG
-	conda env config vars set CPATH=${CONDA_PREFIX}/include:${CPATH}
-	conda deactivate
-	
-	# Activate metaMDBG environment
-	conda activate metaMDBG
-	
-	# Compile the software
-	mkdir build
-	cd build
-	cmake ..
-	make -j 3
-	conda install -c bioconda -c conda-forge metamdbg
-	```
-	
-	After successful installation, an executable named metaMDBG will appear in ./build/bin.
+# Create metaMDBG conda environment
+cd metaMDBG
+conda env create -f conda_env.yml
+conda activate metaMDBG
+conda env config vars set CPATH=${CONDA_PREFIX}/include:${CPATH}
+conda deactivate
 
+# Activate metaMDBG environment
+conda activate metaMDBG
+
+# Compile the software
+mkdir build
+cd build
+cmake ..
+make -j 3
+conda install -c bioconda -c conda-forge metamdbg
+```
+	
+After successful installation, an executable named metaMDBG will appear in ./build/bin.
+</p>
 </details>
 
 ### Building from source
 
 <details><summary>See details</summary>
-	**Prerequisites**
-	- gcc 9.4+
-	- cmake 3.10+
-	- zlib
-	- openmp
-	- minimap2 2.24+
-	- wfmash
-	- samtools 1.6+ (using htslib)
 	
-	```sh
-	git clone https://github.com/GaetanBenoitDev/metaMDBG.git
-	cd metaMDBG
-	mkdir build
-	cd build
-	cmake ..
-	make -j 3
-	```
+<p>
+	
+**Prerequisites**
+- gcc 9.4+
+- cmake 3.10+
+- zlib
+- openmp
+- minimap2 2.24+
+- wfmash
+- samtools 1.6+ (using htslib)
+  
+</p>
+	
+```sh
+git clone https://github.com/GaetanBenoitDev/metaMDBG.git
+cd metaMDBG
+mkdir build
+cd build
+cmake ..
+make -j 3
+```
+
 </details>
 
 ## Usage
