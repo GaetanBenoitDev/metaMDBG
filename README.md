@@ -3,6 +3,11 @@ MetaMDBG is a fast and low-memory assembler for long and accurate metagenomics r
 Developper: Gaëtan Benoit  
 Contact: gaetanbenoitdev at gmail dot com
 
+## Notes on input data (PacBio and Nanopore)
+
+- MetaMDBG has been developped using **PacBio HiFi** data.
+- MetaMDBG will not work on raw **Nanopore** reads, but error rate is improving quickly, it might work on duplex data in the future. Currently, you have to polish the reads first. For that, you can use [VeChat](https://github.com/HaploKit/vechat) (using Nanopore reads only), or [Ratatosk](https://github.com/DecodeGenetics/Ratatosk) (Using Nanopore + Illumina short-reads).
+
 ## Installation
 
 ### Conda
