@@ -88,7 +88,7 @@ MetaMDBG will generate polished contigs in outputDir ("contigs.fasta.gz").
 
 ## Input data (PacBio and Nanopore)
 
-- MetaMDBG has been developped using **PacBio HiFi** data.
+- MetaMDBG has been developped and extensively tested using **PacBio HiFi** data.
 - MetaMDBG will not work on raw **Nanopore** reads, but error rate is improving quickly, it might work on duplex data in the future. Currently, you have to polish the reads first. For that, you can use [VeChat](https://github.com/HaploKit/vechat) (using Nanopore reads only), or [Ratatosk](https://github.com/DecodeGenetics/Ratatosk) (using Nanopore + Illumina short-reads).
   
 ## Contig information
