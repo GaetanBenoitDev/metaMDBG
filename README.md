@@ -171,4 +171,4 @@ metaMDBG is freely available under the [MIT License](https://opensource.org/lice
 
 ## Citation
 
-* Gaetan Benoit, Sebastien Raguideau, Robert James, Adam M. Phillippy, Rayan Chikhi and Christopher Quince [Efficient high-quality metagenome assembly from long accurate reads using minimizer-space de Bruijn graphs](https://www.biorxiv.org/content/10.1101/2023.07.07.548136v1), biorXiv preprint (2023).
+* Gaetan Benoit, Sebastien Raguideau, Robert James, Adam M. Phillippy, Rayan Chikhi and Christopher Quince [High-quality metagenome assembly from long accurate reads with metaMDBG](https://www.nature.com/articles/s41587-023-01983-6), Nature Biotechnology (2023).
