@@ -26,7 +26,7 @@
 
 void displayHelp(string programName){
 	cout << " Program: metaMDBG (assembly of long and accurate metagenomics reads)" << endl;
-	cout << " Version: 0.3" << endl;
+	cout << " Version: 0.4" << endl;
 	cout << " Contact: Gaëtan Benoit (gaetanbenoitdev@gmail.com)" << endl;
 	cout << endl;
 	cout << " Usage: " + programName + " [command]" << endl;

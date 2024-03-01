@@ -884,7 +884,7 @@ public:
 		for(size_t i=0; i<10000; i++){
 			read += "A";
 		}
-		read += "\n";
+		//read += "\n";
 
 		string filename = _tmpDir + "/testDependencies.fasta";
 		string outputFilename_mapping = _tmpDir + "/testDependencies_align.paf";
