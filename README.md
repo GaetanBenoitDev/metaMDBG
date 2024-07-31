@@ -3,6 +3,12 @@ MetaMDBG is a fast and low-memory assembler for long and accurate metagenomics r
 Developper: Gaëtan Benoit  
 Contact: gaetanbenoitdev at gmail dot com
 
+> [!IMPORTANT]
+> 31/07/2024:
+> * metaMDBG had a major update: it can now handle nanopore R10.4+ data. The bioconda version is still not updated, use commands in "Building from source (using conda)" section to install the latest version.
+> * the software options has changed (see usage section), all the parameters now have explicit name.
+
+
 ## Installation
 
 ### Conda
