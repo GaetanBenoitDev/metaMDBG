@@ -35,7 +35,6 @@ mkdir build
 cd build
 cmake ..
 make -j 3
-conda install -c bioconda -c conda-forge metamdbg
 ```
 	
 After successful installation, an executable named metaMDBG will appear in ./build/bin.
