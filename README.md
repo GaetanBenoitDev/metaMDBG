@@ -54,8 +54,6 @@ After successful installation, an executable named metaMDBG will appear in ./bui
 - zlib
 - openmp
 - minimap2 2.24+
-- wfmash
-- samtools 1.6+ (using htslib)
   
 </p>
 	
