@@ -92,7 +92,7 @@ public:
 		
 		args::ValueFlag<std::string> arg_outputDir(groupInputOutput, "", "Output dir for contigs and temporary files", {ARG_OUTPUT_DIR2});
 		args::NargsValueFlag<std::string> arg_readFilenames_hifi(groupInputOutput, "", "PacBio HiFi read filename(s) (separated by space)", {ARG_INPUT_HIFI}, 2);
-		args::NargsValueFlag<std::string> arg_readFilenames_nanopore(groupInputOutput, "", "nanopore R10.4+ read filename(s) (separated by space)", {ARG_INPUT_NANOPORE}, 2);
+		args::NargsValueFlag<std::string> arg_readFilenames_nanopore(groupInputOutput, "", "Nanopore R10.4+ read filename(s) (separated by space)", {ARG_INPUT_NANOPORE}, 2);
 		args::ValueFlag<int> arg_nbCores(groupInputOutput, "", "Number of cores", {ARG_NB_CORES2}, NB_CORES_DEFAULT_INT);
 
 		args::ValueFlag<int> arg_minimizerSize(groupAssembly, "", "Minimizer size", {ARG_MINIMIZER_LENGTH2}, 13);

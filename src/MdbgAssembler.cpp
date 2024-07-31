@@ -60,7 +60,7 @@ on peut aussi ne charger que les nodes du forward en therorie, car on peut retro
 //"reprire: tester remove small contigs humanO1 avec minimap2 au lieu de wfmash"
 void displayHelp(string programName){
 	cout << " Program: metaMDBG (assembly of long metagenomics reads)" << endl;
-	cout << " Version: 0.5" << endl;
+	cout << " Version: 1.0" << endl;
 	cout << " Contact: Gaëtan Benoit (gaetanbenoitdev@gmail.com)" << endl;
 	cout << endl;
 	cout << " Usage: " + programName + " [command]" << endl;
