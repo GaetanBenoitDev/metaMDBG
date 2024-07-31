@@ -5,9 +5,8 @@
 #include "Commons.hpp"
 
 //#include "graph/Graph.hpp"
-#include "GfaParser.hpp"
-#include "GraphSimplify.hpp"
-#include "../utils/BloomFilter.hpp"
+//#include "GraphSimplify.hpp"
+//#include "../utils/BloomFilter.hpp"
 //#include "./utils/ntHashIterator.hpp"
 
 //#include <boost/graph/adjacency_list.hpp>
@@ -25,6 +24,7 @@ struct KminmerAbundanceMapNode{
 };
 
 typedef phmap::parallel_flat_hash_map<KmerVec, KminmerAbundanceMapNode> KminmerAbundanceMap;
+
 
 
 
@@ -58,8 +58,10 @@ public:
 	//ofstream _file_noKminmerReads;
 	int _nbCores;
 	bool _useBloomFilter;
+	bool _useCorrectedRead;
 
 	BloomCacheCoherent<u_int64_t>* _bloomFilter;
+	//unordered_set<KmerVec> _bloomFilterExact;
     //IBank* _inputBank;
 
 	//vector<ReadData> _readData;
@@ -120,20 +122,20 @@ public:
     void execute ();
 	void createMDBG();
 	//void createMDBG_read(kseq_t* read, u_int64_t readIndex);
-	void createMDBG_collectKminmers(const vector<u_int64_t>& minimizers, const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex);
-	void createMDBG_collectKminmers_contig(const vector<u_int64_t>& minimizers, const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex);
-	void removeErroneousKminmers(const vector<u_int64_t>& minimizers, const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex);
+	void createMDBG_collectKminmers(const vector<MinimizerType>& minimizers, const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex);
+	void createMDBG_collectKminmers_contig(const vector<MinimizerType>& minimizers, const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex);
+	void removeErroneousKminmers(const vector<MinimizerType>& minimizers, const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex);
 	void loadSolidKminmers();
 
 	void createMDBG_collectKminmers_read(kseq_t* read, u_int64_t readIndex);
 	void extractKminmerSequence(const char* sequenceOriginal, const ReadKminmer& kminmerInfo, string& sequence);
 	void computeDeterministicNodeNames();
 
-	void createMDBG_index(const vector<u_int64_t>& minimizers, const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex);
+	void createMDBG_index(const vector<MinimizerType>& minimizers, const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int64_t readIndex);
 	void createGfa();
 	void parseArgs(int argc, char* argv[]);
 	void parseContigs();
-	float computeKmerVecAbundance(const vector<u_int64_t>& minimizers, bool isContig);
+	float computeKmerVecAbundance(const vector<MinimizerType>& minimizers, bool isContig);
 	void computeContigAbundance();
 	void indexEdge(const KmerVec& vec, u_int32_t nodeName);
 	void computeEdge(const KmerVec& vec, u_int32_t id);
@@ -142,10 +144,6 @@ public:
 	void computeEdges();
 
 	
-
-
-
-
 
 
 
@@ -381,7 +379,7 @@ public:
 	//void extract_kminmers();
 
 	u_int64_t _debug_nbMinimizers;
-	unordered_map<u_int64_t, u_int64_t> _minimizerCounts;
+	unordered_map<MinimizerType, u_int64_t> _minimizerCounts;
 	//unordered_map<KmerVec, u_int32_t> kminmerCounts;
 	unordered_map<KmerVec, KminmerData> _kminmersData;
 	gzFile _file_readData;
@@ -549,13 +547,13 @@ public:
 		MDBG* _mdbg;
 		KminmerAbundanceMap& _kminmerAbundances;
 		ofstream& _kminmerFile;
-		double _minimizerSpacingMean;
-		double _kminmerLengthMean;
-		double _kminmerOverlapMean;
+		float _minimizerSpacingMean;
+		float _kminmerLengthMean;
+		float _kminmerOverlapMean;
 		size_t _minimizerSize;
 		size_t _kminmerSize;
 		size_t _kminmerSizeFirst;
-		BloomCacheCoherent<u_int64_t>* _bloomFilter;
+		//BloomCacheCoherent<u_int64_t>* _bloomFilter;
 		bool _extractingContigs;
 
 		IndexKminmerFunctor(CreateMdbg& graph, bool extractingContigs) : _graph(graph), _readFile(graph._readFile), _kminmerExist(graph._kminmerExist), _kminmerAbundances(graph._kminmerAbundances), _kminmerFile(graph._kminmerFile){
@@ -569,7 +567,7 @@ public:
 			_minimizerSize = graph._minimizerSize;
 			_kminmerSize = graph._kminmerSize;
 			_kminmerSizeFirst = graph._kminmerSizeFirst;
-			_bloomFilter = graph._bloomFilter;
+			//_bloomFilter = graph._bloomFilter;
 			_extractingContigs = extractingContigs;
 		}
 
@@ -584,7 +582,7 @@ public:
 			_minimizerSize = copy._minimizerSize;
 			_kminmerSize = copy._kminmerSize;
 			_kminmerSizeFirst = copy._kminmerSizeFirst;
-			_bloomFilter = copy._bloomFilter;
+			//_bloomFilter = copy._bloomFilter;
 			_extractingContigs = copy._extractingContigs;
 		}
 
@@ -626,11 +624,11 @@ public:
 		}
 		*/
 
-		float getAbundance(const vector<u_int64_t>& readMinimizers, const ReadKminmerComplete& kminmerInfo){
+		float getAbundance(const vector<MinimizerType>& readMinimizers, const ReadKminmerComplete& kminmerInfo){
 
 			const KmerVec& vec = kminmerInfo._vec;
 
-			vector<u_int64_t> minimizerSeq;
+			vector<MinimizerType> minimizerSeq;
 			for(size_t i=kminmerInfo._read_pos_start; i<=kminmerInfo._read_pos_end; i++){
 				minimizerSeq.push_back(readMinimizers[i]);
 			}
@@ -641,10 +639,10 @@ public:
 			return getAbundance(minimizerSeq);
 		}
 		
-		float getAbundance(const vector<u_int64_t>& readMinimizers){
+		float getAbundance(const vector<MinimizerType>& readMinimizers){
 
 			vector<u_int64_t> rlePositions;
-			vector<u_int64_t> minimizers_pos;//(minimizers.size());
+			vector<u_int32_t> minimizers_pos;//(minimizers.size());
 			vector<KmerVec> kminmers; 
 			vector<ReadKminmer> kminmersInfo;
 			MDBG::getKminmers(_minimizerSize, _graph._kminmerSizePrev, readMinimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, 0, false);
@@ -791,7 +789,7 @@ public:
 
 
 			u_int64_t readIndex = kminmerList._readIndex;
-			const vector<u_int64_t>& readMinimizers = kminmerList._readMinimizers;
+			const vector<MinimizerType>& readMinimizers = kminmerList._readMinimizers;
 			//const vector<KmerVec>& kminmers = kminmerList._kminmers;
 			const vector<ReadKminmerComplete>& kminmersInfos = kminmerList._kminmersInfo;
 
@@ -807,7 +805,7 @@ public:
 
 							u_int8_t isCircular = kminmerList._isCircular;
 							_graph._fileSmallContigs.write((const char*)&isCircular, sizeof(isCircular));
-							_graph._fileSmallContigs.write((const char*)&readMinimizers[0], contigSize*sizeof(u_int64_t));
+							_graph._fileSmallContigs.write((const char*)&readMinimizers[0], contigSize*sizeof(MinimizerType));
 							//cout << "small contig" << endl;
 							//getchar();
 
@@ -1110,13 +1108,24 @@ public:
 
 						#pragma omp critical
 						{
-							if(_bloomFilter->contains(vec.h())){
+							/*
+							if(_graph._bloomFilterExact.find(vec) != _graph._bloomFilterExact.end()){
+								exist = true;
+							}
+							else{
+								_graph._bloomFilterExact.insert(vec);
+							}
+							*/
+
+							
+							if(_graph._bloomFilter->contains(vec.h())){
 								exist = true;
 							}
 							else{
 								exist = false;
-								_bloomFilter->insert(vec.h());
+								_graph._bloomFilter->insert(vec.h());
 							}
+							
 						}
 					}
 
@@ -1204,13 +1213,13 @@ public:
 		MDBG* _mdbg;
 		KminmerAbundanceMap& _kminmerAbundances;
 		ofstream& _kminmerFile;
-		double _minimizerSpacingMean;
-		double _kminmerLengthMean;
-		double _kminmerOverlapMean;
+		float _minimizerSpacingMean;
+		float _kminmerLengthMean;
+		float _kminmerOverlapMean;
 		size_t _minimizerSize;
 		size_t _kminmerSize;
 		size_t _kminmerSizeFirst;
-		BloomCacheCoherent<u_int64_t>* _bloomFilter;
+		//BloomCacheCoherent<u_int64_t>* _bloomFilter;
 
 		FilterKminmerFunctor(CreateMdbg& graph) : _graph(graph), _readFile(graph._readFile), _kminmerExist(graph._kminmerExist), _kminmerAbundances(graph._kminmerAbundances), _kminmerFile(graph._kminmerFile){
 			_isFirstPass = graph._isFirstPass;
@@ -1223,7 +1232,7 @@ public:
 			_minimizerSize = graph._minimizerSize;
 			_kminmerSize = graph._kminmerSize;
 			_kminmerSizeFirst = graph._kminmerSizeFirst;
-			_bloomFilter = graph._bloomFilter;
+			//_bloomFilter = graph._bloomFilter;
 		}
 
 		FilterKminmerFunctor(const FilterKminmerFunctor& copy) : _graph(copy._graph), _readFile(copy._readFile), _kminmerExist(copy._kminmerExist), _kminmerAbundances(copy._kminmerAbundances), _kminmerFile(copy._kminmerFile){
@@ -1237,7 +1246,7 @@ public:
 			_minimizerSize = copy._minimizerSize;
 			_kminmerSize = copy._kminmerSize;
 			_kminmerSizeFirst = copy._kminmerSizeFirst;
-			_bloomFilter = copy._bloomFilter;
+			//_bloomFilter = copy._bloomFilter;
 		}
 
 		~FilterKminmerFunctor(){
@@ -1250,7 +1259,7 @@ public:
 
 
 			u_int64_t readIndex = kminmerList._readIndex;
-			const vector<u_int64_t>& readMinimizers = kminmerList._readMinimizers;
+			const vector<MinimizerType>& readMinimizers = kminmerList._readMinimizers;
 			//const vector<KmerVec>& kminmers = kminmerList._kminmers;
 			const vector<ReadKminmerComplete>& kminmersInfos = kminmerList._kminmersInfo;
 
@@ -1303,6 +1312,8 @@ public:
 				
 				const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
 				const KmerVec& vec = kminmerInfo._vec;
+				//if(kminmerInfo._quality < 5) continue;
+				//cout << (int) kminmerInfo._quality << endl;
 
 				if(_mdbg->_dbg_nodes.find(vec) != _mdbg->_dbg_nodes.end()) continue;
 
@@ -1369,13 +1380,13 @@ public:
 		MDBG* _mdbg;
 		KminmerAbundanceMap& _kminmerAbundances;
 		ofstream& _kminmerFile;
-		double _minimizerSpacingMean;
-		double _kminmerLengthMean;
-		double _kminmerOverlapMean;
+		float _minimizerSpacingMean;
+		float _kminmerLengthMean;
+		float _kminmerOverlapMean;
 		size_t _minimizerSize;
 		size_t _kminmerSize;
 		size_t _kminmerSizeFirst;
-		BloomCacheCoherent<u_int64_t>* _bloomFilter;
+		//BloomCacheCoherent<u_int64_t>* _bloomFilter;
 
 		FilterKminmerFunctor2(CreateMdbg& graph) : _graph(graph), _readFile(graph._readFile), _kminmerExist(graph._kminmerExist), _kminmerAbundances(graph._kminmerAbundances), _kminmerFile(graph._kminmerFile){
 			_isFirstPass = graph._isFirstPass;
@@ -1388,7 +1399,7 @@ public:
 			_minimizerSize = graph._minimizerSize;
 			_kminmerSize = graph._kminmerSize;
 			_kminmerSizeFirst = graph._kminmerSizeFirst;
-			_bloomFilter = graph._bloomFilter;
+			//_bloomFilter = graph._bloomFilter;
 		}
 
 		FilterKminmerFunctor2(const FilterKminmerFunctor2& copy) : _graph(copy._graph), _readFile(copy._readFile), _kminmerExist(copy._kminmerExist), _kminmerAbundances(copy._kminmerAbundances), _kminmerFile(copy._kminmerFile){
@@ -1402,7 +1413,7 @@ public:
 			_minimizerSize = copy._minimizerSize;
 			_kminmerSize = copy._kminmerSize;
 			_kminmerSizeFirst = copy._kminmerSizeFirst;
-			_bloomFilter = copy._bloomFilter;
+			//_bloomFilter = copy._bloomFilter;
 		}
 
 		~FilterKminmerFunctor2(){
@@ -1431,7 +1442,7 @@ public:
 			*/
 
 			u_int64_t readIndex = kminmerList._readIndex;
-			const vector<u_int64_t>& readMinimizers = kminmerList._readMinimizers;
+			const vector<MinimizerType>& readMinimizers = kminmerList._readMinimizers;
 			//const vector<KmerVec>& kminmers = kminmerList._kminmers;
 			const vector<ReadKminmerComplete>& kminmersInfos = kminmerList._kminmersInfo;
 
@@ -1569,10 +1580,10 @@ public:
 
 		}
 		
-		float getReadAbundance(const vector<u_int64_t>& readMinimizers, int& nbKminmers){
+		float getReadAbundance(const vector<MinimizerType>& readMinimizers, int& nbKminmers){
 
 			vector<u_int64_t> rlePositions;
-			vector<u_int64_t> minimizers_pos;//(minimizers.size());
+			vector<u_int32_t> minimizers_pos;//(minimizers.size());
 			vector<KmerVec> kminmers; 
 			vector<ReadKminmer> kminmersInfo;
 			MDBG::getKminmers(_minimizerSize, _graph._kminmerSizePrev, readMinimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, 0, false);
@@ -1613,11 +1624,11 @@ public:
 			return abundance;
 		}
 
-		float getKminmerAbundance(const vector<u_int64_t>& readMinimizers, const ReadKminmerComplete& kminmerInfo){
+		float getKminmerAbundance(const vector<MinimizerType>& readMinimizers, const ReadKminmerComplete& kminmerInfo){
 
 			const KmerVec& vec = kminmerInfo._vec;
 
-			vector<u_int64_t> minimizerSeq;
+			vector<MinimizerType> minimizerSeq;
 			for(size_t i=kminmerInfo._read_pos_start; i<=kminmerInfo._read_pos_end; i++){
 				minimizerSeq.push_back(readMinimizers[i]);
 			}
@@ -1628,10 +1639,10 @@ public:
 			return getAbundance(minimizerSeq);
 		}
 
-		float getAbundance(const vector<u_int64_t>& readMinimizers){
+		float getAbundance(const vector<MinimizerType>& readMinimizers){
 
 			vector<u_int64_t> rlePositions;
-			vector<u_int64_t> minimizers_pos;//(minimizers.size());
+			vector<u_int32_t> minimizers_pos;//(minimizers.size());
 			vector<KmerVec> kminmers; 
 			vector<ReadKminmer> kminmersInfo;
 			MDBG::getKminmers(_minimizerSize, _graph._kminmerSizePrev, readMinimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, 0, false);

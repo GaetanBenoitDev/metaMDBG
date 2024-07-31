@@ -609,19 +609,19 @@ namespace args
         unsigned int width = 500;
         /** The indent of the program line
          */
-        unsigned int progindent = 2;
+        unsigned int progindent = 1;
         /** The indent of the program trailing lines for long parameters
          */
         unsigned int progtailindent = 4;
         /** The indent of the description and epilogs
          */
-        unsigned int descriptionindent = 4;
+        unsigned int descriptionindent = 1;
         /** The indent of the flags
          */
-        unsigned int flagindent = 6;
+        unsigned int flagindent = 2;
         /** The indent of the flag descriptions
          */
-        unsigned int helpindent = 20;
+        unsigned int helpindent = 26;
         /** The additional indent each group adds
          */
         unsigned int eachgroupindent = 2;
@@ -2343,6 +2343,8 @@ namespace args
 
                 Nargs nargs = flag.NumberOfArguments();
 
+                //std::cout << arg << " " << nargs.min << " " << nargs.max << std::endl;
+                
                 if (hasJoined && !allowJoined && nargs.min != 0)
                 {
                     return "Flag '" + arg + "' was passed a joined argument, but these are disallowed";
@@ -2369,11 +2371,15 @@ namespace args
                            values.size() < nargs.max &&
                            (values.size() < nargs.min || ParseOption(*valueIt) == OptionType::Positional))
                     {
+                        if(nargs.min == -1 && ParseOption(*valueIt) != OptionType::Positional) break;
+
                         if (Complete(flag, valueIt, end))
                         {
                             it = end;
                             return "";
                         }
+
+                        //std::cout << (int) ParseOption(*valueIt) << " " << *valueIt << std::endl;
 
                         values.push_back(*valueIt);
                         ++it;
@@ -2381,11 +2387,17 @@ namespace args
                     }
                 }
 
-                if (values.size() > nargs.max)
+                if(nargs.min == -1){
+                    if(values.size() == 0){
+                        return "Flag '" + arg + "' requires at least one argument but received none";
+                    }
+                }
+                else if (values.size() > nargs.max)
                 {
                     return "Passed an argument into a non-argument flag: " + arg;
-                } else if (values.size() < nargs.min)
-                {
+                } 
+                else if (values.size() < nargs.min){
+                    
                     if (nargs.min == 1 && nargs.max == 1)
                     {
                         return "Flag '" + arg + "' requires an argument but received none";
@@ -2396,7 +2408,8 @@ namespace args
                     {
                         return "Flag '" + arg + "' requires at least " + std::to_string(nargs.min) +
                                " arguments but received " + std::to_string(values.size());
-                    } else
+                    }
+                    else
                     {
                         return "Flag '" + arg + "' requires " + std::to_string(nargs.min) +
                                " arguments but received " + std::to_string(values.size());
@@ -2974,6 +2987,7 @@ namespace args
                     help_ << std::string(helpParams.progtailindent, ' ') << *progit << '\n';
                 }
 
+                /*
                 help_ << '\n';
 
                 if (!description_text.empty())
@@ -2991,6 +3005,9 @@ namespace args
                 {
                     help_ << std::string(helpParams.progindent, ' ') << helpParams.optionsString << "\n\n";
                 }
+                */
+
+                bool lastDescriptionIsNewline = false;
 
                 for (const auto &desc: command.GetDescription(helpParams, 0))
                 {
@@ -2998,6 +3015,11 @@ namespace args
                     const auto groupindent = std::get<2>(desc) * helpParams.eachgroupindent;
                     const auto flags = Wrap(std::get<0>(desc), helpParams.width - (helpParams.flagindent + helpParams.helpindent + helpParams.gutter));
                     const auto info = Wrap(std::get<1>(desc), helpParams.width - (helpParams.helpindent + groupindent));
+
+                    if(groupindent == 0){
+                        help_ << '\n';
+                    }
+                    //help_ << groupindent;
 
                     std::string::size_type flagssize = 0;
                     for (auto flagsit = std::begin(flags); flagsit != std::end(flags); ++flagsit)
@@ -3035,15 +3057,14 @@ namespace args
                     }
                 }
 
-                if (!lastDescriptionIsNewline)
-                {
-                    help_ << "\n";
-                }
+                help_ << '\n';
 
                 for (const auto &line: epilog_text)
                 {
                     help_ << std::string(helpParams.descriptionindent, ' ') << line << "\n";
                 }
+
+                help_ << '\n';
             }
 
             /** Generate a help menu as a string.
@@ -3547,7 +3568,7 @@ namespace args
 
             virtual Nargs NumberOfArguments() const noexcept override
             {
-                return nargs;
+                return -1;
             }
 
             virtual void ParseValue(const std::vector<std::string> &values_) override
@@ -3693,6 +3714,9 @@ namespace args
 
             virtual void ParseValue(const std::vector<std::string> &values_) override
             {
+
+                std::cout << "lala: " << values_.size() << std::endl;
+                
                 const std::string &value_ = values_.at(0);
 
                 T v;
@@ -3744,7 +3768,7 @@ namespace args
 
             virtual std::string Name() const override
             {
-                return name + std::string("...");
+                return name;// + std::string("...");
             }
 
             virtual void Reset() noexcept override
@@ -4027,7 +4051,7 @@ namespace args
 
             virtual std::string Name() const override
             {
-                return name + std::string("...");
+                return name;// + std::string("...");
             }
 
             virtual void Reset() noexcept override
@@ -4205,6 +4229,8 @@ namespace args
 
             virtual void ParseValue(const std::string &value_) override
             {
+
+                //std::cout << "LDLQPSLDP: " << value_ << std::endl;
                 T v;
 #ifdef ARGS_NOEXCEPT
                 if (!reader(name, value_, v))
@@ -4220,7 +4246,7 @@ namespace args
 
             virtual std::string Name() const override
             {
-                return name + std::string("...");
+                return name;// + std::string("...");
             }
 
             /** Get the values
@@ -4532,7 +4558,7 @@ namespace args
 
             virtual std::string Name() const override
             {
-                return name + std::string("...");
+                return name;// + std::string("...");
             }
 
             virtual void Reset() noexcept override

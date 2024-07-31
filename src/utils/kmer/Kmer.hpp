@@ -8,9 +8,17 @@
 #include <string>
 #include <cmath>
 
+//#include "hasher.hpp"
+//#include "enumerator.hpp"
+//#include "fastmod.h"
+//#include "../src/utils/fastHasher/FastHasher.h"
+
+
+
 using namespace std;
 
 typedef unsigned __int128 u_int128_t;
+typedef u_int64_t MinimizerType;
 
 
 
@@ -345,14 +353,17 @@ class KmerCanonical
 {
 public:
 
+
+	const u_int64_t& value  () const { return table[(int)choice];   }
+
 	/** Returns the value of the kmer.
 	 * \return the kmer value as a Type object. */
-	const u_int64_t& value  () const { return table[(int)choice];   }
+	const u_int64_t& value  (int& direction) const { direction = choice; return table[(int)choice];   }
 
 	/** Returns the value of the kmer.
 	 * \param[in] which: forward or reverse strand
 	 * \return the kmer value as a Type object. */
-	const u_int64_t& value  (int which) const { return table[which];   }
+	//const u_int64_t& value  (int which) const { return table[which];   }
 
 	/** Comparison operator between two instances.
 	 * \param[in] t : object to be compared to
@@ -512,12 +523,13 @@ public:
         return seq;
     }*/
 
-	bool iterate (const char* seq, size_t length, vector<u_int64_t>& tmpKmers) const{
+	bool iterate (const char* seq, size_t length, vector<u_int64_t>& tmpKmers, vector<u_int8_t>& tmpKmersDirection) const{
 
 		int32_t nbKmers = length - _kmerSize + 1;
 		if (nbKmers <= 0)  { return false; }
 
 		tmpKmers.resize(nbKmers);
+		tmpKmersDirection.resize(nbKmers);
 
 		Kmer result;
 		int indexBadChar = first(seq, result, 0);
@@ -542,7 +554,11 @@ public:
 		exit(1);
 		//this->notification<Callback> (result, idxComputed, callback);
 		*/
-		tmpKmers[idxComputed] = result.value();
+
+		int direction;
+		tmpKmers[idxComputed] = result.value(direction);
+		tmpKmersDirection[idxComputed] = direction;
+
 		if(!result.isValid()) tmpKmers[idxComputed] = -1; //Kmer with max value will be skipped as minimizers
 		idxComputed += 1;
 		
@@ -554,7 +570,8 @@ public:
 			else           { indexBadChar--;     }
 
 			next(c.first, result, indexBadChar<0);
-			tmpKmers[idxComputed] = result.value();
+			tmpKmers[idxComputed] = result.value(direction);
+			tmpKmersDirection[idxComputed] = direction;
 			if(!result.isValid()) tmpKmers[idxComputed] = -1; //Kmer with max value will be skipped as minimizers
 
 			//if(!result.isValid()) cout << "img" << endl;
@@ -953,7 +970,129 @@ public:
 
 
 
+/*
+template <typename Hasher>
+struct mod_sampling {
+    static std::string name() { return "mod_sampling"; }
 
+    mod_sampling(uint64_t w, uint64_t k, uint64_t t, uint64_t seed)
+        : m_w(w), m_k(k), m_t(t), m_seed(seed), m_enum_tmers(w + k - t, t, seed) {
+        m_M_w = fastmod::computeM_u32(m_w);
+    }
+
+    /// Sample from a single window.
+    uint64_t sample(char const* window) {
+
+		//cout << "\t---" << endl;
+		//cout << string(window) << endl;
+        const uint64_t num_tmers = (m_w + m_k - 1) - m_t + 1;
+        uint64_t p = -1;
+        typename Hasher::hash_type min_hash(-1);
+        // Find the leftmost tmer with minimal hash.
+        for (uint64_t i = 0; i != num_tmers; ++i) {
+
+            //char const* tmer = window + i;
+
+			string kmerForward(window + i, m_t);
+			string kmerReverse(window + i, m_t);
+			toReverseComplement(kmerReverse);
+
+			auto hash = Hasher::hash(kmerForward.c_str(), m_w, m_t, m_seed);
+			auto hashRev = Hasher::hash(kmerReverse.c_str(), m_w, m_t, m_seed);
+
+			if(hashRev < hash){
+				hash = hashRev;
+			}
+			//string s1 = string(window + i, m_t);
+			//string s2 = string(window + i, m_t);
+			//toReverseComplement(s2);
+
+			//cout << "\t" << i << " " << kmerForward << " " << kmerReverse << " " << hash << endl;
+			//auto hashRev = Hasher::hash(kmerReverse.c_str(), m_w, m_t, m_seed);
+
+			//u_int8_t direction = 0;
+			//if(hashRev < hash){
+			//	hash = hashRev;
+			//	direction = 1;
+			//}
+
+			//cout << kmerForward << " " << hash << endl;
+			//cout << kmerReverse << " " << hashRev << endl;
+
+			//getchar();
+
+			//if(kmerForward == "TTGCACTCATGAA"){
+			//	cout << hash << " " << (int)direction << endl;
+			//}
+			//if(kmerForward == "TTCATGAGTGCAA"){
+			//	cout << hash << " " << (int)direction << endl;
+			//}
+			//cout << i << " " << m_w << " " << m_t << endl;
+			//getchar();
+			//string kmer_forward(window + i, );
+
+			//cout << window + i
+            
+            if (hash < min_hash) {
+                min_hash = hash;
+                p = i;
+            }
+        }
+        assert(p < num_tmers);
+        uint64_t pos = fastmod::fastmod_u32(p, m_M_w, m_w);  // p % m_w
+
+		//cout << "\t" << pos << endl;
+        return pos;
+    }
+
+    /// Sample from a stream.
+    /// If `clear`, this is the first call.
+    uint64_t sample(char const* window, bool clear) {
+        m_enum_tmers.eat(window, clear);
+        uint64_t p = m_enum_tmers.next();
+        return fastmod::fastmod_u32(p, m_M_w, m_w);  // p % m_w
+    }
+
+	void toReverseComplement(string& seq) {
+
+		//string seq_rc;
+
+		//seq_rc.clear();
+		//seq_rc.reserve(seq.size());
+
+		size_t size = seq.size();
+
+		std::reverse(seq.begin(), seq.end());
+		for (std::size_t i = 0; i < size; ++i){
+			
+			switch (seq[i]){
+			case 'A':
+				seq[i] = 'T';
+				break;    
+			case 'C':
+				seq[i] = 'G';
+				break;
+			case 'G':
+				seq[i] = 'C';
+				break;
+			case 'T':
+				seq[i] = 'A';
+				break;
+			//default:
+			//	seq[i] = seq[i];
+			//	break;
+			}
+		}
+
+
+	}
+
+private:
+    uint64_t m_w, m_k, m_t, m_seed;
+    uint64_t m_M_w;
+    minimizers::enumerator<Hasher> m_enum_tmers;
+};
+*/
 
 
 
@@ -969,6 +1108,7 @@ public:
 	u_int32_t _seed;
 	u_int64_t* _hash_otpt;
 	double _minimizerBound;
+	//double _minimizerBound_int32;
 	size_t _trimBps;
 
 	MinimizerParser(u_int16_t minimizerSize, double minimizerDensity){
@@ -976,8 +1116,11 @@ public:
 		_kmerModel = new KmerModel(_minimizerSize);
 		_seed = 42;
 		_hash_otpt = new u_int64_t[2];
-		u_int64_t maxHashValue = -1;
+		MinimizerType maxHashValue = -1;
 		_minimizerBound = minimizerDensity * maxHashValue;
+
+		//u_int32_t maxHashValue_int32 = -1;
+		//_minimizerBound_int32 = minimizerDensity * maxHashValue_int32;
 		_trimBps = 1; 
 	}
 
@@ -985,11 +1128,14 @@ public:
 		delete[] _hash_otpt;
 	}
 
-	void parse(const string& seq, vector<u_int64_t>& minimizers, vector<u_int64_t>& minimizersPos){
+	void parse(const string& seq, vector<MinimizerType>& minimizers, vector<u_int32_t>& minimizersPos, vector<u_int8_t>& minimizersDirection){
 
 		minimizers.clear();
 		minimizersPos.clear();
+		minimizersDirection.clear();
 
+		//parseMod(seq, 380, 13, minimizers, minimizersPos, minimizersDirection);
+		//return;
 		//parse_windowed(seq, minimizers, minimizersPos, 200);
 		//return;
 		//0 0
@@ -997,8 +1143,10 @@ public:
 		//200000 6550207
 		//300000 9827077
 
+
 		vector<u_int64_t> kmers;
-		_kmerModel->iterate(seq.c_str(), seq.size(), kmers);
+		vector<u_int8_t> kmerDirections;
+		_kmerModel->iterate(seq.c_str(), seq.size(), kmers, kmerDirections);
 
 		if(kmers.size() == 0) return;
 
@@ -1025,17 +1173,19 @@ public:
 			//lala += 1;
 			u_int64_t kmerValue = kmers[pos];
 			MurmurHash3_x64_128 ((const char*)&kmerValue, sizeof(kmerValue), _seed, _hash_otpt);
-			u_int64_t minimizer = _hash_otpt[0];
+			MinimizerType minimizer = _hash_otpt[0];
 
-
+			//u_int32_t minimizer_32bit = minimizer;;
 
 			//if(minimizerCounts[minimizer] > 1000) cout << minimizer << endl;
 			//double kmerHashed_norm = ((double) minimizer) / maxHashValue;
 			if(minimizer < _minimizerBound){//_minimizerDensity){
+			//if(minimizer_32bit < _minimizerBound_int32){//_minimizerDensity){
 
 
 				minimizers.push_back(minimizer);
 				minimizersPos.push_back(pos);
+				minimizersDirection.push_back(kmerDirections[pos]);
 
 				
 				//minimizerCounts[minimizer] += 1;
@@ -1050,6 +1200,180 @@ public:
 
 	}
 
+
+	/*
+	void parseMod(const string& seq, uint64_t w, uint64_t k, vector<MinimizerType>& minimizers, vector<u_int32_t>& minimizersPos, vector<u_int8_t>& minimizersDirection){                                                       
+
+   		//mod_sampling(uint64_t w, uint64_t k, uint64_t t, uint64_t seed)
+        //: m_w(w), m_k(k), m_t(t), m_seed(seed), m_enum_tmers(w + k - t, t, seed) {
+        //m_M_w = 
+		//unordered_map<u_int64_t, u_int64_t> minimizer_to_abundance;
+
+		vector<u_int64_t> hashes;
+
+		vector<u_int64_t> kmers;
+		vector<u_int8_t> kmerDirections;
+		_kmerModel->iterate(seq.c_str(), seq.size(), kmers, kmerDirections);
+
+		if(kmers.size() == 0) return;
+		if(kmers.size() < w) return;
+
+		for(u_int64_t pos=0; pos<kmers.size(); pos++){
+
+			//cout << itKmer->value().getVal() << endl;
+			//cout << itKmer->value() << endl;
+			//cout << pos << " " << (rleSequence.size()-_minimizerSize) << endl;
+
+
+			//if(!itKmer->value().isValid()) continue;
+			//kmer_type kmerMin = min(itKmer->value(), revcomp(itKmer->value(), _kmerSize));
+			//if(lala < 100 ) cout << model.toString(itKmer->value()) << endl;
+			//lala += 1;
+			u_int64_t kmerValue = kmers[pos];
+			MurmurHash3_x64_128 ((const char*)&kmerValue, sizeof(kmerValue), _seed, _hash_otpt);
+			u_int64_t minimizer = _hash_otpt[0];
+			hashes.push_back(minimizer);
+
+			//cout << "\t" << pos << " " << hashes[pos] << endl;
+			//minimizer_to_abundance[hashes[pos]] += 1;
+		}
+
+
+
+		//vector<u_int64_t> hashesFiltered;
+		//vector<u_int8_t> kmerDirectionsFilered;
+
+		//for(size_t i=0; i<hashes.size(); i++){
+		//	if(minimizer_to_abundance[hashes[i]] > 10) continue;
+
+		//	hashesFiltered.push_back(hashes[i]);
+
+		//}
+
+		
+
+		size_t m_M_w = fastmod::computeM_u32(w);
+
+    	const uint64_t r = 4;
+        const uint64_t t = r + ((k - r) % w);
+		//mod_sampling<minimizers::hasher64_type> sampler(w, k, t, 42);
+		//const uint64_t l = w + k - 1;  // num. symbols in window
+
+		unordered_set<u_int32_t> sampledPositions;
+
+    	const uint64_t l = w + k - 1;  // num. symbols in window
+		const uint64_t num_windows = seq.size() - l;
+		//cout << "Nb hashes: " << seq.size() << " " << hashes.size() << endl;
+		//cout << "Nb window: " << num_windows << endl;
+		//const uint64_t num_windows = hashes.size() - w + 1;
+		//size_t tot_num_windows += num_windows;
+
+
+		for (size_t i = 0; i < num_windows; i++) {
+
+			size_t p = modSampleWindow(hashes, i, w, k, t, m_M_w);
+			//cout << "---- " << i << " " << p << endl;
+			sampledPositions.insert(p+i);
+		}
+		
+
+		for(u_int32_t pos : sampledPositions){
+			//if(pos == 0) continue;
+			//if(pos + k >= seq.size()) continue;
+			minimizersPos.push_back(pos);
+		}
+
+		std::sort(minimizersPos.begin(), minimizersPos.end());
+
+		for(u_int64_t pos : minimizersPos){
+			//if(minimizer_to_abundance[hashes[pos]] > 10) continue;
+
+			minimizers.push_back(hashes[pos]);
+			minimizersDirection.push_back(kmerDirections[pos]);
+
+			//cout << "\t" << pos << " " << hashes[pos] << endl;
+			//cout << m << " " << hashes[m] << endl;
+		}
+
+		//cout << kmers.size() << " " << minimizers.size() << " " << (long double) minimizers.size() /kmers.size() << endl;
+
+		//modSample(seq, hashes, w, k);
+
+	}
+	*/
+	/*
+	void modSample(const string& seq, const vector<u_int64_t>& hashes, size_t w, size_t k, vector<MinimizerType>& minimizers, vector<u_int32_t>& minimizersPos, vector<u_int8_t>& minimizersDirection){
+
+		//for(u_int64_t m : hashes){
+			//cout << "\t" << m << endl;
+		//}
+		//size_t m_w = w;
+		size_t m_M_w = fastmod::computeM_u32(w);
+
+    	const uint64_t r = 4;
+        const uint64_t t = r + ((k - r) % w);
+		//mod_sampling<minimizers::hasher64_type> sampler(w, k, t, 42);
+		//const uint64_t l = w + k - 1;  // num. symbols in window
+
+		unordered_set<u_int32_t> sampledPositions;
+
+    	const uint64_t l = w + k - 1;  // num. symbols in window
+		const uint64_t num_windows = seq.size() - l + 1;
+		//cout << "Nb hashes: " << seq.size() << " " << hashes.size() << endl;
+		//cout << "Nb window: " << num_windows << endl;
+		//const uint64_t num_windows = hashes.size() - w + 1;
+		//size_t tot_num_windows += num_windows;
+		for (size_t i = 0; i < num_windows; i++) {
+
+			size_t p = modSampleWindow(hashes, i, w, k, t, m_M_w);
+			//cout << "---- " << i << " " << p << endl;
+			sampledPositions.insert(p+i);
+		}
+		
+
+		for(u_int32_t pos : sampledPositions){
+			//if(pos == 0) continue;
+			//if(pos + k >= seq.size()) continue;
+			minimizersPos.push_back(pos);
+		}
+
+		std::sort(minimizersPos.begin(), minimizersPos.end());
+
+		for(u_int64_t pos : minimizersPos){
+			minimizers.push_back(hashes[pos]);
+
+			//cout << m << " " << hashes[m] << endl;
+		}
+
+
+	}
+	*/
+	/*
+	u_int64_t modSampleWindow(const vector<u_int64_t>& hashes, size_t startI, size_t m_w, size_t m_k, size_t m_t, size_t m_M_w){
+
+        const uint64_t num_tmers = (m_w + m_k - 1) - m_t + 1;
+		//cout << "Num tmers: " << num_tmers << endl;
+
+        u_int64_t p = -1;
+		u_int64_t minHash = -1;
+
+		for(size_t i=startI; i<startI+num_tmers; i++){
+
+			//cout << i << " " << hashes.size() << " " << hashes[i] << endl;
+            if (hashes[i] < minHash) {
+                minHash = hashes[i];
+                p = i-startI;
+            }
+
+		}
+
+		//cout << "Min: " << minHash << " " << p << endl;
+		//getchar();
+        return fastmod::fastmod_u32(p, m_M_w, m_w);  // p % m_w
+    }
+
+	*/
+	/*
 	void parse_windowed(const string& seq, vector<u_int64_t>& minimizers, vector<u_int64_t>& minimizersPos, size_t w){
 
 		minimizers.clear();
@@ -1108,6 +1432,214 @@ public:
 
 
 	}
+	*/
+
+	/*
+
+	void parseSyncmers(const string& readSeq, vector<u_int64_t>& minimizers, vector<u_int64_t>& minimizersPos){ //size_t kmerSize, size_t windowSize, size_t minimizerSize
+
+
+		size_t kmerSize = 13;
+		size_t windowSize = 1000;
+		size_t smerSize = 5;
+
+		minimizers.clear();
+		minimizersPos.clear();
+
+		vector<u_int16_t> seq;
+
+		for(char nt : readSeq){
+			switch(nt)
+			{
+				case 'a':
+				case 'A':
+					seq.push_back(0);
+					break;
+				case 'c':
+				case 'C':
+					seq.push_back(1);
+					break;
+				case 'g':
+				case 'G':
+					seq.push_back(2);
+					break;
+				case 't':
+				case 'T':
+					seq.push_back(3);
+					break;
+			}
+		}
+
+
+
+		if (seq.size() < kmerSize) return;
+		// keep the same smerOrder to reduce mallocs which destroy multithreading performance
+		thread_local std::vector<std::tuple<size_t, uint64_t>> smerOrder;
+		smerOrder.resize(0);
+		std::vector<size_t> positions;
+		//if (endSmers.size() > 0)
+		//{
+		//	findSyncmerPositions(seq, kmerSize, kmerSize - windowSize + 1, smerOrder, [this](uint64_t hash) { return endSmers[hash % endSmers.size()]; }, [this, &positions](size_t pos)
+		//	{
+		//		assert(positions.size() == 0 || pos > positions.back());
+		//		assert(positions.size() == 0 || pos - positions.back() <= windowSize);
+		//		positions.push_back(pos);
+		//	});
+		//}
+		//else
+		//{
+			findSyncmerPositions(seq, kmerSize, windowSize, smerSize, smerOrder, minimizers, minimizersPos); //kmerSize, kmerSize - windowSize + 1
+
+			//{
+				// assert(positions.size() == 0 || pos > positions.back());
+				// assert(positions.size() == 0 || pos - positions.back() <= windowSize);
+			//	positions.push_back(pos);
+			//});
+		//}
+		//callback(read, seq, poses, rawSeq, positions);
+
+		//cout << endl << endl << endl;
+		for(u_int64_t pos : minimizersPos){
+			//cout << pos << " " << (readSeq.size() - (pos + windowSize + smerSize - 1))<< endl;
+		}
+		
+		string readSeqRev = readSeq;
+		toReverseComplement(readSeqRev);
+
+		for(u_int64_t pos : minimizersPos){
+
+			string minimizerSequence = readSeq.substr(pos, kmerSize);
+			size_t revPos = (readSeq.size() - (pos + windowSize + smerSize - 1));
+			string minimizerSequenceRev = readSeqRev.substr(revPos, kmerSize);
+
+			//cout << minimizerSequence << " " << minimizerSequenceRev << endl;
+
+			u_int64_t h1 = hashLala(minimizerSequence);
+			u_int64_t h2 = hashLala(minimizerSequenceRev);
+
+			if(h1 < h2){
+				minimizers.push_back(h1);
+				//cout << h1 << endl;
+			}
+			else{
+				minimizers.push_back(h2);
+				//cout << h2 << endl;
+			}
+
+			//	VectorView<CharType> minimizerSequence { seq, pos, pos + kmerSize };
+			//	size_t revPos = seq.size() - (pos + kmerSize);
+			//	VectorView<CharType> revMinimizerSequence { revSeq, revPos, revPos + kmerSize };
+			//	HashType fwHash = hash(minimizerSequence, revMinimizerSequence);
+
+
+
+		}
+		
+
+	}
+
+
+	static void toReverseComplement(string& seq) {
+
+
+		size_t size = seq.size();
+
+		std::reverse(seq.begin(), seq.end());
+		for (std::size_t i = 0; i < size; ++i){
+			
+			switch (seq[i]){
+			case 'A':
+				seq[i] = 'T';
+				break;    
+			case 'C':
+				seq[i] = 'G';
+				break;
+			case 'G':
+				seq[i] = 'C';
+				break;
+			case 'T':
+				seq[i] = 'A';
+				break;
+			//default:
+			//	seq[i] = seq[i];
+			//	break;
+			}
+		}
+
+
+	}
+
+	u_int64_t hashLala(const string& seq){
+		MurmurHash3_x64_128 (seq.c_str(), seq.size(), _seed, _hash_otpt);
+		u_int64_t kemrHashed = _hash_otpt[0];
+
+		return kemrHashed;
+	}
+
+	//template <typename F, typename EdgeCheckFunction>
+	void findSyncmerPositions(const vector<u_int16_t>& sequence, size_t kmerSize, size_t windowSize, size_t smerSize, std::vector<std::tuple<size_t, uint64_t>>& smerOrder, vector<u_int64_t>& minimizers, vector<u_int64_t>& minimizersPos)
+	{
+
+		//vector<u_int64_t> hashes(sequence.size(), -1);
+
+		//if (sequence.size() < kmerSize) return;
+		//assert(smerSize <= kmerSize);
+		//size_t windowSize = kmerSize - smerSize + 1;
+		//assert(windowSize >= 1);
+
+
+		MBG::FastHasher fwkmerHasher { smerSize };
+		for (size_t i = 0; i < smerSize; i++)
+		{
+			fwkmerHasher.addChar(sequence[i]);
+		}
+		auto thisHash = fwkmerHasher.hash();
+		//if (endSmer(thisHash)) thisHash = 0;
+		smerOrder.emplace_back(0, thisHash);
+		for (size_t i = 1; i < windowSize; i++)
+		{
+			size_t seqPos = smerSize+i-1;
+			fwkmerHasher.addChar(sequence[seqPos]);
+			fwkmerHasher.removeChar(sequence[seqPos-smerSize]);
+			uint64_t hash = fwkmerHasher.hash();
+			//hashes[i] = hash;
+			//if (endSmer(hash)) hash = 0;
+			while (smerOrder.size() > 0 && std::get<1>(smerOrder.back()) > hash) smerOrder.pop_back();
+			smerOrder.emplace_back(i, hash);
+		}
+		if ((std::get<0>(smerOrder.front()) == 0) || (std::get<1>(smerOrder.back()) == std::get<1>(smerOrder.front()) && std::get<0>(smerOrder.back()) == windowSize-1))
+		{
+			minimizersPos.push_back(0);
+			//minimizers.push_back(0);
+			//cout << 0 << endl;
+			//callback(0);
+		}
+		for (size_t i = windowSize; smerSize+i-1 < sequence.size(); i++)
+		{
+			size_t seqPos = smerSize+i-1;
+			fwkmerHasher.addChar(sequence[seqPos]);
+			fwkmerHasher.removeChar(sequence[seqPos-smerSize]);
+			uint64_t hash = fwkmerHasher.hash();
+			//hashes[i] = hash;
+			//if (endSmer(hash)) hash = 0;
+			// even though pop_front is used it turns out std::vector is faster than std::deque ?!
+			// because pop_front is O(w), but it is only called in O(1/w) fraction of loops
+			// so the performace penalty of pop_front does not scale with w!
+			// and std::vector's speed in normal, non-popfront operation outweighs the slow pop_front
+			while (smerOrder.size() > 0 && std::get<0>(smerOrder.front()) <= i - windowSize) smerOrder.erase(smerOrder.begin());
+			while (smerOrder.size() > 0 && std::get<1>(smerOrder.back()) > hash) smerOrder.pop_back();
+			smerOrder.emplace_back(i, hash);
+			if ((std::get<0>(smerOrder.front()) == i-windowSize+1) || (std::get<1>(smerOrder.back()) == std::get<1>(smerOrder.front()) && std::get<0>(smerOrder.back()) == i))
+			{
+				minimizersPos.push_back(i-windowSize+1);
+				//minimizers.push_back(hashes[i]);
+				//cout << i-windowSize+1 << " " << hashes[i] << endl;
+				//callback(i-windowSize+1);
+			}
+		}
+
+	}
+	*/
 
 };
 

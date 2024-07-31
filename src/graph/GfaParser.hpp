@@ -3,23 +3,24 @@
 #ifndef MDBG_METAG_GFAPARSER
 #define MDBG_METAG_GFAPARSER
 
-using namespace std;
-#include <string>
-#include <fstream>
-#include <iostream>
-#include <vector>
+//using namespace std;
+//#include <string>
+//#include <fstream>
+//#include <iostream>
+//#include <vector>
 #include "Graph.hpp"
 #include "../Commons.hpp"
+
 //#include "GraphSimplify.hpp"
 
-struct UnitigLength{
+//struct UnitigLength{
 	//u_int32_t _index;
-    u_int32_t _length;
+  //  u_int32_t _length;
     //u_int32_t _nodeIndex;
     
-    float _abundance;
-    u_int32_t _startNodeIndex;
-};
+    //float _abundance;
+    //u_int32_t _startNodeIndex;
+//};
 
 
 
@@ -353,7 +354,7 @@ public:
         return graph;
     }
 
-    static void binaryGraph_to_gfa(const string& filename, float kminmerLengthMean, float kminmerOverlapMean, const string& outputFilename, const vector<NodeData>& nodeDatas){
+    static void binaryGraph_to_gfa(const string& filename, float kminmerLengthMean, float kminmerOverlapMean, const string& outputFilename, const vector<u_int32_t>& nodeDatas){
 
         ofstream outputFile(outputFilename);
         
@@ -411,12 +412,12 @@ public:
                 
                 if(isWrittenNodeName.find(nodeName1) == isWrittenNodeName.end()){
                     isWrittenNodeName.insert(nodeName1);
-                    outputFile << "S" << "\t" << nodeName1 << "\t" << "*" << "\t" << "LN:i:" << nodeDatas[nodeName1]._length << "\t" << "dp:i:" << nodeDatas[nodeName1]._abundance << endl;
+                    outputFile << "S" << "\t" << nodeName1 << "\t" << "*" << "\t" << "LN:i:" << kminmerLengthMean << "\t" << "dp:i:" << nodeDatas[nodeName1] << endl;
                 }
 
                 if(isWrittenNodeName.find(nodeName2) == isWrittenNodeName.end()){
                     isWrittenNodeName.insert(nodeName2);
-                    outputFile << "S" << "\t" << nodeName2 << "\t" << "*" << "\t" << "LN:i:" << nodeDatas[nodeName2]._length << "\t" << "dp:i:" << nodeDatas[nodeName2]._abundance << endl;
+                    outputFile << "S" << "\t" << nodeName2 << "\t" << "*" << "\t" << "LN:i:" << kminmerLengthMean << "\t" << "dp:i:" << nodeDatas[nodeName2] << endl;
                 }
 
                 outputFile << "L" << "\t" << nodeName1 << "\t" << ori1str << "\t" << nodeName2 << "\t" << ori2str << "\t" << kminmerOverlapMean << "M" << endl;
@@ -427,7 +428,7 @@ public:
 
     }
 
-    static void binaryGraph_to_gfa(const string& filename, float kminmerLengthMean, float kminmerOverlapMean, const string& outputFilename, const vector<NodeData>& nodeDatas, const vector<bool>& isNodeRemoved){
+    static void binaryGraph_to_gfa(const string& filename, float kminmerLengthMean, float kminmerOverlapMean, const string& outputFilename, const vector<u_int32_t>& nodeDatas, const vector<bool>& isNodeRemoved){
 
         ofstream outputFile(outputFilename);
         
@@ -488,12 +489,12 @@ public:
                 
                 if(isWrittenNodeName.find(nodeName1) == isWrittenNodeName.end()){
                     isWrittenNodeName.insert(nodeName1);
-                    outputFile << "S" << "\t" << nodeName1 << "\t" << "*" << "\t" << "LN:i:" << nodeDatas[nodeName1]._length << "\t" << "dp:i:" << nodeDatas[nodeName1]._abundance << endl;
+                    outputFile << "S" << "\t" << nodeName1 << "\t" << "*" << "\t" << "LN:i:" << kminmerLengthMean << "\t" << "dp:i:" << nodeDatas[nodeName1] << endl;
                 }
 
                 if(isWrittenNodeName.find(nodeName2) == isWrittenNodeName.end()){
                     isWrittenNodeName.insert(nodeName2);
-                    outputFile << "S" << "\t" << nodeName2 << "\t" << "*" << "\t" << "LN:i:" << nodeDatas[nodeName2]._length << "\t" << "dp:i:" << nodeDatas[nodeName2]._abundance << endl;
+                    outputFile << "S" << "\t" << nodeName2 << "\t" << "*" << "\t" << "LN:i:" << kminmerLengthMean << "\t" << "dp:i:" << nodeDatas[nodeName2] << endl;
                 }
 
                 outputFile << "L" << "\t" << nodeName1 << "\t" << ori1str << "\t" << nodeName2 << "\t" << ori2str << "\t" << kminmerOverlapMean << "M" << endl;
@@ -615,7 +616,7 @@ public:
 
 
         return graph;
-    }*/
+    }
 
     static u_int64_t getNodeToUnitig(const string& filename, vector<int32_t>& node_to_unitig){
 
@@ -650,6 +651,7 @@ public:
         return nbUnitigs;
     }
 
+    
     static u_int64_t getUnitigLengths(const string& filename, vector<UnitigLength>& unitigLengths){
 
         u_int64_t nbUnitigs = 0;
@@ -699,6 +701,7 @@ public:
 
         return nbUnitigs;
     }
+    */
 
     static void getNodeData(const string& filename, vector<u_int32_t>& nodeAbundances, vector<u_int32_t>& nodeLengths){ //unordered_map<u_int32_t, u_int32_t>& nodeAbundances, unordered_map<u_int32_t, u_int32_t>& nodeLengths){
 
@@ -746,6 +749,7 @@ public:
         delete fields_optional;
     }
 
+    /*
     BiGraph* createBiGraph(const string& filename, vector<int32_t>& node_to_unitig, vector<u_int32_t>& unitigLengths){
 
 
@@ -831,7 +835,7 @@ public:
 
         return graph;
     }
-
+    */
 
     static void tokenize(const string& line, vector<string>* tokens, char delim){
 
@@ -851,6 +855,7 @@ public:
 
     }
 
+    /*
     static u_int32_t unitigName_to_id(string unitig_name){
         unitig_name.erase(unitig_name.begin());
         unitig_name.erase(unitig_name.begin());
@@ -1005,7 +1010,7 @@ public:
                 u_int32_t nodeIndex_from = graph->nodeName_to_nodeIndex(from, from_orient);
                 u_int32_t nodeIndex_to = graph->nodeName_to_nodeIndex(to, to_orient);
                 
-                if(graph->isEdgeRemoved(nodeIndex_from, nodeIndex_to)) continue;
+                //if(graph->isEdgeRemoved(nodeIndex_from, nodeIndex_to)) continue;
                 //if(!graph->edgeExists(nodeIndex_from, nodeIndex_to)) continue;
                 //DbgEdge edge = {nodeIndex_from, nodeIndex_to};
                 //edge = edge.normalize();
@@ -1024,7 +1029,6 @@ public:
         delete fields_optional;
         
     }
-
 
 
     void rewriteGfa_withUnitigs(const string& filename, const string& outputFilename, const unordered_set<u_int32_t>& nodes, const vector<UnitigData>& unitigDatas){
@@ -1072,7 +1076,7 @@ public:
         
     }
 
-    /*
+    
     void writeGfa(AdjGraph* graph, const string& outputFilename, const vector<u_int32_t>& unitigsLength){
 
         cout << "Dumping graph: " << outputFilename << endl;

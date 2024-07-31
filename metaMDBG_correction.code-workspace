@@ -1,0 +1,24 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"iostream": "cpp",
+			"ostream": "cpp",
+			"*.tcc": "cpp",
+			"iosfwd": "cpp",
+			"fstream": "cpp",
+			"new": "cpp",
+			"functional": "cpp",
+			"memory": "cpp",
+			"tuple": "cpp",
+			"limits": "cpp",
+			"cmath": "cpp",
+			"unordered_set": "cpp",
+			"cstdint": "cpp"
+		}
+	}
+}

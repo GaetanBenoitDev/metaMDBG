@@ -14,9 +14,8 @@ public:
 	string _inputDir;
 	string _inputFilenameContig;
 	size_t _kminmerSize;
-	ofstream& _logFile;
 
-	OverlapRemover(const string& inputDir, const string& inputFilenameContig, size_t kminmerSize, ofstream& logFile) : _logFile(logFile){
+	OverlapRemover(const string& inputDir, const string& inputFilenameContig, size_t kminmerSize){
 		_inputDir = inputDir;
 		_inputFilenameContig = inputFilenameContig;
 		_kminmerSize = kminmerSize-1;
@@ -55,7 +54,7 @@ public:
 
 	struct Contig{
 		u_int32_t _contigIndex;
-		vector<u_int64_t> _minimizers;
+		vector<MinimizerType> _minimizers;
 		vector<u_int32_t> _kminmers;
 		u_int8_t isCircular;
 	};
@@ -129,10 +128,12 @@ public:
 
 			u_int32_t contigIndex = 0;
 
+			u_int64_t checksum = 0;
+
 			for(size_t i=0; i<contigsTmp.size(); i++){
 				if(contigsTmp[i]._minimizers.size() == 0) continue;
 
-				vector<u_int64_t> minimizersPos; 
+				vector<u_int32_t> minimizersPos; 
 				vector<u_int64_t> rlePositions; 
 				vector<KmerVec> kminmers; 
 				vector<ReadKminmer> kminmersInfo;
@@ -140,9 +141,14 @@ public:
 
 				indexContigs_read(contigsTmp[i]._minimizers, kminmers, kminmersInfo, contigsTmp[i].isCircular, contigIndex);
 				contigIndex += 1;
+
+				for(u_int64_t m : contigsTmp[i]._minimizers){
+					checksum += m*contigsTmp[i]._minimizers.size();
+				}
 			}
 
-			_logFile << "Nb contigs: " << contigIndex << endl;
+			Logger::get().debug() << "Nb contigs: " << contigIndex ;
+			Logger::get().debug() << "OverlapRemover checksum: " << checksum;
 		
 			//getchar();
 		}
@@ -158,7 +164,7 @@ public:
 			u_int32_t contigSize = _contigs[i]._minimizers.size();
 			outputFile.write((const char*)&contigSize, sizeof(contigSize));
 			outputFile.write((const char*)&_contigs[i].isCircular, sizeof(_contigs[i].isCircular));
-			outputFile.write((const char*)&_contigs[i]._minimizers[0], contigSize*sizeof(u_int64_t));
+			outputFile.write((const char*)&_contigs[i]._minimizers[0], contigSize*sizeof(MinimizerType));
 
 			//_logFile << contigSize << endl;
 			nbContigs += 1;
@@ -168,7 +174,7 @@ public:
 		fs::remove(_inputFilenameContig);
 		fs::rename(_inputFilenameContig + ".nooverlaps", _inputFilenameContig);
 
-		_logFile << nbContigs << endl;
+		Logger::get().debug() << "Nb contigs: " << nbContigs;
 		//getchar();
 
 
@@ -204,7 +210,7 @@ public:
 
 	void indexKminmers(){
 
-		_logFile << "Indexing kminmers" << endl;
+		Logger::get().debug() << "Indexing kminmers";
 
 		_kminmerID = 0;
 
@@ -213,7 +219,7 @@ public:
 		parser.parse(fp);
 	}
 
-	void indexKminmers_read(const vector<u_int64_t>& readMinimizers, const vector<KmerVec>& vecs, const vector<ReadKminmer>& kminmersInfos, u_int8_t isCircular, u_int32_t readIndex){
+	void indexKminmers_read(const vector<MinimizerType>& readMinimizers, const vector<KmerVec>& vecs, const vector<ReadKminmer>& kminmersInfos, u_int8_t isCircular, u_int32_t readIndex){
 		
 		for(u_int32_t i=0; i<vecs.size(); i++){
 			
@@ -228,7 +234,7 @@ public:
 
 	void indexContigs(){
 
-		_logFile << "Indexing contigs" << endl;
+		Logger::get().debug() << "Indexing contigs";
 
 		KminmerParser parser(_inputFilenameContig, -1, _kminmerSize, false, false);
 		auto fp = std::bind(&OverlapRemover::indexContigs_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5);
@@ -237,7 +243,7 @@ public:
 		//_kminmerToIndex.clear();
 	}
 
-	void indexContigs_read(const vector<u_int64_t>& readMinimizers, const vector<KmerVec>& vecs, const vector<ReadKminmer>& kminmersInfos, u_int8_t isCircular, u_int32_t readIndex){
+	void indexContigs_read(const vector<MinimizerType>& readMinimizers, const vector<KmerVec>& vecs, const vector<ReadKminmer>& kminmersInfos, u_int8_t isCircular, u_int32_t readIndex){
 
 		unordered_set<u_int32_t> indexedKminmer;
 		vector<u_int32_t> nodepath;
@@ -265,7 +271,7 @@ public:
 	void removeOverlapsSelf(){
 
 		//isContigRemoved.resize(_contigs.size(), false);
-		_logFile << "Removing self overlaps: " << _contigs.size()<< endl;
+		Logger::get().debug() << "Removing self overlaps: " << _contigs.size();
 
 		//while(true){
 
@@ -302,7 +308,7 @@ public:
 	bool removeOverlaps(){
 
 		//isContigRemoved.resize(_contigs.size(), false);
-		_logFile << "detecting overlaps" << endl;
+		Logger::get().debug() << "detecting overlaps";
 
 		//while(true){
 

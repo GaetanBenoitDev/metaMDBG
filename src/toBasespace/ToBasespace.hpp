@@ -21,68 +21,6 @@ Tester la vitesse de racon pour verifier que je suis sur la bonne voix
 //#include <cstring>
 
 
-// for nt
-// AaCcGgTtNn ==> 0,1,2,3,4
-extern unsigned char nt4_table;
-unsigned char nt4_table2[256] = {
-       0, 1, 2, 3,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-       4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-       4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4 /*'-'*/, 4, 4,
-       4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-       4, 0, 4, 1,  4, 4, 4, 2,  4, 4, 4, 4,  4, 4, 4, 4, 
-       4, 4, 4, 4,  3, 3, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-       4, 0, 4, 1,  4, 4, 4, 2,  4, 4, 4, 4,  4, 4, 4, 4, 
-       4, 4, 4, 4,  3, 3, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-       4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-       4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-       4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-       4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-       4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-       4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-       4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-       4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4
-};
-
-// 65,97=>A, 67,99=>C, 71,103=>G, 84,85,116,117=>T, else=>N
-const char nt256_table2[256] = {
-       'A', 'C', 'G', 'T',  'N', '-', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
-       'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', '-',  'N', 'N', 'N', 'N',
-       'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
-       'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
-       'N', 'A', 'N', 'C',  'N', 'N', 'N', 'G',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
-       'N', 'N', 'N', 'N',  'T', 'T', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
-       'N', 'A', 'N', 'C',  'N', 'N', 'N', 'G',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
-       'N', 'N', 'N', 'N',  'T', 'T', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
-       'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
-       'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
-       'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
-       'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
-       'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
-       'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
-       'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',
-       'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N',  'N', 'N', 'N', 'N'
-};
-
-
-struct KminmerSequenceVariant{
-	u_int16_t _editDistance;
-	DnaBitset* _sequence;
-};
-
-struct KminmerSequenceVariant_Comparator {
-	bool operator()(KminmerSequenceVariant const& p1, KminmerSequenceVariant const& p2)
-	{
-		return p1._editDistance < p2._editDistance;
-	}
-};
-
-typedef priority_queue<KminmerSequenceVariant, vector<KminmerSequenceVariant>, KminmerSequenceVariant_Comparator> VariantQueue;
-
-struct ReadSequence{
-	u_int64_t _readIndex;
-	DnaBitset* _sequence;
-	VariantQueue _variants;
-};
 
 class ToBasespace : public Tool{
     
@@ -173,6 +111,7 @@ public:
 	gzFile _outputFile_left;
 	gzFile _outputFile_right;
 	//std::unique_ptr<spoa::AlignmentEngine> _alignment_engine;
+	bool _useHomopolymerCompression;
 
 	void parseArgs(int argc, char* argv[]){
 
@@ -187,6 +126,7 @@ public:
 		//args::ValueFlag<float> arg_d(parser, "", "Minimizer density", {ARG_MINIMIZER_DENSITY2}, 0.005f);
 		//args::ValueFlag<std::string> arg_contigs(parser, "", "", {ARG_INPUT_FILENAME_CONTIG}, "");
 		args::ValueFlag<int> arg_nbCores(parser, "", "Number of cores", {ARG_NB_CORES2}, NB_CORES_DEFAULT_INT);
+		args::Flag arg_homopolymerCompression(parser, "", "Activate homopolymer compression", {ARG_HOMOPOLYMER_COMPRESSION});
 		//args::Flag arg_firstPass(parser, "", "Is first pass of multi-k", {ARG_FIRST_PASS});
 		//args::Flag arg_isFinalAssembly(parser, "", "Is final multi-k pass", {ARG_FINAL});
 		//args::Flag arg_firstPass(parser, "", "Is first pass of multi-k", {ARG_FIRST_PASS});
@@ -215,6 +155,11 @@ public:
 		_filename_outputContigs = args::get(arg_outputContigFilename);
 		_inputFilename = args::get(arg_inputReadFilename);
 		_nbCores = args::get(arg_nbCores);
+
+		_useHomopolymerCompression = false;
+		if(arg_homopolymerCompression){
+			_useHomopolymerCompression = true;
+		}
 
 		/*
 		cxxopts::Options options("ToBasespace", "");
@@ -272,16 +217,16 @@ public:
 		gzclose(file_parameters);
 
 		_kminmerSize = _kminmerSizeFirst;
-
+		
 		openLogFile(_inputDir);
 
-		_logFile << endl;
-		_logFile << "Input dir: " << _inputDir << endl;
+		Logger::get().debug() << "";
+		Logger::get().debug() << "Input dir: " << _inputDir;
 		//_logFile << "Output filename: " << _outputFilename << endl;
-		_logFile << "Minimizer length: " << _minimizerSize << endl;
-		_logFile << "Kminmer length: " << _kminmerSize << endl;
-		_logFile << "Density: " << _minimizerDensity << endl;
-		_logFile << endl;
+		Logger::get().debug() << "Minimizer length: " << _minimizerSize;
+		Logger::get().debug() << "Kminmer length: " << _kminmerSize;
+		Logger::get().debug() << "Density: " << _minimizerDensity;
+		Logger::get().debug() << "";
 
 		//_filename_outputContigs = _inputDir + "/contigs.fasta.gz";
 		//_filename_outputContigs = _inputFilenameContig + ".fasta.gz"; //_inputDir + "/tmpContigs.fasta.gz";
@@ -434,7 +379,7 @@ public:
 		_logFile << endl << "Contig filename: " << _filename_outputContigs << endl;
 		*/
 
-		closeLogFile();
+		//closeLogFile();
 	}
 
 	struct KminmerPos{
@@ -461,7 +406,7 @@ public:
 	void indexContigs(){
 
 
-		cerr << "Parsing contigs" << endl;
+		Logger::get().debug() << "Parsing contigs";
 		KminmerParserParallel parser(_inputFilenameContig, _minimizerSize, _kminmerSize, false, false, _nbCores);
 		parser.parse(IndexContigsFunctor(*this));
 
@@ -507,11 +452,16 @@ public:
 
 	void indexReads(){
 
+		bool hasQuality = true;
+		if(_useHomopolymerCompression){ //hifi
+			hasQuality = false;
+		}
 
-		_logFile << "Indexing reads" << endl;
+		Logger::get().debug() << "Indexing reads";
 		_unitigDatas.resize(_kmerVec_to_nodeName.size());
 		
-		KminmerParserParallel parser(_inputDir + "/read_data_init.txt", _minimizerSize, _kminmerSize, false, true, _nbCores);
+		KminmerParserParallel parser(_inputDir + "/read_data_init.txt", _minimizerSize, _kminmerSize, false, hasQuality, _nbCores);
+		parser._densityThreshold = _minimizerDensity;
 		//parser2.parse(FilterKminmerFunctor2(*this));
 		parser.parse(IndexReadsFunctor(*this));
 
@@ -747,7 +697,7 @@ public:
 	void setupKminmerSequenceExtraction(){
 
 
-		cerr << "Parsing contigs" << endl;
+		Logger::get().debug() << "Parsing contigs";
 		KminmerParserParallel parser(_inputFilenameContig, _minimizerSize, _kminmerSize, false, false, 1);
 		parser.parse(SetupKminmerSequenceExtractionFunctor(*this));
 
@@ -786,7 +736,7 @@ public:
 
 					ContigPosition contigPosition =  {(u_int32_t) kminmerList._readIndex, i};
 					if(_toBasespace._contigPosition_to_readPosition.find(contigPosition) == _toBasespace._contigPosition_to_readPosition.end()){
-						cerr << "No read position for contig position" << endl;
+						//Logger::get().debug() << "No read position for contig position";
 						continue;
 					}
 
@@ -1011,7 +961,7 @@ public:
 		}
 		
 		//"reprise: verifier que cette partie est bien paralleliser, ça a tourner a 100% de cpu la derniere run"
-		_logFile << "Correcting repeated kminmers: " << readNodeNames.size() << endl;
+		Logger::get().debug() << "Correcting repeated kminmers: " << readNodeNames.size();
 		#pragma omp parallel num_threads(_nbCores)
 		{
 
@@ -1635,17 +1585,17 @@ public:
 
 	void extractKminmerSequences_model (){
 
-		_logFile << "Extracting kminmer models" << endl;
-		ReadParserParallel readParser(_inputFilename, false, false, _nbCores, _logFile);
+		Logger::get().debug() << "Extracting kminmer models" ;
+		ReadParserParallel readParser(_inputFilename, false, false, _nbCores);
 		readParser.parse(ExtractKminmerSequenceFunctor(_minimizerSize, _minimizerDensity, *this, true));
 	}
 
 	void extractKminmerSequences_allVariants (){
 
-		_logFile << "Extracting kminmer sequence variants" << endl;
+		Logger::get().debug() << "Extracting kminmer sequence variants" ;
 
 		//auto fp = std::bind(&ToBasespace::extractKminmerSequences_allVariants_read, this, std::placeholders::_1);
-		ReadParserParallel readParser(_inputFilename, false, false, _nbCores, _logFile);
+		ReadParserParallel readParser(_inputFilename, false, false, _nbCores);
 		readParser.parse(ExtractKminmerSequenceFunctor(_minimizerSize, _minimizerDensity, *this, false));
 
 	}
@@ -1687,7 +1637,7 @@ public:
 			u_int32_t readIndex = read._index;
 
 			if(readIndex % 100000 == 0){
-				_toBasespace._logFile << "Correcting kminmer " << readIndex << endl;
+				Logger::get().debug() << "Correcting kminmer " << readIndex;
 			}
 			//ottalSize += strlen(read->seq.s);
 						
@@ -1696,11 +1646,12 @@ public:
 
 			string rleSequence;
 			vector<u_int64_t> rlePositions;
-			_encoderRLE.execute(read._seq.c_str(), read._seq.size(), rleSequence, rlePositions);
+			_encoderRLE.execute(read._seq.c_str(), read._seq.size(), rleSequence, rlePositions, _toBasespace._useHomopolymerCompression);
 
-			vector<u_int64_t> minimizers;
-			vector<u_int64_t> minimizers_pos;
-			_minimizerParser->parse(rleSequence, minimizers, minimizers_pos);
+			vector<MinimizerType> minimizers;
+			vector<u_int32_t> minimizers_pos;
+			vector<u_int8_t> minimizers_direction;
+			_minimizerParser->parse(rleSequence, minimizers, minimizers_pos, minimizers_direction);
 
 			vector<KmerVec> kminmers; 
 			vector<ReadKminmer> kminmersInfo;
@@ -2059,330 +2010,354 @@ public:
 
 		_contigFileSupported_input = ifstream(contigFilename + ".tmp");
 
-		_logFile << "Creating basespace contigs: " << contigFilename << endl;
+		Logger::get().debug() << "Creating basespace contigs: " << contigFilename;
 
 
-		KminmerParser parser(contigFilename, _minimizerSize, _kminmerSize, false, false);
-		auto fp = std::bind(&ToBasespace::createBaseContigs_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
-		parser.parseMinspace(fp);
+		//KminmerParserParallel parser(contigFilename, _minimizerSize, _kminmerSize, false, false);
+		KminmerParserParallel parser(_inputFilenameContig, _minimizerSize, _kminmerSize, false, false, 1);
+		parser.parse(CreateBaseContigsFunctor(*this));
+		//auto fp = std::bind(&ToBasespace::createBaseContigs_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
+		//parser.parseMinspace(fp);
 
 		_contigFileSupported_input.close();
 
 
-		_logFile << "Nb contigs: " << (_contigIndex) << endl;
-		_logFile << "Nb bps: " << _nbBps << endl;
-		_logFile << "Checksum: " << _checksum << endl;
-		_logFile << "Checksum (best support): " << _bestSupportChecksum << endl;
+		Logger::get().debug() << "Nb contigs: " << (_contigIndex);
+		Logger::get().debug() << "Nb bps: " << _nbBps;
+		Logger::get().debug() << "Checksum: " << _checksum;
+		Logger::get().debug() << "Checksum (best support): " << _bestSupportChecksum;
 
 	}
 
-	void createBaseContigs_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int8_t isCircular, u_int64_t readIndex){
-
-		//cout << kminmersInfos.size() << endl;
-		//if(_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) return;
-
-		//vector<u_int64_t> supportingReads;
-		//u_int32_t size;
-		//_contigFileSupported_input.read((char*)&size, sizeof(size));
-		//supportingReads.resize(size);
-		//_contigFileSupported_input.read((char*)&supportingReads[0], size*sizeof(u_int64_t));
-
-		//_logFile << readIndex << " " << kminmersInfos.size() << endl;
-		
-		string contigSequence = "";
-
-		for(u_int32_t i=0; i<kminmersInfos.size(); i++){
-			
-			
-			ContigPosition contigPosition =  {(u_int32_t) readIndex, i};
-			const ReadPositionMatch& readPositionMatch = _contigPosition_to_readPosition[contigPosition];
-			const ReadPosition& readPosition = {readPositionMatch._readIndex, readPositionMatch._readPosition};
-
-			//_logFile << i << " " << supportingReads.size() << endl;
-			//u_int64_t readIndex = supportingReads[i];
-			//_logFile << readIndex << endl;
-			//if(readIndex == -1){
-			//	_logFile << "No sequence for kminmer: " << readIndex << endl;
-			//	continue;
-			//}
-			
-			//_logFile << i << endl;
-			const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
-
-			KmerVec vec = kminmerInfo._vec;
-			
-			//if(_kmerVec_to_nodeName.find(vec) == _kmerVec_to_nodeName.end()){
-			//	_logFile << "Not found node name" << endl;
-			//	continue;
-			//}
-
-			//u_int32_t nodeName = _kmerVec_to_nodeName[vec];
-			//if(nodeName == 38376){
-			//	_logFile << "lala" << endl;
-			//	getchar();
-			//}
-			//_logFile << nodeName << endl;
-			//vector<u_int64_t> minimizerSeq;
-			
-			//for(size_t i=kminmerInfo._read_pos_start; i<=kminmerInfo._read_pos_end; i++){
-			//	minimizerSeq.push_back(readMinimizers[i]);
-			//}
-			
-
-			//if(kminmerInfo._isReversed){
-			//	std::reverse(minimizerSeq.begin(), minimizerSeq.end());
-			//}
-
-			bool orientation = !kminmerInfo._isReversed;
-
-			if(i == 0){
-				if(orientation){ //+
-
-					char* seq = nullptr;
-
-					if(_readPosition_entire.find(readPosition) != _readPosition_entire.end() && _readPosition_entire[readPosition] != nullptr){
-						seq = _readPosition_entire[readPosition]->to_string();
-					}
-
-					
-					if(seq == nullptr){
-						cerr << "No sequence for kminmer" << endl;
-						continue;
-					}
-
-					/*
-					char* seq = nullptr;
-
-					if(_kminmerSequence_entire_multi.find(nodeName) != _kminmerSequence_entire_multi.end()){
-						for(const ReadSequence& rs : _kminmerSequence_entire_multi[nodeName]){
-							if(rs._readIndex == readIndex){
-								//_logFile << (rs._sequence != nullptr) << endl;
-								seq = rs._sequence->to_string();
-								break;
-							}
-						}
-					}
-
-					if(seq == nullptr){
-						_logFile << "No sequence for kminmer" << endl;
-						continue;
-					}
-					*/
-
-					string kminmerSequence = string(seq);
-					free(seq);
-
-					contigSequence += kminmerSequence;
-					//_logFile << contigSequence << endl;
-				}
-				else{
-					
-					char* seq = nullptr;
-
-					if(_readPosition_entire.find(readPosition) != _readPosition_entire.end() && _readPosition_entire[readPosition] != nullptr){
-						seq = _readPosition_entire[readPosition]->to_string();
-					}
-					
-					if(seq == nullptr){
-						cerr << "No sequence for kminmer" << endl;
-						continue;
-					}
-
-					/*
-					char* seq = nullptr;
-
-					if(_kminmerSequence_entire_multi.find(nodeName) != _kminmerSequence_entire_multi.end()){
-						for(const ReadSequence& rs : _kminmerSequence_entire_multi[nodeName]){
-							if(rs._readIndex == readIndex){
-
-								//_logFile << (rs._sequence != nullptr) << endl;
-
-								seq = rs._sequence->to_string();
-								break;
-							}
-						}
-					}
-
-					if(seq == nullptr){
-						_logFile << "No sequence for kminmer" << endl;
-						continue;
-					}
-					*/
-
-					/*
-					if(_kminmerSequence_entire.find(nodeName) != _kminmerSequence_entire.end()){
-						if(_kminmerSequence_entire[nodeName] == nullptr){
-							_logFile << "No sequence for kminmer" << endl;
-							continue;
-						}
-						seq = _kminmerSequence_entire[nodeName]->to_string();
-					}
-					else{
-						ReadNodeName readNodeName = {nodeName, readIndex};
-						if(_kminmerSequence_entire_multi.find(readNodeName) == _kminmerSequence_entire_multi.end() || _kminmerSequence_entire_multi[readNodeName] == nullptr){
-							_logFile << "No sequence for kminmer" << endl;
-							continue;
-						}
-						seq = _kminmerSequence_entire_multi[readNodeName]->to_string();
-					//}
-					*/
-
-					string kminmerSequence = string(seq);
-					free(seq);
-
-					Utils::revcomp(kminmerSequence);
-					contigSequence += kminmerSequence;
-				}
-			}
-			else {
-				if(orientation){
-
-					char* seq = nullptr;
-
-					if(_readPosition_right.find(readPosition) != _readPosition_right.end() && _readPosition_right[readPosition] != nullptr){
-						seq = _readPosition_right[readPosition]->to_string();
-					}
-
-					if(seq == nullptr){
-						cerr << "No sequence for kminmer" << endl;
-						continue;
-					}
-
-					/*
-					char* seq = nullptr;
-
-					if(_kminmerSequence_right_multi.find(nodeName) != _kminmerSequence_right_multi.end()){
-						for(const ReadSequence& rs : _kminmerSequence_right_multi[nodeName]){
-							if(rs._readIndex == readIndex){
-								seq = rs._sequence->to_string();
-								break;
-							}
-						}
-					}
-
-					if(seq == nullptr){
-						_logFile << "No sequence for kminmer" << endl;
-						continue;
-					}
-					*/
-					/*
-					if(_kminmerSequence_right.find(nodeName) != _kminmerSequence_right.end()){
-						if(_kminmerSequence_right[nodeName] == nullptr){
-							_logFile << "No sequence for kminmer" << endl;
-							continue;
-						}
-						seq = _kminmerSequence_right[nodeName]->to_string();
-					}
-					else{
-						ReadNodeName readNodeName = {nodeName, readIndex};
-						if(_kminmerSequence_entire_right.find(readNodeName) == _kminmerSequence_entire_right.end() || _kminmerSequence_entire_right[readNodeName] == nullptr){
-							_logFile << "No sequence for kminmer" << endl;
-							continue;
-						}
-						seq = _kminmerSequence_entire_right[readNodeName]->to_string();
-					//}
-					*/
-
-					string kminmerSequence = string(seq);
-					free(seq);
-					
-					contigSequence += kminmerSequence;
-					
-
-				}
-				else{
-					
-					char* seq = nullptr;
-
-					if(_readPosition_left.find(readPosition) != _readPosition_left.end() && _readPosition_left[readPosition] != nullptr){
-						seq = _readPosition_left[readPosition]->to_string();
-					}
-					
-					if(seq == nullptr){
-						cerr << "No sequence for kminmer" << endl;
-						continue;
-					}
-
-					/*
-					char* seq = nullptr;
-
-					if(_kminmerSequence_left_multi.find(nodeName) != _kminmerSequence_left_multi.end()){
-						for(const ReadSequence& rs : _kminmerSequence_left_multi[nodeName]){
-							if(rs._readIndex == readIndex){
-								seq = rs._sequence->to_string();
-								break;
-							}
-						}
-					}
-
-					if(seq == nullptr){
-						_logFile << "No sequence for kminmer" << endl;
-						continue;
-					}
-					*/
-					/*
-					if(_kminmerSequence_left.find(nodeName) != _kminmerSequence_left.end()){
-						if(_kminmerSequence_left[nodeName] == nullptr){
-							_logFile << "No sequence for kminmer" << endl;
-							continue;
-						}
-						seq = _kminmerSequence_left[nodeName]->to_string();
-					}
-					else{
-						ReadNodeName readNodeName = {nodeName, readIndex};
-						if(_kminmerSequence_entire_left.find(readNodeName) == _kminmerSequence_entire_left.end() || _kminmerSequence_entire_left[readNodeName] == nullptr){
-							_logFile << "No sequence for kminmer" << endl;
-							continue;
-						}
-						seq = _kminmerSequence_entire_left[readNodeName]->to_string();
-					//}
-					*/
-
-					string kminmerSequence = string(seq);
-					free(seq);
-
-					Utils::revcomp(kminmerSequence);
-					contigSequence += kminmerSequence;
 
 
-				}
-			}
+	class CreateBaseContigsFunctor {
+
+		public:
+
+		ToBasespace& _toBasespace;
+
+		CreateBaseContigsFunctor(ToBasespace& toBasespace) : _toBasespace(toBasespace){
 		}
 
-		if(contigSequence.size() == 0){
-			_logFile << "Empty contig " << kminmersInfos.size() << endl;
-			//return;
-		}
-		else{
-			//cout << "lala:" << ((u_int32_t) isCircular) << endl;
-			string linearOrCircular;
-			if(isCircular == CONTIG_LINEAR){
-				linearOrCircular = "l";
-			}
-			else if(isCircular == CONTIG_CIRCULAR){
-				linearOrCircular = "c";
-			}
-			else if(isCircular == CONTIG_CIRCULAR_RESCUED){
-				linearOrCircular = "rc";
-			}
-
-			//_logFile << contigSequence.size() << endl;
-
-			string header = ">ctg" + to_string(readIndex) + linearOrCircular + '\n';
-			gzwrite(_basespaceContigFile, (const char*)&header[0], header.size());
-			contigSequence +=  '\n';
-			gzwrite(_basespaceContigFile, (const char*)&contigSequence[0], contigSequence.size());
+		CreateBaseContigsFunctor(const CreateBaseContigsFunctor& copy) : _toBasespace(copy._toBasespace){
 		}
 
+		~CreateBaseContigsFunctor(){
+		}
+
+		void operator () (const KminmerList& kminmerList) {
+
+			ReadType readIndex = kminmerList._readIndex;
+			//MinimizerReadPacked read = {kminmerList._readIndex, kminmerList._readMinimizers, kminmerList._minimizerPos, kminmerList._meanReadQuality, kminmerList._readLength};
+			//MinimizerReadPacked readLowDensity = Utils::getLowDensityMinimizerRead(read, _parent._minimizerDensity_assembly);
+			
+
+			string contigSequence = "";
+			bool isCircular = kminmerList._isCircular;
+
+			for(u_int32_t i=0; i<kminmerList._kminmersInfo.size(); i++){
+			
+				
+				//cout << "------- " << i << endl;
+
+				//_logFile << readIndex << " " << i << endl;
+				const ReadKminmerComplete& kminmerInfo = kminmerList._kminmersInfo[i];
+
+				const KmerVec& vec = kminmerInfo._vec;
+				
+				
+				
+				ContigPosition contigPosition =  {(u_int32_t) readIndex, i};
+				const ReadPositionMatch& readPositionMatch = _toBasespace._contigPosition_to_readPosition[contigPosition];
+				const ReadPosition& readPosition = {readPositionMatch._readIndex, readPositionMatch._readPosition};
+
+				//_logFile << i << " " << supportingReads.size() << endl;
+				//u_int64_t readIndex = supportingReads[i];
+				//_logFile << readIndex << endl;
+				//if(readIndex == -1){
+				//	_logFile << "No sequence for kminmer: " << readIndex << endl;
+				//	continue;
+				//}
+				
+				//_logFile << i << endl;
+				//const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
+
+				//KmerVec vec = kminmerInfo._vec;
+				
+				//if(_kmerVec_to_nodeName.find(vec) == _kmerVec_to_nodeName.end()){
+				//	_logFile << "Not found node name" << endl;
+				//	continue;
+				//}
+
+				//u_int32_t nodeName = _kmerVec_to_nodeName[vec];
+				//if(nodeName == 38376){
+				//	_logFile << "lala" << endl;
+				//	getchar();
+				//}
+				//_logFile << nodeName << endl;
+				//vector<u_int64_t> minimizerSeq;
+				
+				//for(size_t i=kminmerInfo._read_pos_start; i<=kminmerInfo._read_pos_end; i++){
+				//	minimizerSeq.push_back(readMinimizers[i]);
+				//}
+				
+
+				//if(kminmerInfo._isReversed){
+				//	std::reverse(minimizerSeq.begin(), minimizerSeq.end());
+				//}
+
+				bool orientation = !kminmerInfo._isReversed;
+
+				if(i == 0){
+					if(orientation){ //+
+
+						char* seq = nullptr;
+
+						if(_toBasespace._readPosition_entire.find(readPosition) != _toBasespace._readPosition_entire.end() && _toBasespace._readPosition_entire[readPosition] != nullptr){
+							seq = _toBasespace._readPosition_entire[readPosition]->to_string();
+						}
+
+						
+						if(seq == nullptr){
+							//cerr << "No sequence for kminmer" << endl;
+							continue;
+						}
+
+						/*
+						char* seq = nullptr;
+
+						if(_kminmerSequence_entire_multi.find(nodeName) != _kminmerSequence_entire_multi.end()){
+							for(const ReadSequence& rs : _kminmerSequence_entire_multi[nodeName]){
+								if(rs._readIndex == readIndex){
+									//_logFile << (rs._sequence != nullptr) << endl;
+									seq = rs._sequence->to_string();
+									break;
+								}
+							}
+						}
+
+						if(seq == nullptr){
+							_logFile << "No sequence for kminmer" << endl;
+							continue;
+						}
+						*/
+
+						string kminmerSequence = string(seq);
+						free(seq);
+
+						contigSequence += kminmerSequence;
+						//_logFile << contigSequence << endl;
+					}
+					else{
+						
+						char* seq = nullptr;
+
+						if(_toBasespace._readPosition_entire.find(readPosition) != _toBasespace._readPosition_entire.end() && _toBasespace._readPosition_entire[readPosition] != nullptr){
+							seq = _toBasespace._readPosition_entire[readPosition]->to_string();
+						}
+						
+						if(seq == nullptr){
+							//cerr << "No sequence for kminmer" << endl;
+							continue;
+						}
+
+						/*
+						char* seq = nullptr;
+
+						if(_kminmerSequence_entire_multi.find(nodeName) != _kminmerSequence_entire_multi.end()){
+							for(const ReadSequence& rs : _kminmerSequence_entire_multi[nodeName]){
+								if(rs._readIndex == readIndex){
+
+									//_logFile << (rs._sequence != nullptr) << endl;
+
+									seq = rs._sequence->to_string();
+									break;
+								}
+							}
+						}
+
+						if(seq == nullptr){
+							_logFile << "No sequence for kminmer" << endl;
+							continue;
+						}
+						*/
+
+						/*
+						if(_kminmerSequence_entire.find(nodeName) != _kminmerSequence_entire.end()){
+							if(_kminmerSequence_entire[nodeName] == nullptr){
+								_logFile << "No sequence for kminmer" << endl;
+								continue;
+							}
+							seq = _kminmerSequence_entire[nodeName]->to_string();
+						}
+						else{
+							ReadNodeName readNodeName = {nodeName, readIndex};
+							if(_kminmerSequence_entire_multi.find(readNodeName) == _kminmerSequence_entire_multi.end() || _kminmerSequence_entire_multi[readNodeName] == nullptr){
+								_logFile << "No sequence for kminmer" << endl;
+								continue;
+							}
+							seq = _kminmerSequence_entire_multi[readNodeName]->to_string();
+						//}
+						*/
+
+						string kminmerSequence = string(seq);
+						free(seq);
+
+						Utils::revcomp(kminmerSequence);
+						contigSequence += kminmerSequence;
+					}
+				}
+				else {
+					if(orientation){
+
+						char* seq = nullptr;
+
+						if(_toBasespace._readPosition_right.find(readPosition) != _toBasespace._readPosition_right.end() && _toBasespace._readPosition_right[readPosition] != nullptr){
+							seq = _toBasespace._readPosition_right[readPosition]->to_string();
+						}
+
+						if(seq == nullptr){
+							//cerr << "No sequence for kminmer" << endl;
+							continue;
+						}
+
+						/*
+						char* seq = nullptr;
+
+						if(_kminmerSequence_right_multi.find(nodeName) != _kminmerSequence_right_multi.end()){
+							for(const ReadSequence& rs : _kminmerSequence_right_multi[nodeName]){
+								if(rs._readIndex == readIndex){
+									seq = rs._sequence->to_string();
+									break;
+								}
+							}
+						}
+
+						if(seq == nullptr){
+							_logFile << "No sequence for kminmer" << endl;
+							continue;
+						}
+						*/
+						/*
+						if(_kminmerSequence_right.find(nodeName) != _kminmerSequence_right.end()){
+							if(_kminmerSequence_right[nodeName] == nullptr){
+								_logFile << "No sequence for kminmer" << endl;
+								continue;
+							}
+							seq = _kminmerSequence_right[nodeName]->to_string();
+						}
+						else{
+							ReadNodeName readNodeName = {nodeName, readIndex};
+							if(_kminmerSequence_entire_right.find(readNodeName) == _kminmerSequence_entire_right.end() || _kminmerSequence_entire_right[readNodeName] == nullptr){
+								_logFile << "No sequence for kminmer" << endl;
+								continue;
+							}
+							seq = _kminmerSequence_entire_right[readNodeName]->to_string();
+						//}
+						*/
+
+						string kminmerSequence = string(seq);
+						free(seq);
+						
+						contigSequence += kminmerSequence;
+						
+
+					}
+					else{
+						
+						char* seq = nullptr;
+
+						if(_toBasespace._readPosition_left.find(readPosition) != _toBasespace._readPosition_left.end() && _toBasespace._readPosition_left[readPosition] != nullptr){
+							seq = _toBasespace._readPosition_left[readPosition]->to_string();
+						}
+						
+						if(seq == nullptr){
+							//cerr << "No sequence for kminmer" << endl;
+							continue;
+						}
+
+						/*
+						char* seq = nullptr;
+
+						if(_kminmerSequence_left_multi.find(nodeName) != _kminmerSequence_left_multi.end()){
+							for(const ReadSequence& rs : _kminmerSequence_left_multi[nodeName]){
+								if(rs._readIndex == readIndex){
+									seq = rs._sequence->to_string();
+									break;
+								}
+							}
+						}
+
+						if(seq == nullptr){
+							_logFile << "No sequence for kminmer" << endl;
+							continue;
+						}
+						*/
+						/*
+						if(_kminmerSequence_left.find(nodeName) != _kminmerSequence_left.end()){
+							if(_kminmerSequence_left[nodeName] == nullptr){
+								_logFile << "No sequence for kminmer" << endl;
+								continue;
+							}
+							seq = _kminmerSequence_left[nodeName]->to_string();
+						}
+						else{
+							ReadNodeName readNodeName = {nodeName, readIndex};
+							if(_kminmerSequence_entire_left.find(readNodeName) == _kminmerSequence_entire_left.end() || _kminmerSequence_entire_left[readNodeName] == nullptr){
+								_logFile << "No sequence for kminmer" << endl;
+								continue;
+							}
+							seq = _kminmerSequence_entire_left[readNodeName]->to_string();
+						//}
+						*/
+
+						string kminmerSequence = string(seq);
+						free(seq);
+
+						Utils::revcomp(kminmerSequence);
+						contigSequence += kminmerSequence;
+
+
+					}
+				}
+			}
+
+			if(contigSequence.size() == 0){
+				//Logger::get().debug() << "Empty contig " << kminmerList._kminmersInfo.size();
+				//return;
+			}
+			else{
+				//cout << "lala:" << ((u_int32_t) isCircular) << endl;
+				string linearOrCircular;
+				if(isCircular == CONTIG_LINEAR){
+					linearOrCircular = "l";
+				}
+				else if(isCircular == CONTIG_CIRCULAR){
+					linearOrCircular = "c";
+				}
+				else if(isCircular == CONTIG_CIRCULAR_RESCUED){
+					linearOrCircular = "rc";
+				}
+
+				//_logFile << contigSequence.size() << endl;
+
+				string header = ">ctg" + to_string(readIndex) + linearOrCircular + '\n';
+				gzwrite(_toBasespace._basespaceContigFile, (const char*)&header[0], header.size());
+				contigSequence +=  '\n';
+				gzwrite(_toBasespace._basespaceContigFile, (const char*)&contigSequence[0], contigSequence.size());
+			}
 
 
 
-		_nbBps += contigSequence.size();
 
-		_contigIndex += 1;
-		
+			_toBasespace._nbBps += contigSequence.size();
 
-	}
+			_toBasespace._contigIndex += 1;
+
+		}
+	};
+
 
 	/*
 	void createBaseContigs_read(kseq_t* read, u_int64_t readIndex){

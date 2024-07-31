@@ -6,17 +6,18 @@
 //#define PRINT_DEBUG_PREVRANK
 
 #include "Commons.hpp"
+#include "graph/ProgressiveAbundanceFilter.hpp"
 
-#include <string>
-#include <sstream>
-#include <unordered_set>
-#include <unordered_map>
+//#include <string>
+//#include <sstream>
+//#include <unordered_set>
+//#include <unordered_map>
 //#include <regex>
-#include <algorithm>
-#include <libgen.h>
-#include <set>
+//#include <algorithm>
+//#include <libgen.h>
+//#include <set>
 //#include "graph/Graph.hpp"
-#include "graph/GfaParser.hpp"
+//#include "graph/GfaParser.hpp"
 #include "graph/GraphSimplify.hpp"
 //#include "eval/ContigStatistics.hpp"
 //#include "toBasespace/ToBasespaceOnTheFly.hpp"
@@ -40,7 +41,7 @@ public:
 	string _outputFilename;
 	string _outputFilename_complete;
 	bool _debug;
-	bool _isFinalAssembly;
+	//bool _isFinalAssembly;
 	string _inputFilename_unitigNt;
 	string _inputFilename_unitigCluster;
 	string _filename_abundance;
@@ -52,7 +53,6 @@ public:
 	float _minimizerSpacingMean;
 	float _kminmerLengthMean;
 	float _kminmerOverlapMean;
-	vector<UnitigData> _unitigDatas;
 
 	string _partitionDir;
 	string _filename_solidKminmers;
@@ -66,11 +66,13 @@ public:
 	gzFile _outputContigFile;
 	gzFile _outputContigFile_complete;
 	MDBG* _mdbg;
-	GraphSimplify* _graph;
+	//GraphSimplify* _graph;
 	//ToBasespaceOnTheFly _toBasespace;
 	//ContigFeature _contigFeature;
 	string _gfaFilename;
 	size_t _nbCores;
+
+    vector<u_int32_t> _nodeName_to_abundance;
 
 	GenerateContigs(): Tool (){
 
@@ -91,7 +93,7 @@ public:
 		//args::ValueFlag<float> arg_d(parser, "", "Minimizer density", {ARG_MINIMIZER_DENSITY2}, 0.005f);
 		//args::ValueFlag<std::string> arg_contigs(parser, "", "", {ARG_INPUT_FILENAME_CONTIG}, "");
 		args::ValueFlag<int> arg_nbCores(parser, "", "Number of cores", {ARG_NB_CORES2}, NB_CORES_DEFAULT_INT);
-		args::Flag arg_isFinalAssembly(parser, "", "Is final multi-k pass", {ARG_FINAL});
+		//args::Flag arg_isFinalAssembly(parser, "", "Is final multi-k pass", {ARG_FINAL});
 		args::Flag arg_firstPass(parser, "", "Is first pass of multi-k", {ARG_FIRST_PASS});
 		args::Flag arg_help(parser, "", "", {'h', "help"}, args::Options::Hidden);
 		//args::HelpFlag help(parser, "help", "Display this help menu", {'h'});
@@ -124,10 +126,10 @@ public:
 
 		_nbCores = args::get(arg_nbCores);
 
-		_isFinalAssembly = false;
-		if(arg_isFinalAssembly){
-			_isFinalAssembly = true;
-		}
+		//_isFinalAssembly = false;
+		//if(arg_isFinalAssembly){
+		//	_isFinalAssembly = true;
+		//}
 
 		//_truthInputFilename = result[ARG_INPUT_FILENAME_TRUTH].as<string>();
 		//_inputFilename_unitigNt = result[ARG_INPUT_FILENAME_UNITIG_NT].as<string>();
@@ -196,13 +198,13 @@ public:
 
 		openLogFile(_inputDir);
 
-		_logFile << endl;
-		_logFile << "Input dir: " << _inputDir << endl;
+		Logger::get().debug() << "";
+		Logger::get().debug() << "Input dir: " << _inputDir;
 		//cout << "Output filename: " << _outputFilename << endl;
-		_logFile << "Minimizer length: " << _minimizerSize << endl;
-		_logFile << "Kminmer length: " << _kminmerSize << endl;
-		_logFile << "Density: " << _minimizerDensity << endl;
-		_logFile << endl;
+		Logger::get().debug() << "Minimizer length: " << _minimizerSize;
+		Logger::get().debug() << "Kminmer length: " << _kminmerSize;
+		Logger::get().debug() << "Density: " << _minimizerDensity;
+		Logger::get().debug() << "";
 
 		_outputFilename = _inputDir + "/minimizer_contigs.gz";
 		_outputFilename_complete = _inputDir + "/minimizer_contigs_complete.gz";
@@ -224,6 +226,8 @@ public:
 
 	void execute (){
 
+		//cout << "Loading abundant nodes" << endl;
+		//loadAbundantNodes();
 
 		loadGraph();
 		//exit(1);
@@ -251,7 +255,34 @@ public:
 			_mdbg->dump(_inputDir + "/kminmerData_min.txt");
 		//}
 
-		closeLogFile();
+		//closeLogFile();
+	}
+
+	unordered_set<u_int32_t> _abundantNodeNames;
+
+	void loadAbundantNodes(){
+		
+		ifstream file(_inputDir + "/abundantNodes_backup.bin");
+
+
+		while (true) {
+
+			u_int32_t nodeName1;
+			u_int32_t nodeName2;
+
+			file.read((char*)&nodeName1, sizeof(nodeName1));
+
+			if(file.eof()) break;
+
+			file.read((char*)&nodeName2, sizeof(nodeName2));
+
+			_abundantNodeNames.insert(nodeName1);
+			_abundantNodeNames.insert(nodeName2);
+
+		}
+
+		file.close();
+
 	}
 
 	void loadGraph(){
@@ -287,56 +318,12 @@ public:
             //gfa_filename = _inputDir + "/minimizer_graph_debug.gfa";
 		//}
 		
-		GraphSimplify* graphSimplify = new GraphSimplify(_gfaFilename, _inputDir, 0, _kminmerSize, _nbCores, _kminmerLengthMean, _kminmerOverlapMean, _logFile);
-		_graph = graphSimplify;
+		BiGraph* graphSuccessors = GfaParser::createBiGraph_binary(_gfaFilename, true, 0, _kminmerLengthMean, _kminmerOverlapMean);
+		GraphSimplify* graphSimplify = new GraphSimplify(graphSuccessors, _inputDir, _nbCores);
+		//_graph = graphSimplify;
 		
+		u_int64_t nbNodes = graphSuccessors->_nodes.size();
 
-		ifstream kminmerFile(_inputDir + "/kminmerData_min.txt");
-        _graph->_graphSuccessors->_nodeDatas.resize(_graph->_graphSuccessors->_nbNodes/2, {0, 0});
-
-		u_int64_t abSum = 0;
-		u_int64_t qualSum = 0;
-
-		while (true) {
-
-			vector<u_int64_t> minimizerSeq;
-			minimizerSeq.resize(_kminmerSize);
-			kminmerFile.read((char*)&minimizerSeq[0], minimizerSeq.size()*sizeof(u_int64_t));
-
-			if(kminmerFile.eof()) break;
-
-			u_int32_t nodeName;
-			u_int32_t abundance;
-			//u_int32_t quality;
-			//bool isReversed = false;
-
-			kminmerFile.read((char*)&nodeName, sizeof(nodeName));
-			kminmerFile.read((char*)&abundance, sizeof(abundance));
-			//kminmerFile.read((char*)&quality, sizeof(quality));
-
-			abSum += abundance;
-			//qualSum += quality;
-
-			//cout << nodeName << " " << abSum << endl;
-
-			//cout << nodeName << " " << abundance << " " << quality << endl;
-			//if(quality == 0){
-			//	cout << quality << endl;
-			//	getchar();
-			//}
-			//if(abundance == 1) continue;
-			//KmerVec vec;
-			//vec._kmers = minimizerSeq;
-
-			_graph->_graphSuccessors->_nodeDatas[nodeName] = {abundance, (u_int32_t)_kminmerLengthMean};
-			//_graph->_graphSuccessors->_nodeLengths[nodeName] = _kminmerLengthMean;
-			//_kminmerAbundances[vec] = abundance;
-		}
-
-		//cout << abSum << " " << qualSum << endl;
-		//getchar();
-
-		kminmerFile.close();
 
 		//_graph->clear(0);
 		//_graph->compact(false, _unitigDatas);
@@ -369,17 +356,76 @@ public:
 		
 		//indexReads();
 
-		_graph->debug_writeGfaErrorfree(2000, 2000, -1, _kminmerSize, false, true, false, _unitigDatas, true, false, false, false, false, true, _mdbg, _minimizerSize, _nbCores, false, false);
+
+		graphSimplify->debug_writeGfaErrorfree();
 		//removeUnsupportedEdges();
 		//_graph->_unitigGraph->save("/home/gats/workspace/run/minimizer_graph_u.gfa");
 		//getchar();
+		        
 		
-        _progressiveAbundanceFilter = new ProgressiveAbundanceFilter(_graph->_unitigGraph, _inputDir, _kminmerSize, true, _logFile);
+		delete graphSimplify;
+		delete graphSuccessors;
+
+
+
+		Logger::get().debug() << "Load node data";
+		ifstream kminmerFile(_inputDir + "/kminmerData_min.txt");
+        _nodeName_to_abundance.resize(nbNodes/2, 0);
+
+
+		while (true) {
+
+			vector<MinimizerType> minimizerSeq;
+			minimizerSeq.resize(_kminmerSize);
+			kminmerFile.read((char*)&minimizerSeq[0], minimizerSeq.size()*sizeof(MinimizerType));
+
+			if(kminmerFile.eof()) break;
+
+			u_int32_t nodeName;
+			u_int32_t abundance;
+			//u_int32_t quality;
+			//bool isReversed = false;
+
+			kminmerFile.read((char*)&nodeName, sizeof(nodeName));
+			kminmerFile.read((char*)&abundance, sizeof(abundance));
+			//kminmerFile.read((char*)&quality, sizeof(quality));
+
+
+			//cout << nodeName << " " << abSum << endl;
+
+			//cout << nodeName << " " << abundance << " " << quality << endl;
+			//if(quality == 0){
+			//	cout << quality << endl;
+			//	getchar();
+			//}
+			//if(abundance == 1) continue;
+			//KmerVec vec;
+			//vec._kmers = minimizerSeq;
+
+			_nodeName_to_abundance[nodeName] = abundance;
+			//_graph->_graphSuccessors->_nodeLengths[nodeName] = _kminmerLengthMean;
+			//_kminmerAbundances[vec] = abundance;
+		}
+
+		//cout << abSum << " " << qualSum << endl;
+		//getchar();
+
+		kminmerFile.close();
+
+
+		Logger::get().debug() << "Loading unitig graph";
+		UnitigGraph* unitigGraph = new UnitigGraph(_kminmerLengthMean, _kminmerOverlapMean, _kminmerLengthMean-_kminmerOverlapMean);
+		unitigGraph->load(_inputDir + "/unitigGraph.nodes.bin", _inputDir + "/unitigGraph.edges.successors.bin", _inputDir + "/unitigGraph.edges.predecessors.bin", _nodeName_to_abundance);
+
+        Logger::get().debug() << "Nb unitigs: " << unitigGraph->_nodes.size();
+        //_logFile << "Nb edges: " << nbEdgeSuccessors<< endl;
+
+		Logger::get().debug() << "Simplifying";
+
+        _progressiveAbundanceFilter = new ProgressiveAbundanceFilter(unitigGraph, _inputDir, _kminmerSize, true, _kminmerSize==_kminmerSizeFirst);
 		X dummy;
 
 		//delete _graph->_graphSuccessors;
-		_processedNodeNames = vector<bool>(_graph->_isNodeRemoved.size()/2, false);
-		delete _graph;
 
         _progressiveAbundanceFilter->execute(dummy);
 
@@ -395,6 +441,7 @@ public:
 			
 		//delete _mdbg;
 		
+		_processedNodeNames = vector<bool>(nbNodes/2, false);
 	}
 
 	ProgressiveAbundanceFilter* _progressiveAbundanceFilter;
@@ -1228,9 +1275,9 @@ public:
 		vector<u_int32_t> _nodepath;
 	};
 
-	static bool UnitigComparator_ByLength2(const UnitigLength &a, const UnitigLength &b){
-		return a._length > b._length;
-	}
+	//static bool UnitigComparator_ByLength2(const UnitigLength &a, const UnitigLength &b){
+	//	return a._length > b._length;
+	//}
 
 	float _minUnitigAbundance;
 
@@ -1268,557 +1315,7 @@ public:
 	vector<bool> _processedNodeNames;
 	unordered_map<u_int32_t, NodeAb> _nodeNameAbundances;
 
-	void generateContigs2(const string& outputFilename){
 
-		size_t nextMultikStep = Commons::getMultikStep(_kminmerSize);
-
-
-		_processedNodeNames = vector<bool>(_graph->_isNodeRemoved.size()/2, false);
-		u_int64_t nbNodesCheckSum = 0;
-		//string clusterDir = _inputDir + "/" + "binGreedy";
-		//fs::path path(clusterDir);
-		//if(!fs::exists (path)){
-		//	fs::create_directory(path);
-		//} 
-
-		//string filename_binStats = clusterDir + "/binStats.txt";
-		//ofstream file_binStats(filename_binStats);
-
-		//ofstream fileHifiasmAll(_inputDir + "/binning_results_hifiasm.csv");
-		//fileHifiasmAll << "Name,Colour" << endl;
-
-		//gzFile outputContigFile_min = gzopen(outputFilename.c_str(),"wb");
-		//gzFile outputContigFile_fasta = gzopen(outputFilename_fasta.c_str(),"wb");
-
-		ofstream outputContigFile(outputFilename);
-		//ofstream file_asmResult = ofstream(_inputDir + "/binning_results.csv");
-		//file_asmResult << "Name,Colour" << endl;
-
-		//Assembly assembly(_unitigDatas, _contigFeature);
-
-		float prevCutoff = -1;
-		u_int64_t contigIndex = 0;
-
-
-		//unordered_set<u_int32_t> processedNodeNames;
-		u_int64_t processedUnitigs = 0;
-
-		//u_int64_t contigIndex = 0;
-		u_int64_t __loadState2_index = 0;
-
-
-		
-		vector<float> allCutoffs;
-
-		for(const SaveState2& saveState : _graph->_cachedGraphStates){
-			allCutoffs.push_back(saveState._abundanceCutoff_min);
-			//cout << saveState._abundanceCutoff_min << endl;
-		}
-		
-		std::reverse(allCutoffs.begin(), allCutoffs.end());
-
-
-
-
-        //file_debug = ofstream("/home/gats/workspace/run//debug_graph.csv");
-		//file_debug << "Name,Colour" << endl;
-
-        //auto t1 = std::chrono::high_resolution_clock::now();
-		
-        _graph->clear(0);
-
-        for(const SaveState2& saveState : _graph->_cachedGraphStates){
-            //if(saveState._abundanceCutoff_min > abundanceCutoff_min) break;
-
-            for(const u_int32_t nodeName : saveState._nodeNameRemoved){
-
-                u_int32_t nodeIndex1 = BiGraph::nodeName_to_nodeIndex(nodeName, true);
-                u_int32_t nodeIndex2 = BiGraph::nodeName_to_nodeIndex(nodeName, false);
-				_graph->_isNodeRemoved[nodeIndex1] = true;
-				_graph->_isNodeRemoved[nodeIndex2] = true;
-                //_graph->_isNodeValid2.erase(nodeIndex1);
-                //_graph->_isNodeValid2.erase(nodeIndex2);
-            }
-
-            for(const DbgEdge& dbgEdge : saveState._isEdgeRemoved){
-				_graph->_graphSuccessors->setEdgeRemoved(dbgEdge._from, dbgEdge._to, true);
-				_graph->_graphSuccessors->setEdgeRemoved(GraphSimplify::nodeIndex_toReverseDirection(dbgEdge._to), GraphSimplify::nodeIndex_toReverseDirection(dbgEdge._from), true);
-                //_graph->_isEdgeRemoved.insert(dbgEdge);
-            }
-        }
-
-
-
-		u_int64_t contigIndexLala = 0;
-		//unordered_map<u_int32_t, u_int32_t> nodeName_to_contigIndex;
-		vector<Contig> contigs;
-		u_int64_t checksum_global = 0;
-		double checksum_abundance = 0;
-		u_int64_t checksum_nbNodes = 0;
-		u_int64_t checkSum = 0;
-
-		for(size_t i=0; i<allCutoffs.size(); i++){
-
-			float cutoff = allCutoffs[i];
-
-			if(i > 0){
-
-				//cout << i << endl;
-				//if(cutoff == 0) continue;
-				const vector<u_int32_t>& nodeNameRemoved = _graph->_cachedGraphStates[_graph->_cachedGraphStates.size()-1-i+1]._nodeNameRemoved;
-				const vector<DbgEdge>& isEdgeRemoved = _graph->_cachedGraphStates[_graph->_cachedGraphStates.size()-1-i+1]._isEdgeRemoved;
-
-				//cout << nodeNameRemoved.size() << endl;
-				//cout << isEdgeRemoved.size() << endl;
-				//cout << "Unload state: " << _graph->_cachedGraphStates[_graph->_cachedGraphStates.size()-1-i+1]._abundanceCutoff_min << endl;
-
-				for(const u_int32_t nodeName : nodeNameRemoved){
-
-					u_int32_t nodeIndex1 = BiGraph::nodeName_to_nodeIndex(nodeName, true);
-					u_int32_t nodeIndex2 = BiGraph::nodeName_to_nodeIndex(nodeName, false);
-					_graph->_isNodeRemoved[nodeIndex1] = false;
-					_graph->_isNodeRemoved[nodeIndex2] = false;
-					//_graph->_isNodeValid2.insert(nodeIndex1);
-					//_graph->_isNodeValid2.insert(nodeIndex2);
-				}
-
-
-				for(const DbgEdge& dbgEdge : isEdgeRemoved){
-					_graph->_graphSuccessors->setEdgeRemoved(dbgEdge._from, dbgEdge._to, false);
-					_graph->_graphSuccessors->setEdgeRemoved(GraphSimplify::nodeIndex_toReverseDirection(dbgEdge._to), GraphSimplify::nodeIndex_toReverseDirection(dbgEdge._from), false);
-					//_graph->_isEdgeRemoved.erase(dbgEdge);
-				}
-				//cout << _graph->_isEdgeRemoved.size() << endl;
-				//cout << _graph->_isEdgeRemoved.size() << endl;
-
-			}
-
-
-        	_graph->compact(false, _unitigDatas);
-			//cout << "Cutoff: " << cutoff << " " << _graph->getChecksumGlobal() << endl;
-			checksum_global += _graph->getChecksumGlobal_utg();
-			checksum_abundance += _graph->getChecksumGlobal_abundanceUtg();
-
-
-			vector<Contig> startingUnitigs;
-
-			//_graph->loadState2(cutoff, -1, _unitigDatas);
-			_minUnitigAbundance = cutoff / 0.5;
-
-			//if(cutoff == 102.862){
-			//	_graph->saveGraph(_inputDir + "/minimizer_graph_contigs.gfa");
-			//}
-
-			//for(const Unitig& u: _graph->_unitigs){
-			for(size_t i=0; i<_graph->_unitigs.size(); i+=2){
-
-				const Unitig& u1 = _graph->_unitigs[i];
-				const Unitig& u2 = _graph->_unitigs[i+1];
-
-				Unitig u;
-
-				if(u1._startNode < u2._startNode){
-					u = u1;
-				}
-				else{
-					u = u2;
-				}
-				//cout << unitig._length << " " << unitig._abundance << endl;
-				//if(unitig._index % 2 == 1) continue;
-
-				if(u._abundance < _minUnitigAbundance) continue;
-				if(isContigAssembled(u._nodes)) continue;
-				//if(unitig._nbNodes < _kminmerSize*2) continue;
-				//if(cutoff == 0 && unitig._length < 10000) continue;
-				//if(cutoff == 0) continue;
-
-				//startingUnitigs.push_back({unitig._length, unitig._abundance, unitig._startNode});
-				//startingUnitigs.push_back({unitig._index, unitig._nodes});
-			//}
-
-			
-			//cout << "Cutoff: " << unitigLength_cutoff_min << "-" << unitigLength_cutoff_max << " " << cutoff << endl;
-				
-			//std::sort(startingUnitigs.begin(), startingUnitigs.end(), ContigComparator_ByLength2);
-			
-			
-
-				//for(const Contig& unitigLength : startingUnitigs){
-				//for(const Unitig& u: _graph->_unitigs){
-				//const Unitig& u = _graph->_unitigs[unitigLength._readIndex];
-				//vector<u_int32_t> nodePath = 
-				//u_int32_t source_nodeIndex = unitigLength._startNodeIndex;
-				//const Unitig& u = _graph->nodeIndex_to_unitig(source_nodeIndex);
-				//if(u._abundance < _minUnitigAbundance) continue;
-				//if(isContigAssembled(u._nodes)) continue;
-				//if(u._index % 2 == 1) continue;
-
-				//cout << "Cutoff: " << unitigLength_cutoff_min << "-" << unitigLength_cutoff_max << " " << cutoff << " " << processedUnitigs << " " << startingUnitigs.size() << "     " << unitig._length << endl;
-				processedUnitigs += 1;
-
-				//if(unitig._nodes.size() < _kminmerSize*2) continue;
-
-
-				//u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(unitig._startNode);
-
-
-				//cout << endl << "Starting unitig: " << BiGraph::nodeIndex_to_nodeName(unitig._startNode) << " " << unitig._length << endl;
-
-
-				//for(u_int32_t nodeIndex : unitig._nodes){
-				//	processedNodeNames.insert(BiGraph::nodeIndex_to_nodeName(nodeIndex));
-				//}
-
-				vector<u_int32_t> nodePath = u._nodes;
-
-
-                vector<u_int32_t> successors;
-                _graph->getSuccessors_unitig(u._index, 0, successors);
-
-                vector<u_int32_t> predecessors;
-                _graph->getPredecessors_unitig(u._index, 0, predecessors);
-
-				if(successors.size() == 0 && predecessors.size() == 0 && u._abundance == 1) continue;
-				//if(u._nbNodes < _kminmerSize*2) continue;
-
-				//if(u._length < 20000 && successors.size() >= 2 && predecessors.size() >= 2) continue;
-				//cout << nodePath.size() << " " << successors.size() << " " << predecessors.size() << endl;
-				//bool isSingleton = successors.size() == 0 && predecessors.size() == 0;
-				//if(isSingleton && u._length < 20000) continue;
-
-				
-				//if(_kminmerSize == 41){
-				//	if(u._abundance <= 1) continue;
-				//}
-				/*
-				//if(nodePath.size() <= _kminmerSize) continue;
-				if(u._nbNodes < _kminmerSize*2){
-
-					double abundanceSum = 0;
-					double abundanceN = 0;
-
-					float minAbundance = std::numeric_limits<float>::max();
-
-					vector<u_int32_t> successors;
-					_graph->getSuccessors_unitig(u._index, 0, successors);
-					vector<u_int32_t> predecessors;
-					_graph->getPredecessors_unitig(u._index, 0, predecessors);
-
-					for(u_int32_t unitigIndex : successors){
-						abundanceSum += _graph->_unitigs[unitigIndex]._abundance * _graph->_unitigs[unitigIndex]._nbNodes;
-						abundanceN += _graph->_unitigs[unitigIndex]._nbNodes;
-						//if(_graph->_unitigs[unitigIndex]._abundance < minAbundance){
-						//	minAbundance = _graph->_unitigs[unitigIndex]._abundance;
-						//}
-					}
-					for(u_int32_t unitigIndex : predecessors){
-						abundanceSum += _graph->_unitigs[unitigIndex]._abundance * _graph->_unitigs[unitigIndex]._nbNodes;
-						abundanceN += _graph->_unitigs[unitigIndex]._nbNodes;
-						//if(_graph->_unitigs[unitigIndex]._abundance < minAbundance){
-						//	minAbundance = _graph->_unitigs[unitigIndex]._abundance;
-						//}
-					}
-
-					if(abundanceN > 0){
-						double mean = abundanceSum / abundanceN;
-						if(u._abundance < mean*0.35){
-							continue;
-						}
-					}
-					//if(u._abundance < minAbundance){
-					//	continue;
-					//}
-				}
-				*/
-
-				//cout << u._nbNodes  << " " << u._startNode << " " <<  u._endNode << endl;
-				
-
-				/*
-				u_int8_t isCircular = false;
-				if(_isFinalAssembly){
-					if(u._startNode == u._endNode){ //Circular
-						isCircular = true;
-						
-						
-						//cout << "circular: " << u._nbNodes << endl;
-						
-						for(size_t i=0; i<_kminmerSize-1; i++){
-							if(nodePath.size() == 0) break;
-							nodePath.pop_back();
-						}
-
-
-						//continue;
-
-					}
-				}
-				
-				*/
-				
-				/*
-				if(nodePath.size() <= 1){
-					if(u._abundance == 1 || _kminmerSize < 10) continue;
-					u_int64_t size = nodePath.size();
-					fileSmallContigs.write((const char*)&size, sizeof(size));
-					fileSmallContigs.write((const char*)&nodePath[0], size * sizeof(u_int32_t));
-					continue;
-				}
-				*/
-
-				/*
-				if(isCircular){
-					for(u_int32_t nodeIndex : nodePath){
-						cout << nodeIndex << " ";
-					}
-					cout << endl;
-				}
-				*/
-			
-				//vector<u_int64_t> nodePath_supportingReads;
-				//assembly.solveBin2(unitig._startNode, unitig._abundance, _graph, 0, 0, false, nodePath, nodePath_supportingReads, 0);
-
-				/*
-				if(nodePath.size() > 200){
-					cout << "-----" << endl;
-					for(size_t i=0; i<_kminmerSize; i++){
-						cout << nodePath[i] << endl;
-					}
-					cout << "-----" << endl;
-					for(size_t i=0; i<_kminmerSize; i++){
-						cout << nodePath[nodePath.size()-_kminmerSize-1+i] << endl;
-					}
-				}
-				*/
-			
-				//string unitigSequenceExpanded;
-				//_toBasespace.createSequence(nodePath, unitigSequenceExpanded);
-				//cout << "\tExpanded contigs: " << nodePath.size() << endl; //<< " " << unitigSequenceExpanded.size() << endl;
-
-				//dereplicateContig2(contigs, nodePath, processedNodeNames, nodeName_to_contigIndex, contigIndexLala);
-
-				//if(nodePath.size() == 0){
-				//	cout << "empty contig " << endl;
-				//	getchar();
-				//}
-				//if(nodePath.size() <= 0) continue;
-
-				u_int8_t isCircular = u._startNode == u._endNode;
-
-				
-				if(isCircular && u._length < 300000){
-					//isCircular = false;
-					//nodePath.pop_back();
-				}
-
-				/*
-				if(isCircular && nodePath.size() > nextMultikStep){
-					//cout << nodePath.size() << " " << nextMultikStep << endl;
-					nodePath.pop_back();
-					for(size_t i=0; i<nextMultikStep && i < nodePath.size(); i++){
-						nodePath.push_back(nodePath[i]);
-					}
-				}
-				*/
-
-				//if(isCircular){
-				//	nodePath.pop_back();
-				//}
-				//if(isCircular && u._nbNodes > 2){
-				//	cout << "circular " << u._nbNodes << endl;
-				//	cout << BiGraph::nodeIndex_to_nodeName(u._startNode) << endl;
-				//	getchar();
-				//}
-				//isCircular = isSingleton;
-				//cout << "Is singleton: " << isSingleton << endl;
-				u_int32_t size = nodePath.size();
-
-				//gzwrite(outputContigFile_min, (const char*)&size, sizeof(size));
-				//gzwrite(outputContigFile_min, (const char*)&nodePath[0], size * sizeof(u_int32_t));
-				outputContigFile.write((const char*)&size, sizeof(size));
-				outputContigFile.write((const char*)&isCircular, sizeof(isCircular));
-				outputContigFile.write((const char*)&nodePath[0], size * sizeof(u_int32_t));
-
-				for(u_int32_t nodeIndex : nodePath){
-					u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
-					if(u._startNode != u._endNode) nbNodesCheckSum += nodeName;
-					checksum_nbNodes += 1;
-					_processedNodeNames[nodeName] = true;
-
-					//if(_kminmerSize == 4){
-					_nodeNameAbundances[nodeName] = {_graph->getNodeUnitigAbundance(nodeIndex), _graph->nodeIndex_to_unitig(nodeIndex)._nbNodes};
-					//}
-
-					//if(nodeName == 289994){
-					//	isLala = true;
-					//}
-					//processedNodeNames.insert(nodeName);
-				}
-
-				/*
-				u_int64_t s = 0;
-				u_int64_t nbNodes = 0;
-				if(u._nodes.size() > 1 && u._startNode == u._endNode){ //Circular
-					for(size_t i=0; i<nodePath.size()-1; i++){
-						u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodePath[i]);
-						s += nodeName;
-						nbNodes += 1;
-					}
-				}
-				else{
-					for(u_int32_t nodeIndex : nodePath){
-						u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
-						s += nodeName;
-						nbNodes += 1;
-					}
-				}
-				*/
-
-				//checkSum += s * nbNodes;
-				//vector<u_int32_t> nodepath_sorted = nodePath;
-				//std::sort(nodepath_sorted.begin(), nodepath_sorted.end());
-				//contigs.push_back({nodePath, nodepath_sorted});
-
-				contigIndex += 1;
-			}
-
-
-
-
-
-		}
-
-
-		/*
-		for(const Unitig& u : _graph->_cleanedLongTips){
-
-			if(isContigAssembled(u._nodes)) continue;
-
-			if(u._nodes.size() <= _kminmerSize) continue;
-
-			if(u._nbNodes < _kminmerSize*2){
-
-				double abundanceSum = 0;
-				double abundanceN = 0;
-
-				float minAbundance = std::numeric_limits<float>::max();
-
-				vector<u_int32_t> successors;
-				_graph->getSuccessors_unitig(u._index, 0, successors);
-				vector<u_int32_t> predecessors;
-				_graph->getPredecessors_unitig(u._index, 0, predecessors);
-
-				for(u_int32_t unitigIndex : successors){
-					abundanceSum += _graph->_unitigs[unitigIndex]._abundance * _graph->_unitigs[unitigIndex]._nbNodes;
-					abundanceN += _graph->_unitigs[unitigIndex]._nbNodes;
-					//if(_graph->_unitigs[unitigIndex]._abundance < minAbundance){
-					//	minAbundance = _graph->_unitigs[unitigIndex]._abundance;
-					//}
-				}
-				for(u_int32_t unitigIndex : predecessors){
-					abundanceSum += _graph->_unitigs[unitigIndex]._abundance * _graph->_unitigs[unitigIndex]._nbNodes;
-					abundanceN += _graph->_unitigs[unitigIndex]._nbNodes;
-					//if(_graph->_unitigs[unitigIndex]._abundance < minAbundance){
-					//	minAbundance = _graph->_unitigs[unitigIndex]._abundance;
-					//}
-				}
-
-				if(abundanceN > 0){
-					double mean = abundanceSum / abundanceN;
-					if(u._abundance < mean*0.35){
-						continue;
-					}
-				}
-				//if(u._abundance < minAbundance){
-				//	continue;
-				//}
-			}
-
-
-			u_int64_t size = u._nodes.size();
-			gzwrite(outputContigFile_min, (const char*)&size, sizeof(size));
-			gzwrite(outputContigFile_min, (const char*)&u._nodes[0], size * sizeof(u_int32_t));
-
-			for(u_int32_t nodeIndex : u._nodes){
-				u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
-				_processedNodeNames.insert(nodeName);
-			}
-
-			contigIndex += 1;
-		}
-		*/
-
-		/*
-		unordered_map<u_int32_t, u_int32_t> nodeCounts;
-
-		u_int64_t contigIndex = 0;
-		for(Contig& contig : contigs){
-			if(contig._nodePath.size() > 0){
-
-				for(u_int32_t nodeIndex : contig._nodePath){
-					nodeCounts[BiGraph::nodeIndex_to_nodeName(nodeIndex)] += 1;
-				}
-
-				
-				
-
-				
-
-			}
-		}
-
-		ofstream fileTestLala(outputFilename_fasta + ".nodes2.csv");
-		fileTestLala << "Name,Color" << endl;
-
-		for(auto& it: nodeCounts){
-			if(it.second == 1){
-				fileTestLala << it.first << "," << "blue" << endl;
-			}
-			else{
-				fileTestLala << it.first << "," << "red" << endl;
-			}
-		}
-
-		fileTestLala.close();
-		*/
-
-		/*
-		std::sort(contigs.begin(), contigs.end(), ContigComparator_ByLength);
-		for(size_t i=0; i<contigs.size(); i++){
-			for(size_t j=i+1; j<contigs.size(); j++){
-				double nbShared = Utils::computeSharedElements(contigs[i]._nodepath_sorted, contigs[j]._nodepath_sorted);
-				double sharedRate_1 = nbShared / contigs[i]._nodepath_sorted.size();
-				double sharedRate_2 = nbShared / contigs[j]._nodepath_sorted.size();
-
-				//if(i == j) cout << nbShared << " " << sharedRate_1 << " " << sharedRate_2 << endl;
-				if(sharedRate_1 > 0.01 || sharedRate_2 > 0.01){
-					cout << "------" << endl;
-					cout << contigs[i]._nodepath_sorted.size() <<  " " << sharedRate_1 << endl;
-					cout << contigs[j]._nodepath_sorted.size() <<  " " << sharedRate_2 << endl;
-				}
-			}			
-		}
-		*/
-
-		outputContigFile.close();
-		//gzclose(outputContigFile_min);
-		//gzclose(outputContigFile_fasta);
-		//fileHifiasmAll.close();
-		//file_contigToNode.close();
-
-		//extractContigKminmers(outputFilename_fasta);
-		//file_asmResult.close();
-		
-		_logFile << "Nb contigs: " << contigIndex << endl;
-		_logFile << "Check sum (nb nodes): " << checksum_nbNodes << endl;
-		_logFile << "Check sum (nodeNames): " << nbNodesCheckSum << endl;
-		_logFile << "Check sum global: " << checksum_global << endl;
-		_logFile << "Check sum global (abundance): " << checksum_abundance << endl;
-		_logFile << "Check sum: " << checkSum << endl;
-		//getchar();
-
-		//generateContigPathFile();
-	}
 	
 	/*
 	void generateContigPathFile(){
@@ -1992,7 +1489,7 @@ Nb nodes (checksum): 165166644
 
 	void generateContigs3(){
 
-		_logFile << "Generating contigs" << endl;
+		Logger::get().debug() << "Generating contigs";
 		size_t nextMultikStep = Commons::getMultikStep(_kminmerSize);
 
 
@@ -2005,13 +1502,14 @@ Nb nodes (checksum): 165166644
 		u_int64_t checksumTotal = 0;
 		//unordered_set<u_int32_t> processedNodeNames;
 
-
+		unordered_set<u_int32_t> actualAbundantNodes;
+		unordered_set<u_int32_t> seenAbundantNodes;
 
 		for(long i=_progressiveAbundanceFilter->_cutoffIndexes.size()-1; i>=0; i--){
 
 			ProgressiveAbundanceFilter::CutoffIndex cutoffIndex = _progressiveAbundanceFilter->_cutoffIndexes[i];
 			float cutoff = cutoffIndex._cutoffValue;
-			_logFile << cutoff << endl;
+			Logger::get().debug() << cutoff;
 
         	ifstream nodepathFile(_inputDir + "/filter/unitigs_" + to_string(cutoffIndex._cutoffIndex) + ".bin");
 
@@ -2061,16 +1559,39 @@ Nb nodes (checksum): 165166644
 				//if(size > 100)
 				//	cout << "contig: " << size << endl;
 
+				
+				//u_int32_t nodeName1 = BiGraph::nodeIndex_to_nodeName(nodePath[0]);
+				//u_int32_t nodeName2 = BiGraph::nodeIndex_to_nodeName(nodePath[nodePath.size()-1]);
+
 				for(u_int32_t nodeIndex : nodePath){
 					u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex);
 					//cout << nodeName << endl;
 					_processedNodeNames[nodeName] = true;
 					_nodeNameAbundances[nodeName] = {contigAbundance, (u_int32_t)nodePath.size()};
 
+					/*
+					if(_abundantNodeNames.find(nodeName) != _abundantNodeNames.end()){
+						seenAbundantNodes.insert(nodeName);
 
+						if(nodeName1 != nodeName && nodeName2 != nodeName){
+						}
+						else{
+							cout << "omg: " << contigAbundance << endl;
+						}
+					}
+					*/
 				}
 
+				/*
+				if(_abundantNodeNames.find(nodeName1) != _abundantNodeNames.end()){
+					actualAbundantNodes.insert(nodeName1);
+				}
+				if(_abundantNodeNames.find(nodeName2) != _abundantNodeNames.end()){
+					actualAbundantNodes.insert(nodeName2);
+				}
 
+				cout << actualAbundantNodes.size() << " / " << seenAbundantNodes.size() << " / " << _abundantNodeNames.size() << endl;
+				*/
 
 				contigIndex += 1;
 			}

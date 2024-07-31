@@ -1,4 +1,4 @@
-name: metaMDBG
+name: metamdbg
 channels:
   - conda-forge
   - bioconda
@@ -7,7 +7,5 @@ dependencies:
   - openmp
   - cxx-compiler
   - cmake
-  - gsl=2.7=he838d99_0
-  - wfmash=0.8.2
-  - samtools=1.6
   - minimap2=2.24
+  - time=1.8

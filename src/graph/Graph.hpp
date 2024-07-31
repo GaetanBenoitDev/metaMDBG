@@ -4,39 +4,13 @@
 #ifndef MDBG_METAG_GRAPH
 #define MDBG_METAG_GRAPH
 
+//#include "../Commons.hpp"
 
-#include <iostream>
-#include <unordered_map>
-#include <vector>
-#include <queue>
-
-using namespace std;
-typedef pair<int, int> iPair;
+//#include "../graph/GfaParser.hpp"
 
 
-/*
-static u_int32_t unitigName_to_id(string unitig_name){
-    unitig_name.erase(unitig_name.begin());
-    unitig_name.erase(unitig_name.begin());
-    unitig_name.erase(unitig_name.begin());
-    unitig_name.erase(unitig_name.end()-1);
-    return std::stoull(unitig_name)-1;
-}
 
-static string unitigIndex_to_unitigName(u_int32_t unitigIndex){
 
-    string unitigName = "utg";
-    string unitig_name_id = to_string(unitigIndex+1);
-    size_t nbZeros = 7 - unitig_name_id.size();
-    //cout << unitigIndex << " " << nbZeros << endl;
-    for(size_t i=0; i<nbZeros; i++){
-        unitigName += "0";
-    }
-    unitigName += unitig_name_id + "l";
-
-    return unitigName;
-}
-*/
 
 struct adjNode {
     u_int32_t val;
@@ -54,524 +28,12 @@ struct GraphNode {
     u_int64_t _nodeID, _length;
 };
 
-struct AdjNode {
-    u_int32_t _index;
-    //u_int16_t _overlap;
-    bool _isRemoved;
-};
 
-
-
-/*
-
-
-class GraphInfo{
-
-public:
-
-    GraphInfo(){
-        _current_node_id = 0;
-    }
-
-    u_int64_t _current_node_id;
-    unordered_map<u_int32_t, u_int32_t> _readIndex_to_id;
-    vector<u_int32_t> _id_to_readIndex;
-
-
-    //vector<u_int64_t> _unitigs_length;
-
-    void addNode(u_int32_t readIndex){
-        if (_readIndex_to_id.find(readIndex) != _readIndex_to_id.end()) return;
-
-        //cout << "Add node: " << readIndex << " " << _current_node_id << endl;y
-        _readIndex_to_id[readIndex] = _current_node_id;
-        _id_to_readIndex.push_back(readIndex);
-        _current_node_id += 1;
-    }
-
-    u_int64_t readIndex_to_id(u_int32_t readIndex){
-        return _readIndex_to_id[readIndex];
-    }
-
-    u_int32_t id_to_readIndex(u_int64_t id){
-        return _id_to_readIndex[id];
-    }
-
-
-};
-*/
-
-
-
-
-
-
-
-
-/*
-
-class AdjGraph{
-    
-    adjNode* getAdjListNode(u_int32_t to, float weight, adjNode* head, bool isSuccessor)   {
-        adjNode* newNode = new adjNode;
-        newNode->val = to;
-        newNode->weight = weight;
-
-        //if(to == 1650 || to == 1652) cout << "lala " <<  isSuccessor << endl;
-        //newNode->isSuccessor = isSuccessor;
-        //newNode->to_direction = to_direction;
-         
-        newNode->next = head;
-        return newNode;
-    }
-
-public:
-
-    GraphInfo* _graphInfo;
-    u_int64_t _nbNodes;
-    u_int64_t _nbEdges;
-    u_int32_t _nodeIndex;
-
-    vector<adjNode*> _nodes;
-    vector<bool> isVisited;
-    vector<u_int32_t> distance;
-    vector<u_int32_t> prev;
-
-    //adjNode **_nodes;                //adjacency list as array of pointers
-    // Constructor
-
-    AdjGraph(){
-        _nbNodes = 0;
-        _nbEdges = 0;
-    }
-
-    AdjGraph(u_int32_t nbNodes){
-        _nbNodes = nbNodes;
-        _nodes.resize(_nbNodes, nullptr);
-
-        prev.resize(_nbNodes, 0);
-        isVisited.resize(_nbNodes, 0);
-        distance.resize(_nbNodes, 0);
-
-        _nodeIndex = 0;
-    }
-
-    bool addNode(u_int32_t id){
-        //cout << "Add node: " << id << endl;
-        if(_nodes.size() <= id){
-            //cout << "\tPush: " << id << endl;
-            _nodes.push_back(nullptr);
-
-            prev.push_back(0);
-            isVisited.push_back(0);
-            distance.push_back(0);
-
-            _nbNodes += 1;
-
-            return true;
-        }
-
-        return false;
-    }
-
-    //void addEdge(u_int32_t from, u_int32_t to, float weight){
-        //_nodes[from] = getAdjListNode(to, weight, _nodes[from]);
-        //_nodes[to] = getAdjListNode(from, weight, _nodes[to]);
-    //}
-
-    vector<u_int32_t> _neighbors;
-
-    bool addEdge_checkDuplicate(u_int32_t from, u_int32_t to, float weight, bool isSuccessor){
-
-        //if(from == 1651 || to == 1651){
-        //    cout << "TOFL: " << from << " " << to << endl;
-        //}
-        //cout << "add edge: " << from << " " << to << endl;
-        //Check if edge exists
-        
-        //adjNode* node = _nodes[from];
-        //while (node != nullptr) {
-        //    if(node->val == to) return false;
-        //    node = node->next;
-        //}
-
-
-
-        //cout << _neighbors.size() << endl;
-
-        _nodes[from] = getAdjListNode(to, weight, _nodes[from], isSuccessor);
-        _nbEdges += 1;
-        //_nodes[to] = getAdjListNode(from, weight, _nodes[to]);
-
-        return true;
-    }
-
-
-    void create(vector<GraphEdge>* edges, u_int64_t nbNodes, GraphInfo* graphInfo)  {
-
-
-        _nbNodes = nbNodes;
-        _nbEdges = edges->size();
-        _graphInfo = graphInfo;
-
-        //prev.resize(_nbNodes, 0);
-        //isVisited.resize(_nbNodes, 0);
-        //distance.resize(_nbNodes, 0);
-        // allocate new node
-        //_nodes = new adjNode*[_nbNodes]();
-        
-        // initialize head pointer for all vertices
-        //for (int i = 0; i < _nbNodes; ++i)
-        //    _nodes[i] = nullptr;
-
-        // construct directed graph by adding edges to it
-
-
-    }
-    
-    ~AdjGraph() {
-        for (int i = 0; i < _nbNodes; i++){
-            delete[] _nodes[i];
-        }
-
-        //for (int i = 0; i < _nbNodes; i++){
-        //    delete[] _nodes[i];
-        //}
-        //delete[] _nodes;
-    }
-
-
-    void collectNeighbors(u_int32_t s, u_int32_t maxDistance, vector<u_int32_t>& neighbors, u_int32_t maxNeighbors){
-
-        neighbors.clear();
-        //if(_nodes[s] == nullptr) return;
-
-        //neighbors.push_back(s);
-        unordered_set<u_int32_t> isVisitedSet;
-
-        for(size_t i=0; i<_nbNodes; i++){
-            //isVisited[i] = false;
-            distance[i] = 0;
-            //prev[i] = -1;
-        }
-
-    
-        queue<u_int32_t> queue;
-    
-        //isVisited[s] = true;
-        distance[s] = 0;
-        queue.push(s);
-    
-        while(!queue.empty()){
-            
-            u_int32_t n = queue.front();
-            queue.pop();
-
-            adjNode* node = _nodes[n];
-
-            while (node != nullptr) {
-
-                u_int32_t nn = node->val;
-
-                //if (isVisited[nn]){
-                if(isVisitedSet.find(nn) != isVisitedSet.end()){
-                    node = node->next;
-                    continue;
-                }
-
-                if(maxNeighbors > 0 && neighbors.size() >= maxNeighbors){
-                    break;
-                }
-
-                isVisitedSet.insert(nn);
-                //isVisited[nn] = true;
-                distance[nn] = distance[n] + 1;
-                neighbors.push_back(nn);
-
-
-                if(distance[nn] >= maxDistance){
-                    node = node->next;
-                    continue;
-                }
-
-                //cout << "Push: " << nn << " " << distance[nn] << endl;
-                queue.push(nn);
-
-                node = node->next;
-            }
-
-            if(maxNeighbors > 0 && neighbors.size() >= maxNeighbors){
-                break;
-            }
-
-        }
-
-
-
-    }
-
-    void collectNeighbors(u_int32_t s, u_int32_t maxDistance, vector<u_int32_t>& neighbors, u_int32_t maxNeighbors, unordered_set<u_int32_t>& visitedNodes){
-
-        neighbors.clear();
-        //if(_nodes[s] == nullptr) return;
-
-        //neighbors.push_back(s);
-        unordered_set<u_int32_t> isVisitedSet;
-
-        for(size_t i=0; i<_nbNodes; i++){
-            //isVisited[i] = false;
-            distance[i] = 0;
-            //prev[i] = -1;
-        }
-
-    
-        queue<u_int32_t> queue;
-    
-        //isVisited[s] = true;
-        distance[s] = 0;
-        queue.push(s);
-    
-        while(!queue.empty()){
-            
-            u_int32_t n = queue.front();
-            queue.pop();
-
-            adjNode* node = _nodes[n];
-
-            while (node != nullptr) {
-
-                u_int32_t nn = node->val;
-
-                //if (isVisited[nn]){
-                if(isVisitedSet.find(nn) != isVisitedSet.end()){
-                    node = node->next;
-                    continue;
-                }
-
-                if(visitedNodes.find(nn) != visitedNodes.end()){
-                    node = node->next;
-                    continue;
-                }
-
-                if(maxNeighbors > 0 && neighbors.size() >= maxNeighbors){
-                    break;
-                }
-
-                isVisitedSet.insert(nn);
-                //isVisited[nn] = true;
-                distance[nn] = distance[n] + 1;
-                neighbors.push_back(nn);
-
-
-                if(distance[nn] >= maxDistance){
-                    node = node->next;
-                    continue;
-                }
-
-                //cout << "Push: " << nn << " " << distance[nn] << endl;
-                queue.push(nn);
-
-                node = node->next;
-            }
-
-            if(maxNeighbors > 0 && neighbors.size() >= maxNeighbors){
-                break;
-            }
-
-        }
-
-
-
-    }
-
-    
-    void display_AdjList(u_int64_t nodeID, GraphInfo* graphInfo){
-        adjNode* node = _nodes[nodeID];
-        while (node != nullptr) {
-            cout << "(" << graphInfo->id_to_readIndex(nodeID) << ", " << graphInfo->id_to_readIndex(node->val)
-                << ", " << node->weight << ") ";
-            node = node->next;
-        }
-        cout << endl;
-    }
-
-    u_int32_t shortest_path(u_int32_t src, u_int32_t dest, vector<u_int32_t>& path){
-
-        for(size_t i=0; i<_nbNodes; i++){
-            isVisited[i] = false;
-            distance[i] = 0;
-            prev[i] = -1;
-        }
-        // Keep track of visited nodes
-
-        // Initialize initial distances as 0 for all nodes
-
-        queue <int> queue1;
-        distance[src] = 0;
-        queue1.push(src);
-        isVisited[src] = true;
-        bool found = false;
-
-        while (!queue1.empty() && !found){
-
-            u_int64_t node_current = queue1.front();
-            //cout << id_to_name(node_current) << endl;
-
-            queue1.pop();
-
-            adjNode* node = _nodes[node_current];
-            while (node != nullptr) {
-
-                u_int64_t node_neighbor = node->val;
-                //cout << id_to_name(node_neighbor) << endl;
-
-                if (isVisited[node_neighbor]){
-                    node = node->next;
-                    continue;
-                }
-
-                distance[node_neighbor] = distance[node_current] + 1;
-                queue1.push(node_neighbor);
-                isVisited[node_neighbor] = true;
-                prev[node_neighbor] = node_current;
-
-                if(node_neighbor == dest){
-                    found = true;
-                    break;
-                }
-
-                node = node->next;
-            }
-
-
-
-        }
-
-        if(found){
-
-            path.clear();
-            u_int64_t n = dest;
-            while(n != src){
-                path.push_back(n);
-                //cout << id_to_name(n) << endl;
-                n = prev[n];
-
-            }
-            path.push_back(src);
-
-            return distance[dest];
-        }
-
-        return -1;
-    }
-
-
-
-
-
-    void computeConnectedComponents(vector<vector<u_int32_t>>& components){
-
-
-        for(size_t i=0; i<_nbNodes; i++){
-            isVisited[i] = false;
-        }
-
-        for(size_t n=0; n<_nbNodes; n++){
-            if(isVisited[n]) continue;
-
-
-            components.push_back(vector<u_int32_t>());
-            vector<u_int32_t>& component = components[components.size()-1];
-
-            queue <int> queue;
-
-            queue.push(n);
-            isVisited[n] = true;
-            component.push_back(n);
-
-            while (!queue.empty()){
-
-                u_int64_t node_current = queue.front();
-
-                queue.pop();
-
-                adjNode* node = _nodes[node_current];
-                while (node != nullptr) {
-
-                    u_int64_t node_neighbor = node->val;
-
-                    if (isVisited[node_neighbor]){
-                        node = node->next;
-                        continue;
-                    }
-
-                    queue.push(node_neighbor);
-
-                    isVisited[node_neighbor] = true;
-                    component.push_back(node_neighbor);
-
-                    node = node->next;
-                }
-
-
-
-            }
-
-        }
-
-
-
-    }
-
-};
-*/
-
-
-/*
-// graph implementation
-int main()
-{
-    // graph edges array.
-    graphEdge edges[] = {
-        // (x, y, w) -> edge from x to y with weight w
-        {0,1,2},{0,2,4},{1,4,3},{2,3,2},{3,1,4},{4,3,3}
-    };
-    int N = 6;      // Number of vertices in the graph
-    // calculate number of edges
-    int n = sizeof(edges)/sizeof(edges[0]);
-    // construct graph
-    DiaGraph diagraph(edges, n, N);
-    // print adjacency list representation of graph
-    cout<<"Graph adjacency list "<<endl<<"(start_vertex, end_vertex, weight):"<<endl;
-    for (int i = 0; i < N; i++)
-    {
-        // display adjacent vertices of vertex i
-        display_AdjList(diagraph.head[i], i);
-    }
-    return 0;
-}
-*/
-
-struct NodeData{
-    u_int32_t _abundance;
-    u_int32_t _length;
-    //u_int32_t _quality;
-};
 
 class BiGraph{
 
 
 
-    /*
-    adjNode* getAdjListNode(u_int32_t to, float weight, adjNode* head)   {
-        adjNode* newNode = new adjNode;
-        newNode->val = to;
-        newNode->weight = weight;
-
-        newNode->next = head;
-        return newNode;
-    }
-    */
 
 public:
 
@@ -579,69 +41,21 @@ public:
     u_int64_t _nbEdges;
     //u_int32_t _nodeIndex;
 
-    vector<vector<AdjNode>> _nodes;
-    vector<bool> isVisited;
-    vector<u_int32_t> distance;
-    vector<u_int32_t> prev;
+    vector<vector<u_int32_t>> _nodes;
 
-    vector<NodeData> _nodeDatas;
-    //vector<u_int32_t> _nodeLengths;
     
     BiGraph(u_int32_t nbNodes){
         _nbNodes = nbNodes * 2;
         _nodes.resize(_nbNodes);
 
-        prev.resize(_nbNodes, 0);
-        isVisited.resize(_nbNodes, 0);
-        distance.resize(_nbNodes, 0);
 
         _nbEdges = 0;
-       // _nodeIndex = 0;
     }
 
     ~BiGraph() {
-        //for (int i = 0; i < _nbNodes; i++){
-        //    delete[] _nodes[i];
-        //}
     }
 
-    /*
-    u_int16_t getOverlap(u_int32_t nodeIndex_from, u_int32_t nodeIndex_to){
-        if(nodeIndex_from == nodeIndex_to) return 0;
-        for(AdjNode& node : _nodes[nodeIndex_from]){
-            if(node._index == nodeIndex_to){
-                return node._overlap;
-            }
-        }
-        
-        for(AdjNode& node : _nodes[nodeIndex_to]){
-            if(node._index == nodeIndex_from){
-                return node._overlap;
-            }
-        }
 
-        //cout << "BiGraph::getOverlap : Overlap dosn't exist " << BiGraph::nodeIndex_to_nodeName(nodeIndex_from) << " " << BiGraph::nodeIndex_to_nodeName(nodeIndex_to) << endl;
-    
-        //getchar();
-
-
-
-        return 0;
-    }
-    */
-    /*
-    u_int16_t getOverlap_prev(u_int32_t nodeIndex_from, u_int32_t nodeIndex_to){
-        for(AdjNode& node : _nodes[nodeIndex_from]){
-            if(node._index == nodeIndex_to){
-                return node._overlap;
-            }
-        }
-        
-        cout << "BiGraph::getOverlap : Overlap dosn't exist " << BiGraph::nodeIndex_to_nodeName(nodeIndex_from) << " " << BiGraph::nodeIndex_to_nodeName(nodeIndex_to) << endl;
-        getchar();
-        return 0;
-    }
-    */
     static u_int32_t nodeName_to_nodeIndex(u_int32_t nodeName, bool isOrientationForward){
         if(isOrientationForward){
             return nodeName * 2;
@@ -666,109 +80,20 @@ public:
         u_int32_t nodeIndex_from = nodeName_to_nodeIndex(from, fromOrient);
         u_int32_t nodeIndex_to = nodeName_to_nodeIndex(to, toOrient);
 
-        _nodes[nodeIndex_from].push_back({nodeIndex_to, false});//getAdjListNode(nodeIndex_to, weight, _nodes[nodeIndex_from]);
+        _nodes[nodeIndex_from].push_back(nodeIndex_to);
         _nbEdges += 1;
 
         return true;
     }
 
-    bool addEdge(u_int32_t nodeIndex_from, u_int32_t nodeIndex_to){
-
-        //u_int32_t nodeIndex_from = nodeName_to_nodeIndex(from, fromOrient);
-        //u_int32_t nodeIndex_to = nodeName_to_nodeIndex(to, toOrient);
-        u_int16_t overlap = 200;
-
-        _nodes[nodeIndex_from].push_back({nodeIndex_to, false});//getAdjListNode(nodeIndex_to, weight, _nodes[nodeIndex_from]);
-        _nbEdges += 1;
-
-        return true;
-    }
-
-    bool addEdge_debug(u_int32_t from, u_int32_t to){
-
-        u_int32_t nodeIndex_from = nodeName_to_nodeIndex(from, true);
-        u_int32_t nodeIndex_to = nodeName_to_nodeIndex(to, true);
-        _nodes[nodeIndex_from].push_back({nodeIndex_to, 0}); //= getAdjListNode(nodeIndex_to, 0, _nodes[nodeIndex_from]);
-        _nbEdges += 1;
-
-        nodeIndex_from = nodeName_to_nodeIndex(to, false);
-        nodeIndex_to = nodeName_to_nodeIndex(from, false);
-        _nodes[nodeIndex_from].push_back({nodeIndex_to, 0});  // = getAdjListNode(nodeIndex_to, 0, _nodes[nodeIndex_from]);
-        _nbEdges += 1;
-
-        return true;
-    }
-
-    void clearEdgeRemoved(){
-        for(size_t i=0; i<_nodes.size(); i++){
-            vector<AdjNode>& successors = _nodes[i];
-            for(AdjNode& node : successors){
-                node._isRemoved = false;
-            }
-        }
-    }
-
-    /*
-    bool removeEdge(u_int32_t from, bool fromOrient, u_int32_t to, bool toOrient){
-
-        u_int32_t nodeIndex_from = nodeName_to_nodeIndex(from, fromOrient);
-        u_int32_t nodeIndex_to = nodeName_to_nodeIndex(to, toOrient);
-
-        vector<AdjNode>& successors = _nodes[nodeIndex_from];
-        // Traversing through the first vector list
-        // and removing the second element from it
-        for (size_t i=0; i < successors.size(); i++) {
-            if (successors[i]._index == nodeIndex_to) {
-                successors.erase(successors.begin() + i);
-                return true;
-            }
-        }
-    
-        return false;
-    }
-    */
-
-    bool setEdgeRemoved(u_int32_t nodeIndex_from, u_int32_t nodeIndex_to, bool isRemoved){
-
-        vector<AdjNode>& successors = _nodes[nodeIndex_from];
-
-        bool found = false;
-        for (size_t i=0; i < successors.size(); i++) {
-            if (successors[i]._index == nodeIndex_to) {
-                //if(successors[i]._isRemoved) continue;
-                successors[i]._isRemoved = isRemoved;
-                //cout << "Removed: " <<  i << " " << successors[i]._isRemoved << " " << BiGraph::nodeIndex_to_nodeName(nodeIndex_from) << " " << BiGraph::nodeIndex_to_nodeName(nodeIndex_to) << endl;
-                found = true;
-                
-                //successors.erase(successors.begin() + i);
-                _nbEdges -= 1;
-                //return true; //On ne breakp as car les aplindrome genere chhacun 2 edge avec la meme source -> dest
-            }
-        }
-    
-        return found;
-    }
-
-    bool isEdgeRemoved(u_int32_t nodeIndex_from, u_int32_t nodeIndex_to){
-
-        vector<AdjNode>& successors = _nodes[nodeIndex_from];
-
-        for (size_t i=0; i < successors.size(); i++) {
-            if (successors[i]._index == nodeIndex_to) {
-                if(successors[i]._isRemoved) return true;
-            }
-        }
-    
-        return false;
-    }
 
     bool edgeExists(u_int32_t nodeIndex_from, u_int32_t nodeIndex_to){
 
-        vector<AdjNode>& successors = _nodes[nodeIndex_from];
+        vector<u_int32_t>& successors = _nodes[nodeIndex_from];
         // Traversing through the first vector list
         // and removing the second element from it
         for (size_t i=0; i < successors.size(); i++) {
-            if (successors[i]._index == nodeIndex_to) {
+            if (successors[i] == nodeIndex_to) {
                 return true;
             }
         }
@@ -793,85 +118,6 @@ public:
 
 
 
-    void collectNeighbors(u_int32_t s, u_int32_t maxDistance, vector<u_int32_t>& neighbors, u_int32_t maxNeighbors, unordered_set<u_int32_t>& visitedNodes){
-
-        neighbors.clear();
-        //if(_nodes[s] == nullptr) return;
-
-        //neighbors.push_back(s);
-        unordered_set<u_int32_t> isVisitedSet;
-
-        for(size_t i=0; i<_nbNodes; i++){
-            //isVisited[i] = false;
-            distance[i] = 0;
-            //prev[i] = -1;
-        }
-
-    
-        queue<u_int32_t> queue;
-    
-        //isVisited[s] = true;
-        distance[s] = 0;
-        queue.push(s);
-    
-        while(!queue.empty()){
-            
-            u_int32_t n = queue.front();
-            queue.pop();
-
-            vector<AdjNode>& nodes = _nodes[n];
-            //& node = _nodes[n];
-
-            //while (node != nullptr) {
-            for(AdjNode& node : nodes){
-
-                u_int32_t nn = node._index;
-
-                //if (isVisited[nn]){
-                if(isVisitedSet.find(nn) != isVisitedSet.end()){
-                    //node = node->next;
-                    continue;
-                }
-
-                if(visitedNodes.find(nn) != visitedNodes.end()){
-                    //node = node->next;
-                    continue;
-                }
-
-                if(maxNeighbors > 0 && neighbors.size() >= maxNeighbors){
-                    break;
-                }
-
-                isVisitedSet.insert(nn);
-                //isVisited[nn] = true;
-                distance[nn] = distance[n] + 1;
-                neighbors.push_back(nn);
-
-
-                if(distance[nn] >= maxDistance){
-                    //node = node->next;
-                    continue;
-                }
-
-                //cout << "Push: " << nn << " " << distance[nn] << endl;
-                queue.push(nn);
-
-                //node = node->next;
-            }
-
-            if(maxNeighbors > 0 && neighbors.size() >= maxNeighbors){
-                break;
-            }
-
-        }
-
-
-
-    }
-
-
-
-
 };
 
 class UnitigGraph{
@@ -882,7 +128,6 @@ public:
         public:
 
         u_int32_t _unitigIndex;
-        bool _isPalindrome;
         vector<u_int32_t> _nodes;
         //u_int32_t _startNode;
         //u_int32_t _endNode;
@@ -890,31 +135,69 @@ public:
         u_int32_t _length;
         //u_int32_t _nbNodes;
         //vector<u_int32_t> _nodes;
-        vector<Node*> _successors;
-        vector<Node*> _predecessors;
+        vector<UnitigGraph::Node*> _successors;
+        vector<UnitigGraph::Node*> _predecessors;
+        //vector<Node*> _predecessors;
         vector<float> _abundances;
+        //vector<u_int32_t> _readIndexes;
+        //vector<vector<u_int32_t>> _successorUnitigPaths;
         //u_int32_t _sortingIndex;
 
-        u_int32_t _nodeIndexStart_subStart;
-        u_int32_t _nodeIndexStart_subEnd;
-        u_int32_t _nodeIndexEnd_subStart;
-        u_int32_t _nodeIndexEnd_subEnd;
+        //u_int32_t _nodeIndexStart_subStart;
+        //u_int32_t _nodeIndexStart_subEnd;
+        //u_int32_t _nodeIndexEnd_subStart;
+        //u_int32_t _nodeIndexEnd_subEnd;
 
-        Node(u_int32_t unitigIndex, const vector<u_int32_t>& nodes, float abundance, u_int32_t length, const vector<NodeData>& nodeDatas){
+        Node(UnitigGraph* graph, u_int32_t unitigIndex, const vector<u_int32_t>& nodes, const vector<u_int32_t>& nodeDatas){
             _unitigIndex = unitigIndex;
             _nodes = nodes;
-            _abundance = abundance;
-            _length = length;
-            _isPalindrome = false;
+
+            _length = graph->_kminmerLength + ((_nodes.size()-1)*graph->_kminmerLengthNonOverlap);
+            
 
             for(u_int32_t nodeIndex : nodes){
-                _abundances.push_back(nodeDatas[BiGraph::nodeIndex_to_nodeName(nodeIndex)]._abundance);
+                _abundances.push_back(nodeDatas[BiGraph::nodeIndex_to_nodeName(nodeIndex)]);
             }
 
-            _abundance = computeMedianAbundance(_abundances);
+            _abundance = computeMedianAbundance();
 
             //_sortingIndex = startNode();
         }
+
+        void clear(){
+            _unitigIndex = -1;
+            _successors.clear();
+            _predecessors.clear();
+            _abundances.clear();
+            _nodes.clear();
+        }
+
+        /*
+        vector<Node*> getSuccessors(UnitigGraph* unitigGraph) const{
+
+            vector<Node*> successors;
+
+            for(u_int32_t unitigIndex : _successors){
+                successors.push_back(unitigGraph->_nodes[unitigIndex]);
+            }
+
+            return successors;
+
+        }
+
+        vector<Node*> getPredecessors(UnitigGraph* unitigGraph) const{
+
+            const Node* unitigRC = unitigGraph->unitigIndex_toReverseDirection(this);
+            vector<Node*> predecessors;
+            
+            for(u_int32_t unitigIndex : unitigRC->_successors){
+
+                predecessors.push_back(unitigGraph->_nodes[unitigGraph->unitigIndex_toReverseDirection(unitigIndex)]);
+            }
+
+            return predecessors;
+        }
+        */
 
         u_int64_t nodeSum(){
             u_int64_t sum = 0;
@@ -924,7 +207,7 @@ public:
             return sum;
         }
 
-        u_int64_t successorSum(){
+        u_int64_t successorSum(UnitigGraph* unitigGraph){
             
             u_int64_t sum = 0;
             for(Node* nn : _successors){
@@ -942,7 +225,7 @@ public:
             */
         }
 
-        u_int64_t predecessorSum(){
+        u_int64_t predecessorSum(UnitigGraph* unitigGraph){
 
             u_int64_t sum = 0;
             for(Node* nn : _predecessors){
@@ -968,22 +251,44 @@ public:
             return _nodes[_nodes.size()-1];
         }
 
-        u_int8_t isCircular(){
+        u_int8_t isCircular(UnitigGraph* unitigGraph){
+            //const vector<Node*>& successors = _successors;
+            //const vector<Node*>& predecessors = getPredecessors(unitigGraph);
             return _nodes.size() > 1 && (_successors.size() == 1) && (_predecessors.size() == 1) && (_successors[0] == this) && (_predecessors[0] == this);  //_nodes.size() > 1 && (startNode() == endNode());
         }
-        void mergeWith(Node* node2, u_int32_t kminmerLength, u_int32_t kminmerLengthNonOverlap, const vector<NodeData>& nodeDatas){
+        void mergeWith(Node* node2, u_int32_t kminmerLength, u_int32_t kminmerLengthNonOverlap){
 
 
             //_length += (node2->_nodes.size()*kminmerLengthNonOverlap);
-            for(u_int32_t nodeIndex : node2->_nodes){
-                _abundances.push_back(nodeDatas[BiGraph::nodeIndex_to_nodeName(nodeIndex)]._abundance);
+            for(float abundance : node2->_abundances){
+                _abundances.push_back(abundance);
             }
 
-            _abundance = computeMedianAbundance(_abundances);
+
+
+            _abundance = computeMedianAbundance();
             
             _nodes.insert( _nodes.end(), node2->_nodes.begin(), node2->_nodes.end());
 
             _length = kminmerLength + ((_nodes.size()-1)*kminmerLengthNonOverlap);
+
+            //unordered_set<u_int32_t> readIndexes;
+            //for(u_int32_t readIndex : _readIndexes){
+            //    readIndexes.insert(readIndex);
+            //}
+            //for(u_int32_t readIndex : node2->_readIndexes){
+            //    readIndexes.insert(readIndex);
+            //}
+
+            //_readIndexes.clear();
+            //for(u_int32_t readIndex : readIndexes){
+            //    _readIndexes.push_back(readIndex);
+            //}
+
+            //if(_abundances.size() != _nodes.size()){
+            //    cout << "omg" << endl;
+            //    exit(1);
+            //}
 
             /*
             for(u_int32_t nodeIndex : _nodes){
@@ -999,6 +304,7 @@ public:
 
         }
 
+        /*
         double compute_median_float(vector<float>& scores){
             size_t size = scores.size();
 
@@ -1015,10 +321,26 @@ public:
                 }
             }
         }
+        */
 
-        double computeMedianAbundance(vector<float> abundances){
+        double computeMedianAbundance(){
 
-            return compute_median_float(abundances);
+            size_t size = _abundances.size();
+
+            if (size == 0){
+                return 0;  // Undefined, really.
+            }
+            else{
+                sort(_abundances.begin(), _abundances.end());
+                if (size % 2 == 0){
+                    return (_abundances[size / 2 - 1] + _abundances[size / 2]) / 2.0; //scores[size / 2 - 1];
+                }
+                else {
+                    return _abundances[size / 2];
+                }
+            }
+
+            //return compute_median_float(abundances);
 
             /*
             size_t n = abundances.size();
@@ -1059,6 +381,16 @@ public:
 		//return a._length < b._length;
 	}
 
+    
+	static bool NodeComparatorByLengthRev(UnitigGraph::Node*a, UnitigGraph::Node*b){
+
+        if(a->_nodes.size() == b->_nodes.size()){
+            return a->startNode() > b->startNode();
+        }
+        return a->_nodes.size() < b->_nodes.size();
+        
+	}
+
 	static bool NodeComparator(UnitigGraph::Node*a, UnitigGraph::Node*b){
         return a->startNode() < b->startNode();
 	}
@@ -1071,11 +403,11 @@ public:
 
     u_int32_t _currentUnitigIndex;
     vector<Node*> _nodes;
-    vector<u_int32_t> _nodeIndex_to_unitigIndex;
+    //vector<u_int32_t> _nodeIndex_to_unitigIndex;
 	float _kminmerLength;
 	float _kminmerOverlapMean;
 	float _kminmerLengthNonOverlap;
-    const vector<NodeData> _nodeDatas;
+    //const vector<u_int32_t>& _nodeDatas;
 
     class GraphChangedIndex{
         public:
@@ -1085,12 +417,12 @@ public:
 
     GraphChangedIndex _graphChangedIndex;
 
-    UnitigGraph(u_int32_t nbNodes, float kminmerLength, float kminmerOverlapMean, float kminmerLengthNonOverlap, const vector<NodeData>& nodeDatas) : _nodeDatas(nodeDatas){
+    UnitigGraph(float kminmerLength, float kminmerOverlapMean, float kminmerLengthNonOverlap){//}, const vector<u_int32_t>& nodeDatas) : _nodeDatas(nodeDatas){
         _currentUnitigIndex = 0;
         _kminmerLength = kminmerLength;
         _kminmerOverlapMean = kminmerOverlapMean;
         _kminmerLengthNonOverlap = kminmerLengthNonOverlap;
-        _nodeIndex_to_unitigIndex.resize(nbNodes, -1);
+        //_nodeIndex_to_unitigIndex.resize(nbNodes, -1);
     }
 
     ~UnitigGraph(){
@@ -1099,15 +431,123 @@ public:
         }
     }
 
-    void addNode(const vector<u_int32_t>& nodes, float abundance, u_int32_t length){
+    void load(const string& nodeFilename, const string& edgeSuccessorFilename, const string& edgePredecessorFilename, vector<u_int32_t>& nodeDatas){
+
+
+		ifstream nodeFile(nodeFilename);
+
+		while(true){
+
+			u_int32_t size;
+			nodeFile.read((char*)&size, sizeof(size));
+			
+
+			if(nodeFile.eof()) break;
+
+			vector<u_int32_t> nodePath;
+			nodePath.resize(size);
+			nodeFile.read((char*)&nodePath[0], size * sizeof(u_int32_t));
+
+
+			u_int32_t unitigIndex;
+			nodeFile.read((char*)&unitigIndex, sizeof(unitigIndex));
+
+            //cout << size << " " << unitigIndex << endl;
+
+            addNode(nodePath, nodeDatas);
+
+            vector<u_int32_t> nodePathRC = nodePath;
+            std::reverse(nodePathRC.begin(), nodePathRC.end());
+            for(size_t i=0; i<nodePathRC.size(); i++){
+                nodePathRC[i] = nodeIndex_toReverseDirection(nodePathRC[i]);
+            }
+
+            addNode(nodePathRC, nodeDatas);
+
+        }
+
+
+
+
+        //cout << "Clearing node datas" << endl;
+        nodeDatas.clear();
+        
+        //cout << "Loading unitig graph edges successors" << endl;
+
+        u_int64_t nbEdgeSuccessors = 0;
+		ifstream edgeSuccessorFile(edgeSuccessorFilename);
+
+		while(true){
+
+			u_int32_t unitigIndexFrom;
+			edgeSuccessorFile.read((char*)&unitigIndexFrom, sizeof(unitigIndexFrom));
+			
+			if(edgeSuccessorFile.eof()) break;
+
+			u_int32_t unitigIndexTo;
+			edgeSuccessorFile.read((char*)&unitigIndexTo, sizeof(unitigIndexTo));
+
+            addSuccessor(unitigIndexFrom, unitigIndexTo);
+            //cout << unitigIndexFrom << " " << unitigIndexTo << endl;
+            nbEdgeSuccessors += 1;
+        }
+
+
+        /*
+        cout << "Loading unitig graph edges predecessors" << endl;
+
+        int nbEdgePredecessors = 0;
+
+		ifstream edgePredecessorFile(edgePredecessorFilename);
+
+		while(true){
+
+			u_int32_t unitigIndexFrom;
+			edgePredecessorFile.read((char*)&unitigIndexFrom, sizeof(unitigIndexFrom));
+			
+			if(edgePredecessorFile.eof()) break;
+
+			u_int32_t unitigIndexTo;
+			edgePredecessorFile.read((char*)&unitigIndexTo, sizeof(unitigIndexTo));
+
+            addPredecessors(unitigIndexFrom, unitigIndexTo);
+            nbEdgePredecessors += 1;
+            //cout << unitigIndexFrom << " " << unitigIndexTo << endl;
+        }
+
+        cout << nbEdgePredecessors << endl;
+        */
+        //cout << "Loading unitig graph sorting" << endl;
+
+        for(size_t i=0; i<_nodes.size(); i++){
+            
+            UnitigGraph::Node* node = _nodes[i];
+
+            //vector<UnitigGraph::Node*> successors = node->_successors;
+
+
+            std::sort(node->_successors.begin(), node->_successors.end(), UnitigGraph::NodeComparator);
+
+            //for(size_t i=0; i<successors.size(); i++){
+            //    node->_successors[i] = successors[i]->_unitigIndex;
+            //}
+            std::sort(node->_predecessors.begin(), node->_predecessors.end(), UnitigGraph::NodeComparator);
+
+        }
+        
+        //cout << "Loading unitig graph done" << endl;
+    }
+
+
+    void addNode(const vector<u_int32_t>& nodes, const vector<u_int32_t>& nodeDatas){
 
         u_int32_t unitigIndex = _currentUnitigIndex;
 
-        Node* node = new Node(unitigIndex, nodes, abundance, length, _nodeDatas);
+        Node* node = new Node(this, unitigIndex, nodes, nodeDatas);
 
-        for(u_int32_t nodeIndex : nodes){
-            _nodeIndex_to_unitigIndex[nodeIndex] = unitigIndex;
-        }
+        //for(u_int32_t nodeIndex : nodes){
+        //    _nodeIndex_to_unitigIndex[nodeIndex] = unitigIndex;
+        //}
 
         _nodes.push_back(node);
         _currentUnitigIndex += 1;
@@ -1115,13 +555,14 @@ public:
 
     void addSuccessor(u_int32_t fromUnitigIndex, u_int32_t toUnitigIndex){
         _nodes[fromUnitigIndex]->_successors.push_back(_nodes[toUnitigIndex]);
-        //Edge edge = new Edge(fromUnitigIndex, toUnitigIndex);
+        _nodes[toUnitigIndex]->_predecessors.push_back(_nodes[fromUnitigIndex]);
+
     }
 
-    void addPredecessors(u_int32_t fromUnitigIndex, u_int32_t toUnitigIndex){
-        _nodes[fromUnitigIndex]->_predecessors.push_back(_nodes[toUnitigIndex]);
+    //void addPredecessors(u_int32_t fromUnitigIndex, u_int32_t toUnitigIndex){
+    //    _nodes[fromUnitigIndex]->_predecessors.push_back(_nodes[toUnitigIndex]);
         //Edge edge = new Edge(fromUnitigIndex, toUnitigIndex);
-    }
+    //}
 
     void removePredecessor(Node* fromNode, Node* toNode){
         
@@ -1243,8 +684,8 @@ public:
         nodeChanged(node);
         //nodeChanged(node_rc);
 
-        node->_unitigIndex = -1;
-        node_rc->_unitigIndex = -1;
+        node->clear();
+        node_rc->clear();
 
 
         //_nodes[node->_unitigIndex] = nullptr;
@@ -1390,7 +831,6 @@ public:
 
     }
 
-    
     void mergeNode(Node* node1, Node* node2){
 
         /*
@@ -1454,7 +894,7 @@ public:
         */
 
         //cout << "\tMerging " << node1->_unitigIndex << " with " << node2->_unitigIndex << endl;
-        node1->mergeWith(node2, _kminmerLength, _kminmerLengthNonOverlap, _nodeDatas);
+        node1->mergeWith(node2, _kminmerLength, _kminmerLengthNonOverlap);
 
         /*
         cout << "----" << endl;
@@ -1536,8 +976,8 @@ public:
 
 
 
-        node2_rc->_unitigIndex = -1;
-        node2->_unitigIndex = -1;
+        node2_rc->clear();
+        node2->clear();
 
 
 
@@ -1570,6 +1010,7 @@ public:
         */
 
     }
+
     //void removeEdgeTip(Node* fromNode, Node* toNode){
         
     //}
@@ -1589,7 +1030,7 @@ public:
         return nodeIndex_prev;
     }
 
-    u_int32_t unitigIndex_toReverseDirection(u_int32_t unitigIndex){
+    u_int32_t unitigIndex_toReverseDirection(u_int32_t unitigIndex) const{
         if(unitigIndex % 2 == 0){
             return unitigIndex+1;
         }
@@ -1598,7 +1039,7 @@ public:
         }
     }
 
-    Node* unitigIndex_toReverseDirection(Node* node){
+    Node* unitigIndex_toReverseDirection(const Node* node) const{
         if(node->_unitigIndex % 2 == 0){
             return _nodes[node->_unitigIndex+1];
         }
@@ -1780,7 +1221,7 @@ public:
 
                 UnitigGraph::Node* nodeCurrent = _nodes[unitigIndex];
 
-                u_int8_t isCircular = nodeCurrent->isCircular();
+                u_int8_t isCircular = nodeCurrent->isCircular(this);
 				vector<u_int32_t> nodePath = nodeCurrent->_nodes;
 				if(isCircular && nodePath.size() > 1){
 					nodePath.push_back(nodePath[0]);
@@ -1795,7 +1236,7 @@ public:
                 //vector<u_int32_t> successors;
                 //getSuccessors_unitig(unitigIndex, 0, successors);
 
-                for(Node* nodeSuccessor : _nodes[unitigIndex]->_successors){
+                for(const Node* nodeSuccessor : _nodes[unitigIndex]->_successors){
                     
 
                     u_int32_t unitigIndexN = nodeSuccessor->_unitigIndex;

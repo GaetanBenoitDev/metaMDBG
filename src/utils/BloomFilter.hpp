@@ -363,7 +363,7 @@ public:
      * \param[in] right : if true, successors are computed, otherwise predecessors are computed.
      * \return a bitset with a boolean for the 'contains' status of each neighbor
      */
-	virtual std::bitset<4> contains4 (const Item& item, bool right) = 0;
+	//virtual std::bitset<4> contains4 (const Item& item, bool right) = 0;
 
     /** Tells whether the 8 neighbors of the given item are in the Bloom filter.
      * A default implementation may be two calls to contains4 with right==true and
@@ -372,7 +372,7 @@ public:
      * \param[in] item : starting item from which neighbors are computed.
      * \return a bitset with a boolean for the 'contains' status of each neighbor
      */
-    virtual std::bitset<8> contains8 (const Item& item) = 0;
+    //virtual std::bitset<8> contains8 (const Item& item) = 0;
 
     /** Get the name of the implementation class.
      * \return the class name. */
@@ -380,7 +380,7 @@ public:
 
     /** Return the number of 1's in the Bloom (nibble by nibble)
      * \return the weight of the Bloom filter */
-    virtual unsigned long  weight () = 0;
+    //virtual unsigned long  weight () = 0;
 };
 
 /********************************************************************************/
@@ -450,12 +450,12 @@ public:
     }
 
     /** \copydoc IBloom::contains4. */
-	virtual std::bitset<4> contains4 (const Item& item, bool right)
-    {     }
+	//virtual std::bitset<4> contains4 (const Item& item, bool right)
+    //{     }
 
     /** \copydoc IBloom::contains8. */
-    virtual std::bitset<8> contains8 (const Item& item)
-    {    }
+    //virtual std::bitset<8> contains8 (const Item& item)
+    //{    }
 
     /** \copydoc IBloom::getArray. */
     virtual u_int8_t*& getArray     ()  { return blooma; }
@@ -528,6 +528,7 @@ public:
     }
 
     /** \copydoc IBloom::weight */
+    /*
     unsigned long weight()
     {
         const unsigned char oneBits[] = {0,1,1,2,1,2,2,3,1,2,2,3,2,3,3,4};
@@ -540,6 +541,7 @@ public:
         }
         return weight;
     }
+    */
 };
 
 
@@ -644,9 +646,9 @@ public:
     }
     
     /** \copydoc IBloom::weight*/
-    unsigned long weight()
-    {
-    }
+    //unsigned long weight()
+    //{
+    //}
     
 protected:
     u_int64_t _mask_block;

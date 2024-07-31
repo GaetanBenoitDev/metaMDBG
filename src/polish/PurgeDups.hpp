@@ -20,22 +20,22 @@ public:
 	string _outputDir;
 	string _tmpDir;
 	//bool _cut_contigEnds;
-	bool _removeContainedOnly;
-	bool _cut_contigInternal;
-	bool _dontOuputContigs;
+	//bool _removeContainedOnly;
+	//bool _cut_contigInternal;
+	//bool _dontOuputContigs;
 	float _minIdentity;
 	//u_int64_t _minCircularLength;
-	u_int64_t _minLinearLength;
+	//u_int64_t _minLinearLength;
 	
 	string _outputFilename_contigs;
 	string _outputFilename_mapping;
-	u_int64_t _maxBases;
+	//u_int64_t _maxBases;
 
-	u_int64_t _minDuplicationLength_ends;
-	float _minDuplicationIdentity_ends;
-	u_int64_t _minDuplicationLength_internal;
-	float _minDuplicationIdentity_internal;
-	ofstream _file_duplicatedContigs;
+	//u_int64_t _minDuplicationLength_ends;
+	//float _minDuplicationIdentity_ends;
+	//u_int64_t _minDuplicationLength_internal;
+	//float _minDuplicationIdentity_internal;
+	//ofstream _file_duplicatedContigs;
 	//u_int64_t _maxMemory;
 
 	struct Alignment{
@@ -97,12 +97,12 @@ public:
 		//args::ValueFlag<int> arg_l(parser, "", "Minimizer length", {ARG_MINIMIZER_LENGTH2}, 13);
 		//args::ValueFlag<float> arg_d(parser, "", "Minimizer density", {ARG_MINIMIZER_DENSITY2}, 0.005f);
 		//args::ValueFlag<std::string> arg_contigs(parser, "", "", {ARG_INPUT_FILENAME_CONTIG}, "");
-		args::ValueFlag<int> arg_length(parser, "", "Use contigs with length > l as reference for strain duplication purging", {ARG_LINEAR_LENGTH}, 1000000);
+		//args::ValueFlag<int> arg_length(parser, "", "Use contigs with length > l as reference for strain duplication purging", {ARG_LINEAR_LENGTH}, 1000000);
 		args::ValueFlag<float> arg_minIdentity(parser, "", "Minimum identity for strain purging (0-1)", {ARG_MIN_IDENTITY}, 0.99);
 		args::ValueFlag<int> arg_nbCores(parser, "", "Number of cores", {ARG_NB_CORES2}, NB_CORES_DEFAULT_INT);
-		args::Flag arg_containedOnly(parser, "", "", {ARG_CONTAINED_ONLY});
-		args::Flag arg_cutInternal(parser, "", "", {ARG_CUT_INTERNAL});
-		args::Flag arg_noDump(parser, "", "", {ARG_NO_DUMP});
+		//args::Flag arg_containedOnly(parser, "", "", {ARG_CONTAINED_ONLY});
+		//args::Flag arg_cutInternal(parser, "", "", {ARG_CUT_INTERNAL});
+		//args::Flag arg_noDump(parser, "", "", {ARG_NO_DUMP});
 		//args::Flag arg_isFinalAssembly(parser, "", "Is final multi-k pass", {ARG_FINAL});
 		//args::Flag arg_firstPass(parser, "", "Is first pass of multi-k", {ARG_FIRST_PASS});
 		args::Flag arg_help(parser, "", "", {'h', "help"}, args::Options::Hidden);
@@ -133,24 +133,24 @@ public:
 		_outputFilename_contigs = args::get(arg_outputFilename);
 		_nbCores = args::get(arg_nbCores);
 
-		_minLinearLength = args::get(arg_length);
+		//_minLinearLength = args::get(arg_length);
 		_minIdentity = args::get(arg_minIdentity);
-		_minIdentity *= 100;
+		//_minIdentity *= 100;
 
-		_dontOuputContigs = false;
-		if(arg_noDump){
-			_dontOuputContigs = true;
-		}
+		//_dontOuputContigs = false;
+		//if(arg_noDump){
+		//	_dontOuputContigs = true;
+		//}
 
-		_cut_contigInternal = false;
-		if(arg_cutInternal){
-			_cut_contigInternal = true;
-		}
+		//_cut_contigInternal = false;
+		//if(arg_cutInternal){
+		//	_cut_contigInternal = true;
+		//}
 
-		_removeContainedOnly = false;
-		if(arg_containedOnly){
-			_removeContainedOnly = true;
-		}
+		//_removeContainedOnly = false;
+		//if(arg_containedOnly){
+		//	_removeContainedOnly = true;
+		//}
 
 		if (_outputFilename_contigs.find(".gz") == std::string::npos) {
 			_outputFilename_contigs += ".gz";
@@ -229,7 +229,7 @@ public:
 		//	p.replace_extension("");
 		//}
 
-		_tmpDir = _outputDir + "/tmp/";
+		_tmpDir = _outputDir;// + "/tmp/";
 		if(!fs::exists(_tmpDir)){
 			fs::create_directories(_tmpDir);
 		}
@@ -241,25 +241,27 @@ public:
 		}
 
 		//_outputFilename_contigs = p.string() + "_derep.fasta.gz";
-		_maxBases = 200000000ull;
-		_minDuplicationLength_ends = 1000;
-		_minDuplicationIdentity_ends = 0.95;
-		_minDuplicationLength_internal = 1000;
-		_minDuplicationIdentity_internal = 0.95;
+		//_maxBases = 200000000ull;
+		//_minDuplicationLength_ends = 1000;
+		//_minDuplicationIdentity_ends = 0.95;
+		//_minDuplicationLength_internal = 1000;
+		//_minDuplicationIdentity_internal = 0.95;
 		//_outputFilename_contigs = p.string() + "_corrected.fasta.gz";
 		_outputFilename_mapping = _tmpDir + "/_tmp_mapping_derep__.paf.gz";
 		//_maxMemory = 4000000000ull;
 
-		_file_duplicatedContigs = ofstream(_outputDir + "/duplicatedContigs.txt");
+		//_file_duplicatedContigs = ofstream(_outputDir + "/duplicatedContigs.txt");
 		
 		
 		openLogFile(_outputDir);
 
-		_logFile << "Contigs: " << _inputFilename_contigs << endl;
+		Logger::get().debug() << "";
+		Logger::get().debug() << "Contigs: " << _inputFilename_contigs;
 		//_logFile << "Cut contigs ends: " << _cut_contigEnds << endl;
-		_logFile << "Cut contigs internal: " << _cut_contigInternal << endl;
-		_logFile << "Output filename: " << _outputFilename_contigs << endl;
-		
+		//_logFile << "Cut contigs internal: " << _cut_contigInternal << endl;
+		Logger::get().debug() << "Output filename: " << _outputFilename_contigs;
+		Logger::get().debug() << "";
+
 		_fields = new vector<string>();
 		_fields_optional = new vector<string>();
 	}
@@ -287,30 +289,33 @@ public:
 
 		//debug_indexContigName();
 		mapReads();
-		processContigs2();
+		indexAlignments();
+		//processContigs2();
 		
 		dumpDereplicatedContigs();
 		//fs::remove_all(_tmpDir);
 
-		closeLogFile();
+		//closeLogFile();
+		fs::remove(_outputFilename_mapping);
 	}
 
 	void mapReads(){
-		/*
-		cerr << "Mapping reads" << endl;
+		
+		Logger::get().debug() << "Mapping reads";
 
-		string inputContigsFilename = _tmpDir + "/input_contigs.txt";
-		ofstream input(inputContigsFilename);
-		input << _inputFilename_contigs << endl;
-		input.close();
+		//string inputContigsFilename = _tmpDir + "/input_contigs.txt";
+		//ofstream input(inputContigsFilename);
+		//input << _inputFilename_contigs << endl;
+		//input.close();
 
-		string command = "minimap2 -x asm20 -H -DP --dual=no -I 500M -K 500M -t " + to_string(_nbCores) + " " + _inputFilename_contigs + " " + _inputFilename_contigs;
+		string command = "minimap2 -X -I 1G -t " + to_string(_nbCores) + " " + _inputFilename_contigs + " " + _inputFilename_contigs;
 		command += " | gzip -c - > " + _outputFilename_mapping;
 		//command += " > " + _outputFilename_mapping;
 		//command += " | " + _mapperOutputExeFilename + " " + _inputFilename_contigs + " " + inputContigsFilename + " " + _outputFilename_mapping;
-		Utils::executeCommand(command, _outputDir, _logFile);
-		*/
+		Utils::executeCommand(command, _outputDir);
+		
 
+		/*
 		string contigFilenameBgzip = _tmpDir + "/__tmp_contigs_bgzip.fasta.gz";
 
 		string command = "zcat " + _inputFilename_contigs + " | bgzip --threads " + to_string(_nbCores) + " -c > " + contigFilenameBgzip;
@@ -326,13 +331,14 @@ public:
 		Utils::executeCommand(command, _outputDir, _logFile);
 
 		fs::remove(contigFilenameBgzip);
-
+		*/
 	}
 
-	void processContigs2(){
-		indexAlignments();
-	}
+	//void processContigs2(){
+	//	indexAlignments();
+	//}
 
+	/*
 	u_int64_t _currentLoadedBases;
 	unordered_map<string, vector<DbgEdge>> _duplicationEnds;
 	unordered_map<string, vector<DbgEdge>> _duplicationInternal;
@@ -377,9 +383,9 @@ public:
 		_contigSequences.clear();
 		_currentLoadedBases = 0;
 	}
-
+	*/
 	void indexAlignments(){
-		cerr << "\tIndexing alignments" << endl;
+		Logger::get().debug() << "Indexing alignments";
 
 		PafParser pafParser(_outputFilename_mapping);
 		auto fp = std::bind(&PurgeDups::indexAlignments_read, this, std::placeholders::_1);
@@ -388,11 +394,12 @@ public:
 
 	vector<string>* _fields;
 	vector<string>* _fields_optional;
+	unordered_set<string> _isDuplication;
 
 	void indexAlignments_read(const string& line){
 
 
-		double errorThreshold = 0.3;
+		//double errorThreshold = 0.3;
 
 		//_logFile << lineInput << endl;
 		//getchar();
@@ -405,6 +412,7 @@ public:
 		const string& readName = Utils::shortenHeader((*_fields)[0]);
 		const string& contigName = Utils::shortenHeader((*_fields)[5]);
 		
+		if(readName == contigName) return;
 
 		u_int32_t readLength = stoull((*_fields)[1]);
 		u_int32_t readStart = stoull((*_fields)[2]);
@@ -419,6 +427,7 @@ public:
 
 		bool strand = (*_fields)[4] == "-";
 
+		float divergence = 0;
 		float identity = 0;
 		//_logFile << error << endl;
 		//getchar();
@@ -430,13 +439,19 @@ public:
 
 			GfaParser::tokenize((*_fields)[i], _fields_optional, ':');
 
-			if((*_fields_optional)[0] == "gi"){
-				identity = std::stof((*_fields_optional)[2]);
+			//if((*_fields_optional)[0] == "gi"){
+			if((*_fields_optional)[0] == "dv"){
+				//identity = std::stof((*_fields_optional)[2]);
+				divergence = std::stof((*_fields_optional)[2]);
 			}
 
 		}
 
-		int maxHang = 100;
+		identity = 1 - divergence;
+
+		if((float)identity < (float)_minIdentity) return;
+
+		//int maxHang = 100;
 
 		/*
 		u_int64_t hangLeft = alignStart;
@@ -472,23 +487,29 @@ public:
 		//if((float)identity < (float)_minIdentity) return;
 
 
-		if((float)identity < (float)_minIdentity) return;
 		//cout << identity << " " << _minIdentity << " " << _minLinearLength << endl;
 		
 		
 		
-		if(readLength < contigLength){
+		//if(readLength < contigLength){
 			//if(_minCircularLength > 0 && isTargetCircular && targetLength >= _minCircularLength) continue;
-			if(_minLinearLength > 0 && readLength >= _minLinearLength) return;
+			//if(_minLinearLength > 0 && readLength >= _minLinearLength) return;
 			//if(isTargetLinear && targetLength >= _minCircularLength) continue;
-		}
-		else{
+		//}
+		//else{
 			//if(_minCircularLength > 0 && isQueryCircular && queryLength >= _minCircularLength) continue;
-			if(_minLinearLength > 0 && contigLength >= _minLinearLength) return;
-		}
+			//if(_minLinearLength > 0 && contigLength >= _minLinearLength) return;
+		//}
 
 		if(readLength < contigLength){
 
+			if(readLength > 30000) return;
+
+			float alignFraction = (readEnd-readStart) / (long double) readLength;
+			if(alignFraction < 0.9) return;
+
+			_isDuplication.insert(readName);
+			/*
 			u_int64_t hangLeft = readStart;
 			u_int64_t hangRight = readLength - readEnd;
 
@@ -498,9 +519,17 @@ public:
 			else{
 				_duplicationInternal[readName].push_back({readStart, readEnd});
 			}
+			*/
 		}
 		else{
 
+			if(contigLength > 30000) return;
+
+			float alignFraction = (contigEnd-contigStart) / (long double) contigLength;
+			if(alignFraction < 0.9) return;
+
+			_isDuplication.insert(contigName);
+			/*
 			u_int64_t hangLeft = contigStart;
 			u_int64_t hangRight = contigLength - contigEnd;
 
@@ -510,7 +539,7 @@ public:
 			else{
 				_duplicationInternal[contigName].push_back({contigStart, contigEnd});
 			}
-			
+			*/
 		}
 		/*
 		if(readName == contigName) return;
@@ -540,6 +569,7 @@ public:
 		
 	}
 
+	/*
 	void detectDuplication(){
 		_logFile << "\tDetecting duplication" << endl;
 
@@ -609,65 +639,7 @@ public:
 				//_logFile << read._index << " " << al._contigIndex << endl;
 			}
 			//_logFile << "\tdone" << endl;
-			/*
-			//if(_contigPolisher._currentPartition == 0) _logFile << readIndex << " " << (_alignments.find(readIndex) != _alignments.end()) << endl;
-			
-			//if(readIndex % 100000 == 0) _logFile << "\t" << readIndex << endl;
 
-			if(_alignments.find(readIndex) == _alignments.end()) return;
-
-			//const vector<Alignment>& als = _alignments[readIndex];
-			const Alignment& al = _alignments[readIndex];
-			//for(const Alignment& al : _alignments[readIndex]){
-			u_int64_t contigIndex = al._contigIndex;
-
-			if(_contigSequences.find(contigIndex) == _contigSequences.end()) return;
-
-			//_logFile << read._seq.size() << " " << read._qual.size() << " " << _contigSequences[contigIndex].size() << " " << al._readStart << " " << al._readEnd << " " << al._contigStart << " " << al._contigEnd << endl;
-			string readSeq = read._seq;
-			string qualSeq = read._qual;
-			string readSequence = readSeq.substr(al._readStart, al._readEnd-al._readStart);
-			string contigSequence = _contigSequences[contigIndex].substr(al._contigStart, al._contigEnd-al._contigStart);
-
-
-
-			if(al._strand){
-				Utils::toReverseComplement(readSequence);
-				Utils::toReverseComplement(readSeq);
-				std::reverse(qualSeq.begin(), qualSeq.end());
-			}
-			
-
-			//_logFile << readSequence << endl;
-			//_logFile << contigSequence << endl;
-
-			//_logFile << contigSequence.size() << " "<< readSequence.size() << endl;
-			static EdlibAlignConfig config = edlibNewAlignConfig(-1, EDLIB_MODE_NW, EDLIB_TASK_PATH, NULL, 0);
-
-
-			EdlibAlignResult result = edlibAlign(readSequence.c_str(), readSequence.size(), contigSequence.c_str(), contigSequence.size(), config);
-
-
-			char* cigar;
-
-			if (result.status == EDLIB_STATUS_OK) {
-				cigar = edlibAlignmentToCigar(result.alignment, result.alignmentLength, EDLIB_CIGAR_STANDARD);
-			} else {
-				_logFile << "Invalid edlib results" << endl;
-				exit(1);
-			}
-
-			//_logFile << cigar << endl;
-
-			edlibFreeAlignResult(result);
-			
-			find_breaking_points_from_cigar(_windowLength, al, readSeq.size(), cigar, readSeq, qualSeq);
-			free(cigar);
-
-			//getchar();
-
-			//}
-			*/
 		}
 
 		u_int64_t _maxHang = 1000;
@@ -852,16 +824,6 @@ public:
 						//readPos += 1;
 					}
 					//}
-
-					/*
-					for(size_t i=0; i<num_bases; i++){
-						isMatches.push_back(true);
-						seq1 += contigSequence[contigPos];
-						seq2 += readSequence[readPos];
-						contigPos += 1;
-						readPos += 1;
-					}
-					*/
 
 					//_logFile << "Insert: " << num_bases << endl;
 
@@ -1074,34 +1036,6 @@ public:
 
 
 
-			/*
-			u_int64_t targetIndex = Utils::contigName_to_contigIndex(contigName);
-			u_int64_t queryIndex = Utils::contigName_to_contigIndex(readName);
-			DbgEdge edge = {targetIndex, queryIndex};
-			edge = edge.normalize();
-
-			bool isOverlap = false;
-
-			if(hangLeft < maxHang){
-				if(_performedPairs.find(edge) == _performedPairs.end()){
-					_duplicationBounds[targetIndex].push_back({targetStart, targetEnd});
-					isOverlap = true;
-				}
-			}
-
-			if(hangRight < maxHang){
-				if(_performedPairs.find(edge) == _performedPairs.end()){
-					_duplicationBounds[targetIndex].push_back({targetStart, targetEnd});
-					isOverlap = true;
-				}
-			}
-
-			if(isOverlap){
-				_performedPairs.insert(edge);
-			}
-			*/
-
-
 			//find_breaking_points_from_cigar(al, readSeq.size(), cigar, readSeq);
 
 			return isOverlap;
@@ -1121,119 +1055,47 @@ public:
 
 			return 0;
 
-			/*
-			double nbMatches = 0;
-			//double length = 0;
 
-			for(size_t i=0; i<isMatches.size(); i++){
-				if(isMatches[i]) nbMatches += 1;
-				//length += 1;
-			}
-
-			double identity = nbMatches / (isMatches.size());
-			//_logFile << identity << endl;
-
-			if(identity >= _purgeDups._minDuplicationIdentity_ends){
-				return isMatches.size();
-				//for(size_t p=posStart; p<posEnd; p++){
-				//	isDuplicated[p] = true;
-				//}
-			}
-
-			return 0;
-			*/
 
 			//if(!isLeftOverlap){
 			//	std::reverse(alTypes.begin(), alTypes.end());
 			//}
 			//_logFile << nbMatches / al.length() << endl;
 			
-			/*
-			double nbMatches = 0;
-			double currentLength = 0;
-
-			if(isLeftOverlap){
-				for(size_t i=0; i<isMatches.size(); i++){
-
-
-					if(currentLength == _purgeDups._minDuplicationLength_ends){
-						double identity = nbMatches / currentLength;
-						if(identity < _purgeDups._minDuplicationIdentity_ends){
-							return 0;
-						}
-					}
-					else if(currentLength > _purgeDups._minDuplicationLength_ends){
-						double identity = nbMatches / currentLength;
-						//_logFile << currentLength << " " << identity << endl;
-						if(identity < _purgeDups._minDuplicationIdentity_ends){
-							return currentLength;
-						}
-					}
-
-					if(isMatches[i]){
-						nbMatches += 1;
-					}
-
-					currentLength += 1;
-				}
-			}
-			else{
-				for(long i=isMatches.size(); i>= 0; i--){
-
-
-					if(currentLength == _purgeDups._minDuplicationLength_ends){
-						double identity = nbMatches / currentLength;
-						if(identity < _purgeDups._minDuplicationIdentity_ends){
-							return 0;
-						}
-					}
-					else if(currentLength > _purgeDups._minDuplicationLength_ends){
-						double identity = nbMatches / currentLength;
-						//_logFile << currentLength << " " << identity << endl;
-						if(identity < _purgeDups._minDuplicationIdentity_ends){
-							return currentLength;
-						}
-					}
-
-					if(isMatches[i]){
-						nbMatches += 1;
-					}
-
-					currentLength += 1;
-				}
-			}
-
-			if(currentLength >= _purgeDups._minDuplicationLength_ends){
-				return currentLength;
-			}
-
-			return 0;
-			*/
 		}
 
 	};
-
+	*/
 	void dumpDereplicatedContigs(){
 		
-		_logFile << "Writing dereplicated contigs" << endl;
+		Logger::get().debug() << "Writing dereplicated contigs" ;
 
 		_outputContigFile = gzopen(_outputFilename_contigs.c_str(),"wb");
 
 
 		auto fp = std::bind(&PurgeDups::dumpDereplicatedContigs_read, this, std::placeholders::_1);
-		ReadParser readParser(_inputFilename_contigs, true, false, _logFile);
+		ReadParser readParser(_inputFilename_contigs, true, false);
 		readParser.parse(fp);
 
 		gzclose(_outputContigFile);
-		_file_duplicatedContigs.close();
+		//_file_duplicatedContigs.close();
 	}
 
 
 	void dumpDereplicatedContigs_read(const Read& read){
 
 		const string& contigName = Utils::shortenHeader(read._header);
+
+		if(_isDuplication.find(contigName) != _isDuplication.end()) return;
+
+		string header = ">" + read._header + '\n';
+		gzwrite(_outputContigFile, (const char*)&header[0], header.size());
+		string contigSequence = read._seq + '\n';
+		gzwrite(_outputContigFile, (const char*)&contigSequence[0], contigSequence.size());
+
 		//u_int64_t contigIndex = read._index; //Utils::contigName_to_contigIndex(read._header);
 
+		/*
 		string seq = read._seq;
 
 		//if(_duplicationBounds.find(contigIndex) != _duplicationBounds.end()){
@@ -1388,7 +1250,7 @@ public:
 		//}
 
 
-
+		*/
 
 
 	}

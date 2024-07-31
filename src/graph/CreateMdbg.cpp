@@ -17,6 +17,7 @@ void CreateMdbg::parseArgs(int argc, char* argv[]){
 	//args::ValueFlag<int> arg_l(parser, "", "Minimizer length", {ARG_MINIMIZER_LENGTH2}, 13);
 	//args::ValueFlag<float> arg_d(parser, "", "Minimizer density", {ARG_MINIMIZER_DENSITY2}, 0.005f);
 	args::ValueFlag<int> arg_nbCores(parser, "", "Number of cores", {ARG_NB_CORES2}, NB_CORES_DEFAULT_INT);
+	args::Flag arg_useCorrectedRead(parser, "", "Use corrected reads", {"corrected-read"});
 	args::Flag arg_bf(parser, "", "Filter unique erroneous k-minmers", {ARG_BLOOM_FILTER});
 	args::Flag arg_firstPass(parser, "", "Is first pass of multi-k", {ARG_FIRST_PASS});
 	args::Flag arg_help(parser, "", "", {'h', "help"}, args::Options::Hidden);
@@ -60,6 +61,11 @@ void CreateMdbg::parseArgs(int argc, char* argv[]){
 
 	if(!_isFirstPass){
 		_useBloomFilter = false;	
+	}
+
+	_useCorrectedRead = false;
+	if(arg_useCorrectedRead){
+		_useCorrectedRead = true;
 	}
 
 	/*
@@ -123,13 +129,13 @@ void CreateMdbg::parseArgs(int argc, char* argv[]){
 	openLogFile(_outputDir);
 
 
-	_logFile << endl;
-	_logFile << "Contig filename: " << _filename_inputContigs << endl;
-	_logFile << "Output dir: " << _outputDir << endl;
-	_logFile << "Minimizer length: " << _minimizerSize << endl;
-	_logFile << "Kminmer length: " << _kminmerSize << endl;
-	_logFile << "Density: " << _minimizerDensity << endl;
-	_logFile << endl;
+	Logger::get().debug() << "";
+	Logger::get().debug() << "Contig filename: " << _filename_inputContigs;
+	Logger::get().debug() << "Output dir: " << _outputDir;
+	Logger::get().debug() << "Minimizer length: " << _minimizerSize;
+	Logger::get().debug() << "Kminmer length: " << _kminmerSize;
+	Logger::get().debug() << "Density: " << _minimizerDensity;
+	Logger::get().debug() << "";
 
 	//_inputDir = getInput()->get(STR_INPUT_DIR) ? getInput()->getStr(STR_INPUT_DIR) : "";
 	//_input_extractKminmers= getInput()->get(STR_INPUT_EXTRACT_KMINMERS) ? getInput()->getStr(STR_INPUT_EXTRACT_KMINMERS) : "";
@@ -151,6 +157,8 @@ void CreateMdbg::parseArgs(int argc, char* argv[]){
 }
 
 void CreateMdbg::execute (){
+
+
 
 	//_file_noKminmerReads = ofstream(_filename_noKminmerReads, std::ofstream::app);
 	_node_id = 0;
@@ -188,14 +196,17 @@ void CreateMdbg::execute (){
 
 	//_file_noKminmerReads.close();
 
-	closeLogFile();
+	//closeLogFile();
 }
 
 
 void CreateMdbg::createMDBG (){
 
+	
+
+
 	if(_useBloomFilter){
-		_bloomFilter = new BloomCacheCoherent<u_int64_t>(16000000000ull);
+		_bloomFilter = new BloomCacheCoherent<u_int64_t>(32000000000ull);
 	}
 
 	_filename_smallContigs = _outputDir + "/small_contigs.bin";
@@ -248,9 +259,9 @@ void CreateMdbg::createMDBG (){
 
 		while (true) {
 
-			vector<u_int64_t> minimizerSeq;
+			vector<MinimizerType> minimizerSeq;
 			minimizerSeq.resize(_kminmerSizePrev);
-			kminmerFile.read((char*)&minimizerSeq[0], minimizerSeq.size()*sizeof(u_int64_t));
+			kminmerFile.read((char*)&minimizerSeq[0], minimizerSeq.size()*sizeof(MinimizerType));
 
 			if(kminmerFile.eof())break;
 
@@ -289,11 +300,11 @@ void CreateMdbg::createMDBG (){
 	*/
 
 	string inputFilename_min;
-	bool usePos = false;
+	//bool usePos = false;
 	
 	//_kminmerFile = ofstream(_outputDir + "/kminmerData_min.txt");
 
-	_logFile << "Building kminmer graph" << endl;
+	Logger::get().debug() << "Building kminmer graph";
 
 	_parsingContigs = false;
 	
@@ -301,29 +312,35 @@ void CreateMdbg::createMDBG (){
 
 	if(_isFirstPass){
 		
-		usePos = false;
+		//usePos = false;
 		inputFilename_min = _outputDir + "/read_data_init.txt";
+		if(_useCorrectedRead){
+			inputFilename_min = _outputDir + "/read_data_corrected.txt";
+		}
 
-		_logFile << "Filling bloom filter" << endl;
+		Logger::get().debug() << "Filling bloom filter";
 		_nbSolidKminmers = 0;
 		//KminmerParserParallel parser(inputFilename_min, _minimizerSize, _kminmerSize, usePos, _nbCores);
 		//parser.parse(FillBloomFilter(*this));
-		_logFile << "Solid kminmers: " << _nbSolidKminmers << endl;
+		Logger::get().debug() << "Solid kminmers: " << _nbSolidKminmers;
 		//getchar();
 		
-		_logFile << "Building mdbg" << endl;
-		KminmerParserParallel parser2(inputFilename_min, _minimizerSize, _kminmerSize, usePos, true, _nbCores);
+		Logger::get().debug() << "Building mdbg";
+		KminmerParserParallel parser2(inputFilename_min, _minimizerSize, _kminmerSize, false, false, _nbCores);
 		parser2.parse(IndexKminmerFunctor(*this, false));
-		_logFile << "Indexed: " << _mdbg->_dbg_nodes.size() << endl;;
+		Logger::get().debug() << "Indexed: " << _mdbg->_dbg_nodes.size();
 		//auto fp = std::bind(&CreateMdbg::createMDBG_collectKminmers_minspace_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 		//parser.parseMinspace(fp);
 
 		if(_useBloomFilter){
+			//cout << "Attention: bloom filter exact" << endl;
+			//_bloomFilterExact.clear();
 			delete _bloomFilter;
 				
-			KminmerParserParallel parser2(inputFilename_min, _minimizerSize, _kminmerSize, usePos, true, _nbCores);
+			//cout << "!! Bloom filter disabled!!!!!" << endl;
+			KminmerParserParallel parser2(inputFilename_min, _minimizerSize, _kminmerSize, false, false, _nbCores);
 			parser2.parse(FilterKminmerFunctor(*this));
-			_logFile << "Indexed: " << _mdbgSaved->_dbg_nodes.size() << endl;;
+			Logger::get().debug() << "Indexed: " << _mdbgSaved->_dbg_nodes.size();
 
 
 			for(auto& it : _mdbgSaved->_dbg_nodes){
@@ -360,7 +377,10 @@ void CreateMdbg::createMDBG (){
 	if(!_isFirstPass){
 		//const string& filename_uncorrectedReads = _outputDir + "/read_uncorrected.txt";
 		const string& filename_contigs = _outputDir + "/unitig_data.txt";
-		const string& filename_uncorrectedReads = _outputDir + "/read_data.txt";
+		string filename_uncorrectedReads = _outputDir + "/read_data_init.txt";
+		if(_useCorrectedRead){
+			filename_uncorrectedReads = _outputDir + "/read_data_corrected.txt";
+		}
 
 		//KminmerParserParallel parser4(filename_contigs, _minimizerSize, _kminmerSizePrev, false, false, 1);
 		//parser4.parse(IndexContigFunctor(*this));
@@ -369,8 +389,8 @@ void CreateMdbg::createMDBG (){
 		//KminmerParserParallel parser(filename_uncorrectedReads, _minimizerSize, _kminmerSize, false, _nbCores);
 		//parser.parse(FillBloomFilter(*this));
 
-		_logFile << "Building mdbg" << endl;
-		KminmerParserParallel parser2(filename_uncorrectedReads, _minimizerSize, _kminmerSize, false, true, _nbCores);
+		Logger::get().debug() << "Building mdbg";
+		KminmerParserParallel parser2(filename_uncorrectedReads, _minimizerSize, _kminmerSize, false, false, _nbCores);
 		//parser2.parse(FilterKminmerFunctor2(*this));
 		parser2.parse(IndexKminmerFunctor(*this, false));
 
@@ -387,7 +407,7 @@ void CreateMdbg::createMDBG (){
 	}
 
 	auto stop = high_resolution_clock::now();
-	_logFile << "Duration: " << duration_cast<seconds>(stop - start).count() << endl;
+	Logger::get().debug() << "Duration: " << duration_cast<seconds>(stop - start).count();
 	//cout << _mdbg->_dbg_nodes.size() << endl;
 	
 	
@@ -408,13 +428,13 @@ void CreateMdbg::createMDBG (){
 		//	fs::remove(_outputDir + "/read_data_init.txt");
 		//}
 		const auto copyOptions = fs::copy_options::overwrite_existing;
-		fs::copy(_outputDir + "/read_data_init.txt", _outputDir + "/read_data.txt", copyOptions);
+		//fs::copy(_outputDir + "/read_data_init.txt", _outputDir + "/read_data.txt", copyOptions);
 		//fs::copy(_outputDir + "/read_data_init.txt", _outputDir + "/read_uncorrected.txt", copyOptions); //disable if correction is enabled
 	}
 
 
-	_logFile << "Nb kminmers (reads): " << _kminmerExist.size() << endl;
-	_logFile << "Nb solid kminmers: " << _mdbg->_dbg_nodes.size() << endl;
+	Logger::get().debug() << "Nb kminmers (reads): " << _kminmerExist.size();
+	Logger::get().debug() << "Nb solid kminmers: " << _mdbg->_dbg_nodes.size();
 	
 	_kminmerExist.clear();
 	_minimizerCounts.clear();
@@ -423,7 +443,7 @@ void CreateMdbg::createMDBG (){
 	_contigAbundances.clear();
 	_fileSmallContigs.close();
 
-	_logFile << "Nb small contigs written: " << _nbSmallContigs << endl;
+	Logger::get().debug() << "Nb small contigs written: " << _nbSmallContigs;
 	//if(_kminmerSize == _kminmerSizeLast){
 	//	removeDuplicatedSmallContigs();
 	//}
@@ -438,7 +458,7 @@ void CreateMdbg::createMDBG (){
 
 
 struct KmerVecSorterData{
-	vector<u_int64_t> _minimizers;
+	vector<MinimizerType> _minimizers;
 	u_int32_t _abundance;
 	//u_int32_t _quality;
 };
@@ -470,7 +490,7 @@ static bool KmerVecComparator(const KmerVecSorterData &a, const KmerVecSorterDat
 void CreateMdbg::createGfa(){
 
 	u_int32_t nbNodes = _mdbg->_dbg_nodes.size();
-	_logFile << "Dumping mdbg nodes" << endl;
+	Logger::get().debug() << "Dumping mdbg nodes";
 	_mdbg->dump(_outputDir + "/kminmerData_min.txt");
 
 
@@ -580,7 +600,7 @@ void CreateMdbg::createGfa(){
 	_nbEdges = 0;
 
 	_outputFileGfa.open(_outputDir + "/minimizer_graph.gfa");
-	ofstream output_file_gfa_debug(_outputDir + "/minimizer_graph_debug.gfa");
+	//ofstream output_file_gfa_debug(_outputDir + "/minimizer_graph_debug.gfa");
 
 	
 	_outputFileGfa.write((const char*)&nbNodes, sizeof(nbNodes));
@@ -672,16 +692,14 @@ void CreateMdbg::createGfa(){
 	//for(const auto& it : _mdbg->_dbg_nodes){
 	//	keys.push_back(it.first);
 	//}
-	_logFile << "Computing deterministic node index" << endl;
+	Logger::get().debug() << "Computing deterministic node index";
 	computeDeterministicNodeNames();
 
 
-	_logFile << "Indexing edges" << endl;
-
+	Logger::get().debug() << "Indexing edges";
 	indexEdges();
 	
-	_logFile << "Computing edges" << endl;
-
+	Logger::get().debug() << "Computing edges";
 	computeEdges();
 
 
@@ -704,10 +722,10 @@ void CreateMdbg::createGfa(){
 	//cout << "Duration: " << duration_cast<seconds>(stop - start).count() << endl;
 
 	_outputFileGfa.close();
-	output_file_gfa_debug.close();
+	//output_file_gfa_debug.close();
 	
-	_logFile << "Nb nodes: " << nbNodes  << endl;
-	_logFile << "Nb edges: " << _nbEdges << endl;
+	Logger::get().debug() << "Nb nodes: " << nbNodes;
+	Logger::get().debug() << "Nb edges: " << _nbEdges;
 
 
 	
@@ -733,9 +751,9 @@ void CreateMdbg::computeDeterministicNodeNames(){
 	while (true) {
 
 
-		vector<u_int64_t> minimizerSeq;
+		vector<MinimizerType> minimizerSeq;
 		minimizerSeq.resize(_kminmerSize);
-		kminmerFile.read((char*)&minimizerSeq[0], minimizerSeq.size()*sizeof(u_int64_t));
+		kminmerFile.read((char*)&minimizerSeq[0], minimizerSeq.size()*sizeof(MinimizerType));
 
 		isEOF = kminmerFile.eof();
 		if(isEOF) break;
@@ -748,6 +766,7 @@ void CreateMdbg::computeDeterministicNodeNames(){
 		kminmerFile.read((char*)&abundance, sizeof(abundance));
 		//kminmerFile.read((char*)&quality, sizeof(quality));
 		//vec._kmers = minimizerSeq;
+
 
 		kmerVecs.push_back({minimizerSeq, abundance});
 
@@ -780,14 +799,15 @@ void CreateMdbg::computeDeterministicNodeNames(){
 
 		//vector<u_int64_t> minimizerSeq = d._kmerVec.normalize()._kmers;
 
-		vector<u_int64_t> minimizerSeq = entry._minimizers;
+		vector<MinimizerType> minimizerSeq = entry._minimizers;
 		//if(kminmerInfo._isReversed){
 		//	std::reverse(minimizerSeq.begin(), minimizerSeq.end());
 		//}
 
 		u_int16_t size = minimizerSeq.size();
 		//_kminmerFile.write((const char*)&size, sizeof(size));
-		kminmerFileOut.write((const char*)&minimizerSeq[0], size*sizeof(uint64_t));
+		kminmerFileOut.write((const char*)&minimizerSeq[0], size*sizeof(MinimizerType));
+
 
 		kminmerFileOut.write((const char*)&nodeName, sizeof(nodeName));
 		kminmerFileOut.write((const char*)&abundance, sizeof(abundance));
@@ -830,9 +850,9 @@ void CreateMdbg::indexEdges(){
 			#pragma omp critical(indexEdge)
 			{
 
-				vector<u_int64_t> minimizerSeq;
+				vector<MinimizerType> minimizerSeq;
 				minimizerSeq.resize(_kminmerSize);
-				kminmerFile.read((char*)&minimizerSeq[0], minimizerSeq.size()*sizeof(u_int64_t));
+				kminmerFile.read((char*)&minimizerSeq[0], minimizerSeq.size()*sizeof(MinimizerType));
 
 				isEOF = kminmerFile.eof();
 
@@ -869,8 +889,8 @@ void CreateMdbg::indexEdge(const KmerVec& vec, u_int32_t nodeName){
 	bool isReversedSuffix;
 	KmerVec prefix = vec.prefix().normalize(isReversedPrefix);
 	KmerVec suffix = vec.suffix().normalize(isReversedSuffix);
-	u_int64_t prefix_minimizer = vec._kmers[vec._kmers.size()-1];
-	u_int64_t suffix_minimizer = vec._kmers[0];
+	MinimizerType prefix_minimizer = vec._kmers[vec._kmers.size()-1];
+	MinimizerType suffix_minimizer = vec._kmers[0];
 	
 	/*
 	//5759311437506739 24292623053282490 90668338080075164 46010529315713468
@@ -1032,9 +1052,9 @@ void CreateMdbg::computeEdges(){
 			#pragma omp critical(indexEdge)
 			{
 
-				vector<u_int64_t> minimizerSeq;
+				vector<MinimizerType> minimizerSeq;
 				minimizerSeq.resize(_kminmerSize);
-				kminmerFile.read((char*)&minimizerSeq[0], minimizerSeq.size()*sizeof(u_int64_t));
+				kminmerFile.read((char*)&minimizerSeq[0], minimizerSeq.size()*sizeof(MinimizerType));
 
 				isEOF = kminmerFile.eof();
 
@@ -1188,6 +1208,7 @@ void CreateMdbg::dumpEdge(u_int32_t nodeNameFrom, u_int8_t nodeNameFromOri, u_in
 	
 	#pragma omp critical(gfa)
 	{
+		
 		_nbEdges += 1;
 		_outputFileGfa.write((const char*)&nodeNameFrom, sizeof(nodeNameFrom));
 		_outputFileGfa.write((const char*)&nodeNameFromOri, sizeof(nodeNameFromOri));

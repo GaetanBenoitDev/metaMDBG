@@ -11,7 +11,7 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
-set(CMAKE_CXX_FLAGS "-Wall") #-g
+set(CMAKE_CXX_FLAGS "-Wall -w") #-g 
 #set(CMAKE_CXX_FLAGS_DEBUG "-g -Ofast")
 #set(CMAKE_CXX_FLAGS_RELEASE "-Ofast")
 set(CMAKE_CXX_FLAGS_DEBUG "-O3")
@@ -40,8 +40,15 @@ add_executable(${PROJECT_NAME} ${ProjectFiles})
 #add_executable(mapper ${ProjectFilesMapper})
 
 
+
+#if (NOT TARGET spoa)
+#  add_subdirectory(src/utils/spoa64)
+#endif ()
+#target_link_libraries(${PROJECT_NAME} spoa64::spoa64)
+
+
 if (NOT TARGET spoa)
-  add_subdirectory(src/utils/spoa EXCLUDE_FROM_ALL)
+  add_subdirectory(src/utils/spoa)
 endif ()
 target_link_libraries(${PROJECT_NAME} spoa::spoa)
 

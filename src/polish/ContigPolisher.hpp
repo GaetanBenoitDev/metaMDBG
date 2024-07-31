@@ -44,7 +44,6 @@
 #include "../utils/edlib.h"
 #include "../utils/spoa/include/spoa/spoa.hpp"
 #include "../utils/DnaBitset.hpp"
-#include "../utils/PafParser.hpp"
 //#include "../utils/abPOA2/include/abpoa.h"
 //#include "../utils/pafParser/paf_parser.hpp"
 
@@ -136,6 +135,7 @@ public:
 	string _outputFilename_mapping;
 	u_int64_t _maxMemory;
 	double _qualityThreshold;
+	string _minimap2Params;
 	bool _isMetaMDBG;
 
 	//abpoa_para_t *abpt;
@@ -248,11 +248,19 @@ public:
 			std::exit(EXIT_FAILURE);
 		}
 		*/
+	
 		args::ArgumentParser parser("polish", ""); //"This is a test program.", "This goes after the options."
+		
+		//args::ValueFlag<std::string> arg_outputDir(parser, "", "Output dir for contigs and temporary files", {ARG_OUTPUT_DIR2});
+		//args::NargsValueFlag<std::string> arg_readFilenames_hifi(parser, "", "PacBio HiFi read filename(s) (separated by space)", {ARG_INPUT_HIFI}, 2);
+		//args::NargsValueFlag<std::string> arg_readFilenames_nanopore(parser, "", "nanopore R10.4+ read filename(s) (separated by space)", {ARG_INPUT_NANOPORE}, 2);
+		//args::ValueFlag<int> arg_nbCores(groupInputOutput, "", "Number of cores", {ARG_NB_CORES2}, NB_CORES_DEFAULT_INT);
+
 		args::Positional<std::string> arg_contigs(parser, "contigs", "Contig filename to be corrected", args::Options::Required);
 		args::Positional<std::string> arg_outputDir(parser, "outputDir", "Output dir for contigs and temporary files", args::Options::Required);
-		args::PositionalList<std::string> arg_readFilenames(parser, "reads", "Read filename(s) used for correction (separated by space)", args::Options::Required);
+		//args::PositionalList<std::string> arg_readFilenames(parser, "reads", "Read filename(s) used for correction (separated by space)", args::Options::Required);
 		args::ValueFlag<int> arg_nbWindows(parser, "", "Maximum read coverage used for contig correction (increase for better correction)", {ARG_NB_WINDOWS}, 0);
+		args::ValueFlag<string> arg_minimap2params(parser, "", "Set any minimap2 options (e.g. \"-x map-ont\")", {"minimap2-options"}, "");
 		args::Flag arg_noQual(parser, "", "Do not use qualities during correction", {ARG_NO_QUAL});
 		args::Flag arg_isMetaMDBG(parser, "", "Do not use qualities during correction", {ARG_IS_METAMDBG}, args::Options::Hidden);
 		args::ValueFlag<int> arg_nbCores(parser, "", "Number of cores", {ARG_NB_CORES2}, NB_CORES_DEFAULT_INT);
@@ -288,12 +296,32 @@ public:
 			cerr << parser;
 			exit(0);
 		}
+		/*
+		if(!arg_readFilenames_hifi && !arg_readFilenames_nanopore){
+			std::cerr << parser;
+			cerr << " One of the arguments ";
+			for(const string& arg : possibleInputArguments){
+				cerr << arg + " ";
+			}
+			cerr << "is required" << endl;
+			exit(1);
+		}
 
-
+		if(arg_readFilenames_hifi && arg_readFilenames_nanopore){
+			std::cerr << parser;
+			cerr << " Choose only one of the arguments ";
+			for(const string& arg : possibleInputArguments){
+				cerr << arg + " ";
+			}
+			cerr << endl;
+			exit(1);
+		}
+		*/
 
 		_inputFilename_contigs = args::get(arg_contigs);
 		_outputDir = args::get(arg_outputDir);
 		_nbCores = args::get(arg_nbCores);
+		_minimap2Params = args::get(arg_minimap2params);
 
 		_useQual = true;
 		if(arg_noQual){
@@ -317,7 +345,7 @@ public:
 		_qualityThreshold = 10.0;
 		_minContigLength = 0;
 
-		_tmpDir = _outputDir + "/tmp/";
+		_tmpDir = _outputDir;// + "/tmp/";
 		if(!fs::exists(_tmpDir)){
 			fs::create_directories(_tmpDir);
 		}
@@ -327,17 +355,27 @@ public:
 			fs::create_directories(_readPartitionDir);
 		}
 
-		_inputFilename_reads = _tmpDir + "/input_polish.txt";
-		Commons::createInputFile(args::get(arg_readFilenames), _inputFilename_reads);
+		_inputFilename_reads = _tmpDir + "/input.txt";
+		/*
+		if(arg_readFilenames_hifi){
+			Commons::createInputFile(args::get(arg_readFilenames_hifi), _inputFilename_reads);
+		}
+		else if(arg_readFilenames_nanopore){
+			Commons::createInputFile(args::get(arg_readFilenames_nanopore), _inputFilename_reads);
+		}
+		*/
+
+		//Commons::createInputFile(args::get(arg_readFilenames), _inputFilename_reads);
 
 		openLogFile(_tmpDir);
 
 
-
-		_logFile << "Contigs: " << _inputFilename_contigs << endl;
-		_logFile << "Reads: " << _inputFilename_reads << endl;
-		_logFile << "Use quality: " << _useQual << endl;
-		_logFile << "Max window variants: " << _maxWindowCopies << endl;
+		Logger::get().debug() << "";
+		Logger::get().debug() << "Contigs: " << _inputFilename_contigs;
+		Logger::get().debug() << "Reads: " << _inputFilename_reads;
+		Logger::get().debug() << "Use quality: " << _useQual ;
+		Logger::get().debug() << "Max window variants: " << _maxWindowCopies ;
+		Logger::get().debug() << "";
 
 		//fs::path p(_inputFilename_contigs);
 		//while(p.has_extension()){
@@ -451,7 +489,7 @@ public:
 		gzclose(_outputContigFile);
 		fs::remove_all(_readPartitionDir);
 
-		closeLogFile();
+		//closeLogFile();
 	}
 
 	/*
@@ -662,7 +700,7 @@ public:
 		cerr << "Computing contig coverages..." << endl;
 
 		auto fp = std::bind(&ContigPolisher::computeContigCoverages_setup_read, this, std::placeholders::_1);
-		ReadParser readParser(_inputFilename_contigs, true, false, _logFile);
+		ReadParser readParser(_inputFilename_contigs, true, false);
 		readParser.parse(fp);
 
 
@@ -693,7 +731,7 @@ public:
 			float coverage = Utils::compute_median(it.second);
 			_contigCoverages[it.first] = coverage;
 
-			_logFile << "Coverage " << it.first << ": " << coverage << endl;
+			//Logger::get().debug() << "Coverage " << it.first << ": " << coverage << endl;
 		}
 
 		_contigHitPos.clear();
@@ -901,7 +939,7 @@ public:
 		_contigStats.clear();
 		//_contigCoverages.clear();
 
-		_logFile << "Nb partitions: " << _nbPartitions << endl;
+		Logger::get().debug() << "Nb partitions: " << _nbPartitions;
 
 		//vector<vector<u_int32_t>> contigPartitions;
 		//vector<u_int32_t> contigPartition;
@@ -965,7 +1003,7 @@ public:
 
 	void collectContigStats(){
 		auto fp = std::bind(&ContigPolisher::collectContigStats_read, this, std::placeholders::_1);
-		ReadParser readParser(_inputFilename_contigs, true, false, _logFile);
+		ReadParser readParser(_inputFilename_contigs, true, false);
 		readParser.parse(fp);
 	}
 	
@@ -994,7 +1032,7 @@ public:
 
 	void writeReadPartitions(){
 		_checksumWrittenReads = 0;
-		ReadParserParallel readParser(_inputFilename_reads, false, false, _nbCores, _logFile);
+		ReadParserParallel readParser(_inputFilename_reads, false, false, _nbCores);
 		readParser.parse(ReadPartitionFunctor(*this));
 	}
 
@@ -1019,7 +1057,7 @@ public:
 			u_int32_t readIndex = read._index;
 			//const string& readName = Utils::shortenHeader(read._header);
 
-			if(read._index % 10000 == 0) _contigPolisher._logFile << "\t" << read._index << endl;
+			if(read._index % 10000 == 0) Logger::get().debug() << "\t" << read._index;
 			
 			if(_contigPolisher._alignments.find(readIndex) == _contigPolisher._alignments.end()) return;
 
@@ -1111,7 +1149,7 @@ public:
 
 	void loadContigs(){
 		auto fp = std::bind(&ContigPolisher::loadContigs_read, this, std::placeholders::_1);
-		ReadParser readParser(_inputFilename_contigs, true, false, _logFile);
+		ReadParser readParser(_inputFilename_contigs, true, false);
 		readParser.parse(fp);
 	}
 	
@@ -1173,11 +1211,11 @@ public:
 		//	readFilenames += filename + " ";
 		//}
 
-		string command = "minimap2 -I 1G -t " + to_string(_nbCores) + " -x map-hifi " + _inputFilename_contigs + " " + Commons::inputFileToFilenames(_inputFilename_reads) ;
+		string command = "minimap2 -I 1G -t " + to_string(_nbCores) + " " + _minimap2Params + " " + _inputFilename_contigs + " " + Commons::inputFileToFilenames(_inputFilename_reads);
 		//command += " > " + _outputFilename_mapping;
 		command += " | gzip -c - > " + _outputFilename_mapping;
 		//command += " | " + _mapperOutputExeFilename + " " + _inputFilename_contigs + " " + _inputFilename_reads + " " + _outputFilename_mapping;
-		Utils::executeCommand(command, _tmpDir, _logFile);
+		Utils::executeCommand(command, _tmpDir);
 
 
 		//minimap2 -x map-hifi ~/workspace/run/overlap_test_201/contigs_47.fasta.gz ~/workspace/data/overlap_test/genome_201_50x/simulatedReads_0.fastq.gz | ./bin/mapper ~/workspace/run/overlap_test_201/contigs_47.fasta.gz ~/workspace/data/overlap_test/genome_201_50x/input.txt ~/workspace/run/overlap_test_201/align.bin
@@ -1189,7 +1227,7 @@ public:
 		//cout << "Indexing contig names" << endl;
 
 		auto fp = std::bind(&ContigPolisher::indexContigName_read, this, std::placeholders::_1);
-		ReadParser readParser(_inputFilename_contigs, true, false, _logFile);
+		ReadParser readParser(_inputFilename_contigs, true, false);
 		readParser.parse(fp);
 	}
 
@@ -1203,7 +1241,7 @@ public:
 		//cout << "Indexing read names" << endl;
 		//cout << _inputFilename_reads << endl;
 		auto fp = std::bind(&ContigPolisher::indexReadName_read, this, std::placeholders::_1);
-		ReadParser readParser(_inputFilename_reads, false, false, _logFile);
+		ReadParser readParser(_inputFilename_reads, false, false);
 		readParser.parse(fp);
 
 	}
@@ -1583,7 +1621,7 @@ public:
 
 
 		const string& partitionFilename = _readPartitionDir + "/part_" + to_string(partition) + ".gz";
-		ReadParserParallel readParser(partitionFilename, true, false, _nbCores, _logFile);
+		ReadParserParallel readParser(partitionFilename, true, false, _nbCores);
 		readParser.parse(CollectWindowSequencesFunctor(*this));
 	}
 	
@@ -1659,7 +1697,7 @@ public:
 			if (result.status == EDLIB_STATUS_OK) {
 				cigar = edlibAlignmentToCigar(result.alignment, result.alignmentLength, EDLIB_CIGAR_STANDARD);
 			} else {
-				_contigPolisher._logFile << "Invalid edlib results" << endl;
+				Logger::get().error() << "Invalid edlib results";
 				exit(1);
 			}
 
@@ -2508,6 +2546,7 @@ public:
 
 	void dumpCorrectedContig(u_int32_t contigIndex){
 
+
 		u_int64_t nbCorrectedWindows = 0;
 		vector<CorrectedWindow>& correctedWindows = _currentContigs[contigIndex];
 
@@ -2517,7 +2556,7 @@ public:
 			}
 		}
 		
-		if(nbCorrectedWindows > 0){
+		if(nbCorrectedWindows > 0 && _contigCoverages[contigIndex] > 1){
 
 			std::sort(correctedWindows.begin(), correctedWindows.end(), CorrectedWindowComparator);
 
@@ -2536,19 +2575,28 @@ public:
 			string header = _contigHeaders[contigIndex];
 
 			if(_isMetaMDBG){
-				if(header.find("rc") != string::npos){
-					string h = header.substr(0, header.size()-2);
-					header = h + "_" + to_string(_contigCoverages[contigIndex]) + "x_rc";
-				}
-				else if(header[header.size()-1] == 'c'){
-					string h = header.substr(0, header.size()-1);
-					header = h + "_" + to_string(_contigCoverages[contigIndex]) + "x_c";
-				}
-				else{
-					string h = header.substr(0, header.size()-1);
-					header = h + "_" + to_string(_contigCoverages[contigIndex]) + "x_l";
+
+				bool isCircular = false;
+				//if(header.find("rc") != string::npos){
+				//	string h = header.substr(0, header.size()-2);
+				//	header = h + "_" + to_string(_contigCoverages[contigIndex]) + "x_rc";
+				//}
+				//else 
+				if(header[header.size()-1] == 'c'){
+					isCircular = true;
+					//string h = header.substr(0, header.size()-1);
+					//header = h + " length=" + to_string(contigSequence.size()) + " coverage=" + to_string(_contigCoverages[contigIndex]) + " circular=yes";
 				}
 
+				header.pop_back(); //remove circular indicator
+				header.erase(0, 3); //remove "ctg"
+				u_int32_t contigIndex = stoull(header);
+
+				//else{
+				//	string h = header.substr(0, header.size()-1);
+				//	header = h + " length=" + to_string(contigSequence.size()) + " coverage=" + to_string(_contigCoverages[contigIndex]) + " circular=no";
+				//}
+				header = Utils::createContigHeader(contigIndex, contigSequence.size(), _contigCoverages[contigIndex], isCircular);
 			}
 			/*
 			if(_circularize){
