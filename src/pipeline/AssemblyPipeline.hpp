@@ -95,12 +95,12 @@ public:
 		args::NargsValueFlag<std::string> arg_readFilenames_nanopore(groupInputOutput, "", "Nanopore R10.4+ read filename(s) (separated by space)", {ARG_INPUT_NANOPORE}, 2);
 		args::ValueFlag<int> arg_nbCores(groupInputOutput, "", "Number of cores", {ARG_NB_CORES2}, NB_CORES_DEFAULT_INT);
 
-		args::ValueFlag<int> arg_minimizerSize(groupAssembly, "", "Minimizer size", {ARG_MINIMIZER_LENGTH2}, 13);
-		args::ValueFlag<float> arg_densityAssembly(groupAssembly, "", "Minimizer density used for assembly", {ARG_MINIMIZER_DENSITY_ASSEMBLY}, 0.005f);
+		args::ValueFlag<int> arg_minimizerSize(groupAssembly, "", "k-mer size", {ARG_MINIMIZER_LENGTH2}, 13);
+		args::ValueFlag<float> arg_densityAssembly(groupAssembly, "", "Fraction of total k-mers used for assembly", {ARG_MINIMIZER_DENSITY_ASSEMBLY}, 0.005f);
 		args::ValueFlag<int> arg_maxK(groupAssembly, "", "Stop assembly after k iterations", {ARG_MAXK}, 0);
 		
 		args::ValueFlag<float> arg_minReadQuality(groupCorrection, "", "Minimum read average quality", {ARG_MIN_READ_QUALITY}, 0.0);
-		args::ValueFlag<float> arg_densityCorrection(groupCorrection, "", "Minimizer density used for correction", {ARG_MINIMIZER_DENSITY_CORRECTION}, 0.025f);
+		args::ValueFlag<float> arg_densityCorrection(groupCorrection, "", "Fraction of total k-mers used for correction", {ARG_MINIMIZER_DENSITY_CORRECTION}, 0.025f);
 		args::ValueFlag<float> arg_readCorrectionMinIdentity(groupCorrection, "", "Min read identity", {"min-read-identity"}, 0.96);
 		args::ValueFlag<int> arg_readCorrectionMinOverlapLength(groupCorrection, "", "Min read overlap length", {"min-read-overlap"}, 1000);
 		//args::ValueFlag<int> arg_nbWindows(groupAdvanced, "", "Maximum read coverage used for contig correction (increase for better correction)", {ARG_NB_WINDOWS}, 100);

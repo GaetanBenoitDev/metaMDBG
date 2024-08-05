@@ -2245,12 +2245,12 @@ public:
 				int64_t startQueryPositionIndex = getStartQueryPositionIndex(queryRead, readMatchBound._minIndex, 5000, referenceReadMinimizerPositionMap);
 				int64_t endQueryPositionIndex = getEndQueryPositionIndex(queryRead, readMatchBound._maxIndex, 5000, referenceReadMinimizerPositionMap);
 				
-				int64_t bestPossibleAlignmentScore = getBestPossibleAlignmentScore(queryRead, startQueryPositionIndex, endQueryPositionIndex, referenceReadMinimizerPositionMap);
+				//int64_t bestPossibleAlignmentScore = getBestPossibleAlignmentScore(queryRead, startQueryPositionIndex, endQueryPositionIndex, referenceReadMinimizerPositionMap);
 
-				if(!canBeBetterAlignment(queryRead, bestPossibleAlignmentScore, minimizer_to_alignmentScoreQueue)){
+				//if(!canBeBetterAlignment(queryRead, bestPossibleAlignmentScore, minimizer_to_alignmentScoreQueue)){
 					//cout << "Filtered alignment: " << bestPossibleAlignmentScore << endl;
-					continue;
-				}
+				//	continue;
+				//}
 
 				//startQueryPositionIndex = 0;
 				//endQueryPositionIndex = queryRead._minimizers.size()-1;
@@ -2527,6 +2527,10 @@ public:
 
 				if(currentAlignmentScore._score < worseAlignmentScore._score) continue;
 
+				if(currentAlignmentScore._score == worseAlignmentScore._score){
+					if(currentAlignmentScore._queryReadIndex > worseAlignmentScore._queryReadIndex) continue;
+				}
+				
 				queue.pop();
 				queue.push(currentAlignmentScore);
 			}
