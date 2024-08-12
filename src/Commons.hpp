@@ -2,6 +2,9 @@
 
 /*
 
+- segfault dans final n50
+- COntigPolisher: autoriser plus de mémoire, en fonction du maximum utilisé jusqu'a là
+- essayer d'enlever les contigs avec une faible abondance calculer par semibon2, et refaire le binning
 - dans la table finale, enlever directement les single contig complete des complete MAGs
 
 - humanGut: subsampler par pas de 10G x 5
@@ -1052,6 +1055,7 @@ public:
 	}
 	static u_int64_t computeN50(vector<u_int32_t> allReadLengths){
 
+		if(allReadLengths.size() == 0) return 0;
 
 		std::sort(allReadLengths.begin(),  allReadLengths.end(), std::greater<u_int32_t>());
 

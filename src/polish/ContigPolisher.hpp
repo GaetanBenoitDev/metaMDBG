@@ -2556,7 +2556,7 @@ public:
 			}
 		}
 		
-		if(nbCorrectedWindows > 0 && _contigCoverages[contigIndex] > 1){
+		if(nbCorrectedWindows > 0){//} && _contigCoverages[contigIndex] > 1){
 
 			std::sort(correctedWindows.begin(), correctedWindows.end(), CorrectedWindowComparator);
 
