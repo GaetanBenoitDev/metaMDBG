@@ -3082,16 +3082,18 @@ public:
 			//{
 			//cout << alignmentCoverage << endl;
 			//}
+			
 
 			const MinimizerRead& correctedRead = performPoaCorrection4(referenceRead, bestAlignments, referenceReadMinimizerPositionMapHighDensity);
 			
+			const MinimizerRead& correctedReadLow = performPoaCorrection5(correctedRead, bestAlignments);
 			
 
 			if(_parent._eval_correction){
 				//_parent.evaluateCorrection(correctedRead, alOverlap);
 			}
 			
-			return correctedRead;
+			return correctedReadLow;
 		}
 
 		
@@ -3314,6 +3316,152 @@ public:
 			return correctedReadTrimmed;
 		}
 
+		
+		MinimizerRead performPoaCorrection5(const MinimizerRead& referenceReadHigh, const vector<AlignmentResult2>& alignmentsHigh){
+
+
+			if(referenceReadHigh._minimizers.size() < 5){
+				return referenceReadHigh;
+			}
+
+			const MinimizerRead& referenceRead = Utils::getLowDensityMinimizerRead(referenceReadHigh, _parent._minimizerDensity_assembly);
+			if(referenceRead._minimizers.size() < 5) return referenceRead;
+
+			Graph* dbgGraph = new Graph(referenceRead._minimizers, referenceRead._qualities);
+
+			ReadMinimizerPositionMap referenceReadMinimizerPositionMapHighDensity;
+
+
+			for(u_int32_t i=0; i<referenceRead._minimizers.size(); i++){
+
+				MinimizerType minimizer = referenceRead._minimizers[i];
+				u_int32_t position = 0;//referenceRead._minimizersPos[i];
+				bool isReversed = false;//referenceRead._readMinimizerDirections[i];
+
+				MinimizerPosition minmizerPosition = {position, i, isReversed};
+				referenceReadMinimizerPositionMapHighDensity[minimizer].push_back(minmizerPosition);
+			}
+
+			for(size_t i=0; i<alignmentsHigh.size(); i++){
+
+				const AlignmentResult2& alignmentHigh = alignmentsHigh[i];
+
+				const MinimizerRead& queryRead = Utils::getLowDensityMinimizerRead(_parent._mReads[alignmentHigh._queryReadIndex], _parent._minimizerDensity_assembly);
+				
+
+				//const vector<MinimizerType> subContigMinimizers_forward(contigMinimizers.begin() + startQueryPositionIndex, contigMinimizers.begin() + endQueryPositionIndex);
+				vector<MinimizerType> queryRead_reverse = queryRead._minimizers;
+				std::reverse(queryRead_reverse.begin(), queryRead_reverse.end());
+
+				//vector<MinimizerType> minimizerSequence_forward = mContig._contigMinimizers;
+				//vector<MinimizerType> minimizerSequence_reverse = mContig._contigMinimizers;
+				//std::reverse(minimizerSequence_reverse.begin(), minimizerSequence_reverse.end());
+
+				//vector<u_int8_t> qualities(minimizerSequence_forward.size(), 1);
+
+				//if(_print_debug){
+				//	cout << endl << "\tAlign sequence: " << i << " " << minimizerSequence.size() << " " << graph.nodes_.size() << endl; //<< " " << graphPOA->_graph->_nodes.size() << endl;
+				//	for(MinimizerType m : minimizerSequence){
+				//		cout << "\t" << m << endl; 
+				//	}
+				
+				//}
+
+				
+				int64_t nbMatches_forward = 0;
+				int64_t alignScore_forward = 0;
+				MinimizerAligner::Alignment alignment_forward;
+				getAlignmentScore(referenceRead._minimizers, queryRead._minimizers, _minimizerAligner, alignment_forward, nbMatches_forward, alignScore_forward);
+				
+				int64_t nbMatches_reverse = 0;
+				int64_t alignScore_reverse = 0;
+				MinimizerAligner::Alignment alignment_reverse;
+				getAlignmentScore(referenceRead._minimizers, queryRead_reverse, _minimizerAligner, alignment_reverse, nbMatches_reverse, alignScore_reverse);
+
+				if(nbMatches_forward < 2 && nbMatches_reverse < 2) continue;
+
+
+				if(nbMatches_forward > nbMatches_reverse){
+
+					
+					AlignmentResult2 al;
+
+					for(size_t i=0; i<alignment_forward.size(); i++){
+						al._alignments.push_back({alignment_forward[i].first, alignment_forward[i].second});
+					}
+					
+					dbgGraph->addAlignment2(al, referenceRead._minimizers, queryRead._minimizers, queryRead._qualities);
+
+					//extractAlignment(alignment_forward, readIndex, readMinimizers, contigIndex, subContigMinimizers_forward, alignScore_forward, false, startQueryPositionIndex);
+				}
+				else{
+
+					vector<u_int8_t> quals = queryRead._qualities;
+					std::reverse(quals.begin(), quals.end());
+
+					AlignmentResult2 al;
+					for(size_t i=0; i<alignment_reverse.size(); i++){
+						al._alignments.push_back({alignment_reverse[i].first, alignment_reverse[i].second});
+					}
+					
+					dbgGraph->addAlignment2(al, referenceRead._minimizers, queryRead_reverse, quals);
+
+					//extractAlignment(alignment_reverse, readIndex, readMinimizers, contigIndex, subContigMinimizers_reverse, alignScore_reverse, true, startQueryPositionIndex);
+				}
+
+				
+
+			}
+			
+			//dbgGraph->save("/pasteur/zeus/projets/p02/seqbio/gbenoit/workspace/home/tmp/poaGraph.gfa", referenceRead._originalMinimizers);
+			//getchar();
+		
+			MinimizerRead correctedRead = computePath2(referenceRead, dbgGraph, referenceReadMinimizerPositionMapHighDensity);
+			//dbgGraph->save("/pasteur/zeus/projets/p02/seqbio/gbenoit/workspace/home/tmp/poaGraph.gfa", referenceRead._originalMinimizers);
+			//getchar();
+			delete dbgGraph;
+			
+
+
+			const MinimizerRead& correctedReadTrimmed = trimCorrectedPath(referenceRead, correctedRead);
+			
+			return correctedReadTrimmed;
+		}
+		
+
+		void getAlignmentScore(const vector<MinimizerType>& s1, const vector<MinimizerType>& s2, MinimizerAligner* minimizerAligner, MinimizerAligner::Alignment& alignmentResult, int64_t& nbMatches, int64_t& alignScore){
+			
+
+			MinimizerAligner::Alignment alignment = minimizerAligner->performAlignment(s1, s2); //al->Align(Utils::vec32_to_vec64(s2), s2.size(), graph);
+			alignmentResult = alignment;
+
+			nbMatches = 0;
+			alignScore = 0;
+
+
+			
+			for (size_t i=0; i<alignment.size(); i++) {
+
+				int64_t v1 = alignment[i].first;
+				int64_t v2 = alignment[i].second;
+				
+				if(v1 == -1){ //insert in
+					//alignScore -= 1;
+				}
+				else if(v2 == -1){ //insert in
+					//alignScore -= 1;
+				}
+				else if(s1[v1] == s2[v2]){
+					alignScore += 1;
+					nbMatches += 1;
+				}
+				else{
+					alignScore -= 1;
+				}
+			}
+
+
+		}
 
 		MinimizerRead computePath2(const MinimizerRead& read, Graph* graph, ReadMinimizerPositionMap& referenceReadMinimizerPositionMap){
 
