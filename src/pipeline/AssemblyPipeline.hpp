@@ -332,6 +332,25 @@ public:
 		
 	}
 
+	float getPeakMemory(){
+
+		try
+		{
+			ifstream perfFile(_tmpDir + "/perf.txt");
+			std::ostringstream ss;
+			ss << perfFile.rdbuf();
+			std::string maxMemory = ss.str();
+
+			return stof(maxMemory);
+		}
+		catch (const args::Help&)
+		{
+			return 0;
+		}
+
+
+	}
+
 	void cleanTmpFolder(){
 		
 		fs::remove_all(_tmpDir + "/filter");
@@ -722,21 +741,71 @@ public:
 			//command = _filename_exe + " toBasespace " + " " + _tmpDir + " " + _tmpDir + "/contig_data.txt " + " " + contigFilename_uncorrected + " " + _inputFilename  + " -t " + to_string(_nbCores);
 			//executeCommand(command);
 
-			Logger::get().info() << "Polishing contigs";
 
 			//cerr << "Polishing contigs..." << endl;
 			//_logFile << "Polishing contigs..." << endl;
 			//./bin/metaMDBG polish ~/workspace/run/overlap_test_201/contigs_uncorrected.fasta.gz ~/workspace/run/overlap_test_201/ ~/workspace/data/overlap_test/genome_201_50x/simulatedReads_0.fastq.gz ~/workspace/data/overlap_test/genome_201_50x/simulatedReads_0.fastq.gz -t 15 --qual
 			//getchar();
 			
-			command = _filename_exe + " polish " + contigFilenameCompressed + " " + _tmpDir + " " + " --threads " + to_string(_nbCores) + " -n " + to_string(_params._usedCoverageForContigPolishing) + " --metaMDBG --minimap2-options \"" + _params._minimap2Params + "\""; //--circ
+
+			//if(maxMemory < 8){
+			//	maxMemory = 8;
+			//}
+
+			Logger::get().info() << "Mapping reads vs contigs";
+
+			string readPartitionDir = _tmpDir + "/_polish_readPartitions/";
+			if(!fs::exists(readPartitionDir)){
+				fs::create_directories(readPartitionDir);
+			}
+
+			//string readFilenames = "";
+			//ReadParser readParser(_inputFilename_reads, false, false, _logFile);
+
+			//for(const string& filename : readParser._filenames){
+			//	readFilenames += filename + " ";
+			//}
+
+			int minimapBatchSize = 1;
+			float peakMemory = getPeakMemory();
+			if(peakMemory < 8 || peakMemory > 1000000){
+				minimapBatchSize = 1;
+			}
+			else{
+				minimapBatchSize = peakMemory / 8;
+			}
+			if(minimapBatchSize < 0){
+				minimapBatchSize = 1;
+			}
+			if(minimapBatchSize > 100){
+				minimapBatchSize = 100;
+			}
+
+			
+			command = "minimap2 -I " + to_string(minimapBatchSize) + "G -t " + to_string(_nbCores) + " " + _params._minimap2Params + " " + contigFilenameCompressed + " " + Commons::inputFileToFilenames(_tmpDir + "/input.txt");
+			command += " | gzip -c - > " + readPartitionDir + "/polish_mapping.paf.gz";
+			Utils::executeCommand(command, _tmpDir);
+
+
+			Logger::get().info() << "Polishing contigs";
+
+			command = _filename_exe + " polish " + contigFilenameCompressed + " " + _tmpDir + " " + " --threads " + to_string(_nbCores) + " -n " + to_string(_params._usedCoverageForContigPolishing) + " --metaMDBG"; //--circ
 			executeCommand(command);
 			//generatedContigs = true;
+
+
+
+			Logger::get().info() << "Mapping contigs vs contigs";
+			string polishedContigFilename = _tmpDir + "/contigs_polished.fasta.gz";
+
+			command = "minimap2 -X -I " + to_string(minimapBatchSize) + " -t " + to_string(_nbCores) + " " + polishedContigFilename + " " + polishedContigFilename;
+			command += " | gzip -c - > " + _tmpDir + "/_tmp_mapping_derep__.paf.gz";
+			Utils::executeCommand(command, _tmpDir);
+
 
 			Logger::get().info() << "Purging strain duplication";
 			//cerr << "Purging strain duplication..." << endl;
 			//_logFile << "Polishing contigs..." << endl;
-			string polishedContigFilename = _tmpDir + "/contigs_polished.fasta.gz";
 			string polishedContigFilenamederep = _outputDir + "/contigs.fasta.gz ";
 			command = _filename_exe + " derep " + polishedContigFilename + " " + polishedContigFilenamederep + " " + _tmpDir + " --threads " + to_string(_nbCores) + " -i " + to_string(_params._contigDereplicationIdentityThreshold); // + " -l " + to_string(_strainPurging_minContigLength) + " -i " + to_string(_strainPurging_minIdentity);
 			executeCommand(command);

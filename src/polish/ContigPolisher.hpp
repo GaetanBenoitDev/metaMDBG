@@ -135,7 +135,6 @@ public:
 	string _outputFilename_mapping;
 	u_int64_t _maxMemory;
 	double _qualityThreshold;
-	string _minimap2Params;
 	bool _isMetaMDBG;
 
 	//abpoa_para_t *abpt;
@@ -260,7 +259,7 @@ public:
 		args::Positional<std::string> arg_outputDir(parser, "outputDir", "Output dir for contigs and temporary files", args::Options::Required);
 		//args::PositionalList<std::string> arg_readFilenames(parser, "reads", "Read filename(s) used for correction (separated by space)", args::Options::Required);
 		args::ValueFlag<int> arg_nbWindows(parser, "", "Maximum read coverage used for contig correction (increase for better correction)", {ARG_NB_WINDOWS}, 0);
-		args::ValueFlag<string> arg_minimap2params(parser, "", "Set any minimap2 options (e.g. \"-x map-ont\")", {"minimap2-options"}, "");
+		//args::ValueFlag<string> arg_minimap2params(parser, "", "Set any minimap2 options (e.g. \"-x map-ont\")", {"minimap2-options"}, "");
 		args::Flag arg_noQual(parser, "", "Do not use qualities during correction", {ARG_NO_QUAL});
 		args::Flag arg_isMetaMDBG(parser, "", "Do not use qualities during correction", {ARG_IS_METAMDBG}, args::Options::Hidden);
 		args::ValueFlag<int> arg_nbCores(parser, "", "Number of cores", {ARG_NB_CORES2}, NB_CORES_DEFAULT_INT);
@@ -321,7 +320,7 @@ public:
 		_inputFilename_contigs = args::get(arg_contigs);
 		_outputDir = args::get(arg_outputDir);
 		_nbCores = args::get(arg_nbCores);
-		_minimap2Params = args::get(arg_minimap2params);
+		//_minimap2Params = args::get(arg_minimap2params);
 
 		_useQual = true;
 		if(arg_noQual){
@@ -339,22 +338,19 @@ public:
 		//}
 
 
+
 		_windowLength = 500;
 		_windowLengthVariance = _windowLength*0.01;
-		_maxWindowCopies = args::get(arg_nbWindows);; //21;
+		_maxWindowCopies = args::get(arg_nbWindows);
 		_qualityThreshold = 10.0;
 		_minContigLength = 0;
 
 		_tmpDir = _outputDir;// + "/tmp/";
-		if(!fs::exists(_tmpDir)){
-			fs::create_directories(_tmpDir);
-		}
+		//if(!fs::exists(_tmpDir)){
+		//	fs::create_directories(_tmpDir);
+		//}
 
-		_readPartitionDir = _tmpDir + "/_polish_readPartitions/";
-		if(!fs::exists(_readPartitionDir)){
-			fs::create_directories(_readPartitionDir);
-		}
-
+			_readPartitionDir = _tmpDir + "/_polish_readPartitions/";
 		_inputFilename_reads = _tmpDir + "/input.txt";
 		/*
 		if(arg_readFilenames_hifi){
@@ -424,7 +420,7 @@ public:
 		*/
 		
 		
-		mapReads();
+		//mapReads();
 		indexContigName();
 		indexReadName();
 		//if(_circularize) executeCircularize();
@@ -697,7 +693,7 @@ public:
 
 	void computeContigCoverages(){
 		
-		cerr << "Computing contig coverages..." << endl;
+		Logger::get().debug() << "Computing contig coverages...";
 
 		auto fp = std::bind(&ContigPolisher::computeContigCoverages_setup_read, this, std::placeholders::_1);
 		ReadParser readParser(_inputFilename_contigs, true, false);
@@ -803,7 +799,7 @@ public:
 	void partitionReads(){
 
 
-		cerr << "Partitionning reads on the disk..." << endl;
+		Logger::get().debug() << "Partitionning reads on the disk...";
 		collectContigStats();
 
 		int nbPartitionsInit = max((u_int32_t)1, (u_int32_t)_nbCores);
@@ -1128,7 +1124,7 @@ public:
 	void processPartition(u_int32_t partition){
 		_currentPartition = partition;
 		//if(_contigSequences.size() == 0) return;
-		cerr << "Processing partition: " << _currentPartition << "/" << _nbPartitions << endl;
+		Logger::get().debug() << "Processing partition: " << _currentPartition << "/" << _nbPartitions;
 
 		if(_partitionNbReads[partition] == 0) return;
 
@@ -1200,27 +1196,6 @@ public:
 	}
 	*/
 
-	void mapReads(){
-		
-		cerr << "Mapping reads to contigs..." << endl;
-
-		//string readFilenames = "";
-		//ReadParser readParser(_inputFilename_reads, false, false, _logFile);
-
-		//for(const string& filename : readParser._filenames){
-		//	readFilenames += filename + " ";
-		//}
-
-		string command = "minimap2 -I 1G -t " + to_string(_nbCores) + " " + _minimap2Params + " " + _inputFilename_contigs + " " + Commons::inputFileToFilenames(_inputFilename_reads);
-		//command += " > " + _outputFilename_mapping;
-		command += " | gzip -c - > " + _outputFilename_mapping;
-		//command += " | " + _mapperOutputExeFilename + " " + _inputFilename_contigs + " " + _inputFilename_reads + " " + _outputFilename_mapping;
-		Utils::executeCommand(command, _tmpDir);
-
-
-		//minimap2 -x map-hifi ~/workspace/run/overlap_test_201/contigs_47.fasta.gz ~/workspace/data/overlap_test/genome_201_50x/simulatedReads_0.fastq.gz | ./bin/mapper ~/workspace/run/overlap_test_201/contigs_47.fasta.gz ~/workspace/data/overlap_test/genome_201_50x/input.txt ~/workspace/run/overlap_test_201/align.bin
-		
-	}
 
 	void indexContigName(){
 		
@@ -1349,7 +1324,7 @@ public:
 
 	void parseAlignmentsGz(bool indexPartitionOnly){
 
-		cerr << "\tParsing alignments..." << endl;
+		Logger::get().debug() << "\tParsing alignments...";
 
 		_alignments.clear();
 		//_indexPartitionOnly = indexPartitionOnly;
@@ -1613,7 +1588,7 @@ public:
 
 	void collectWindowSequences(u_int32_t partition){
 		
-		cerr << "\tAligning window sequences" << endl;
+		Logger::get().debug() << "\tAligning window sequences";
 
 		//auto fp = std::bind(&ContigPolisher::collectWindowCopies_read, this, std::placeholders::_1);
 		//ReadParser readParser(_inputFilename_reads, false, false);
@@ -2159,7 +2134,7 @@ public:
 		
 		u_int64_t checksum = 0;
 
-		cerr << "\tPerform correction" << endl;
+		Logger::get().debug() << "\tPerform correction";
 
 		vector<u_int32_t> contigIndexes;
 		for(auto& it : _contigWindowSequences){

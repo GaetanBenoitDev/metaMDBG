@@ -288,7 +288,7 @@ public:
     void execute (){
 
 		//debug_indexContigName();
-		mapReads();
+		//mapReads();
 		indexAlignments();
 		//processContigs2();
 		
@@ -301,18 +301,13 @@ public:
 
 	void mapReads(){
 		
-		Logger::get().debug() << "Mapping reads";
 
 		//string inputContigsFilename = _tmpDir + "/input_contigs.txt";
 		//ofstream input(inputContigsFilename);
 		//input << _inputFilename_contigs << endl;
 		//input.close();
 
-		string command = "minimap2 -X -I 1G -t " + to_string(_nbCores) + " " + _inputFilename_contigs + " " + _inputFilename_contigs;
-		command += " | gzip -c - > " + _outputFilename_mapping;
-		//command += " > " + _outputFilename_mapping;
-		//command += " | " + _mapperOutputExeFilename + " " + _inputFilename_contigs + " " + inputContigsFilename + " " + _outputFilename_mapping;
-		Utils::executeCommand(command, _outputDir);
+
 		
 
 		/*

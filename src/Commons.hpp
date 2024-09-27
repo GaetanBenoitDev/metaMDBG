@@ -1278,9 +1278,9 @@ public:
 			if(m < minimizerBound){
 			//if(minimizer_int32 < minimizerBound_int32){
 				minimizersFiltered.push_back(minimizers[i]);
-				minimizerPosFiltered.push_back(minimizerPos[i]);
-				minimizerDirectionsFiltered.push_back(minimizerDirections[i]);
-				minimizerQualitiesFiltered.push_back(minimizerQualities[i]);
+				if(minimizerPos.size() > 0) minimizerPosFiltered.push_back(minimizerPos[i]);
+				if(minimizerDirections.size() > 0) minimizerDirectionsFiltered.push_back(minimizerDirections[i]);
+				if(minimizerQualities.size() > 0) minimizerQualitiesFiltered.push_back(minimizerQualities[i]);
 			}
 
 
