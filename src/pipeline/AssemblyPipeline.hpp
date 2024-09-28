@@ -798,7 +798,7 @@ public:
 			Logger::get().info() << "Mapping contigs vs contigs";
 			string polishedContigFilename = _tmpDir + "/contigs_polished.fasta.gz";
 
-			command = "minimap2 -X -I " + to_string(minimapBatchSize) + " -t " + to_string(_nbCores) + " " + polishedContigFilename + " " + polishedContigFilename;
+			command = "minimap2 -X -I " + to_string(minimapBatchSize) + "G -t " + to_string(_nbCores) + " " + polishedContigFilename + " " + polishedContigFilename;
 			command += " | gzip -c - > " + _tmpDir + "/_tmp_mapping_derep__.paf.gz";
 			Utils::executeCommand(command, _tmpDir);
 
