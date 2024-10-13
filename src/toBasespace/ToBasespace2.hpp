@@ -68,7 +68,7 @@ public:
     size_t _minimizerSize;
     size_t _kminmerSize;
     size_t _kminmerSizeFirst;
-	bool _useHomopolymerCompression;
+	//bool _useHomopolymerCompression;
 	//bool _isFirstPass;
 	//bool _isOutputFasta;
 
@@ -192,10 +192,10 @@ public:
 		_inputFilename = args::get(arg_inputReadFilename);
 		_nbCores = args::get(arg_nbCores);
 
-		_useHomopolymerCompression = false;
-		if(arg_homopolymerCompression){
-			_useHomopolymerCompression = true;
-		}
+		//_useHomopolymerCompression = false;
+		//if(arg_homopolymerCompression){
+		//	_useHomopolymerCompression = true;
+		//}
 
 		/*
 		cxxopts::Options options("ToBasespace", "");
@@ -555,12 +555,12 @@ public:
 
 	void alignReads(){
 
-		bool hasQuality = true;
-		if(_useHomopolymerCompression){ //hifi
-			hasQuality = false;
-		}
+		//bool hasQuality = true;
+		//if(_useHomopolymerCompression){ //hifi
+		//	hasQuality = false;
+		//}
 
-		KminmerParserParallel parser(_inputDir + "/read_data_init.txt", _minimizerSize, _kminmerSize, false, hasQuality, _nbCores);
+		KminmerParserParallel parser(_inputDir + "/read_data_init.txt", _minimizerSize, _kminmerSize, false, true, _nbCores);
 		parser._densityThreshold = _minimizerDensity;
 		parser.parseSequences(AlignReadFunctor(*this));
 
@@ -2166,7 +2166,7 @@ public:
 
 			string rleSequence;
 			vector<u_int64_t> rlePositions;
-			_encoderRLE.execute(read._seq.c_str(), read._seq.size(), rleSequence, rlePositions, _toBasespace._useHomopolymerCompression);
+			_encoderRLE.execute(read._seq.c_str(), read._seq.size(), rleSequence, rlePositions, false);
 
 			vector<MinimizerType> minimizers;
 			vector<u_int32_t> minimizers_pos;

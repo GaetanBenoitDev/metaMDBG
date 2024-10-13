@@ -702,14 +702,17 @@ public:
 			string command = _filename_exe + " toBasespaceFast " + " " + _tmpDir + " " + _tmpDir + "/contig_data.txt " + " " + contigFilenameDummy + " " + _inputFilename + " --threads " + to_string(_nbCores);
 			executeCommand(command);
 
+
+			Logger::get().info() << "Constructing base-space contigs";
+
 			if(_params._dataType == DataType::HiFi){
 				command = _filename_exe + " toBasespace_hifi " + " " + _tmpDir + " " + _tmpDir + "/contig_data.txt " + " " + contigFilenameCompressed + " " + _inputFilename  + " --threads " + to_string(_nbCores);
-				if(_params._useHomopolymerCompression) command += " --homopolymer-compression";
+				//if(_params._useHomopolymerCompression) command += " --homopolymer-compression";
 				executeCommand(command);
 			}
 			else if(_params._dataType == DataType::Nanopore){
 				command = _filename_exe + " toBasespace_ont " + " " + _tmpDir + " " + _tmpDir + "/contig_data.txt " + " " + contigFilenameCompressed + " " + _inputFilename  + " --threads " + to_string(_nbCores);
-				if(_params._useHomopolymerCompression) command += " --homopolymer-compression";
+				//if(_params._useHomopolymerCompression) command += " --homopolymer-compression";
 				executeCommand(command);
 			} 
 

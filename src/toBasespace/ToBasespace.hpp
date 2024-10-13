@@ -111,7 +111,7 @@ public:
 	gzFile _outputFile_left;
 	gzFile _outputFile_right;
 	//std::unique_ptr<spoa::AlignmentEngine> _alignment_engine;
-	bool _useHomopolymerCompression;
+	//bool _useHomopolymerCompression;
 
 	void parseArgs(int argc, char* argv[]){
 
@@ -126,7 +126,7 @@ public:
 		//args::ValueFlag<float> arg_d(parser, "", "Minimizer density", {ARG_MINIMIZER_DENSITY2}, 0.005f);
 		//args::ValueFlag<std::string> arg_contigs(parser, "", "", {ARG_INPUT_FILENAME_CONTIG}, "");
 		args::ValueFlag<int> arg_nbCores(parser, "", "Number of cores", {ARG_NB_CORES2}, NB_CORES_DEFAULT_INT);
-		args::Flag arg_homopolymerCompression(parser, "", "Activate homopolymer compression", {ARG_HOMOPOLYMER_COMPRESSION});
+		//args::Flag arg_homopolymerCompression(parser, "", "Activate homopolymer compression", {ARG_HOMOPOLYMER_COMPRESSION});
 		//args::Flag arg_firstPass(parser, "", "Is first pass of multi-k", {ARG_FIRST_PASS});
 		//args::Flag arg_isFinalAssembly(parser, "", "Is final multi-k pass", {ARG_FINAL});
 		//args::Flag arg_firstPass(parser, "", "Is first pass of multi-k", {ARG_FIRST_PASS});
@@ -156,10 +156,10 @@ public:
 		_inputFilename = args::get(arg_inputReadFilename);
 		_nbCores = args::get(arg_nbCores);
 
-		_useHomopolymerCompression = false;
-		if(arg_homopolymerCompression){
-			_useHomopolymerCompression = true;
-		}
+		//_useHomopolymerCompression = false;
+		//if(arg_homopolymerCompression){
+		//	_useHomopolymerCompression = true;
+		//}
 
 		/*
 		cxxopts::Options options("ToBasespace", "");
@@ -452,16 +452,18 @@ public:
 
 	void indexReads(){
 
-		bool hasQuality = true;
-		if(_useHomopolymerCompression){ //hifi
-			hasQuality = false;
-		}
+		//bool hasQuality = true;
+		//if(_useHomopolymerCompression){ //hifi
+		//	hasQuality = false;
+		//}
+
+		//cout << _useHomopolymerCompression << " " << hasQuality << endl;
 
 		Logger::get().debug() << "Indexing reads";
 		_unitigDatas.resize(_kmerVec_to_nodeName.size());
 		
-		KminmerParserParallel parser(_inputDir + "/read_data_init.txt", _minimizerSize, _kminmerSize, false, hasQuality, _nbCores);
-		parser._densityThreshold = _minimizerDensity;
+		KminmerParserParallel parser(_inputDir + "/read_data_init.txt", _minimizerSize, _kminmerSize, false, false, _nbCores);
+		//parser._densityThreshold = _minimizerDensity;
 		//parser2.parse(FilterKminmerFunctor2(*this));
 		parser.parse(IndexReadsFunctor(*this));
 
@@ -497,6 +499,7 @@ public:
 
 		void operator () (KminmerList& kminmerList) {
 
+			//cout << kminmerList._readIndex << " " << kminmerList._kminmersInfo.size() << endl;
 			processKminmers(kminmerList, false);
 
 			std::reverse(kminmerList._kminmersInfo.begin(), kminmerList._kminmersInfo.end());
@@ -1646,7 +1649,7 @@ public:
 
 			string rleSequence;
 			vector<u_int64_t> rlePositions;
-			_encoderRLE.execute(read._seq.c_str(), read._seq.size(), rleSequence, rlePositions, _toBasespace._useHomopolymerCompression);
+			_encoderRLE.execute(read._seq.c_str(), read._seq.size(), rleSequence, rlePositions, true);
 
 			vector<MinimizerType> minimizers;
 			vector<u_int32_t> minimizers_pos;
