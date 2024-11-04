@@ -145,8 +145,7 @@ public:
 	//unordered_map<u_int64_t, u_int64_t> _contigLength;
 	//unordered_map<string, vector<string>> _contigMapLeft;
 	//unordered_map<string, vector<string>> _contigMapRight;
-	//unordered_map<u_int32_t, vector<u_int32_t>> _contigHitPos;
-	unordered_map<u_int32_t, u_int32_t> _contigLength;
+	unordered_map<u_int32_t, vector<u_int32_t>> _contigHitPos;
 	unordered_map<u_int32_t, float> _contigCoverages;
 
 	u_int64_t _checksumWrittenReads;
@@ -696,85 +695,6 @@ public:
 		
 		Logger::get().debug() << "Computing contig coverages...";
 
-		unordered_map<u_int32_t, vector<pair<u_int32_t, u_int32_t>>> contigHits;
-		auto fp = std::bind(&ContigPolisher::computeContigCoverages_setup_read, this, std::placeholders::_1);
-		ReadParser readParser(_inputFilename_contigs, true, false);
-		readParser.parse(fp);
-
-
-		for(const auto& it : _alignments){
-
-			//const string& contigName = it.second._contigName;
-			u_int32_t contigIndex = it.second._contigIndex;
-
-			//if(contigHits.find(contigIndex) == contigHits.end()){
-			//	contigHits[contigIndex] = {};
-			//}
-
-			contigHits[contigIndex].push_back({it.second._contigStart, it.second._contigEnd});
-
-			//for(size_t i=it.second._contigStart; i<it.second._contigEnd; i++){
-			//	if(i%_contigCoverageWindow != 0) continue;
-				//cout << i/_contigCoverageWindow << " " << contigHitPos.size() << endl;
-			//	if(i/_contigCoverageWindow >= contigHitPos.size()) continue;
-			//	contigHitPos[i/_contigCoverageWindow] += 1;
-				//cout << i/_contigCoverageWindow << " " << contigHitPos.size() << endl;
-			//}
-
-		}
-
-		for(auto& it : contigHits){
-
-			//cout << it.first << " " << _contigLength[it.first] << endl;
-			vector<u_int32_t> coverages(_contigLength[it.first], 0);
-
-			for(auto& interval : it.second){
-
-				for(size_t i=interval.first; i<interval.second; i++){
-					coverages[i] += 1;
-				}
-			}
-			//cout << it.first << endl;
-			//for(u_int32_t count : it.second){
-			//	cout << count << " ";
-			//}
-			//cout << endl;
-
-			if (coverages.size() < 80 *2){
-				_contigCoverages[it.first] = 1;
-			}
-			else{
-				u_int64_t sum = 0;
-				for(long i=75; i<((long)coverages.size())-75; i++){
-					sum += coverages[i];
-				}
-
-				float coverage = sum / ((double)coverages.size());  //Utils::compute_median(coverages);
-				_contigCoverages[it.first] = coverage;
-			}
-
-
-			//Logger::get().debug() << "Coverage " << it.first << ": " << coverage << endl;
-		}
-
-		//_contigHitPos.clear();
-		_contigLength.clear();
-	}
-
-	
-	void computeContigCoverages_setup_read(const Read& read){
-
-		_contigLength[read._index] = read._seq.size();
-		//int nbCounts = read._seq.size() / _contigCoverageWindow;
-		//cout << Utils::shortenHeader(read._header) << " " << nbCounts << endl;
-		//_contigHitPos[read._index].resize(nbCounts, 0);
-	}
-
-	/*
-	void computeContigCoverages(){
-		
-		Logger::get().debug() << "Computing contig coverages...";
-
 		auto fp = std::bind(&ContigPolisher::computeContigCoverages_setup_read, this, std::placeholders::_1);
 		ReadParser readParser(_inputFilename_contigs, true, false);
 		readParser.parse(fp);
@@ -820,7 +740,7 @@ public:
 		//cout << Utils::shortenHeader(read._header) << " " << nbCounts << endl;
 		_contigHitPos[read._index].resize(nbCounts, 0);
 	}
-	*/
+
 	/*
 	u_int64_t loadContig(u_int64_t contigIndex, const string& seq){
 
@@ -1219,6 +1139,37 @@ public:
 		//_readName_to_readIndex.clear();
 
 		collectWindowSequences(_currentPartition);
+		/*
+		for(const auto& it : _contigIndex_to_coverages){
+			cout << _contigHeaders[it.first] << endl;
+			string s = "";
+			for(size_t i=0; i<it.second.size(); i++){
+				s += to_string(it.second[i]) + " ";
+			}
+
+			cout << s << endl;
+		}
+		*/
+
+		for(const auto& it : _contigIndex_to_coverages){
+			//cout << _contigHeaders[it.first] << endl;
+			//string s = "";
+
+			u_int32_t sum = 0;
+			
+			for(size_t i=0; i<it.second.size(); i++){
+				//s += to_string(it.second[i]) + " ";
+				sum += it.second[i];
+			}
+
+			double coverage_mean = sum / ((double) it.second.size());
+			_contigCoverages[it.first] = coverage_mean;
+
+			//cout << s << endl;
+		}
+
+		_contigIndex_to_coverages.clear();
+
 		performCorrection();
 		//if(fs::exists(_outputFilename_mapping)) fs::remove(_outputFilename_mapping);
 	}
@@ -1262,6 +1213,7 @@ public:
 
 
 	void clearPass(){
+		_contigIndex_to_coverages.clear();
 		_contigSequences.clear();
 		//_validContigIndexes.clear();
 		_contigWindowSequences.clear();
@@ -1680,6 +1632,8 @@ public:
 		readParser.parse(CollectWindowSequencesFunctor(*this));
 	}
 	
+	unordered_map<u_int32_t, vector<u_int32_t>> _contigIndex_to_coverages;
+
 	class CollectWindowSequencesFunctor {
 
 		public:
@@ -1728,7 +1682,12 @@ public:
 			string readSequence = readSeq.substr(al._readStart, al._readEnd-al._readStart);
 			string contigSequence = _contigSequences[contigIndex].substr(al._contigStart, al._contigEnd-al._contigStart);
 
-
+			#pragma omp critical(CollectWindowSequencesFunctor_cov)
+			{
+				if(_contigPolisher._contigIndex_to_coverages.find(contigIndex) == _contigPolisher._contigIndex_to_coverages.end()){
+					_contigPolisher._contigIndex_to_coverages[contigIndex].resize(_contigSequences[contigIndex].size(), 0);
+				}
+			}
 
 			if(al._strand){
 				Utils::toReverseComplement(readSequence);
@@ -1756,11 +1715,15 @@ public:
 				exit(1);
 			}
 
+
+
 			//_logFile << cigar << endl;
 
 			edlibFreeAlignResult(result);
 			
-			find_breaking_points_from_cigar(_windowLength, al, readSeq.size(), cigar, readSeq, qualSeq);
+
+
+			find_breaking_points_from_cigar(contigIndex, _windowLength, al, readSeq.size(), cigar, readSeq, qualSeq);
 			free(cigar);
 
 			//getchar();
@@ -1769,9 +1732,10 @@ public:
 
 		}
 
-		void find_breaking_points_from_cigar(uint32_t window_length, const Alignment& al, u_int64_t readLength, char* cigar_, const string& readSequence, const string& qualSequence)
+		void find_breaking_points_from_cigar(u_int32_t contigIndex, uint32_t window_length, const Alignment& al, u_int64_t readLength, char* cigar_, const string& readSequence, const string& qualSequence)
 		{
 			
+
 			vector<std::pair<uint32_t, uint32_t>> breaking_points_;
 			u_int64_t t_begin_ = al._contigStart;
 			u_int64_t t_end_ = al._contigEnd;
@@ -1796,6 +1760,12 @@ public:
 			int32_t q_ptr = (strand_ ? (q_length_ - q_end_) : q_begin_) - 1;
 			int32_t t_ptr = t_begin_ - 1;
 
+			vector<u_int32_t>& contigCoverage = _contigPolisher._contigIndex_to_coverages[contigIndex];
+
+			#pragma omp critical(find_breaking_points_from_cigar)
+			{
+
+			
 			for (uint32_t i = 0, j = 0; i < strlen(cigar_); ++i) {
 				if (cigar_[i] == 'M' || cigar_[i] == '=' || cigar_[i] == 'X') {
 					uint32_t k = 0, num_bases = atoi(&cigar_[j]);
@@ -1803,6 +1773,12 @@ public:
 					while (k < num_bases) {
 						++q_ptr;
 						++t_ptr;
+
+						if(t_ptr < 0 || t_ptr >= contigCoverage.size()){
+							cout << "giga derp: " << t_ptr << " " << contigCoverage.size() << endl;
+							continue;
+						}
+						contigCoverage[t_ptr] += 1;
 
 						if (!found_first_match) {
 							found_first_match = true;
@@ -1831,6 +1807,14 @@ public:
 					j = i + 1;
 					while (k < num_bases) {
 						++t_ptr;
+
+						if(t_ptr < 0 || t_ptr >= contigCoverage.size()){
+							cout << "giga derp: " << t_ptr << " " << contigCoverage.size() << endl;
+							continue;
+						}
+						
+						contigCoverage[t_ptr] += 1;
+
 						if (t_ptr == window_ends[w]) {
 							if (found_first_match) {
 								breaking_points_.emplace_back(first_match);
@@ -1844,6 +1828,8 @@ public:
 				} else if (cigar_[i] == 'S' || cigar_[i] == 'H' || cigar_[i] == 'P') {
 					j = i + 1;
 				}
+			}
+
 			}
 
 			//if(breaking_points_.size() > 0) breaking_points_.emplace_back(last_match);
@@ -2626,21 +2612,15 @@ public:
 				//delete correctedWindows[w];
 			}
 
-			u_int64_t length = contigSequence.size();
 			bool isValid = true;
 
-			if(_contigCoverages[contigIndex] <= 1){
-				isValid = false;
-			}
-			else if(length < 3000){
-				isValid = false;
-			}
-			else if(length < 7500 && _contigCoverages[contigIndex] < 4){
-				isValid = false;
+			if(contigSequence.size() < 10000){
+				if(_contigCoverages[contigIndex] < 4){
+					isValid = false;
+				}
 			}
 
 			if(isValid){
-
 				string header = _contigHeaders[contigIndex];
 
 				if(_isMetaMDBG){
@@ -2667,6 +2647,22 @@ public:
 					//}
 					header = Utils::createContigHeader(contigIndex, contigSequence.size(), _contigCoverages[contigIndex], isCircular);
 				}
+				/*
+				if(_circularize){
+					
+					char lastChar = header[header.size()-1];
+					if(lastChar == 'c' || lastChar == 'l'){
+						header.pop_back();
+					}
+
+					if(_isContigCircular.find(contigName) == _isContigCircular.end()){
+						header += 'l';
+					}
+					else{
+						header += 'c';
+					}
+				}
+				*/
 
 
 				header = ">" + header + '\n';// ">ctg" + to_string(contigIndex) + '\n';
@@ -2675,11 +2671,7 @@ public:
 				contigSequence +=  '\n';
 				gzwrite(_outputContigFile, (const char*)&contigSequence[0], contigSequence.size());
 				//_logFile << _contigHeaders[contigIndex] << " " << contigSequence.size() << endl;
-
 			}
-
-
-
 		}
 
 		for(CorrectedWindow& correctedWindow : correctedWindows){

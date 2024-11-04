@@ -93,7 +93,7 @@ public:
 		//	exit(1);
 		//}
 
-		openLogFile(_tmpDir);
+		//openLogFile(_tmpDir);
 
 		cout << "Assembly dir: " << _outputDir << endl;
 
@@ -127,6 +127,10 @@ public:
 
 		cout << "Computing reference positions" << endl;
 		extractReferencePosition();
+
+		cout << "Output mapped graph" << endl;
+		outputMappedGraph(_outputDir + "/assembly_graph.gfa", _outputDir + "/assembly_graph_reference.gfa");
+
 		/*
 		generateAssemblyGraph();
 
@@ -347,9 +351,14 @@ public:
 	ofstream _colorFile;
 	ofstream _nameFile;
 	unordered_set<u_int32_t> _isUnitigWritten;
+	unordered_set<string> _selectedGfaNodes;
 
 	void indexAssemblyGraphUnitig(){
 
+		cout << "Loading graph" << endl;
+		loadGraph(_outputDir + "/assembly_graph.gfa");
+		cout << "nb nodes: " << _successors.size() << endl;
+		cout << "done" << endl;
 
 		_colorFile = ofstream(_outputDir + "/contigColor.csv");
 		_colorFile << "Name,Color" << endl;
@@ -383,42 +392,89 @@ public:
 
 			//cout << kminmerList._readIndex << " " << kminmerList._kminmersInfo.size() << endl;
 			//getchar();
+		
+
+
+			for(size_t i=0; i<kminmerList._kminmersInfo.size(); i++){
+				
+				//_logFile << readIndex << " " << i << endl;
+				const ReadKminmerComplete& kminmerInfo = kminmerList._kminmersInfo[i];
+
+				KmerVec vec = kminmerInfo._vec;
+
+				bool orientation = !kminmerInfo._isReversed;
+
+				//cout << _parent._kminmer_to_referenceIndex.size() << " " << vec._kmers.size() << " " << vec._kmers[0] << endl;
+				//cout << i << " " << (_parent._kminmer_to_referenceIndex.find(vec) == _parent._kminmer_to_referenceIndex.end()) << endl;
+				if(_parent._kminmer_to_referenceIndex.find(vec) == _parent._kminmer_to_referenceIndex.end()) continue;
 			
-			#pragma omp critical
-			{
+				#pragma omp critical
+				{
 
-				for(size_t i=0; i<kminmerList._kminmersInfo.size(); i++){
-					
-					//_logFile << readIndex << " " << i << endl;
-					const ReadKminmerComplete& kminmerInfo = kminmerList._kminmersInfo[i];
+				_parent._kminmer_to_unitigIndex[vec] = _parent._unitigOrderRev[kminmerList._readIndex];
+				
+				for(u_int32_t referenceIndex: _parent._kminmer_to_referenceIndex[vec]){
 
-					KmerVec vec = kminmerInfo._vec;
-					_parent._kminmer_to_unitigIndex[vec] = _parent._unitigOrderRev[kminmerList._readIndex];
+					if(_parent._isUnitigWritten.find(_parent._unitigOrderRev[kminmerList._readIndex]) == _parent._isUnitigWritten.end()){
+						_parent._isUnitigWritten.insert(_parent._unitigOrderRev[kminmerList._readIndex]);
+						_parent._colorFile << "utg" << _parent._unitigOrderRev[kminmerList._readIndex] << ",green" << endl;
 
-					bool orientation = !kminmerInfo._isReversed;
-
-					//cout << _parent._kminmer_to_referenceIndex.size() << " " << vec._kmers.size() << " " << vec._kmers[0] << endl;
-					//cout << i << " " << (_parent._kminmer_to_referenceIndex.find(vec) == _parent._kminmer_to_referenceIndex.end()) << endl;
-					if(_parent._kminmer_to_referenceIndex.find(vec) == _parent._kminmer_to_referenceIndex.end()) continue;
-
-					cout << "lala" << endl;
-					for(u_int32_t referenceIndex: _parent._kminmer_to_referenceIndex[vec]){
-
-						if(_parent._isUnitigWritten.find(_parent._unitigOrderRev[kminmerList._readIndex]) == _parent._isUnitigWritten.end()){
-							_parent._isUnitigWritten.insert(_parent._unitigOrderRev[kminmerList._readIndex]);
-							_parent._colorFile << "utg" << _parent._unitigOrderRev[kminmerList._readIndex] << ",green" << endl;
-
-							string s = "";
-							for(const string& referenceName : _parent._kminmer_to_referenceName[vec]){
-								s += referenceName + " ";
-							}
-
-							_parent._nameFile << "utg" << _parent._unitigOrderRev[kminmerList._readIndex] << "," << s << endl;
+						string s = "";
+						for(const string& referenceName : _parent._kminmer_to_referenceName[vec]){
+							s += referenceName + " ";
 						}
-					}
 
-					//_parent._kmerVec_to_unitigIndex[vec] = kminmerList._readIndex;
+						_parent._nameFile << "utg" << _parent._unitigOrderRev[kminmerList._readIndex] << "," << s << endl;
+
+						string nodeForward = "utg" + to_string(_parent._unitigOrderRev[kminmerList._readIndex]) + "+";
+						string nodeReverse = "utg" + to_string(_parent._unitigOrderRev[kminmerList._readIndex]) + "-";
+						/*
+						if(_parent._successors.find(nodeForward) != _parent._successors.end()){
+							for(const string& successorName : _parent._successors[nodeForward]){
+								string unitigName = successorName;
+								unitigName.pop_back();
+								_parent._colorFile << unitigName << ",red" << endl;
+							}
+						}
+						if(_parent._successors.find(nodeReverse) != _parent._successors.end()){
+							for(const string& successorName : _parent._successors[nodeReverse]){
+								string unitigName = successorName;
+								unitigName.pop_back();
+								_parent._colorFile << unitigName << ",red" << endl;
+							}
+						}
+						*/
+
+						vector<string> neighborsForward;
+						_parent.getNeighbors(nodeForward, 10000, 0.5, neighborsForward);
+						//cout << nodeForward << endl;
+						
+						_parent._selectedGfaNodes.insert(nodeForward);
+						for(const string& neighbor : neighborsForward){
+							_parent._selectedGfaNodes.insert(neighbor);
+							//cout << "\t" << neighbor << endl;
+						}
+
+						vector<string> neighborsReverse;
+						_parent.getNeighbors(nodeReverse, 10000, 0.5, neighborsReverse);
+						//cout << nodeForward << endl;
+						
+						_parent._selectedGfaNodes.insert(nodeReverse);
+						for(const string& neighbor : neighborsReverse){
+							_parent._selectedGfaNodes.insert(neighbor);
+							//cout << "\t" << neighbor << endl;
+						}
+						//getchar();
+
+						//cout << nodeForward << " " << (_parent._successors.find(nodeForward) != _parent._successors.end()) << endl;
+						//string nodeReverse= to_string(_parent._unitigOrderRev[kminmerList._readIndex]) + "-";
+						//for(const string& successor : _successors[])
+					}
 				}
+				}
+
+				//_parent._kmerVec_to_unitigIndex[vec] = kminmerList._readIndex;
+				
 			}
 		}
 	};
@@ -497,351 +553,297 @@ public:
 	phmap::parallel_flat_hash_map<u_int32_t, u_int32_t> _unitigOrderRev;
 	phmap::parallel_flat_hash_map<u_int32_t, string> _unitigIndex_to_contigName;
 
-	/*
-	//vector<u_int32_t> _unitigIndexes;
-	struct UnitigSequence{
-		DnaBitset* _seqBitset;
-		u_int32_t _overlapSizePlus;
-		u_int32_t _overlapSizeMinus;
-	};
-	vector<UnitigSequence> _unitigSequences;
-	phmap::parallel_flat_hash_map<KmerVec, u_int32_t> _kmerVec_to_unitigIndex;
+	unordered_map<string, vector<string>> _successors;
+	unordered_map<string, u_int32_t> _nodeLength;
+	unordered_map<string, u_int32_t> _nodeAbundance;
 
-	void createUnitigSequences(){
-		string readFilename = _tmpDir + "/input.txt";
-		string command = _filename_exe + " toBasespace " + " " + _tmpDir + " " + _passDir + "/assembly_graph.gfa.unitigs " + " " + _unitigFilename + " " + readFilename  + " -t " + to_string(_nbCores);
-		Utils::executeCommand(command, _tmpDir, _logFile);
+	struct NodeDepth{
+		string _nodeName;
+		u_int32_t _length;
+	};
+
+	void getNeighbors(const string& nodeName, u_int64_t maxLength, float abundanceCutoffFraction, vector<string>& neighbors){
+
+		neighbors.clear();
+		unordered_set<string> isVisited;
+
+		queue<NodeDepth> queue;
+		queue.push({nodeName, 0});
+		isVisited.insert(nodeName);
+
+
+		string sourceNameSimple = nodeName;
+		sourceNameSimple.pop_back();
+		float minAbundance = _nodeAbundance[sourceNameSimple] * abundanceCutoffFraction;
+		//cout << "Min abundance: " << sourceNameSimple << " "  << _nodeAbundance[sourceNameSimple]  << " " << minAbundance << endl;
+		while (!queue.empty()) {
+			
+			const NodeDepth currentNode = queue.front();
+			queue.pop();
+			
+			if(currentNode._length > maxLength) continue;
+			if(_successors.find(currentNode._nodeName) == _successors.end()) continue;
+
+
+			for(const string successorName : _successors[currentNode._nodeName]) {
+				if(isVisited.find(successorName) != isVisited.end()) continue;
+
+				string successorNameSimple = successorName;
+				successorNameSimple.pop_back();
+
+				if(_nodeAbundance[successorNameSimple] <= 2) continue;
+				if(_nodeAbundance[successorNameSimple] < minAbundance) continue;
+
+				//if(isCorrected[readIndexNeighbor]) continue;
+
+				isVisited.insert(successorName);
+				queue.push({successorName, currentNode._length+_nodeLength[successorNameSimple]});
+				neighbors.push_back(successorName);
+			}
+			
+		}
+
 	}
 
 
-	void loadUnitigs(){
-		
+	void loadGraph(const string& filename){
 
-		ReadParserParallel readParser(_unitigFilename, true, false, 1, _logFile);
-		readParser.parse(LoadUnitigsFunctor(*this));
+
+        ifstream infile(filename);
+
+        std::string line;
+        vector<string>* fields = new vector<string>();
+        vector<string>* fields_optional = new vector<string>();
+        //u_int64_t unitig_id = 0;
+
+        //u_int32_t nbNodes = 0;
+
+        //while (std::getline(infile, line)){
+        //    if(line[0] == 'S') nbNodes += 1;
+        //}
+
+        //UnitigGraph* graph = new UnitigGraph(nbNodes);
+
+        //infile.clear();
+        //infile.seekg(0, std::ios::beg);
+
+
+        while (std::getline(infile, line)){
+            
+            GfaParser::tokenize(line, fields, '\t');
+            
+            //cout << (*fields)[0] << endl;
+
+            if((*fields)[0] == "S"){
+                
+                size_t i=0;
+                for(string& field : (*fields)){
+                    if(i> 2){
+                        //cout << field << endl;
+                        GfaParser::tokenize(field, fields_optional, ':');
+                        if((*fields_optional)[0] == "LN"){
+                            string& unitig_name = (*fields)[1];
+                            u_int64_t unitig_length = std::stoull((*fields_optional)[2]);
+
+							_nodeLength[unitig_name] = unitig_length;
+
+                        }
+						else if((*fields_optional)[0] == "dp"){
+                            string& unitig_name = (*fields)[1];
+                            u_int64_t unitig_abundance = std::stoull((*fields_optional)[2]);
+
+							_nodeAbundance[unitig_name] = unitig_abundance;
+
+                        }
+                    }
+                    i += 1;
+                }
+
+                //unitig_id += 1;
+            }
+            else if((*fields)[0] == "L"){
+
+                string& from = (*fields)[1];
+				string& fromOrient = (*fields)[2];
+                //bool fromOrient = (*fields)[2] == "+";
+                string& to = (*fields)[3];
+				string& toOrient = (*fields)[4];
+                //bool toOrient = (*fields)[4] == "+";
+                u_int64_t overlap = std::stoull((*fields)[5]);
+
+                //u_int32_t from_id = unitigName_to_id(from);
+                //u_int32_t to_id = unitigName_to_id(to);
+
+                //graph->addEdge(from_id, fromOrient, to_id, toOrient, 0);
+
+				string n1 = from + fromOrient;
+				string n2 = to + toOrient;
+
+				string n1_rev = from;
+				if(fromOrient == "+"){
+					n1_rev += "-";
+				}
+				else{
+					n1_rev += "+";
+				}
+
+				string n2_rev = to;
+				if(toOrient == "+"){
+					n2_rev += "-";
+				}
+				else{
+					n2_rev += "+";
+				}
+
+				_successors[n1].push_back(n2);
+				_successors[n2_rev].push_back(n1_rev);
+
+
+            }
+            //else if((*fields)[0] == "A"){
+
+                
+                //cout << line << endl;
+
+                //string unitig_name = (*fields)[1];
+                //string node = (*fields)[4];
+
+                //if(151064 == std::stoull(node.c_str())){
+                //    cout << "lala" << endl;
+                //    cout << unitig_name << " " << unitigName_to_id(unitig_name) << endl;
+                //}
+                //if(unitigName_to_id(unitig_name) == 0){
+                //    cout << unitig_name << " " << node << endl;
+                //}
+                //cout << unitig_name << endl;
+
+                //cout << unitig_name << endl;
+                //cout << node << " " << unitig_name << endl;
+                //node_to_unitig[std::stoull(node.c_str())] = unitigName_to_id(unitig_name);
+
+                //counts[unitigName_to_id(unitig_name)] += 1;
+                //cout << counts[unitigName_to_id(unitig_name)] << endl;
+                //cout << line << endl;
+                //cout << std::stoull(node.c_str()) << " " << std::stoull(unitig_name) << endl;
+            //}
+
+            //cout << line.substr(start, end - start) << endl;
+            
+        }
+
+
+        delete fields;
+        delete fields_optional;
+
+
+
+        //return graph;
+
 
 	}
 
-	class LoadUnitigsFunctor {
-
-		public:
-
-		GenerateGfa& _parent;
-		MinimizerParser* _minimizerParser;
-		EncoderRLE _encoderRLE;
-
-		LoadUnitigsFunctor(GenerateGfa& parent) : _parent(parent){
-			_minimizerParser = new MinimizerParser(_parent._minimizerSize, _parent._minimizerDensity);
-			_minimizerParser->_trimBps = 0;
-		}
-
-		LoadUnitigsFunctor(const LoadUnitigsFunctor& copy) : _parent(copy._parent){
-			_minimizerParser = new MinimizerParser(_parent._minimizerSize, _parent._minimizerDensity);
-			_minimizerParser->_trimBps = 0;
-		}
-
-		~LoadUnitigsFunctor(){
-			delete _minimizerParser;
-		}
+	void outputMappedGraph(const string& inputFilename, const string& outputFilename){
 
 
-		void operator () (const Read& read) {
+        ofstream outfile(outputFilename);
+        ifstream infile(inputFilename);
 
-			u_int64_t readIndex = read._index;
+        std::string line;
+        vector<string>* fields = new vector<string>();
+        vector<string>* fields_optional = new vector<string>();
+        //u_int64_t unitig_id = 0;
 
-			string rleSequence;
-			vector<u_int64_t> rlePositions;
-			_encoderRLE.execute(read._seq.c_str(), read._seq.size(), rleSequence, rlePositions);
+        //u_int32_t nbNodes = 0;
 
+        //while (std::getline(infile, line)){
+        //    if(line[0] == 'S') nbNodes += 1;
+        //}
 
-			vector<u_int64_t> minimizers;
-			vector<u_int64_t> minimizers_pos;
-			_minimizerParser->parse(rleSequence, minimizers, minimizers_pos);
+        //UnitigGraph* graph = new UnitigGraph(nbNodes);
 
-
-			u_int32_t overlapSizePlus = 0;
-			u_int32_t overlapSizeMinus = 0;
-
-			if(minimizers.size() < _parent._kminmerSize){
-				cout << read._header << endl;
-				//cout << "lala " << minimizers.size() << " " << read._seq.size() << " " << rleSequence.size() << endl;
-
-				
-			}
-			else{
-				overlapSizePlus = read._seq.size() - rlePositions[minimizers_pos[minimizers.size()-_parent._kminmerSize+1]];
-				overlapSizeMinus = rlePositions[minimizers_pos[_parent._kminmerSize-2]+_parent._minimizerSize];
-			}
-			//rlePositions[pos]; i<rlePositions[pos+_readSelection._minimizerSize]
-
-			//cout << read._seq << " " << read._seq.size() << endl;
-			
-			//for(size_t i=0; i<minimizers.size(); i++){
-			//	cout << i << ": " << rlePositions[minimizers_pos[i]] << endl;
-			//}
+        //infile.clear();
+        //infile.seekg(0, std::ios::beg);
 
 
-			//cout << overlapSizeMinus << " " << overlapSizePlus << endl;
-			//cout << readIndex << " " << minimizers.size() << endl;
-			_parent._unitigSequences.push_back({new DnaBitset(read._seq), overlapSizePlus, overlapSizeMinus});
+        while (std::getline(infile, line)){
+            
+            GfaParser::tokenize(line, fields, '\t');
+            
+            //cout << (*fields)[0] << endl;
 
-		}
-		
-	};
+            if((*fields)[0] == "S"){
+                
+                string& nodeName = (*fields)[1];
+
+				string nodeNamForward = nodeName + "+";	
+				string nodeNamReverse = nodeName + "-";
+				if(_selectedGfaNodes.find(nodeNamForward) != _selectedGfaNodes.end()){
+					outfile << line << endl;
+				}
+				else if(_selectedGfaNodes.find(nodeNamReverse) != _selectedGfaNodes.end()){
+					outfile << line << endl;
+				}
+
+            }
+            else if((*fields)[0] == "L"){
+
+                string& from = (*fields)[1];
+				string& fromOrient = (*fields)[2];
+                //bool fromOrient = (*fields)[2] == "+";
+                string& to = (*fields)[3];
+				string& toOrient = (*fields)[4];
+                //bool toOrient = (*fields)[4] == "+";
+                u_int64_t overlap = std::stoull((*fields)[5]);
+
+                //u_int32_t from_id = unitigName_to_id(from);
+                //u_int32_t to_id = unitigName_to_id(to);
+
+                //graph->addEdge(from_id, fromOrient, to_id, toOrient, 0);
+
+				string n1 = from + fromOrient;
+				string n2 = to + toOrient;
+
+				string n1_rev = from;
+				if(fromOrient == "+"){
+					n1_rev += "-";
+				}
+				else{
+					n1_rev += "+";
+				}
+
+				string n2_rev = to;
+				if(toOrient == "+"){
+					n2_rev += "-";
+				}
+				else{
+					n2_rev += "+";
+				}
+
+				if(_selectedGfaNodes.find(n1) != _selectedGfaNodes.end() && _selectedGfaNodes.find(n2) != _selectedGfaNodes.end()){
+					outfile << line << endl;
+				}
+				else if(_selectedGfaNodes.find(n1_rev) != _selectedGfaNodes.end() && _selectedGfaNodes.find(n2_rev) != _selectedGfaNodes.end()){
+					outfile << line << endl;
+				}
 
 
+            }
+
+            
+        }
 
 
+        delete fields;
+        delete fields_optional;
 
-	void indexAssemblyGraphUnitig(){
+		outfile.close();
 
-		KminmerParserParallel parser(_passDir + "/assembly_graph.gfa.unitigs", _minimizerSize, _kminmerSize, false, false, _nbCores);
-		parser.parse(IndexAssemblyGraphUnitigFunctor(*this));
+        //return graph;
+
+
 	}
 
-	class IndexAssemblyGraphUnitigFunctor {
 
-		public:
-
-		GenerateGfa& _parent;
-
-		IndexAssemblyGraphUnitigFunctor(GenerateGfa& parent) : _parent(parent){
-		}
-
-		IndexAssemblyGraphUnitigFunctor(const IndexAssemblyGraphUnitigFunctor& copy) : _parent(copy._parent){
-		}
-
-		~IndexAssemblyGraphUnitigFunctor(){
-		}
-
-		void operator () (const KminmerList& kminmerList) {
-
-			
-			#pragma omp critical
-			{
-
-				for(size_t i=0; i<kminmerList._kminmersInfo.size(); i++){
-					
-					//_logFile << readIndex << " " << i << endl;
-					const ReadKminmerComplete& kminmerInfo = kminmerList._kminmersInfo[i];
-
-					KmerVec vec = kminmerInfo._vec;
-
-					bool orientation = !kminmerInfo._isReversed;
-
-					_parent._kmerVec_to_unitigIndex[vec] = kminmerList._readIndex;
-				}
-			}
-		}
-	};
-	
-	unordered_set<u_int32_t> _validContigIndex;
-	ofstream _contigPathFile;
-	phmap::parallel_flat_hash_map<u_int32_t, string> _contigIndex_to_headers;
-
-	void generateContigPath(){
-		cerr << "Generating contig path..." << endl;
-
-		const string& contigFilename = _outputDir + "/contigs.fasta.gz";
-		if(!fs::exists(contigFilename)){
-			cerr << "Can't find contig path at location: " + contigFilename << endl;
-			cerr << "Skip contig path" << endl;
-			return;
-		}
-
-		const string& contigDataFilename = _tmpDir + "/contig_data.txt";
-		if(!fs::exists(contigDataFilename)){
-			cerr << "Can't find contig data at location: " + contigDataFilename << endl;
-			cerr << "Skip contig path" << endl;
-		}
-
-
-		_contigPathFile = ofstream(_contigPathFilename);
-
-		ReadParserParallel readParser(contigFilename, true, false, 1, _logFile);
-		readParser.parse(LoadContigIndexFunctor(*this));
-
-		KminmerParserParallel parser(contigDataFilename, _minimizerSize, _kminmerSize, false, false, _nbCores);
-		parser.parse(GenerateContigPathFunctor(*this));
-
-		_validContigIndex.clear();
-		_contigIndex_to_headers.clear();
-		_contigPathFile.close();
-	}
-
-	class LoadContigIndexFunctor {
-
-		public:
-
-		GenerateGfa& _parent;
-
-		LoadContigIndexFunctor(GenerateGfa& parent) : _parent(parent){
-		}
-
-		LoadContigIndexFunctor(const LoadContigIndexFunctor& copy) : _parent(copy._parent){
-		}
-
-		~LoadContigIndexFunctor(){
-		}
-
-
-		void operator () (const Read& read) {
-
-			u_int64_t readIndex = read._index;
-			
-			//cout << read._header << endl;
-			u_int32_t contigIndex = Utils::contigName_to_contigIndex(read._header);
-			//cout << contigIndex << endl;
-
-			_parent._validContigIndex.insert(contigIndex);
-			_parent._contigIndex_to_headers[contigIndex] = read._header;
-		}
-
-	};
-
-	class GenerateContigPathFunctor {
-
-		public:
-
-		GenerateGfa& _parent;
-
-		GenerateContigPathFunctor(GenerateGfa& parent) : _parent(parent){
-		}
-
-		GenerateContigPathFunctor(const GenerateContigPathFunctor& copy) : _parent(copy._parent){
-		}
-
-		~GenerateContigPathFunctor(){
-		}
-
-		void operator () (const KminmerList& kminmerList) {
-
-			
-			u_int32_t contigIndex = kminmerList._readIndex;
-			if(_parent._validContigIndex.find(contigIndex) == _parent._validContigIndex.end()) return;
-
-			u_int32_t _prevUnitigIndex = -1;
-			vector<u_int32_t> path;
-
-			for(size_t i=0; i<kminmerList._kminmersInfo.size(); i++){
-				
-				//_logFile << readIndex << " " << i << endl;
-				const ReadKminmerComplete& kminmerInfo = kminmerList._kminmersInfo[i];
-
-				KmerVec vec = kminmerInfo._vec;
-
-				bool orientation = !kminmerInfo._isReversed;
-
-				if(_parent._kmerVec_to_unitigIndex.find(vec) == _parent._kmerVec_to_unitigIndex.end()){
-					//cout << "can't find kmerVec ???" << endl;
-					continue;
-				}
-
-				u_int32_t unitigIndex = _parent._kmerVec_to_unitigIndex[vec];
-
-				if(unitigIndex != _prevUnitigIndex){
-					_prevUnitigIndex = unitigIndex;
-					//cout << unitigIndex << endl;
-					path.push_back(unitigIndex);
-				}
-				//_toBasespace._kmerVecIndex[vec].push_back({(u_int32_t) kminmerList._readIndex, (u_int32_t) i});
-			}
-
-			#pragma omp critical
-			{
-
-				_parent._contigPathFile << _parent._contigIndex_to_headers[contigIndex];
-				for(u_int32_t unitigIndex : path){
-					_parent._contigPathFile << "\tutg" << _parent._unitigOrderRev[unitigIndex];
-				}
-				_parent._contigPathFile << endl;
-
-			}
-		}
-	};
-
-
-	ofstream _readPathFile;
-
-	void generateReadPath(){
-		cerr << "Generating read path..." << endl;
-
-		const string& readDataFilename = _tmpDir + "/read_data.txt";
-		if(!fs::exists(readDataFilename)){
-			cerr << "Can't find read data at location: " + readDataFilename << endl;
-			cerr << "Skip read path" << endl;
-		}
-
-		_readPathFile = ofstream(_readPathFilename);
-
-		KminmerParserParallel parser(readDataFilename, _minimizerSize, _kminmerSize, false, false, _nbCores);
-		parser.parse(GenerateReadPathFunctor(*this));
-
-		_readPathFile.close();
-	}
-
-	class GenerateReadPathFunctor {
-
-		public:
-
-		GenerateGfa& _parent;
-
-		GenerateReadPathFunctor(GenerateGfa& parent) : _parent(parent){
-		}
-
-		GenerateReadPathFunctor(const GenerateReadPathFunctor& copy) : _parent(copy._parent){
-		}
-
-		~GenerateReadPathFunctor(){
-		}
-
-		void operator () (const KminmerList& kminmerList) {
-
-			
-			u_int32_t readIndex = kminmerList._readIndex;
-
-			u_int32_t _prevUnitigIndex = -1;
-			vector<u_int32_t> path;
-
-			for(size_t i=0; i<kminmerList._kminmersInfo.size(); i++){
-				
-				//_logFile << readIndex << " " << i << endl;
-				const ReadKminmerComplete& kminmerInfo = kminmerList._kminmersInfo[i];
-
-				KmerVec vec = kminmerInfo._vec;
-
-				bool orientation = !kminmerInfo._isReversed;
-
-				if(_parent._kmerVec_to_unitigIndex.find(vec) == _parent._kmerVec_to_unitigIndex.end()){
-					//cout << "can't find kmerVec ???" << endl;
-					continue;
-				}
-
-				u_int32_t unitigIndex = _parent._kmerVec_to_unitigIndex[vec];
-
-				if(unitigIndex != _prevUnitigIndex){
-					_prevUnitigIndex = unitigIndex;
-					//cout << unitigIndex << endl;
-					path.push_back(unitigIndex);
-				}
-				//_toBasespace._kmerVecIndex[vec].push_back({(u_int32_t) kminmerList._readIndex, (u_int32_t) i});
-			}
-
-			#pragma omp critical
-			{
-
-
-
-				_parent._readPathFile << "r" << readIndex;
-				for(u_int32_t unitigIndex : path){
-					_parent._readPathFile << "\tutg" << _parent._unitigOrderRev[unitigIndex];
-				}
-				_parent._readPathFile << endl;
-
-			}
-		}
-	};
-	*/
 
 };	
 

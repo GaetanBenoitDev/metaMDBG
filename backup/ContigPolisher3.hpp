@@ -1,41 +1,4 @@
 
-/*
-
--multiampping: pour els contigs circular, les reads vont mapper au deux extremiter et etre mal corriger donc vu qu'on garde qu'un coté (faudrait juste ajouter une exception en focntion du hang)
-
-- Polisher pas deterministe dans la selection des 20 copies
-	- utiliser un meilleur critiere (qualité de l'alignement etc)
-
-- memory usage: attention si on a trier les contigs par longueur, les premiere passes pourrait demander un max de mémoire
-	- !! attention les contigs sont trier dans le sens inverse (les plus grand a la fin)
- 	
--ToBasespace index reads:
-	- pas besoin d'indexer les reads qui ne contiennent pas de minimizer dupliquer
-
-- ToBasespaceNoCorrection a paralleliser (remove overlaps etc)
-
-- Tester racon sur contigs 0.33 avec l'option -c (write cigar in ouput file), voir si ça ameliore les résulats de binning ou non
-
-- read best hit: la maniere dont on le selection actuellement est pas forcement la meilleur car elle ne favorise pas les petit contigs (les grand contig vont attirer les reads meme si leur sililarité est plus faible que sur un petit contig)
-- attention ne pas outupt empty contig
-- ToBasespace: générer un assemblage grossier
-- tester les scores de qualité ?
-- quand un read a été process, on peut erase son entrée dans _alignments ?
-- window sequence a selectionner en priorité: 
-	- la distance est une mauvaise metrique car on ne sait pas si la sequence de reference est erroné ou non
-	- un mapping tres long sur un contig a plus de valeur qu'un mapping court (on est plus sûr que ce read appartient au contig)+
-	- NEW: on peut garder la window avec la quality la plus haute
-- si "no sequencer fo window": utiliser la fenetre original du contig ?
-- minimap2 output: écrire un petit programme pour compresser les résultats d'alignements on the fly
-- version finale: remove le minimap2 align filename
-- voir comment racon handle multimap
-- minimap2 read name: lors d'une premiere passe sur les reads, ecrire tous les headers (minimap2 name) dans un fichier
-- vu que le polisher est standalone, ne pas changer le nom des header des contigs (les load en memoire t restituer dans le fichier output)
-- mettre minimap2 dans le process de contig subsampling (donc écrire un chunk de contig dans un fichier séparer, puis refaire le minimap2 a cahque pass etc)
-
-"reprise: ajouter les dernieres filtres de qualité de racon (easy) et refaire des test, aussi potentiellement 20 copies est pas l'optimum, essayer entre 20 et 25, tester correction k=5, revoir comment calculer superbubble lineairement"
-- Blocoo creat graph: load les edge apres que les nodes du graphe soit tous indexé, comme ça on peut delete mdbg_init (abundance calculation) avant d'indexé les edges
-*/
 
 #ifndef MDBG_METAG_CONTIGPOLISHER
 #define MDBG_METAG_CONTIGPOLISHER
@@ -44,6 +7,7 @@
 #include "../utils/edlib.h"
 #include "../utils/spoa/include/spoa/spoa.hpp"
 #include "../utils/DnaBitset.hpp"
+#include <htslib/sam.h>
 //#include "../utils/abPOA2/include/abpoa.h"
 //#include "../utils/pafParser/paf_parser.hpp"
 
@@ -137,6 +101,8 @@ public:
 	double _qualityThreshold;
 	bool _isMetaMDBG;
 
+	//vector<string> _contigIndex_to_contigHeader;
+	//vector<string> _contigIndex_to_contigLength;
 	//abpoa_para_t *abpt;
 	
 
@@ -145,9 +111,8 @@ public:
 	//unordered_map<u_int64_t, u_int64_t> _contigLength;
 	//unordered_map<string, vector<string>> _contigMapLeft;
 	//unordered_map<string, vector<string>> _contigMapRight;
-	//unordered_map<u_int32_t, vector<u_int32_t>> _contigHitPos;
-	unordered_map<u_int32_t, u_int32_t> _contigLength;
-	unordered_map<u_int32_t, float> _contigCoverages;
+	unordered_map<u_int32_t, vector<u_int32_t>> _contigHitPos;
+	unordered_map<u_int32_t, u_int32_t> _contigCoverages;
 
 	u_int64_t _checksumWrittenReads;
 
@@ -181,6 +146,7 @@ public:
 		u_int32_t _posStart;
 		u_int32_t _posEnd;
 		float _score;
+		string _readName;
 	};
 
 	ContigPolisher(): Tool (){
@@ -384,7 +350,7 @@ public:
 		//_outputFilename_contigs = p.string() + "_corrected.fasta.gz";
 		//_outputFilename_mapping = p.string() + "_tmp_mapping__.paf";
 		_outputFilename_contigs = _outputDir + "/contigs_polished.fasta.gz";
-		_outputFilename_mapping = _readPartitionDir + "/polish_mapping.paf.gz";
+		_outputFilename_mapping = _readPartitionDir + "/polish_mapping.bam";
 		//_outputFilename_mapping = "/mnt/gpfs/gaetan/tmp/debug_polish/racon_align.paf";
 
 		_maxMemory = 4000000000ull;
@@ -403,6 +369,7 @@ public:
 	//u_int64_t _windowByteSize;
 	//unordered_set<u_int32_t> _validContigIndexes;
 	gzFile _outputContigFile;
+	vector<u_int32_t> _contigLengths;
 
     void execute (){
 
@@ -419,74 +386,681 @@ public:
 
 		abpoa_post_set_para(abpt);
 		*/
-		
-		
-		//mapReads();
-		indexContigName();
-		indexReadName();
-		//if(_circularize) executeCircularize();
-		
-		parseAlignmentsGz(false);
-
-		_contigName_to_contigIndex.clear();
-		_readName_to_readIndex.clear();
-
-		computeContigCoverages();
-		//writeAlignmentBestHits();
-		//parseAlignments(true, false);
-		partitionReads();
-		
-
-		/*
-		for(size_t i=0; i<10000000ull; i++){
-			_contigToPartition[i] = 0;
-		}
-
-		_nbPartitions = 1;
-		_partitionNbReads[0] = 10000;
-		*/
-		for(size_t i=0; i<_nbPartitions; i++){
-			processPartition(i);
-		}
-
-		//exit(1);
-		//indexContigName();
 		//indexReadName();
+		//loadContigs2();
+		parseBam();
+		gzclose(_outputContigFile);
+	
+		cout << "todo: remove all dir" << endl;
+		//fs::remove_all(_readPartitionDir);
 
-		/*
-		u_int64_t totalByteSize = 0;
+	}
 
-		u_int64_t contigIndex = 0;
+
+
+	void loadContigs2(){
+	}
+	
+	void loadContigs_read2(const Read& read){
+
+		cout << "Load contig: " << read._seq.size() << endl;
+		_contigSequences[read._index] = read._seq;
+	}
+	
+	struct BamAlignment{
+		u_int32_t _contigIndex;
+		u_int32_t _contigStart;
+		u_int32_t _contigEnd;
+		u_int32_t _readStart;
+		u_int32_t _readEnd;
+		u_int32_t _readLength;
+		string _readName;
+		string _sequence;
+		string _qualities;
+		string _cigar;
+		double _score;
+		//vector<pair<u_int32_t, u_int32_t>> _cigar;
+	};
+
+	void parseBam(){
+
+		cout << "todo: alignment score" << endl;
+
+		u_int32_t contigIndex = 0;
 		gzFile fp;
 		kseq_t *seq;
-		int slen = 0, qlen = 0;
+		
 		fp = gzopen(_inputFilename_contigs.c_str(), "r");
 		seq = kseq_init(fp);
 
-		while (kseq_read(seq) >= 0){
 
-			totalByteSize += loadContig(contigIndex, string(seq->seq.s));
-			//_logFile << totalByteSize << " " << _windowByteSize << endl;
-			if(totalByteSize >= _maxMemory){
-				processPass();
-				clearPass();
-				totalByteSize = 0;
+					
+
+
+
+		samFile *in = NULL;
+		bam1_t *b= NULL;
+		bam_hdr_t *header = NULL;
+
+
+		cout << _outputFilename_mapping << endl;
+		in = sam_open(_outputFilename_mapping.c_str(), "r");
+		//errorCheckNULL(in);
+		
+		//get the sam header. 
+		if ((header = sam_hdr_read(in)) == 0){
+			fprintf(stderr,"No sam header?\n");
+			exit(EXIT_FAILURE);
+		}
+		
+		//int i;
+		//for(i=0; i< (header->n_targets); i++){
+			//cout << string(header->target_name[i]) << " " << header->target_len[i] << endl;
+			//_contigIndex_to_contigLength.push_back(header->target_len[i]);
+			//printf("Chromosome ID %d = %s\n",i,());
+		//}     
+		
+		//this must be the initialisation for the structure that stores a read (need to verify)
+		b = bam_init1();
+		
+		//my structure for a read (see common.h)
+		//struct BamAlignment* myread = (struct BamAlignment*)malloc(sizeof(struct BamAlignment));
+		
+		
+		BamAlignment _lastBamAlignment;
+		_lastBamAlignment._contigIndex = -1;
+
+		while(true){
+
+			u_int32_t totalWindows = 0;
+
+			_contigHeaders.clear();
+			_contigSequences.clear();
+			_contigWindowSequences.clear();
+			_contigCoverages.clear();
+
+			cout << endl << "Collecting contigs" << endl;
+			while (kseq_read(seq) >= 0){
+
+				string header = "";
+				if(seq->comment.l == 0){
+					header = string(seq->name.s);
+				}
+				else{
+					header = string(seq->name.s) + " " + string(seq->comment.s);
+				}
+				
+				_contigHeaders[contigIndex] = header;
+				_contigSequences[contigIndex] = string(seq->seq.s);
+
+				u_int32_t contigLength = _contigSequences[contigIndex].size();
+				size_t nbWindows = ceil((long double)contigLength / (long double)_windowLength);
+				vector<vector<Window>> windows(nbWindows);
+
+				_contigWindowSequences[contigIndex] = windows;
+				_contigCoverages[contigIndex] = 50;
+
+				cout << "\tContig index: " << contigIndex << " " << header << endl;
+
+				contigIndex += 1;
+
+				totalWindows += nbWindows;
+
+
+				if(totalWindows > 1) break;
 			}
 
-			contigIndex += 1;
-		}
-		*/
-			
-		//processPass();
+			if(_contigSequences.size() == 0) break;
 
-		/* !!!!!!!!!!!!
+			cout << "Parsing alignments" << endl;
+			if(_lastBamAlignment._contigIndex != -1){
+
+				if(_contigSequences.find(_lastBamAlignment._contigIndex) == _contigSequences.end()) continue;
+
+				cout << "\tAdd last alignment" << endl;	
+				
+				find_breaking_points_from_cigar2(_windowLength, _lastBamAlignment, _contigSequences[_lastBamAlignment._contigIndex]);
+				
+			}
+
+			bool alignmentParsingFinished = false;
+
+			while ( true){
+
+				int result = sam_read1(in, header, b);
+				if(result < 0){
+					alignmentParsingFinished = true;
+					break;
+				}
+
+				BamAlignment bamAlignment;
+				
+				readBamAlignment(b, bamAlignment);         
+
+				u_int32_t contigIndex = bamAlignment._contigIndex;
+
+
+				_lastBamAlignment = bamAlignment;
+
+				if(_contigSequences.find(contigIndex) == _contigSequences.end()){
+					cout << "Perform correction" << endl;	
+					performCorrection();
+					break;
+				}
+
+				_lalaCOunts[bamAlignment._readName] += 1;
+				find_breaking_points_from_cigar2(_windowLength, bamAlignment, _contigSequences[contigIndex]);
+				//cout << "\tAdd alignment" << endl;	
+
+			}
+
+			if(alignmentParsingFinished) break;
+		}
+		
+		if(_contigSequences.size() > 0){
+			cout << "Perform correction (final chunk)" << endl;	
+			performCorrection();
+		}
+
+		cout << "todo: performCorrection: sort deterministic " << endl;
+		cout << "todo: correct final chunk" << endl;
+		cout << "std::unique_ptr<spoa::AlignmentEngine> alignmentEngine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kNW, 3, -5, - a cache" << endl;
+		cout << "todo: contig coverage" << endl;
+
+		//wrap up
+		bam_destroy1(b);
+		bam_hdr_destroy(header);
+		sam_close(in);
 		kseq_destroy(seq);
 		gzclose(fp);
-		*/
-		gzclose(_outputContigFile);
-		fs::remove_all(_readPartitionDir);
 
-		//closeLogFile();
+		for(const auto& it : _lalaCOunts){
+			if(it.second > 1)
+			cout << it.first << " " << it.second << endl;
+		}
+	}
+
+	unordered_map<string, u_int32_t> _lalaCOunts;
+	void readBamAlignment(bam1_t *b, BamAlignment& bamAlignment){
+		
+		bam1_core_t *c = &(b->core);
+		
+		//get the pointer to the sequence
+		uint8_t *s = bam_get_seq(b);
+		//get the pointer to the sequence quality string 
+		uint8_t *q = bam_get_qual(b);
+		//get the length of the sequence
+		int32_t lenSeq = c->l_qseq;
+		//get the pointer to the Query template NAME (the name of the read)
+		char *readname = bam_get_qname(b);
+		//get the length of the Query template NAME
+		int read_name_length=strlen(readname);
+
+		bamAlignment._contigIndex = c->tid;
+
+		bamAlignment._readLength = 0;
+		bamAlignment._readName = string(readname, strlen(readname));
+		//cout << string(readname, strlen(readname)) << endl;
+		/*
+		//some safety checks    
+		if(MAX_READNAME_LEN< read_name_length+1){
+			fprintf(stderr,"The maximum read name length is set to %d, but the actual read length is %d\n",MAX_READNAME_LEN,read_name_length + 1); 
+			exit(EXIT_FAILURE);            
+		}
+		
+		if (lenSeq == 0){
+			fprintf(stderr,"The sequence length is 0. How come?\n"); 
+			exit(EXIT_FAILURE);
+		}
+		
+		if (q[0] == 0xff){
+			fprintf(stderr,"The quality score is 255 for the first base. How come?\n"); 
+			exit(EXIT_FAILURE);
+		}
+		
+		if(MAX_READ_LEN<lenSeq+1){
+			fprintf(stderr,"The maximum read length is set to %d, but the actual read length is %d\n",MAX_READ_LEN,lenSeq + 1); 
+			exit(EXIT_FAILURE);
+		}
+		if(MAX_N_CIGAR< (c->n_cigar)){
+			fprintf(stderr,"The maximum number of cigar is set to %d, but the actual number of cigar is %d\n",MAX_N_CIGAR,c->n_cigar); 
+			exit(EXIT_FAILURE);           
+		}
+		*/
+		
+		
+		//struct alignedRead* theRead = (struct alignedRead*)malloc(sizeof(struct alignedRead));
+		//char* seq             = (char*)malloc((lenSeq + 1) * sizeof(char));
+		//uint8_t* qual            = (uint8_t*)malloc((lenSeq + 1) * sizeof(uint8_t));
+		//uint32_t* cigarOps = (uint32_t*)malloc(2 * c->n_cigar * sizeof(uint32_t));
+		//assert (cigarOps != NULL);    
+		//assert (theRead != NULL);
+		//assert (seq     != NULL);
+		//assert (qual    != NULL);
+		
+		// Try to grab the read-group tag value
+		/*uint8_t* v     = NULL;
+		char* tempRgID = NULL;
+		int lenRgID    = 0;
+		if (storeRgID){
+			v = bam_aux_get(b, "RG");
+			tempRgID = bam_aux2Z(v);
+			lenRgID = strlen(tempRgID);
+			rgID[0] = (char*)(calloc(lenRgID + 1, sizeof(char)));
+			strcpy(rgID[0], tempRgID);
+		}*/
+		
+		//convert the sequence to ASCII and store
+		//convert the quality string to uint8 and store
+
+		bamAlignment._sequence = "";
+		bamAlignment._qualities = "";
+
+		for (size_t i=0; i < lenSeq; i++){
+			//cout << (int) s[i] << " " << seq_nt16_str[bam_seqi(s, i)] << endl;
+			bamAlignment._sequence += seq_nt16_str[bam_seqi(s, i)];
+			bamAlignment._qualities += (q[i] + 33);
+		}
+		
+		bamAlignment._contigStart = c->pos;
+
+		u_int32_t readLength = 0;
+		u_int32_t contigEnd = 0;
+		u_int32_t readStart = 0;
+		u_int32_t readEnd = 0;
+		bamAlignment._cigar = decode_cigar_str(b, bamAlignment._contigStart, readLength, contigEnd, readStart, readEnd);
+		bamAlignment._readLength = readLength;
+		bamAlignment._readStart = readStart;
+		bamAlignment._readEnd = readEnd;
+		bamAlignment._contigEnd = contigEnd;
+
+		//cout << readLength << endl;
+
+		/*
+		//get the mapped position of the read
+		int32_t readStart = c->pos; 
+		
+		
+
+		//get the cigar values and convert them and save
+		uint32_t *cigar = bam_get_cigar(b);
+		for (i=0 ;i < c->n_cigar; i++){
+			uint32_t cigarFlag     = bam_cigar_op(cigar[i]);
+			uint32_t cigarFlagLen  = bam_cigar_oplen(cigar[i]);
+			theRead->cigarOps[2 * i]       = cigarFlag;
+			theRead->cigarOps[(2 * i) + 1] = cigarFlagLen;
+			
+			// Soft-clipping of sequence at start of read changes the mapping
+			// position. Recorded mapping pos is that of the first aligned (not soft-clipped)
+			// base. I want to adjust this so that the read start refers to the first base in
+			// the read.
+			//if (i == 0 && cigarFlag == 4){
+				//readStart -= cigarFlagLen;
+			//}
+		}
+		
+		strcpy(theRead->qname, readname);   //copy the Query template NAME (the name of the read)
+		theRead->flag        = c->flag;     //copy the flag
+		theRead->chromID     = c->tid;      //copy the chromosomeID (This is the chromosome ID which should be later converted to the chromosome name)
+		theRead->pos         = readStart;   //copy the mapped position    
+		theRead->mapq        = c->qual;     //copy the mapq
+		//theRead->cigarOps    = cigarOps;  //already stored
+		theRead->mateChromID = c->mtid;     //mate chromosome ID
+		theRead->matePos     = c->mpos;     //mate position
+		theRead->tlen        = 0;      
+		//theRead->seq         = seq;       //already stored
+		//theRead->qual        = qual;      //already stored
+
+		//saving some other stuff
+		theRead->cigarLen    = c->n_cigar;
+		theRead->rlen        = lenSeq;
+		theRead->end         = bam_endpos(b);
+		theRead->insertSize  = c->isize;
+
+		return theRead;
+		*/
+	}
+
+	vector<pair<u_int32_t, u_int32_t>> decode_cigar(bam1_t *read) {
+		static int32_t cigar_len_mask = 0xFFFFFFF0;
+		static uint32_t cigar_type_mask = 0xF;
+
+		// get CIGAR
+		vector<pair<u_int32_t, u_int32_t>> cigar_offsets;
+		uint32_t *cigar = bam_get_cigar(read);
+		for (size_t i = 0; i < read->core.n_cigar; i++) {
+			uint32_t type = cigar[i] & cigar_type_mask;
+			uint32_t length = cigar[i] >> 4;
+			cigar_offsets.push_back(make_pair(length, type));
+		}
+		return cigar_offsets;
+	}
+
+	string decode_cigar_str(bam1_t *read, const u_int32_t contigStart, u_int32_t& readLength, u_int32_t& contigEnd, u_int32_t& readStart, u_int32_t& readEnd) {
+
+		readLength = 0;
+		contigEnd = contigStart;
+		readStart = 0;
+		readEnd = 0;
+
+		static int32_t cigar_len_mask = 0xFFFFFFF0;
+		static uint32_t cigar_type_mask = 0xF;
+
+		string cigarStr = "";
+		// get CIGAR
+		//vector<pair<u_int32_t, u_int32_t>> cigar_offsets;
+		uint32_t *cigar = bam_get_cigar(read);
+
+		for (size_t i = 0; i < read->core.n_cigar; i++) {
+			uint32_t type = cigar[i] & cigar_type_mask;
+			uint32_t length = cigar[i] >> 4;
+			//cigar_offsets.push_back(make_pair(length, type));
+
+			char typeVal = ' ';
+
+			if (type == BAM_CMATCH || type == BAM_CEQUAL || type == BAM_CDIFF) {
+				typeVal = 'M';
+				readLength += length;
+				contigEnd += length;
+				readEnd += length;
+			} else if (type == BAM_CINS || type == BAM_CSOFT_CLIP) {
+				typeVal = 'I';
+				readLength += length;
+				readEnd += length;
+			} else if (type == BAM_CDEL) {
+				typeVal = 'D';
+				contigEnd += length;
+			} else if (type == BAM_CHARD_CLIP) {
+				typeVal = 'H';
+				readLength += length;
+				readStart += length;
+				readEnd += length;
+				// advances neither
+				//cout << "lol" << endl;
+			} else if (type == BAM_CREF_SKIP) {
+				typeVal = 'N';
+			} else { 
+			}
+
+			cigarStr += to_string(length);
+			cigarStr += typeVal;
+		}
+		return cigarStr;
+	}
+
+
+
+	void find_breaking_points_from_cigar2(uint32_t window_length, BamAlignment& bamAlignment, const string& contigSequence){
+		
+		
+
+		double length = max((double)(bamAlignment._contigEnd - bamAlignment._contigStart), (double)(bamAlignment._readEnd - bamAlignment._readStart));
+		double error = 1 - min((double)(bamAlignment._contigEnd - bamAlignment._contigStart), (double)(bamAlignment._readEnd - bamAlignment._readStart)) / length;
+		if(error > 0.3) return;
+
+		u_int32_t alignLength = 0;
+		u_int32_t nbMatches = 0;
+		float alignmentScore = 0;
+
+		const string& readSequence = bamAlignment._sequence;
+		const string& qualSequence = bamAlignment._qualities;
+		u_int64_t readLength = bamAlignment._readLength;
+
+		vector<std::pair<uint32_t, uint32_t>> breaking_points_;
+		u_int64_t t_begin_ = bamAlignment._contigStart;//al._contigStart;
+		u_int64_t t_end_ = bamAlignment._contigEnd; //al._contigEnd;
+		u_int64_t q_begin_ = 0; //al._readStart;
+		u_int64_t q_end_ = bamAlignment._sequence.size(); //al._readEnd;
+		//bool strand_ = al._strand;
+		u_int64_t q_length_ = readLength;
+
+		// find breaking points from cigar
+		std::vector<int32_t> window_ends;
+		for (uint32_t i = 0; i < t_end_; i += window_length) {
+			if (i > t_begin_) {
+				window_ends.emplace_back(i - 1);
+			}
+		}
+		window_ends.emplace_back(t_end_ - 1);
+
+		uint32_t w = 0;
+		bool found_first_match = false;
+		std::pair<uint32_t, uint32_t> first_match = {0, 0}, last_match = {0, 0};
+
+		int32_t q_ptr = -1;//(strand_ ? (q_length_ - q_end_) : q_begin_) - 1;
+		int32_t t_ptr = t_begin_ - 1;
+
+		for (uint32_t i = 0, j = 0; i < bamAlignment._cigar.size(); ++i) {
+			if (bamAlignment._cigar[i] == 'M' || bamAlignment._cigar[i] == '=' || bamAlignment._cigar[i] == 'X') {
+				uint32_t k = 0, num_bases = atoi(&bamAlignment._cigar[j]);
+				j = i + 1;
+				while (k < num_bases) {
+					++q_ptr;
+					++t_ptr;
+
+					if(readSequence[q_ptr] == contigSequence[t_ptr]){
+						alignmentScore += 1;
+						nbMatches += 1;
+					}
+					else{
+						alignmentScore -= 1;
+					}
+
+					if (!found_first_match) {
+						found_first_match = true;
+						first_match.first = t_ptr;
+						first_match.second = q_ptr;
+					}
+					last_match.first = t_ptr + 1;
+					last_match.second = q_ptr + 1;
+					if (t_ptr == window_ends[w]) {
+						if (found_first_match) {
+							breaking_points_.emplace_back(first_match);
+							breaking_points_.emplace_back(last_match);
+						}
+						found_first_match = false;
+						++w;
+					}
+
+
+					++k;
+				}
+			} else if (bamAlignment._cigar[i] == 'I') {
+				uint32_t num_bases = atoi(&bamAlignment._cigar[j]);
+				alignmentScore -= num_bases;
+				q_ptr += num_bases;
+				j = i + 1;
+			} else if (bamAlignment._cigar[i] == 'D' || bamAlignment._cigar[i] == 'N') {
+				uint32_t k = 0, num_bases = atoi(&bamAlignment._cigar[j]);
+				alignmentScore -= num_bases;
+				j = i + 1;
+				while (k < num_bases) {
+					++t_ptr;
+					if (t_ptr == window_ends[w]) {
+						if (found_first_match) {
+							breaking_points_.emplace_back(first_match);
+							breaking_points_.emplace_back(last_match);
+						}
+						found_first_match = false;
+						++w;
+					}
+					++k;
+				}
+			} else if (bamAlignment._cigar[i] == 'S' || bamAlignment._cigar[i] == 'H' || bamAlignment._cigar[i] == 'P') {
+				j = i + 1;
+			}
+		}
+
+		bamAlignment._score = alignmentScore;
+		//if(breaking_points_.size() > 0) breaking_points_.emplace_back(last_match);
+			
+		//if(bamAlignment._readName == "_876"){
+		//	cout << bamAlignment._readName << " " << bamAlignment._contigStart << " " << bamAlignment._contigEnd << " " << bamAlignment._readStart << " " <<  bamAlignment._readEnd << endl;
+		//	cout << nbMatches << " " << length << " " << ((double)nbMatches) / length << endl;
+
+		//	if(((double)nbMatches) / length < 0.96) return;
+		//}
+
+
+		for (uint32_t j = 0; j < breaking_points_.size(); j += 2) {
+
+			if(breaking_points_[j].second >= readSequence.size()) return;
+			if(breaking_points_[j + 1].second >= readSequence.size()) return;
+
+			if (breaking_points_[j + 1].second - breaking_points_[j].second < 0.02 * _windowLength) {
+				continue;
+			}
+
+			
+			if (qualSequence.size() > 0) {
+
+				//const auto& quality = overlaps[i]->strand() ? sequence->reverse_quality() : sequence->quality();
+				double average_quality = 0;
+				for (uint32_t k = breaking_points_[j].second; k < breaking_points_[j + 1].second; ++k) {
+					average_quality += static_cast<uint32_t>(qualSequence[k]) - 33;
+				}
+				average_quality /= breaking_points_[j + 1].second - breaking_points_[j].second;
+
+				if (average_quality < _qualityThreshold) {
+					continue;
+				}
+			}
+			
+
+			//uint64_t window_id = id_to_first_window_id[overlaps[i]->t_id()] +
+			uint64_t window_id = breaking_points_[j].first / _windowLength;
+			uint32_t window_start = (breaking_points_[j].first / _windowLength) * _windowLength;
+
+			//const char* data = overlaps[i]->strand() ?
+			//	&(sequence->reverse_complement()[breaking_points[j].second]) :
+			//	&(sequence->data()[breaking_points[j].second]);
+			const char* data = &readSequence[breaking_points_[j].second];
+			uint32_t data_length = breaking_points_[j + 1].second - breaking_points_[j].second;
+
+			string sequence = string(data, data_length);
+
+
+			data = &readSequence[breaking_points_[j].second];
+			data_length = breaking_points_[j + 1].second - breaking_points_[j].second;
+			sequence = string(data, data_length);
+
+
+
+			u_int32_t posStart = breaking_points_[j].first - window_start;
+			u_int32_t posEnd =  breaking_points_[j + 1].first - window_start - 1;
+
+			string quality = "";
+			if(_useQual && qualSequence.size() > 0){
+				quality = string(&qualSequence[breaking_points_[j].second], data_length);
+			}
+
+			//cout << window_id << " " << sequence.size() << endl;
+			//getchar();
+			//if(window_id == 524){
+			//	cout << sequence << endl;
+			//}
+			//cout << window_id << " " << posStart << " " << posEnd << endl;
+			//if(al._contigIndex == 0 && window_id == 161){
+				
+				//_logFile << al._contigIndex << " " << al._readIndex << endl;
+				//_logFile << (breaking_points_[j + 1].second - breaking_points_[j].second) << " " << (0.02 * _windowLength) << endl;
+				//_logFile << sequence << endl;
+				//_logFile << quality << endl;
+				//getchar();
+			//}
+
+			//if(sequence.size() < 490) continue;
+			indexWindow2(bamAlignment, window_id, posStart, posEnd, sequence, quality);
+
+		}
+		
+	}
+
+	
+	//void indexWindow(const Alignment& al, size_t readWindowStart, size_t readWindowEnd, size_t contigWindowStart, size_t contigWindowEnd, const string& windowSequence, const string& windowQualities){
+	void indexWindow2(const BamAlignment& bamAlignment, u_int64_t windowIndex, u_int32_t posStart, u_int32_t posEnd, const string& windowSequence, const string& windowQualities){
+
+		vector<Window>& windows = _contigWindowSequences[bamAlignment._contigIndex][windowIndex];
+		
+
+		
+		bool interrupt = false;
+		if(_maxWindowCopies == 0 || windows.size() < (_maxWindowCopies-1)){
+
+
+			windows.push_back({new DnaBitset2(windowSequence), windowQualities, posStart, posEnd, bamAlignment._score, bamAlignment._readName});
+
+
+			interrupt = true;
+		}
+
+		
+		if(!interrupt){
+
+			float score = bamAlignment._score;
+
+			u_int64_t incompleteWindowIndex = -1;
+			//u_int64_t minWindowSize = -1;
+
+			u_int64_t largerDistanceWindow = 0;
+
+			for(size_t i=0; i<windows.size(); i++){
+
+				const Window& window = windows[i];
+				u_int64_t distance = abs(((long)window._sequence->m_len) - ((long)_windowLength));
+
+				if(distance > _windowLengthVariance){
+					if(distance > largerDistanceWindow){
+						largerDistanceWindow = distance;
+						incompleteWindowIndex = i;
+					}
+				}
+			}
+
+
+			//u_int64_t distance = abs(((long)windowSequence.size()) - ((long)_windowLength));
+
+			if(incompleteWindowIndex != -1){
+				Window& window = windows[incompleteWindowIndex];
+				delete window._sequence;
+				windows[incompleteWindowIndex] = {new DnaBitset2(windowSequence), windowQualities, posStart, posEnd, score, bamAlignment._readName};
+			}
+			else{
+				
+				
+
+				static float maxVal = std::numeric_limits<float>::max();
+				size_t largerWindowIndex = 0;
+				//u_int64_t largerDistanceWindow = 0;
+				float lowestScore = maxVal;
+				
+				for(size_t i=0; i<windows.size(); i++){
+
+					const Window& window = windows[i];
+					//u_int64_t distance = abs(((long)window._sequence->m_len) - ((long)_windowLength));
+					//float score =
+
+					if(window._score < lowestScore){
+						lowestScore = window._score;
+						largerWindowIndex = i;
+					}
+				}
+
+				//u_int64_t distance = abs(((long)windowSequence.size()) - ((long)_windowLength));
+
+				if(score > lowestScore){
+					Window& window = windows[largerWindowIndex];
+					delete window._sequence;
+					windows[largerWindowIndex] = {new DnaBitset2(windowSequence), windowQualities, posStart, posEnd, score, bamAlignment._readName};
+				}
+
+			}
+
+
+
+		} 
+
+
 	}
 
 	/*
@@ -696,85 +1270,6 @@ public:
 		
 		Logger::get().debug() << "Computing contig coverages...";
 
-		unordered_map<u_int32_t, vector<pair<u_int32_t, u_int32_t>>> contigHits;
-		auto fp = std::bind(&ContigPolisher::computeContigCoverages_setup_read, this, std::placeholders::_1);
-		ReadParser readParser(_inputFilename_contigs, true, false);
-		readParser.parse(fp);
-
-
-		for(const auto& it : _alignments){
-
-			//const string& contigName = it.second._contigName;
-			u_int32_t contigIndex = it.second._contigIndex;
-
-			//if(contigHits.find(contigIndex) == contigHits.end()){
-			//	contigHits[contigIndex] = {};
-			//}
-
-			contigHits[contigIndex].push_back({it.second._contigStart, it.second._contigEnd});
-
-			//for(size_t i=it.second._contigStart; i<it.second._contigEnd; i++){
-			//	if(i%_contigCoverageWindow != 0) continue;
-				//cout << i/_contigCoverageWindow << " " << contigHitPos.size() << endl;
-			//	if(i/_contigCoverageWindow >= contigHitPos.size()) continue;
-			//	contigHitPos[i/_contigCoverageWindow] += 1;
-				//cout << i/_contigCoverageWindow << " " << contigHitPos.size() << endl;
-			//}
-
-		}
-
-		for(auto& it : contigHits){
-
-			//cout << it.first << " " << _contigLength[it.first] << endl;
-			vector<u_int32_t> coverages(_contigLength[it.first], 0);
-
-			for(auto& interval : it.second){
-
-				for(size_t i=interval.first; i<interval.second; i++){
-					coverages[i] += 1;
-				}
-			}
-			//cout << it.first << endl;
-			//for(u_int32_t count : it.second){
-			//	cout << count << " ";
-			//}
-			//cout << endl;
-
-			if (coverages.size() < 80 *2){
-				_contigCoverages[it.first] = 1;
-			}
-			else{
-				u_int64_t sum = 0;
-				for(long i=75; i<((long)coverages.size())-75; i++){
-					sum += coverages[i];
-				}
-
-				float coverage = sum / ((double)coverages.size());  //Utils::compute_median(coverages);
-				_contigCoverages[it.first] = coverage;
-			}
-
-
-			//Logger::get().debug() << "Coverage " << it.first << ": " << coverage << endl;
-		}
-
-		//_contigHitPos.clear();
-		_contigLength.clear();
-	}
-
-	
-	void computeContigCoverages_setup_read(const Read& read){
-
-		_contigLength[read._index] = read._seq.size();
-		//int nbCounts = read._seq.size() / _contigCoverageWindow;
-		//cout << Utils::shortenHeader(read._header) << " " << nbCounts << endl;
-		//_contigHitPos[read._index].resize(nbCounts, 0);
-	}
-
-	/*
-	void computeContigCoverages(){
-		
-		Logger::get().debug() << "Computing contig coverages...";
-
 		auto fp = std::bind(&ContigPolisher::computeContigCoverages_setup_read, this, std::placeholders::_1);
 		ReadParser readParser(_inputFilename_contigs, true, false);
 		readParser.parse(fp);
@@ -820,7 +1315,7 @@ public:
 		//cout << Utils::shortenHeader(read._header) << " " << nbCounts << endl;
 		_contigHitPos[read._index].resize(nbCounts, 0);
 	}
-	*/
+
 	/*
 	u_int64_t loadContig(u_int64_t contigIndex, const string& seq){
 
@@ -1217,11 +1712,11 @@ public:
 		
 		//_contigName_to_contigIndex.clear();
 		//_readName_to_readIndex.clear();
-
 		collectWindowSequences(_currentPartition);
 		performCorrection();
 		//if(fs::exists(_outputFilename_mapping)) fs::remove(_outputFilename_mapping);
 	}
+
 
 	void loadContigs(){
 		auto fp = std::bind(&ContigPolisher::loadContigs_read, this, std::placeholders::_1);
@@ -1291,6 +1786,8 @@ public:
 		_contigName_to_contigIndex[Utils::shortenHeader(read._header)] = read._index;
 	}
 
+	unordered_map<string, u_int32_t> _readName_to_length;
+
 	void indexReadName(){
 
 		//cout << "Indexing read names" << endl;
@@ -1303,7 +1800,8 @@ public:
 
 	void indexReadName_read(const Read& read){
 		//if(read._index % 100000 == 0) cout << read._index << endl;
-		_readName_to_readIndex[Utils::shortenHeader(read._header)] = read._index;
+		//_readName_to_readIndex[Utils::shortenHeader(read._header)] = read._index;
+		_readName_to_length[Utils::shortenHeader(read._header)] = read._seq.size();
 	}
 
 	/*
@@ -2335,15 +2833,28 @@ public:
 
 				u_int32_t offset = 0.01 * contigOriginalSequence.size();
 
+				if(windowIndexLocal == 1221){
+					cout << contigOriginalSequence << endl;
+				}
+				unordered_map<string, u_int32_t> counts;
 
 				for(size_t i=0; i<sequences.size(); i++){ 
 
 					//size_t i = order[ii];
 					const Window& window = sequences[i];
+
+
 					//const DnaBitset2* dna = variant._sequence; //sequenceCopies[s._sequenceIndex];
 					char* dnaStr = window._sequence->to_string();
 
-						
+					if(windowIndexLocal == 1221){
+						counts[window._readName] += 1;
+						cout << i << " " << window._readName << " " << window._posStart << endl;
+						cout << string(dnaStr) << endl;
+						cout << string(window._quality) << endl;
+						//cout << i << " " << window._quality << endl;
+					}
+
 					spoa::Alignment alignment;
 					if (window._posStart < offset && window._posEnd > contigOriginalSequence.size() - offset) {
 						alignment = alignmentEngine->Align(
@@ -2409,7 +2920,15 @@ public:
 
 				//correctedWindows[w] = new DnaBitset2(correctedSequence);
 
+				//if(windowIndexLocal == 0){
+				//	for(const auto& it : counts){
+				//		cout << it.first << " " << it.second << endl;
+				//	}
+				//}
+
 			}
+
+
 		}
 		
 		/*
@@ -2584,12 +3103,13 @@ public:
 		*/
 	}
 
-
+	
 	void addCorrectedWindow(bool success, DnaBitset2* seq, size_t contigIndexLocal, size_t windowIndexLocal){
 
 		
 		#pragma omp critical(addCorrectedWindow)
 		{
+			//cout << "Add corrected window: " << contigIndexLocal << " " << windowIndexLocal << " " << _currentContigs[contigIndexLocal].size() << " " << _contigWindowSequences[contigIndexLocal].size() << endl;
 			_currentContigs[contigIndexLocal].push_back({windowIndexLocal, seq, success});
 
 			if(_currentContigs[contigIndexLocal].size() == _contigWindowSequences[contigIndexLocal].size()){
@@ -2611,7 +3131,7 @@ public:
 			}
 		}
 		
-		if(nbCorrectedWindows > 0){
+		if(nbCorrectedWindows > 0 && _contigCoverages[contigIndex] > 1){
 
 			std::sort(correctedWindows.begin(), correctedWindows.end(), CorrectedWindowComparator);
 
@@ -2626,59 +3146,57 @@ public:
 				//delete correctedWindows[w];
 			}
 
-			u_int64_t length = contigSequence.size();
-			bool isValid = true;
 
-			if(_contigCoverages[contigIndex] <= 1){
-				isValid = false;
-			}
-			else if(length < 3000){
-				isValid = false;
-			}
-			else if(length < 7500 && _contigCoverages[contigIndex] < 4){
-				isValid = false;
-			}
+			string header = _contigHeaders[contigIndex];
 
-			if(isValid){
+			if(_isMetaMDBG){
 
-				string header = _contigHeaders[contigIndex];
-
-				if(_isMetaMDBG){
-
-					bool isCircular = false;
-					//if(header.find("rc") != string::npos){
-					//	string h = header.substr(0, header.size()-2);
-					//	header = h + "_" + to_string(_contigCoverages[contigIndex]) + "x_rc";
-					//}
-					//else 
-					if(header[header.size()-1] == 'c'){
-						isCircular = true;
-						//string h = header.substr(0, header.size()-1);
-						//header = h + " length=" + to_string(contigSequence.size()) + " coverage=" + to_string(_contigCoverages[contigIndex]) + " circular=yes";
-					}
-
-					header.pop_back(); //remove circular indicator
-					header.erase(0, 3); //remove "ctg"
-					u_int32_t contigIndex = stoull(header);
-
-					//else{
-					//	string h = header.substr(0, header.size()-1);
-					//	header = h + " length=" + to_string(contigSequence.size()) + " coverage=" + to_string(_contigCoverages[contigIndex]) + " circular=no";
-					//}
-					header = Utils::createContigHeader(contigIndex, contigSequence.size(), _contigCoverages[contigIndex], isCircular);
+				bool isCircular = false;
+				//if(header.find("rc") != string::npos){
+				//	string h = header.substr(0, header.size()-2);
+				//	header = h + "_" + to_string(_contigCoverages[contigIndex]) + "x_rc";
+				//}
+				//else 
+				if(header[header.size()-1] == 'c'){
+					isCircular = true;
+					//string h = header.substr(0, header.size()-1);
+					//header = h + " length=" + to_string(contigSequence.size()) + " coverage=" + to_string(_contigCoverages[contigIndex]) + " circular=yes";
 				}
 
+				header.pop_back(); //remove circular indicator
+				header.erase(0, 3); //remove "ctg"
+				u_int32_t contigIndex = stoull(header);
 
-				header = ">" + header + '\n';// ">ctg" + to_string(contigIndex) + '\n';
-				//header += '\n';
-				gzwrite(_outputContigFile, (const char*)&header[0], header.size());
-				contigSequence +=  '\n';
-				gzwrite(_outputContigFile, (const char*)&contigSequence[0], contigSequence.size());
-				//_logFile << _contigHeaders[contigIndex] << " " << contigSequence.size() << endl;
-
+				//else{
+				//	string h = header.substr(0, header.size()-1);
+				//	header = h + " length=" + to_string(contigSequence.size()) + " coverage=" + to_string(_contigCoverages[contigIndex]) + " circular=no";
+				//}
+				header = Utils::createContigHeader(contigIndex, contigSequence.size(), _contigCoverages[contigIndex], isCircular);
 			}
+			/*
+			if(_circularize){
+				
+				char lastChar = header[header.size()-1];
+				if(lastChar == 'c' || lastChar == 'l'){
+					header.pop_back();
+				}
+
+				if(_isContigCircular.find(contigName) == _isContigCircular.end()){
+					header += 'l';
+				}
+				else{
+					header += 'c';
+				}
+			}
+			*/
 
 
+			header = ">" + header + '\n';// ">ctg" + to_string(contigIndex) + '\n';
+			//header += '\n';
+			gzwrite(_outputContigFile, (const char*)&header[0], header.size());
+			contigSequence +=  '\n';
+			gzwrite(_outputContigFile, (const char*)&contigSequence[0], contigSequence.size());
+			//_logFile << _contigHeaders[contigIndex] << " " << contigSequence.size() << endl;
 
 		}
 

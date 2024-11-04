@@ -1,3 +1,15 @@
 {
-	"folders": []
+	"folders": [],
+	"settings": {
+		"files.associations": {
+			"iostream": "cpp",
+			"ostream": "cpp",
+			"type_traits": "cpp",
+			"cmath": "cpp",
+			"*.tcc": "cpp",
+			"functional": "cpp",
+			"iomanip": "cpp",
+			"fstream": "cpp"
+		}
+	}
 }

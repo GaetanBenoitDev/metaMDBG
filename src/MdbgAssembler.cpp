@@ -20,7 +20,7 @@ on peut aussi ne charger que les nodes du forward en therorie, car on peut retro
 #include "readSelection/ReadSelection.hpp"
 
 #include "toBasespace/ToMinspace.hpp"
-//#include "mapping/MappingContigToGraph.hpp"
+#include "mapping/MappingContigToGraph.hpp"
 
 
 
@@ -145,9 +145,9 @@ int main (int argc, char* argv[])
     		else if(programName == "toMinspace"){
                 ToMinspace().run (argc, args);
     		}
-			//else if(programName == "map"){
-            //    MappingContigToGraph().run (argc, args);
-    		//}
+			else if(programName == "map"){
+                MappingContigToGraph().run (argc, args);
+    		}
 	
 			
 			else if(programName == "graph"){

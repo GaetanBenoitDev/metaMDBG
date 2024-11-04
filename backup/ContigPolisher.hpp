@@ -128,6 +128,7 @@ public:
 	string _outputDir;
 	string _tmpDir;
 	string _readPartitionDir;
+	string _contigPartitionDir;
 	bool _circularize;
 	u_int64_t _minContigLength;
 	
@@ -147,7 +148,7 @@ public:
 	//unordered_map<string, vector<string>> _contigMapRight;
 	//unordered_map<u_int32_t, vector<u_int32_t>> _contigHitPos;
 	unordered_map<u_int32_t, u_int32_t> _contigLength;
-	unordered_map<u_int32_t, float> _contigCoverages;
+	unordered_map<u_int32_t, u_int32_t> _contigCoverages;
 
 	u_int64_t _checksumWrittenReads;
 
@@ -350,8 +351,8 @@ public:
 		//if(!fs::exists(_tmpDir)){
 		//	fs::create_directories(_tmpDir);
 		//}
-
-			_readPartitionDir = _tmpDir + "/_polish_readPartitions/";
+		_contigPartitionDir = _tmpDir + "/_polish_contigPartitions/";
+		_readPartitionDir = _tmpDir + "/_polish_readPartitions/";
 		_inputFilename_reads = _tmpDir + "/input.txt";
 		/*
 		if(arg_readFilenames_hifi){
@@ -445,9 +446,9 @@ public:
 		_nbPartitions = 1;
 		_partitionNbReads[0] = 10000;
 		*/
-		for(size_t i=0; i<_nbPartitions; i++){
+		//for(size_t i=0; i<_nbPartitions; i++){
 			processPartition(i);
-		}
+		//}
 
 		//exit(1);
 		//indexContigName();
@@ -484,8 +485,9 @@ public:
 		gzclose(fp);
 		*/
 		gzclose(_outputContigFile);
-		fs::remove_all(_readPartitionDir);
-
+		//fs::remove_all(_contigPartitionDir);
+		//fs::remove_all(_readPartitionDir);
+		cout << "A remettee: remove_all" << endl;
 		//closeLogFile();
 	}
 
@@ -690,6 +692,7 @@ public:
 	}
 	*/
 
+	//"reprise: estimation incorrecte :( mettre une limite de taille pour les contig filtré par abondance (~50k)"
 	int _contigCoverageWindow = 100;
 
 	void computeContigCoverages(){
@@ -740,19 +743,9 @@ public:
 			//}
 			//cout << endl;
 
-			if (coverages.size() < 80 *2){
-				_contigCoverages[it.first] = 1;
-			}
-			else{
-				u_int64_t sum = 0;
-				for(long i=75; i<((long)coverages.size())-75; i++){
-					sum += coverages[i];
-				}
-
-				float coverage = sum / ((double)coverages.size());  //Utils::compute_median(coverages);
-				_contigCoverages[it.first] = coverage;
-			}
-
+			
+			float coverage = Utils::compute_median(coverages);
+			_contigCoverages[it.first] = coverage;
 
 			//Logger::get().debug() << "Coverage " << it.first << ": " << coverage << endl;
 		}
@@ -769,58 +762,8 @@ public:
 		//cout << Utils::shortenHeader(read._header) << " " << nbCounts << endl;
 		//_contigHitPos[read._index].resize(nbCounts, 0);
 	}
+	
 
-	/*
-	void computeContigCoverages(){
-		
-		Logger::get().debug() << "Computing contig coverages...";
-
-		auto fp = std::bind(&ContigPolisher::computeContigCoverages_setup_read, this, std::placeholders::_1);
-		ReadParser readParser(_inputFilename_contigs, true, false);
-		readParser.parse(fp);
-
-
-		for(const auto& it : _alignments){
-
-			//const string& contigName = it.second._contigName;
-			u_int32_t contigIndex = it.second._contigIndex;
-			vector<u_int32_t>& contigHitPos = _contigHitPos[contigIndex];
-
-			for(size_t i=it.second._contigStart; i<it.second._contigEnd; i++){
-				if(i%_contigCoverageWindow != 0) continue;
-				//cout << i/_contigCoverageWindow << " " << contigHitPos.size() << endl;
-				if(i/_contigCoverageWindow >= contigHitPos.size()) continue;
-				contigHitPos[i/_contigCoverageWindow] += 1;
-				//cout << i/_contigCoverageWindow << " " << contigHitPos.size() << endl;
-			}
-
-		}
-
-		for(auto& it : _contigHitPos){
-			//cout << it.first << endl;
-			//for(u_int32_t count : it.second){
-			//	cout << count << " ";
-			//}
-			//cout << endl;
-
-			
-			float coverage = Utils::compute_median(it.second);
-			_contigCoverages[it.first] = coverage;
-
-			//Logger::get().debug() << "Coverage " << it.first << ": " << coverage << endl;
-		}
-
-		_contigHitPos.clear();
-	}
-
-
-	void computeContigCoverages_setup_read(const Read& read){
-
-		int nbCounts = read._seq.size() / _contigCoverageWindow;
-		//cout << Utils::shortenHeader(read._header) << " " << nbCounts << endl;
-		_contigHitPos[read._index].resize(nbCounts, 0);
-	}
-	*/
 	/*
 	u_int64_t loadContig(u_int64_t contigIndex, const string& seq){
 
@@ -863,6 +806,7 @@ public:
 	};
 
 	unordered_map<u_int32_t, u_int32_t> _contigToPartition;
+	vector<PartitionFile*> _partitionFiles_contigs;
 	vector<PartitionFile*> _partitionFiles;
 	unordered_map<u_int32_t, u_int64_t> _partitionNbReads;
 
@@ -875,6 +819,9 @@ public:
 	vector<ContigStats> _contigStats;
 	u_int32_t _nbPartitions;
 
+	void partitionContigs(){
+
+	}
 
 	void partitionReads(){
 
@@ -1006,10 +953,11 @@ public:
 		
 		//memoryPerPartitions.size();
 
-		for(u_int32_t i=0; i<_nbPartitions; i++){
-			_partitionNbReads[i] = 0;
-			_partitionFiles.push_back(new PartitionFile(i, _readPartitionDir));
-		}
+		//for(u_int32_t i=0; i<_nbPartitions; i++){
+		//	_partitionNbReads[i] = 0;
+		//	_partitionFiles.push_back(new PartitionFile(i, _readPartitionDir));
+		//	_partitionFiles_contigs.push_back(new PartitionFile(i, _contigPartitionDir));
+		//}
 
 
 		_contigStats.clear();
@@ -1062,18 +1010,26 @@ public:
 		gzclose(fp);
 		*/
 
-
-
+		/*
+		writeContigPartitions();
 		writeReadPartitions();
 
 		//readToContigIndex.clear();
 		//_contigToPartition.clear();
 		//_alignments.clear();
+		for(PartitionFile* partitionFile : _partitionFiles_contigs){
+			delete partitionFile;
+		}
+		_partitionFiles_contigs.clear();
 
 		for(PartitionFile* partitionFile : _partitionFiles){
 			delete partitionFile;
 		}
 		_partitionFiles.clear();
+
+		cout << "lol" << endl;
+		getchar();
+		*/
 	}
 
 
@@ -1105,6 +1061,60 @@ public:
 		return nbWindows * windowByteSize;
 	}
 
+	void writeContigPartitions(){
+		ReadParserParallel readParser(_inputFilename_contigs, true, false, _nbCores);
+		readParser.parse(ContigPartitionFunctor(*this));
+	}
+
+	class ContigPartitionFunctor {
+
+		public:
+
+		ContigPolisher& _contigPolisher;
+
+
+		ContigPartitionFunctor(ContigPolisher& contigPolisher) : _contigPolisher(contigPolisher){
+		}
+
+		ContigPartitionFunctor(const ContigPartitionFunctor& copy) : _contigPolisher(copy._contigPolisher){
+		}
+
+		~ContigPartitionFunctor(){
+		}
+
+		void operator () (const Read& read) {
+
+			u_int32_t readIndex = read._index;
+			//const string& readName = Utils::shortenHeader(read._header);
+
+			if(read._index % 10000 == 0) Logger::get().debug() << "\t" << read._index;
+			
+			//if(_contigPolisher._alignments.find(readIndex) == _contigPolisher._alignments.end()) return;
+
+
+			//unordered_set<u_int32_t> writtenPartitions;
+
+			//for(const Alignment& al : _contigPolisher._alignments[readIndex]){
+			//const Alignment& al = _contigPolisher._alignments[readIndex];
+			u_int32_t contigIndex = readIndex; //al._contigIndex;
+			//if(contigName != "ctg90297c") return;
+			//u_int32_t contigIndex = al._contigIndex; //_contigPolisher._alignments[readIndex]._contigIndex;
+			//_logFile << contigIndex << " " << (_contigPolisher._contigToPartition.find(contigIndex) != _contigPolisher._contigToPartition.end()) << endl;
+			u_int32_t partition = _contigPolisher._contigToPartition[contigIndex];
+
+			PartitionFile* partitionFile = _contigPolisher._partitionFiles_contigs[partition];
+
+			omp_set_lock(&partitionFile->_mutex);
+
+			string header = '>' + to_string(readIndex) + '\n';
+			string seq = read._seq + '\n';
+			gzwrite(partitionFile->_file, (const char*)&header[0], header.size());
+			gzwrite(partitionFile->_file, (const char*)&seq[0], seq.size());
+			
+
+			omp_unset_lock(&partitionFile->_mutex);
+		}
+	};
 
 	void writeReadPartitions(){
 		_checksumWrittenReads = 0;
@@ -1206,7 +1216,7 @@ public:
 		//if(_contigSequences.size() == 0) return;
 		Logger::get().debug() << "Processing partition: " << _currentPartition << "/" << _nbPartitions;
 
-		if(_partitionNbReads[partition] == 0) return;
+		//if(_partitionNbReads[partition] == 0) return;
 
 
 		//indexContigs();
@@ -2611,7 +2621,7 @@ public:
 			}
 		}
 		
-		if(nbCorrectedWindows > 0){
+		if(nbCorrectedWindows > 0 && _contigCoverages[contigIndex] > 4){
 
 			std::sort(correctedWindows.begin(), correctedWindows.end(), CorrectedWindowComparator);
 
@@ -2626,59 +2636,57 @@ public:
 				//delete correctedWindows[w];
 			}
 
-			u_int64_t length = contigSequence.size();
-			bool isValid = true;
 
-			if(_contigCoverages[contigIndex] <= 1){
-				isValid = false;
-			}
-			else if(length < 3000){
-				isValid = false;
-			}
-			else if(length < 7500 && _contigCoverages[contigIndex] < 4){
-				isValid = false;
-			}
+			string header = _contigHeaders[contigIndex];
 
-			if(isValid){
+			if(_isMetaMDBG){
 
-				string header = _contigHeaders[contigIndex];
-
-				if(_isMetaMDBG){
-
-					bool isCircular = false;
-					//if(header.find("rc") != string::npos){
-					//	string h = header.substr(0, header.size()-2);
-					//	header = h + "_" + to_string(_contigCoverages[contigIndex]) + "x_rc";
-					//}
-					//else 
-					if(header[header.size()-1] == 'c'){
-						isCircular = true;
-						//string h = header.substr(0, header.size()-1);
-						//header = h + " length=" + to_string(contigSequence.size()) + " coverage=" + to_string(_contigCoverages[contigIndex]) + " circular=yes";
-					}
-
-					header.pop_back(); //remove circular indicator
-					header.erase(0, 3); //remove "ctg"
-					u_int32_t contigIndex = stoull(header);
-
-					//else{
-					//	string h = header.substr(0, header.size()-1);
-					//	header = h + " length=" + to_string(contigSequence.size()) + " coverage=" + to_string(_contigCoverages[contigIndex]) + " circular=no";
-					//}
-					header = Utils::createContigHeader(contigIndex, contigSequence.size(), _contigCoverages[contigIndex], isCircular);
+				bool isCircular = false;
+				//if(header.find("rc") != string::npos){
+				//	string h = header.substr(0, header.size()-2);
+				//	header = h + "_" + to_string(_contigCoverages[contigIndex]) + "x_rc";
+				//}
+				//else 
+				if(header[header.size()-1] == 'c'){
+					isCircular = true;
+					//string h = header.substr(0, header.size()-1);
+					//header = h + " length=" + to_string(contigSequence.size()) + " coverage=" + to_string(_contigCoverages[contigIndex]) + " circular=yes";
 				}
 
+				header.pop_back(); //remove circular indicator
+				header.erase(0, 3); //remove "ctg"
+				u_int32_t contigIndex = stoull(header);
 
-				header = ">" + header + '\n';// ">ctg" + to_string(contigIndex) + '\n';
-				//header += '\n';
-				gzwrite(_outputContigFile, (const char*)&header[0], header.size());
-				contigSequence +=  '\n';
-				gzwrite(_outputContigFile, (const char*)&contigSequence[0], contigSequence.size());
-				//_logFile << _contigHeaders[contigIndex] << " " << contigSequence.size() << endl;
-
+				//else{
+				//	string h = header.substr(0, header.size()-1);
+				//	header = h + " length=" + to_string(contigSequence.size()) + " coverage=" + to_string(_contigCoverages[contigIndex]) + " circular=no";
+				//}
+				header = Utils::createContigHeader(contigIndex, contigSequence.size(), _contigCoverages[contigIndex], isCircular);
 			}
+			/*
+			if(_circularize){
+				
+				char lastChar = header[header.size()-1];
+				if(lastChar == 'c' || lastChar == 'l'){
+					header.pop_back();
+				}
+
+				if(_isContigCircular.find(contigName) == _isContigCircular.end()){
+					header += 'l';
+				}
+				else{
+					header += 'c';
+				}
+			}
+			*/
 
 
+			header = ">" + header + '\n';// ">ctg" + to_string(contigIndex) + '\n';
+			//header += '\n';
+			gzwrite(_outputContigFile, (const char*)&header[0], header.size());
+			contigSequence +=  '\n';
+			gzwrite(_outputContigFile, (const char*)&contigSequence[0], contigSequence.size());
+			//_logFile << _contigHeaders[contigIndex] << " " << contigSequence.size() << endl;
 
 		}
 

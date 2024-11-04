@@ -999,18 +999,22 @@ public:
 		//progess *= 100;
 		return to_string(progess) + "%";
 	}
-	static string createContigHeader(const u_int32_t& contigIndex, const u_int32_t& length, const u_int32_t& coverage, bool isCircular){
+	static string createContigHeader(const u_int32_t& contigIndex, const u_int32_t& length, const float& coverage, bool isCircular){
+
+		std::stringstream stream;
+		stream << std::fixed << std::setprecision(2) << coverage;
+		std::string abundanceStr = stream.str();
 
 		string circularStr = "no";
 		if(isCircular) circularStr = "yes";
 
-		return "ctg" + to_string(contigIndex) + " length=" + to_string(length) + " coverage=" + to_string(coverage) + " circular=" + circularStr;
+		return "ctg" + to_string(contigIndex) + " length=" + to_string(length) + " coverage=" + abundanceStr + " circular=" + circularStr;
 	}
 
 	struct ContigHeader{
 		u_int32_t _contigIndex;
 		u_int32_t _length;
-		u_int32_t _coverage;
+		float _coverage;
 		bool _isCircular;
 	};
 
@@ -1024,7 +1028,7 @@ public:
 
 		contigHeader._contigIndex = stoull(contigIndexField);
 		contigHeader._length = stoull(Utils::split(fields[1], '=')[1]);
-		contigHeader._coverage = stoull(Utils::split(fields[2], '=')[1]);
+		contigHeader._coverage = stof(Utils::split(fields[2], '=')[1]);
 		contigHeader._isCircular = Utils::split(fields[3], '=')[1] == "yes";
 
 		return contigHeader;
