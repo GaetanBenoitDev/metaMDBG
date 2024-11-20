@@ -25,6 +25,7 @@ public:
 	size_t _firstK;
 	size_t _lastK;
 	u_int64_t _maxK;
+	bool _skipCorrection;
 
 	string _inputFilenameComplete;
 	size_t _meanReadLength;
@@ -103,6 +104,7 @@ public:
 		args::ValueFlag<float> arg_densityCorrection(groupCorrection, "", "Fraction of total k-mers used for correction", {ARG_MINIMIZER_DENSITY_CORRECTION}, 0.025f);
 		args::ValueFlag<float> arg_readCorrectionMinIdentity(groupCorrection, "", "Min read identity", {"min-read-identity"}, 0.96);
 		args::ValueFlag<int> arg_readCorrectionMinOverlapLength(groupCorrection, "", "Min read overlap length", {"min-read-overlap"}, 1000);
+		args::Flag arg_skipCorrection(groupCorrection, "", "Skip read correction", {"skip-correction"});
 		//args::ValueFlag<int> arg_nbWindows(groupAdvanced, "", "Maximum read coverage used for contig correction (increase for better correction)", {ARG_NB_WINDOWS}, 100);
 		//args::ValueFlag<int> arg_length(groupAdvanced, "", "Use contigs with length > l as references for strain duplication purging", {ARG_LINEAR_LENGTH}, 1000000);
 		//args::ValueFlag<float> arg_minIdentity(groupAdvanced, "", "Minimum identity for strain purging (0-1)", {ARG_MIN_IDENTITY}, 0.99);
@@ -183,10 +185,10 @@ public:
 		//_strainPurging_minIdentity = args::get(arg_minIdentity);
 		//_strainPurging_minIdentity = min(_strainPurging_minIdentity, 0.999); //Some duplication is required to remove erroneous contigs
 
-		//_useInitialKminmerFilter = true;
-		//if(arg_bf){
-		//	_useInitialKminmerFilter = false;
-		//}
+		_skipCorrection = false;
+		if(arg_skipCorrection){
+			_skipCorrection = true;
+		}
 
 
 
@@ -214,6 +216,7 @@ public:
 			_params = getParamsNanopore();
 		}
 
+
 		_params._minimizerDensityCorrection = args::get(arg_densityCorrection);
 		_params._minimizerDensityAssembly = args::get(arg_densityAssembly);
 		_params._readCorrectionMinOverlapLength = args::get(arg_readCorrectionMinOverlapLength);
@@ -221,7 +224,15 @@ public:
 		_params._minReadQuality = args::get(arg_minReadQuality);
 		//_contigPolishing_nbReadFragments = args::get(arg_nbWindows);
 
-
+		if(_params._useReadCorrection){
+			if(!_skipCorrection){
+				if(_params._minimizerDensityAssembly > _params._minimizerDensityCorrection){
+					std::cerr << parser;
+					cerr << "--density-correction (" << _params._minimizerDensityCorrection << ") must be greater than or equal to --density-assembly (" << _params._minimizerDensityAssembly << ")" << endl;
+					exit(0);
+				}
+			}
+		}
 
 
 		_filename_exe = argv[0];
@@ -484,8 +495,13 @@ public:
 			Logger::get().info() << "Correcting reads";
 			writeParameters(_minimizerSize, _firstK, _params._minimizerDensityAssembly, _firstK, _firstK, _lastK, _params._minimizerDensityCorrection, _params._useHomopolymerCompression, _params._dataType);
 		
-			command = _filename_exe + " readCorrection " + _tmpDir + " --min-identity " + to_string(_params._readCorrectionMinIdentity) + " --min-overlap-length " + to_string(_params._readCorrectionMinOverlapLength) + " --threads " + to_string(_nbCores);
-			executeCommand(command);
+			if(_skipCorrection){
+				Logger::get().info() << "Correction skipped";
+			}
+			else{
+				command = _filename_exe + " readCorrection " + _tmpDir + " --min-identity " + to_string(_params._readCorrectionMinIdentity) + " --min-overlap-length " + to_string(_params._readCorrectionMinOverlapLength) + " --threads " + to_string(_nbCores);
+				executeCommand(command);
+			}
 		}
 
 

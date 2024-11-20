@@ -7,7 +7,7 @@ Contact: gaetanbenoitdev at gmail dot com
 
 > [!IMPORTANT]
 > 31/07/2024:
-> MetaMDBG is in version 1.0: it can now handle nanopore R10.4+ data. Is it available on bioconda!
+> MetaMDBG is in version 1.0: it can now handle nanopore R10.4+ data. It is available on bioconda!
 > * Added minimizer-space correction step
 > * MetaMDBG parameters changed (options now use explicit names)
 > * Contig information format changed in final assemblty fasta file (see Readme - "Contig information") 
@@ -95,7 +95,7 @@ Usage:  metaMDBG asm {OPTIONS}
 # Nanopore assembly
 metaMDBG asm --out-dir ./outputDir/ --in-ont reads.fastq.gz --threads 4
 # Hifi assembly
-metaMDBG asm --out-dir ./outputDir/ --in-hihi reads.fastq.gz --threads 4
+metaMDBG asm --out-dir ./outputDir/ --in-hifi reads.fastq.gz --threads 4
 # Multiple sample co-assembly
 metaMDBG asm --out-dir ./outputDir/ --in-ont reads_A.fastq.gz reads_B.fastq.gz reads_C.fastq.gz --threads 4
 ```
