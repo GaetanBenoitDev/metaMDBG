@@ -7,7 +7,7 @@ Contact: gaetanbenoitdev at gmail dot com
 
 > [!IMPORTANT]
 > 31/07/2024:
-> MetaMDBG is in version 1.0: it can now handle nanopore R10.4+ data. Is it available on bioconda!
+> MetaMDBG is in version 1.0: it can now handle nanopore R10.4+ data. It is available on bioconda!
 > * Added minimizer-space correction step
 > * MetaMDBG parameters changed (options now use explicit names)
 > * Contig information format changed in final assemblty fasta file (see Readme - "Contig information") 
