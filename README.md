@@ -95,7 +95,7 @@ Usage:  metaMDBG asm {OPTIONS}
 # Nanopore assembly
 metaMDBG asm --out-dir ./outputDir/ --in-ont reads.fastq.gz --threads 4
 # Hifi assembly
-metaMDBG asm --out-dir ./outputDir/ --in-hihi reads.fastq.gz --threads 4
+metaMDBG asm --out-dir ./outputDir/ --in-hifi reads.fastq.gz --threads 4
 # Multiple sample co-assembly
 metaMDBG asm --out-dir ./outputDir/ --in-ont reads_A.fastq.gz reads_B.fastq.gz reads_C.fastq.gz --threads 4
 ```
