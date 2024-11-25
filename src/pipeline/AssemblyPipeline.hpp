@@ -85,7 +85,7 @@ public:
 
 		//cout << "Attention: dereplication set to 0.97" << endl;
 
-		args::ArgumentParser parser("asm", "Example 1: " + string(argv[0]) +" asm --out-dir ./outputDir/ --in-hihi reads.fastq.gz --threads 4 \nExample 2: " + string(argv[0]) + " asm --out-dir ./outputDir/ --in-ont reads_A.fastq.gz reads_B.fastq.gz reads_C.fastq.gz --threads 4"); //"This is a test program.", "This goes after the options."
+		args::ArgumentParser parser("asm", "Example 1: " + string(argv[0]) +" asm --out-dir ./outputDir/ --in-hifi reads.fastq.gz --threads 4 \nExample 2: " + string(argv[0]) + " asm --out-dir ./outputDir/ --in-ont reads_A.fastq.gz reads_B.fastq.gz reads_C.fastq.gz --threads 4"); //"This is a test program.", "This goes after the options."
 		args::Group groupInputOutput(parser, "Basic options:");
 		args::Group groupAssembly(parser, "Assembly options:");
 		args::Group groupCorrection(parser, "Correction options:");
@@ -216,7 +216,10 @@ public:
 			_params = getParamsNanopore();
 		}
 
-
+		if(_skipCorrection){
+			_params._useReadCorrection = false;
+		}
+		
 		_params._minimizerDensityCorrection = args::get(arg_densityCorrection);
 		_params._minimizerDensityAssembly = args::get(arg_densityAssembly);
 		_params._readCorrectionMinOverlapLength = args::get(arg_readCorrectionMinOverlapLength);
@@ -225,12 +228,10 @@ public:
 		//_contigPolishing_nbReadFragments = args::get(arg_nbWindows);
 
 		if(_params._useReadCorrection){
-			if(!_skipCorrection){
-				if(_params._minimizerDensityAssembly > _params._minimizerDensityCorrection){
-					std::cerr << parser;
-					cerr << "--density-correction (" << _params._minimizerDensityCorrection << ") must be greater than or equal to --density-assembly (" << _params._minimizerDensityAssembly << ")" << endl;
-					exit(0);
-				}
+			if(_params._minimizerDensityAssembly > _params._minimizerDensityCorrection){
+				std::cerr << parser;
+				cerr << "--density-correction (" << _params._minimizerDensityCorrection << ") must be greater than or equal to --density-assembly (" << _params._minimizerDensityAssembly << ")" << endl;
+				exit(0);
 			}
 		}
 
@@ -288,6 +289,9 @@ public:
 		//}
 
 		openLogFile(_tmpDir);
+
+		Logger::get().info() << "";
+		Logger::get().info() << "MetaMDBG " << METAMDBG_VERSION;
 
 		checkDependencies();
 
@@ -495,13 +499,13 @@ public:
 			Logger::get().info() << "Correcting reads";
 			writeParameters(_minimizerSize, _firstK, _params._minimizerDensityAssembly, _firstK, _firstK, _lastK, _params._minimizerDensityCorrection, _params._useHomopolymerCompression, _params._dataType);
 		
-			if(_skipCorrection){
-				Logger::get().info() << "Correction skipped";
-			}
-			else{
-				command = _filename_exe + " readCorrection " + _tmpDir + " --min-identity " + to_string(_params._readCorrectionMinIdentity) + " --min-overlap-length " + to_string(_params._readCorrectionMinOverlapLength) + " --threads " + to_string(_nbCores);
-				executeCommand(command);
-			}
+			//if(_skipCorrection){
+			//	Logger::get().info() << "Correction skipped";
+			//}
+			//else{
+			command = _filename_exe + " readCorrection " + _tmpDir + " --min-identity " + to_string(_params._readCorrectionMinIdentity) + " --min-overlap-length " + to_string(_params._readCorrectionMinOverlapLength) + " --threads " + to_string(_nbCores);
+			executeCommand(command);
+			//}
 		}
 
 
@@ -728,6 +732,9 @@ public:
 			}
 			else if(_params._dataType == DataType::Nanopore){
 				command = _filename_exe + " toBasespace_ont " + " " + _tmpDir + " " + _tmpDir + "/contig_data.txt " + " " + contigFilenameCompressed + " " + _inputFilename  + " --threads " + to_string(_nbCores);
+				if(!_params._useReadCorrection){
+					command += " --skip-correction";
+				}
 				//if(_params._useHomopolymerCompression) command += " --homopolymer-compression";
 				executeCommand(command);
 			} 

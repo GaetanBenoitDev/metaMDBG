@@ -112,6 +112,7 @@ ContigPolisher:
 #include "readSelection/MinimizerAligner.hpp"
 #include "utils/Logger.h"
 #include <exception>
+#include "utils/unordered_dense.h"
 
 namespace fs = std::filesystem;
 using namespace std::chrono;
@@ -166,8 +167,8 @@ struct ReadMatch{
 struct ReadMatchBound{
 	ReadType _queryReadIndex;
 	u_int32_t _nbMatches;
-	u_int16_t _minIndex;
-	u_int16_t _maxIndex;
+	u_int32_t _minIndex;
+	u_int32_t _maxIndex;
 
 	ReadMatchBound(){
 		_queryReadIndex = -1;
@@ -262,6 +263,7 @@ struct AlignmentResult{
 typedef u_int32_t ReadIndexType;
 
 
+const string METAMDBG_VERSION = "1.0";
 const string ARG_HOMOPOLYMER_COMPRESSION = "homopolymer-compression";
 //const string ARG_INPUT_FILENAME = "i";
 //const string ARG_INPUT_FILENAME_TRUTH = "itruth";
@@ -984,6 +986,14 @@ class Utils{
 
 
 public:
+
+	static bool isReadTooShort(const MinimizerRead& minimizerReadLowDensity){
+		if(minimizerReadLowDensity._minimizers.size() < 10) return true;
+		//if(minimizerReadLowDensity._readLength < 500) return true;
+		//if(minimizerReadLowDensity._readLength < _minOverlapLength) return true;
+
+		return false;
+	}
 
 	//static bool isReadTooShort(const MinimizerRead& minimizerReadLowDensity){
 	//	if(minimizerReadLowDensity._minimizers.size() < 10) return true;
@@ -4538,7 +4548,7 @@ public:
 	}
 };
 */
-/*
+
 class MinimizerReadParserParallel{
 
 public:
@@ -4617,6 +4627,7 @@ public:
 			if(_hasQuality) file_readData.read((char*)&meanReadQuality, sizeof(meanReadQuality));
 			if(_hasQuality) file_readData.read((char*)&readLength, sizeof(readLength));
 
+			/*
 			if(_densityThreshold != -1){
 
 				vector<MinimizerType> minimizersFiltered;
@@ -4634,6 +4645,7 @@ public:
 	
 
 			}
+			*/
 
 			//vector<KmerVec> kminmers; 
 			//vector<ReadKminmer> kminmersInfo;
@@ -4653,7 +4665,7 @@ public:
 			//functorSub(kminmerList);
 
 			//if(readIndex > 1000000)
-			reads.push_back({readIndex, minimizers, minimizerPos, minimizerQualities, minimizerDirections, meanReadQuality, readLength});
+			reads.push_back({readIndex, minimizers, minimizerPos, minimizerQualities, minimizerDirections, readLength});
 
 			if(reads.size() >= _chunkSize){
 				processChunk(functor, reads);
@@ -4683,7 +4695,7 @@ public:
 
 
 };
-*/
+
 
 class KminmerParserParallel{
 

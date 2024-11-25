@@ -79,7 +79,8 @@ public:
 	string _truthInputFilename;
 	int _nbCores;
 	long double _averageDistanceBetweenMinimizers;
-	
+	bool _skipCorrection;
+
 	//unordered_map<ContigNode, string> _debug_node_sequences;
 	//unordered_map<u_int32_t, KminmerSequence> _nodeName_entire;
 	//unordered_map<u_int32_t, KminmerSequence> _nodeName_right;
@@ -156,12 +157,13 @@ public:
 		args::Positional<std::string> arg_inputContigFilename(parser, "inputContigFilename", "", args::Options::Required);
 		args::Positional<std::string> arg_outputContigFilename(parser, "outputContigFilename", "", args::Options::Required);
 		args::Positional<std::string> arg_inputReadFilename(parser, "inputReadFilename", "", args::Options::Required);
+		args::Flag arg_skipCorrection(parser, "", "Skip read correction", {"skip-correction"});
 		//args::Positional<std::string> arg_contigs(parser, "contigs", "", args::Options::Required);
 		//args::PositionalList<std::string> arg_readFilenames(parser, "reads", "Input filename(s) (separated by space)", args::Options::Required);
 		//args::ValueFlag<int> arg_l(parser, "", "Minimizer length", {ARG_MINIMIZER_LENGTH2}, 13);
 		//args::ValueFlag<float> arg_d(parser, "", "Minimizer density", {ARG_MINIMIZER_DENSITY2}, 0.005f);
 		//args::ValueFlag<std::string> arg_contigs(parser, "", "", {ARG_INPUT_FILENAME_CONTIG}, "");
-		args::Flag arg_homopolymerCompression(parser, "", "Activate homopolymer compression", {ARG_HOMOPOLYMER_COMPRESSION});
+		//args::Flag arg_homopolymerCompression(parser, "", "Activate homopolymer compression", {ARG_HOMOPOLYMER_COMPRESSION});
 		args::ValueFlag<int> arg_nbCores(parser, "", "Number of cores", {ARG_NB_CORES2}, NB_CORES_DEFAULT_INT);
 		//args::Flag arg_firstPass(parser, "", "Is first pass of multi-k", {ARG_FIRST_PASS});
 		//args::Flag arg_isFinalAssembly(parser, "", "Is final multi-k pass", {ARG_FINAL});
@@ -243,6 +245,11 @@ public:
 		_inputFilename = getInput()->getStr(STR_INPUT);
 		_inputDir = getInput()->getStr(STR_INPUT_DIR);
 		*/
+
+		_skipCorrection = false;
+		if(arg_skipCorrection){
+			_skipCorrection = true;
+		}
 
 		string filename_parameters = _inputDir + "/parameters.gz";
 		gzFile file_parameters = gzopen(filename_parameters.c_str(),"rb");
@@ -484,7 +491,7 @@ public:
 
 				const KmerVec& vec = kminmerInfo._vec;
 				
-				u_int16_t positionIndex = i;
+				u_int32_t positionIndex = i;
 
 				_parent._kminmer_to_readIndex.lazy_emplace_l(vec,
 				[&readIndex, &positionIndex](KminmerPosMap::value_type& v) { // key exist
@@ -560,9 +567,15 @@ public:
 		//	hasQuality = false;
 		//}
 
-		KminmerParserParallel parser(_inputDir + "/read_data_init.txt", _minimizerSize, _kminmerSize, false, true, _nbCores);
-		parser._densityThreshold = _minimizerDensity;
-		parser.parseSequences(AlignReadFunctor(*this));
+		if(_skipCorrection){
+			KminmerParserParallel parser(_inputDir + "/read_data_init.txt", _minimizerSize, _kminmerSize, false, false, _nbCores);
+			parser.parseSequences(AlignReadFunctor(*this));
+		}
+		else{
+			KminmerParserParallel parser(_inputDir + "/read_data_init.txt", _minimizerSize, _kminmerSize, false, true, _nbCores);
+			parser._densityThreshold = _minimizerDensity;
+			parser.parseSequences(AlignReadFunctor(*this));
+		}
 
 	}
 
@@ -1217,7 +1230,7 @@ public:
 	void setupKminmerSequenceExtraction(){
 
 
-		cerr << "Parsing contigs" << endl;
+		Logger::get().debug() << "Parsing contigs";
 		KminmerParserParallel parser(_inputFilenameContig, _minimizerSize, _kminmerSize, false, false, 1);
 		parser.parse(SetupKminmerSequenceExtractionFunctor(*this));
 
