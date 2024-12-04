@@ -263,7 +263,7 @@ struct AlignmentResult{
 typedef u_int32_t ReadIndexType;
 
 
-const string METAMDBG_VERSION = "1.0";
+const string METAMDBG_VERSION = "1.1";
 const string ARG_HOMOPOLYMER_COMPRESSION = "homopolymer-compression";
 //const string ARG_INPUT_FILENAME = "i";
 //const string ARG_INPUT_FILENAME_TRUTH = "itruth";
