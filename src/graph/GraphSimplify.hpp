@@ -1,9 +1,10 @@
 
 
 
-
+/*
 #ifndef MDBG_METAG_GRAPHSIMPLIFY
 #define MDBG_METAG_GRAPHSIMPLIFY
+
 
 #include "Commons.hpp"
 
@@ -50,27 +51,7 @@ public:
 
         //cout << "a " << _startNode_to_unitigIndex.size() << endl;
         //_logFile << "Unitig graph nb nodes: " << _unitigGraph->_nodes.size() << endl;
-        /*
-        //for(size_t i=0; i<_unitigGraph->_nodes.size(); i++){
-        for(const auto& it : _startNode_to_unitigIndex){
-
-            u_int32_t startNode = it.first;
-            u_int32_t unitigIndex = it.second;
-
-            //cout << "a \t" << startNode << " " << unitigIndex << endl;
-
-            vector<u_int32_t> predecessors;
-            getPredecessors(startNode, predecessors);
-                
-
-            for(u_int32_t nodeIndex : predecessors){
-                u_int32_t toUnitigIndex = _endNode_to_unitigIndex[nodeIndex];
-                dumpUnitigEdge(unitigIndex, toUnitigIndex, false);
-                //_unitigGraph->addPredecessors(node->_unitigIndex, toUnitigIndex);
-            }
-
-        }
-        */
+       
 
         //cout << "b " << _startNode_to_unitigIndex.size() << endl;
 
@@ -393,20 +374,7 @@ public:
                     //_graph->_unitigGraph->addNode(nodes, median, length);
                     //_graph->_unitigGraph->addNode(nodesRC, median, length);
 
-                    /*
-                    u_int32_t endNode = nodes[nodes.size()-1];
-                    vector<u_int32_t> successors;
-                    _graph->getSuccessors(endNode, successors);
-                        
-                    u_int32_t startNode = nodes[0];
-                    vector<u_int32_t> predecessors;
-                    _graph->getPredecessors(startNode, predecessors);
 
-                    if(successors.size() == 0 && predecessors.size() == 0){
-                        _graph->_nbSingletonUnitigs += 1;
-                        cout << _graph->_nbSingletonUnitigs << " " << _graph->_unitigGraph->_nodes.size() /2 << endl;
-                    }
-                    */
 
                     _graph->_nextUnitigIndex += 2;
                 }
@@ -484,3 +452,4 @@ public:
 
 
 #endif
+*/

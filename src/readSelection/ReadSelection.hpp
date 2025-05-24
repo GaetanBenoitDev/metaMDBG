@@ -56,6 +56,7 @@ public:
 	u_int64_t _nextReadIndexWriter;
 	ofstream _file_readStats;
 	vector<float> _qualityScoreToErrorRate;
+	unordered_map<MinimizerType, u_int32_t> _minimizer_to_abundance;
 	//unordered_map<u_int64_t, u_int64_t> _minimizerCounts;
 	//unordered_map<KmerVec, KminmerData> _kminmersData;
 	//gzFile _file_minimizerPos;
@@ -194,16 +195,23 @@ public:
 	}
 
 	ofstream _file_readData;
+	//ofstream _file_readData_lowDensity;
 
     void readSelection(){
+
+		//cout << "todo: low density selection hard coded to 0.005, should be assembly density" << endl;
 
 		//cout << "read selection: quality filter activated" << endl;
 
 		_nextReadIndexWriter = 0;
 		_debug_nbMinimizers = 0;
 		_file_readData = ofstream(_filename_readMinimizers);
+		//_file_readData_lowDensity = ofstream(_filename_readMinimizers + ".lowDensity");
 		//_file_minimizerPos = gzopen(_filename_readMinimizers.c_str(),"wb");
 		
+		Logger::get().debug() << "Collecting repetitive minimizers";
+		determineRepetitiveMinimizers();
+
 		//auto fp = std::bind(&ReadSelection::readSelection_read, this, std::placeholders::_1);
 		ReadParserParallel readParser(_inputFilename, false, false, _nbCores);
 		readParser.parse(ReadSelectionFunctor(*this, _minimizerSize, _minimizerDensity));
@@ -230,6 +238,7 @@ public:
 		*/
 
 		_file_readData.close();
+		//_file_readData_lowDensity.close();
 
 
 
@@ -337,6 +346,11 @@ public:
 					}
 					*/
 					//_logFile << "Writing read: " << _nextReadIndexWriter << endl;
+
+					for(const MinimizerType& m : readWriter._minimizers){
+						_minimizer_to_abundance[m] += 1;
+					}
+
 					u_int32_t size = readWriter._minimizers.size();
 
 					_file_readData.write((const char*)&size, sizeof(size));
@@ -347,6 +361,44 @@ public:
 					_file_readData.write((const char*)&readWriter._minimizers[0], size*sizeof(MinimizerType));
 
 					if(_outputQuality){
+
+						/*
+						vector<MinimizerType> minimizers = readWriter._minimizers;
+						vector<u_int32_t> minimizerPos = readWriter._minimizerPos;
+						vector<u_int8_t> minimizerDirections = readWriter._minimizerDirections;
+						vector<u_int8_t> minimizerQualities = readWriter._minimizerQualities;
+						vector<MinimizerType> minimizersFiltered;
+						vector<u_int32_t> minimizerPosFiltered; 
+						vector<u_int8_t> minimizerDirectionsFiltered; 
+						vector<u_int8_t> minimizerQualitiesFiltered; 
+
+						Utils::applyDensityThreshold(0.005, minimizers, minimizerPos, minimizerDirections, minimizerQualities, minimizersFiltered, minimizerPosFiltered, minimizerDirectionsFiltered, minimizerQualitiesFiltered);
+						
+						minimizers = minimizersFiltered;
+						minimizerPos = minimizerPosFiltered;
+						minimizerDirections = minimizerDirectionsFiltered; 
+						minimizerQualities = minimizerQualitiesFiltered; 
+
+						u_int32_t size2 = minimizers.size();
+
+						_file_readData_lowDensity.write((const char*)&size2, sizeof(size2));
+
+						//u_int8_t isCircular = CONTIG_LINEAR;
+						_file_readData_lowDensity.write((const char*)&isCircular, sizeof(isCircular));
+
+						_file_readData_lowDensity.write((const char*)&minimizers[0], size2*sizeof(MinimizerType));
+						_file_readData_lowDensity.write((const char*)&minimizerPos[0], size2*sizeof(u_int32_t));
+						_file_readData_lowDensity.write((const char*)&minimizerDirections[0], size2*sizeof(u_int8_t));
+						_file_readData_lowDensity.write((const char*)&minimizerQualities[0], size2*sizeof(u_int8_t));
+						_file_readData_lowDensity.write((const char*)&readWriter._meanReadQuality, sizeof(readWriter._meanReadQuality));
+						_file_readData_lowDensity.write((const char*)&readWriter._readLength, sizeof(readWriter._readLength));
+						*/
+
+
+
+
+
+
 						_file_readData.write((const char*)&readWriter._minimizerPos[0], size*sizeof(u_int32_t));
 						_file_readData.write((const char*)&readWriter._minimizerDirections[0], size*sizeof(u_int8_t));
 						_file_readData.write((const char*)&readWriter._minimizerQualities[0], size*sizeof(u_int8_t));
@@ -377,6 +429,124 @@ public:
 
 	}
 
+
+
+	unordered_set<MinimizerType> _isRepetitiveMinimizer;
+
+	void determineRepetitiveMinimizers(){
+
+		ReadParserParallel readParser(_inputFilename, false, false, _nbCores);
+		readParser._maxReads = 1000000;
+		readParser.parse(CountMinimizerFunctor(*this, _minimizerSize, _minimizerDensity));
+
+
+		float fractionRepititiveMinimizersToFilterOut = 0.0001;
+		vector<pair<MinimizerType, u_int32_t>> minimizer_to_abunbance_vec;
+
+		for(const auto& it : _minimizer_to_abundance){
+			minimizer_to_abunbance_vec.push_back({it.first, it.second});
+		}
+
+		std::sort(minimizer_to_abunbance_vec.begin(), minimizer_to_abunbance_vec.end(), [](const auto& a, const auto& b){
+			return a.second > b.second;
+		});
+
+		int nbRepetitiveMinimizers = fractionRepititiveMinimizersToFilterOut * minimizer_to_abunbance_vec.size();
+		nbRepetitiveMinimizers = max(nbRepetitiveMinimizers, 1);
+
+
+		Logger::get().debug() << "Top 1000 repetitive minimizers:";
+		for(size_t i=0; i<1000 && i < minimizer_to_abunbance_vec.size(); i++){
+			Logger::get().debug() << "\t" << i << "\t" << minimizer_to_abunbance_vec[i].first << "\t" << minimizer_to_abunbance_vec[i].second;
+		}
+
+		Logger::get().debug() << "Selected repetitive minimizers:";
+		for(size_t i=0; i<nbRepetitiveMinimizers && i < minimizer_to_abunbance_vec.size(); i++){
+			
+			_isRepetitiveMinimizer.insert(minimizer_to_abunbance_vec[i].first);
+			Logger::get().debug() << "\t" << i << "\t" << minimizer_to_abunbance_vec[i].first << "\t" << minimizer_to_abunbance_vec[i].second ;
+			//getchar();
+		}
+
+		Logger::get().debug() << "Nb minimizers to ignore: " << nbRepetitiveMinimizers << " " << _isRepetitiveMinimizer.size();
+
+		//getchar();
+		//const MinimizerRead& queryReadHighDensity = _parent._mReads[queryReadIndex];
+
+
+		ofstream outputFile(_inputDir + "/repetitiveMinimizers.bin" );
+		
+		for(const MinimizerType& minimizer : _isRepetitiveMinimizer){
+			outputFile.write((const char*)&minimizer, sizeof(minimizer));
+		}
+
+		outputFile.close();
+	}
+	
+
+
+	class CountMinimizerFunctor {
+
+		public:
+
+		ReadSelection& _readSelection;
+		size_t _minimizerSize;
+		float _minimizerDensity;
+		MinimizerParser* _minimizerParser;
+		EncoderRLE _encoderRLE;
+		unordered_set<MinimizerType> _isRepetitiveMinimizerDummy;
+
+		CountMinimizerFunctor(ReadSelection& readSelection, size_t minimizerSize, float minimizerDensity) : _readSelection(readSelection){
+			_minimizerSize = minimizerSize;
+			_minimizerDensity = minimizerDensity;
+			_minimizerParser = new MinimizerParser(minimizerSize, minimizerDensity, _isRepetitiveMinimizerDummy);
+		}
+
+		CountMinimizerFunctor(const CountMinimizerFunctor& copy) : _readSelection(copy._readSelection){
+			_minimizerSize = copy._minimizerSize;
+			_minimizerDensity = copy._minimizerDensity;
+			_minimizerParser = new MinimizerParser(_minimizerSize, _minimizerDensity, _isRepetitiveMinimizerDummy);
+		}
+
+		~CountMinimizerFunctor(){
+			delete _minimizerParser;
+		}
+
+
+
+		void operator () (const Read& read) {
+
+			u_int64_t readIndex = read._index;
+			if(readIndex % 100000 == 0) Logger::get().debug() << readIndex;
+
+			//if(readIndex != 585611) return;
+			//if(readIndex < 4000) return;
+
+			//#pragma omp critical
+			//{
+			//cout << readIndex << " " << read._seq.size() << endl;
+			//}
+			string seq = read._seq; //.substr(0, 100);
+
+			string rleSequence;
+			vector<u_int64_t> rlePositions;
+			_encoderRLE.execute(seq.c_str(), seq.size(), rleSequence, rlePositions, _readSelection._useHomopolymerCompression);
+
+			vector<MinimizerType> minimizers;
+			vector<u_int32_t> minimizerPos;
+			vector<u_int8_t> minimizerDirections;
+			_minimizerParser->parse(rleSequence, minimizers, minimizerPos, minimizerDirections);
+
+			#pragma omp critical
+			{
+				for(const MinimizerType& m : minimizers){
+					_readSelection._minimizer_to_abundance[m] += 1;
+				}
+			}
+
+		}
+	};
+
 	unordered_map<u_int32_t, u_int32_t> _lala;
 
 	//void readSelection_read(){
@@ -399,13 +569,13 @@ public:
 		ReadSelectionFunctor(ReadSelection& readSelection, size_t minimizerSize, float minimizerDensity) : _readSelection(readSelection){
 			_minimizerSize = minimizerSize;
 			_minimizerDensity = minimizerDensity;
-			_minimizerParser = new MinimizerParser(minimizerSize, minimizerDensity);
+			_minimizerParser = new MinimizerParser(minimizerSize, minimizerDensity, _readSelection._isRepetitiveMinimizer);
 		}
 
 		ReadSelectionFunctor(const ReadSelectionFunctor& copy) : _readSelection(copy._readSelection){
 			_minimizerSize = copy._minimizerSize;
 			_minimizerDensity = copy._minimizerDensity;
-			_minimizerParser = new MinimizerParser(_minimizerSize, _minimizerDensity);
+			_minimizerParser = new MinimizerParser(_minimizerSize, _minimizerDensity, _readSelection._isRepetitiveMinimizer);
 		}
 
 		~ReadSelectionFunctor(){
@@ -1012,7 +1182,6 @@ public:
 			*/
 		}
 	};
-
 
 };	
 

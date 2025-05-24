@@ -28,8 +28,8 @@ public:
 	string _contigInfoFilename;
 	string _inputFilename;
 
-	vector<string>* _fields;
-	vector<string>* _fields_optionnal;
+	//vector<string>* _fields;
+	//vector<string>* _fields_optionnal;
 	string _alignFilename;
 	string _alignFilename_readsVsReads;
 	unordered_map<string, u_int32_t> _contigName_to_contigCoverage;
@@ -93,8 +93,6 @@ public:
 		//_filename_readMinimizers = _outputFilename; //_inputDir + "/read_data.gz";
 		_kminmerSize = 2;
 
-		_fields = new vector<string>();
-		_fields_optionnal = new vector<string>();
 	}
 
     void execute (){
@@ -255,10 +253,10 @@ public:
 	void parseAlignmentsGz_read(const string& line){
 
 		//cout << line << endl;
-		GfaParser::tokenize(line, _fields, '\t');
+		const vector<string>& _fields = Utils::split(line, '\t');
 
-		const string& readName = Utils::shortenHeader((*_fields)[0]);
-		const string& contigName = Utils::shortenHeader((*_fields)[5]);
+		const string& readName = Utils::shortenHeader((_fields)[0]);
+		const string& contigName = Utils::shortenHeader((_fields)[5]);
 
 		//cout << (_readName_to_readIndex.find(readNameNanopore) != _readName_to_readIndex.end()) << endl;
 		//cout << (_readName_to_readIndex.find(readNameHiFi) != _readName_to_readIndex.end()) << endl;
@@ -272,13 +270,13 @@ public:
 
 		//u_int64_t alignLength = stoull((*_fields)[10]);
 
-		u_int32_t readLength = stoull((*_fields)[1]);
-		u_int32_t readStart = stoull((*_fields)[2]);
-		u_int32_t readEnd = stoull((*_fields)[3]);
+		u_int32_t readLength = stoull((_fields)[1]);
+		u_int32_t readStart = stoull((_fields)[2]);
+		u_int32_t readEnd = stoull((_fields)[3]);
 		
 		//float readLength = stoull((*_fields)[1]);
-		u_int32_t contigStart = stoull((*_fields)[7]);
-		u_int32_t contigEnd = stoull((*_fields)[8]);
+		u_int32_t contigStart = stoull((_fields)[7]);
+		u_int32_t contigEnd = stoull((_fields)[8]);
 
 		//float score = (readEnd-readStart) / readLength;
 		//u_int32_t contigLength = stoull((*_fields)[6]);
@@ -287,8 +285,8 @@ public:
 		//double length = max((double)(contigEnd - contigStart), (double)(readEnd - readStart));
 		//double error = 1 - min((double)(contigEnd - contigStart), (double)(readEnd - readStart)) / length;
 
-		u_int64_t nbMatches = stoull((*_fields)[9]);
-		u_int64_t alignLength = stoull((*_fields)[10]);
+		u_int64_t nbMatches = stoull((_fields)[9]);
+		u_int64_t alignLength = stoull((_fields)[10]);
 
 		float alignFraction = (readEnd-readStart) / ((float) readLength);
 		float identity =  ((float)nbMatches) / alignLength;
@@ -299,7 +297,7 @@ public:
 		float score = (contigEnd - contigStart) * identity;
 		//if(error > 0.01) return;
 		
-		bool isReversed = (*_fields)[4] == "-";
+		bool isReversed = (_fields)[4] == "-";
 
 		//u_int64_t score = stoull((*_fields)[10]);
 		u_int32_t contigCoverage = _contigName_to_contigCoverage[contigName];
@@ -325,10 +323,10 @@ public:
 	void parseAlignmentsGz_readVsRead(const string& line){
 
 		//cout << line << endl;
-		GfaParser::tokenize(line, _fields, '\t');
+		const vector<string>& _fields = Utils::split(line, '\t');
 
-		const string& queryName = Utils::shortenHeader((*_fields)[0]);
-		const string& targetName = Utils::shortenHeader((*_fields)[5]);
+		const string& queryName = Utils::shortenHeader((_fields)[0]);
+		const string& targetName = Utils::shortenHeader((_fields)[5]);
 
 
 		u_int32_t queryReadIndex = _readName_to_readIndex[queryName];
@@ -338,16 +336,16 @@ public:
 
 		//u_int64_t alignLength = stoull((*_fields)[10]);
 
-		u_int32_t queryLength = stoull((*_fields)[1]);
-		u_int32_t queryStart = stoull((*_fields)[2]);
-		u_int32_t queryEnd = stoull((*_fields)[3]);
+		u_int32_t queryLength = stoull((_fields)[1]);
+		u_int32_t queryStart = stoull((_fields)[2]);
+		u_int32_t queryEnd = stoull((_fields)[3]);
 		
 		//float readLength = stoull((*_fields)[1]);
-		u_int32_t referenceLength = stoull((*_fields)[6]);
-		u_int32_t referenceStart = stoull((*_fields)[7]);
-		u_int32_t referenceEnd = stoull((*_fields)[8]);
+		u_int32_t referenceLength = stoull((_fields)[6]);
+		u_int32_t referenceStart = stoull((_fields)[7]);
+		u_int32_t referenceEnd = stoull((_fields)[8]);
 
-		bool isReversed = (*_fields)[4] == "-";
+		bool isReversed = (_fields)[4] == "-";
 
 
 		u_int64_t tl5 = 0;
@@ -381,8 +379,8 @@ public:
 		//double length = max((double)(contigEnd - contigStart), (double)(readEnd - readStart));
 		//double error = 1 - min((double)(contigEnd - contigStart), (double)(readEnd - readStart)) / length;
 
-		u_int32_t nbMatches = stoull((*_fields)[9]);
-		u_int32_t alignLength = stoull((*_fields)[10]);
+		u_int32_t nbMatches = stoull((_fields)[9]);
+		u_int32_t alignLength = stoull((_fields)[10]);
 
 		//float alignFraction = (queryEnd-queryStart) / ((float) queryLength);
 		//float identity =  ((float)nbMatches) / alignLength;
@@ -399,17 +397,17 @@ public:
 		//getchar();
 		//_logFile << contigIndex << " " << readIndex << endl;
 
-		for(size_t i=12; i<_fields->size(); i++){
+		for(size_t i=12; i<_fields.size(); i++){
 
 			//_logFile << (*fields)[i] << endl;
 
-			GfaParser::tokenize((*_fields)[i], _fields_optionnal, ':');
+			const vector<string>& _fields_optionnal = Utils::split((_fields)[i], ':');
 
-			if((*_fields_optionnal)[0] == "dv"){
-				divergence = std::stof((*_fields_optionnal)[2]);
+			if((_fields_optionnal)[0] == "dv"){
+				divergence = std::stof((_fields_optionnal)[2]);
 			}
-			else if((*_fields_optionnal)[0] == "id"){
-				divergence = 1.0 - std::stof((*_fields_optionnal)[2]);
+			else if((_fields_optionnal)[0] == "id"){
+				divergence = 1.0 - std::stof((_fields_optionnal)[2]);
 			}
 
 		}

@@ -5,30 +5,13 @@
 
 #include "../Commons.hpp"
 
-/*
-struct KminmerSequence{
-	u_int32_t _readIndex;
-	vector<u_int64_t> _minimizers;
-};*/
-
-struct KminmerSequenceEntire{
-	vector<MinimizerType> _minimizers;
-	bool _loaded;
-};
-
-struct KminmerSequenceLeftRight{
-	vector<MinimizerType> _minimizer;
-	bool _loaded;
-};
-
-typedef phmap::parallel_flat_hash_map<u_int32_t, KminmerSequenceEntire, phmap::priv::hash_default_hash<u_int32_t>, phmap::priv::hash_default_eq<u_int32_t>, std::allocator<std::pair<u_int32_t, KminmerSequenceEntire>>, 4, std::mutex> KminmerSequenceMap;
-
-
 
 
 class ToMinspace : public Tool{
     
 public:
+
+	//typedef phmap::parallel_flat_hash_map<UnitigType, vector<UnitigType>, phmap::priv::hash_default_hash<UnitigType>, phmap::priv::hash_default_eq<UnitigType>, std::allocator<std::pair<UnitigType, vector<UnitigType>>>, 4, std::mutex> UnitigSequenceMap;
 
 	//string _inputFilename;
 	string _inputDir;
@@ -38,37 +21,27 @@ public:
     size_t _kminmerSizeFirst;
 
 	string _filename_inputContigs;
-	string _filename_readMinimizers;
+	//string _filename_readMinimizers;
 	//string _filename_outputContigs;
 	string _filename_kminmerSequences;
 	string _filename_output;
 	//string _filename_nodeContigs;
-	MDBG* _mdbg;
+	//MDBG* _mdbg;
 	
 	float _minimizerSpacingMean;
 	float _kminmerLengthMean;
 	float _kminmerOverlapMean;
     size_t _kminmerSizePrev;
 
-	KminmerSequenceMap _nodeName_entire;
-	//unordered_map<u_int32_t, KminmerSequenceEntire> _nodeName_entireRC;
-	KminmerSequenceMap _nodeName_right;
-	KminmerSequenceMap _nodeName_left;
-
 	u_int64_t _checksum;
 	int _nbCores;
 
-	//unordered_map<u_int32_t, vector<u_int64_t>> _debugMinimizers;
-	//unordered_map<u_int32_t, bool> _debugMinimizers_isReversed;
-	//unordered_map<u_int32_t, bool> _debugMinimizers;
+	//UnitigSequenceMap _unitigName_to_unitigSequence;
+	vector<vector<MinimizerType>> _unitigName_to_minimizers;
+	ofstream _outputFile;
 
 	ToMinspace(): Tool (){
 
-		/*
-		//getParser()->push_back (new OptionOneParam (STR_INPUT, "input file", true));
-		getParser()->push_back (new OptionOneParam (STR_INPUT_DIR, "input dir", true));
-		//getParser()->push_back (new OptionOneParam (STR_OUTPUT, "output contig filename in basespace", true));
-		*/
 	}
 
 	void parseArgs(int argc, char* argv[]){
@@ -111,44 +84,11 @@ public:
 		_inputDir = args::get(arg_outputDir);
 		_filename_inputContigs = args::get(arg_inputContigFilename);
 		_filename_output = args::get(arg_outputContigFilename);
-		//_filename_inputContigs = args::get(arg_contigs);
 
 		_nbCores = args::get(arg_nbCores);
 
-		/*
-		cxxopts::Options options("ToMinspace", "");
-		options.add_options()
-		//(ARG_INPUT_FILENAME, "", cxxopts::value<string>())
-		(ARG_OUTPUT_DIR, "", cxxopts::value<string>())
-		(ARG_OUTPUT_FILENAME, "", cxxopts::value<string>())
-		(ARG_INPUT_FILENAME_CONTIG, "", cxxopts::value<string>()->default_value(""));
-
-		//("k,kminmerSize", "File name", cxxopts::value<std::string>())
-		//("v,verbose", "Verbose output", cxxopts::value<bool>()->default_value("false"))
-		//;
-
-		if(argc <= 1){
-			_logFile << options.help() << endl;
-			exit(0);
-		}
-
-		cxxopts::ParseResult result;
-
-		try{
-			result = options.parse(argc, argv);
-
-			//_inputFilename = result[ARG_INPUT_FILENAME].as<string>();
-			_inputDir = result[ARG_OUTPUT_DIR].as<string>();
-			_filename_inputContigs = result[ARG_INPUT_FILENAME_CONTIG].as<string>();
-			_filename_output = result[ARG_OUTPUT_FILENAME].as<string>();
-			
-		}
-		catch (const std::exception& e){
-			std::_logFile << options.help() << std::endl;
-			std::cerr << e.what() << std::endl;
-			std::exit(EXIT_FAILURE);
-		}
-		*/
+		
+		
 		string filename_parameters = _inputDir + "/parameters.gz";
 		gzFile file_parameters = gzopen(filename_parameters.c_str(),"rb");
 		gzread(file_parameters, (char*)&_minimizerSize, sizeof(_minimizerSize));
@@ -174,7 +114,7 @@ public:
 		//_filename_outputContigs = _inputDir + "/contigs.min.gz";
 		//_filename_output = _filename_inputContigs + ".min";
 		//_filename_readMinimizers = _inputDir + "/readData_" + to_string(_kminmerSize) + ".txt";
-		_filename_readMinimizers = _inputDir + "/read_data.txt";
+		//_filename_readMinimizers = _inputDir + "/read_data.txt";
 		//_filename_readMinimizers_output = _filename_readMinimizers + ".corrected.txt";
 		//_filename_nodeContigs = _inputDir + "/contigs.nodepath.gz";
 	}
@@ -182,633 +122,109 @@ public:
 
     void execute (){
     
-		loadContigs();
 
-		Logger::get().debug() << "Loading mdbg";
-		string mdbg_filename = _inputDir + "/mdbg_nodes.gz";
-		//_mdbg = new MDBG(_kminmerSize);
-		//_mdbg->load(mdbg_filename, false);
-		//_logFile << "MDBG nodes: " << _mdbg->_dbg_nodes.size() << endl;
-
-		extractKminmerSequences();
-		//_logFile << "delete mdbg a remetre !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << endl;
-		//delete _mdbg;
-
+		loadUnitigSequences();
 		createMinimizerContigs();
-		//dereplicateContigs();
-		//checkDuplication();
 
 		Logger::get().debug() << "Contig filename: " << _filename_output;
 		//closeLogFile();
+
+		/*
+		u_int64_t nbMinimizers = 0;
+		u_int64_t checksum = 0;
+
+		ofstream debugFile("/pasteur/appa/homes/gbenoit/zeus/tmp/lala_1.txt");
+		for(const auto& it : _minimizerCount){
+			debugFile << it.first << " " << it.second << endl;
+			nbMinimizers += it.second;
+			checksum += it.first * it.second;
+		}
+		debugFile.clear();
+		cout << "Nb minimizers: " << nbMinimizers << " " << checksum << endl;
+		*/
+
+		//cout << "Checksum: " << _checksum << endl;
+		//exit(1);
+
+		if(_kminmerSize == _kminmerSizeFirst){
+			//cout << "ToMinpsace: copy initial contigs" << endl;
+			
+			fs::copy(_filename_output, _filename_output + ".init", fs::copy_options::overwrite_existing);
+		}
+
+		if(_kminmerSize == _kminmerSizeFirst+1){
+			//cout << "ToMinpsace: copy initial contigs" << endl;
+			
+			fs::copy(_filename_output, _filename_output + ".init.k" + to_string(_kminmerSizeFirst+1), fs::copy_options::overwrite_existing);
+		}
 	}
 
 
 
-	void loadContigs(){
+	void loadUnitigSequences(){
 
-		Logger::get().debug() << "Loading contigs";
+		Logger::get().debug() << "Loading unitig sequences";
 		
-		NodePathParserParallel parser2(_filename_inputContigs, _nbCores);
-		parser2.parse(LoadContigFunctor(*this));
-		/*
-		ifstream contigFile(_filename_inputContigs);
-		u_int64_t nbContigs = 0;
+		//UnitigNodeParser parser(_inputDir + "/unitigGraph.nodes.bin", _nbCores);
+		//parser.parse(UnitigNodeParserFunctor(*this));
 		
+		ifstream nodeFile(_inputDir + "/unitigGraph.nodes.bin");
+
 		while(true){
 
-			vector<u_int32_t> nodePath;
-			//vector<u_int64_t> supportingReads;
-			u_int64_t size;
-			contigFile.read((char*)&size, sizeof(size));
+			u_int32_t size;
+			nodeFile.read((char*)&size, sizeof(size));
 			
 
-			if(contigFile.eof()) break;
+			if(nodeFile.eof()) break;
 
-			u_int8_t isCircular;
-			contigFile.read((char*)&isCircular, sizeof(isCircular));
+			vector<MinimizerType> minimizers;
+			minimizers.resize(size);
+			nodeFile.read((char*)&minimizers[0], size * sizeof(MinimizerType));
 
-			nodePath.resize(size);
-			//supportingReads.resize(size);
-			contigFile.read((char*)&nodePath[0], size * sizeof(u_int32_t));
-			//gzread(contigFile, (char*)&supportingReads[0], size * sizeof(u_int64_t));
+			UnitigType unitigIndex;
+			nodeFile.read((char*)&unitigIndex, sizeof(unitigIndex));
 
-			//for(u_int32_t nodeIndex : nodePath){
-			for(size_t i=0; i<nodePath.size(); i++){
-				u_int32_t nodeIndex = nodePath[i];
-				bool orientation;
-				u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex, orientation);
-				//u_int32_t readIndex = supportingReads[i];
+			//u_int32_t nodeName;
+			//nodeFile.read((char*)&nodeName, sizeof(nodeName));
 
+            addNode(unitigIndex/2, minimizers);
 
-				if(i == 0){
-					_nodeName_entire[nodeName] = {{}, false};
-					//_logFile << nodeName << endl;
-					//if(orientation){ //+
-					//	_nodeName_entire[nodeName] = {{}, false};
-					//}
-					//else{ //-
-					//	_nodeName_entireRC[nodeName] = {{}, false};
-					//}
-				}
-				else {
-					//if(i==1) _logFile << orientation << endl;
+        }
 
-					if(orientation){ //+
-						_nodeName_right[nodeName] = {{}, false};
-					}
-					else{ //-
-						_nodeName_left[nodeName] = {{}, false};
-					}
-				}
+        nodeFile.close();
 
-			}
-
-			nbContigs += 1;
-			//_logFile << nodePath.size() << endl;
-		}
-
-		contigFile.close();
-
-		_logFile << _nodeName_entire.size() << " " << _nodeName_left.size() << " " << _nodeName_right.size() << endl;
-		_logFile << "Nb contigs: " << nbContigs << endl;
-		*/
-		
 	}
 
-	class LoadContigFunctor { 
+	void addNode(const UnitigType& unitigName, const vector<MinimizerType>& minimizers){
 
-		public:
-
-		ToMinspace& _graph;
-
-		LoadContigFunctor(ToMinspace& graph) : _graph(graph){
-		}
-
-		LoadContigFunctor(const LoadContigFunctor& copy) : _graph(copy._graph){
-		}
-
-		~LoadContigFunctor(){
-		}
+        while(_unitigName_to_minimizers.size() <= unitigName){
+            _unitigName_to_minimizers.push_back({});
+        }
 		
-		void operator () (const NodePath& nodePathObject) {
-			
-			for(size_t i=0; i<nodePathObject._nodePath.size(); i++){
-				u_int32_t nodeIndex = nodePathObject._nodePath[i];
-				bool orientation;
-				u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex, orientation);
-				//u_int32_t readIndex = supportingReads[i];
+        _unitigName_to_minimizers[unitigName] = minimizers;
 
 
-				if(i == 0){
-
-
-					_graph._nodeName_entire.lazy_emplace_l(nodeName, 
-					[](KminmerSequenceMap::value_type& v) { // key exist
-					},           
-					[&nodeName](const KminmerSequenceMap::constructor& ctor) { // key inserted
-						KminmerSequenceEntire seq = {{}, false};
-						ctor(nodeName, seq); 
-
-					});
-
-					//_graph._nodeName_entire[nodeName] = {{}, false};
-					//_logFile << nodeName << endl;
-					//if(orientation){ //+
-					//	_nodeName_entire[nodeName] = {{}, false};
-					//}
-					//else{ //-
-					//	_nodeName_entireRC[nodeName] = {{}, false};
-					//}
-				}
-				else {
-					//if(i==1) _logFile << orientation << endl;
-
-					if(orientation){ //+
-						_graph._nodeName_right.lazy_emplace_l(nodeName, 
-						[](KminmerSequenceMap::value_type& v) { // key exist
-						},           
-						[&nodeName](const KminmerSequenceMap::constructor& ctor) { // key inserted
-							KminmerSequenceEntire seq = {{}, false};
-							ctor(nodeName, seq); 
-
-						});
-						//_graph._nodeName_right[nodeName] = {{}, false};
-					}
-					else{ //-
-						_graph._nodeName_left.lazy_emplace_l(nodeName, 
-						[](KminmerSequenceMap::value_type& v) { // key exist
-						},           
-						[&nodeName](const KminmerSequenceMap::constructor& ctor) { // key inserted
-							KminmerSequenceEntire seq = {{}, false};
-							ctor(nodeName, seq); 
-
-						});
-						//_graph._nodeName_left[nodeName] = {{}, false};
-					}
-				}
-
-			}
-
-		}
-
-	};
-
-	/*
-	void extractKminmerSequences_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int64_t readIndex){
-
-		//_logFile << "----" << endl;
-		//_logFile << readIndex << " " << kminmersInfos.size() << endl;
-
-		for(size_t i=0; i<kminmersInfos.size(); i++){
-			
-			const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
-
-			KmerVec vec = kminmerInfo._vec;
-			//for(KmerVec& vec : kminmers){
-			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()) continue;
-
-			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
-
-			//_logFile << nodeName << endl;
-			//_logFile << nodeName << " " << kminmerInfo._length << endl;
-			
-			vector<u_int64_t> minimizerSeq;
-
-			//_logFile << kminmerInfo._read_pos_start << " " << kminmerInfo._read_pos_end << endl;
-
-			for(size_t i=kminmerInfo._read_pos_start; i<=kminmerInfo._read_pos_end; i++){
-				minimizerSeq.push_back(readMinimizers[i]);
-			}
-			//if(kminmerInfo._length != 3){
-			//	getchar();
-			//}
-
-
-			if(kminmerInfo._isReversed){
-				std::reverse(minimizerSeq.begin(), minimizerSeq.end());
-			}
-
-
-
-			//_debugMinimizers_isReversed[nodeName] = kminmerInfo._isReversed;
-			//_debugMinimizers[nodeName] = vec._kmers;
-			
-			auto found = _nodeName_entire.find(nodeName);
-			if(found != _nodeName_entire.end() && !found->second._loaded){
-
-				//_logFile << "entire" << endl;
-				
-				u_int32_t startPosition = 0; //kminmerInfo._read_pos_start;
-				u_int32_t len = kminmerInfo._read_pos_end - kminmerInfo._read_pos_start; //startPosition + kminmerInfo._read_pos_end - kminmerInfo._read_pos_start;
-				
-
-				//_logFile << startPosition << " " << len << " "  << minimizerSeq.size() << endl;
-				vector<u_int64_t> minimizerSeq_sub; 
-				for(size_t i=startPosition; i <= len; i++){
-					//_logFile << i << " " << " " << minimizerSeq.size() << endl;
-					minimizerSeq_sub.push_back(minimizerSeq[i]);
-					//_logFile << minimizerSeq[i] << " ";
-				}
-			
-				//_logFile << startPosition << " " << len << " " << minimizerSeq_sub.size() << endl;
-
-				//if(kminmerInfo._isReversed){
-				//	std::reverse(vec._kmers.begin(), vec._kmers.end());
-				//}
-				if(kminmerInfo._isReversed){
-					//std::reverse(minimizerSeq.begin(), minimizerSeq.end());
-				}
-				_nodeName_entire[nodeName] = {minimizerSeq, true};
-
-				//getchar();
-			}
-			
-
-
-
-			auto found2 = _nodeName_left.find(nodeName);
-			if(_nodeName_left.find(nodeName) != _nodeName_left.end() && !found2->second._loaded){
-				
-				//_logFile << "left" << endl;
-				//std::reverse(vec._kmers.begin(), vec._kmers.end());
-				//if(12424 == nodeName){
-				//	_logFile << "left: " <<  vec._kmers[0] << " " << vec._kmers[vec._kmers.size()-1] << endl;
-				//}
-
-
-				vector<u_int64_t> minimizerSeq_sub;
-
-				u_int32_t startPosition = 0; //kminmerInfo._read_pos_start;
-				u_int32_t len = startPosition+kminmerInfo._seq_length_start;
-
-				//_logFile << "left: " << startPosition << " " << len << endl;
-				
-				for(size_t i=startPosition; i<len; i++){
-					//_logFile << i << " " << " " << minimizerSeq.size() << endl;
-					minimizerSeq_sub.push_back(minimizerSeq[i]);
-					//_logFile << minimizerSeq[i] << " ";
-				}
-				//_logFile << endl;
-
-				_nodeName_left[nodeName] = {minimizerSeq_sub, true};
-				
-				//getchar();
-			}
-			
-
-			found2 = _nodeName_right.find(nodeName);
-			if(_nodeName_right.find(nodeName) != _nodeName_right.end() && !found2->second._loaded){
-
-				//_logFile << "right" << endl;
-
-			
-				vector<u_int64_t> minimizerSeq_sub;
-
-				u_int32_t startPosition = minimizerSeq.size() - kminmerInfo._seq_length_end;  //kminmerInfo._position_of_second_to_last_minimizer_seq;
-				u_int32_t len = startPosition+kminmerInfo._seq_length_end; //kminmerInfo._read_pos_end
-
-				//_logFile << "right: " << startPosition << " " << len << endl;
-
-				for(size_t i=startPosition; i<len; i++){
-					//_logFile << i << " " << " " << minimizerSeq.size() << endl;
-
-					minimizerSeq_sub.push_back(minimizerSeq[i]);
-					//_logFile << minimizerSeq[i] << " ";
-				}
-				//_logFile << endl;
-
-				_nodeName_right[nodeName] = {minimizerSeq_sub, true};
-				//getchar();
-
-			}
-
-			//if(12424 == nodeName){
-				//exit(1);
-			//}
-
-		}
-
-		//_logFile << "done" << endl;
 	}
-	*/
-	
-	void extractKminmerSequences (){
 
-		u_int16_t size = _kminmerSize;
-		Logger::get().debug() << "Extracting kminmer sequences";
-		
-		
-		ifstream kminmerFile(_inputDir + "/kminmerData_min.txt");
-			
-		#pragma omp parallel num_threads(_nbCores)
-		{
-
-			bool isEOF = false;
-			vector<MinimizerType> minimizerSeq;
-			u_int32_t nodeName;
-			u_int32_t length;
-			u_int32_t lengthStart;
-			u_int32_t lengthEnd;
-			u_int32_t abundance;
-			//u_int32_t quality;
-			
-			while (true) {
-
-
-				#pragma omp critical
-				{
-					
-					minimizerSeq.resize(size);
-					kminmerFile.read((char*)&minimizerSeq[0], size*sizeof(MinimizerType));
-
-					//int result = kseq_read(seq);
-					isEOF = kminmerFile.eof();
-
-					if(!isEOF){
-
-						kminmerFile.read((char*)&nodeName, sizeof(nodeName));
-						kminmerFile.read((char*)&abundance, sizeof(abundance));
-						//kminmerFile.read((char*)&quality, sizeof(quality));
-						//kminmerFile.read((char*)&length, sizeof(length));
-						//kminmerFile.read((char*)&lengthStart, sizeof(lengthStart));
-						//kminmerFile.read((char*)&lengthEnd, sizeof(lengthEnd));
-
-						length = _kminmerSize-1;
-						lengthStart = 1;
-						lengthEnd = 1;
-
-					}
-
-				}
-
-				if(isEOF) break;
-
-
-				//bool isReversed = false;
-
-				//kminmerFile.read((char*)&length, sizeof(length));
-				//kminmerFile.read((char*)&lengthStart, sizeof(lengthStart));
-				//kminmerFile.read((char*)&lengthEnd, sizeof(lengthEnd));
-
-				length = _kminmerSize-1;
-				lengthStart = 1;
-				lengthEnd = 1;
-				//length = _kminmerSize;
-				//lengthStart = 1;
-				//lengthEnd = 1;
-				//_logFile << size << " " << nodeName << endl;
-
-				//_logFile << nodeName << endl;
-				//auto found = _nodeName_entire.find(nodeName);
-				//if(found != _nodeName_entire.end() && !found->second._loaded){
-				//	_nodeName_entire[nodeName] = {minimizerSeq, true};
-				//}
-
-				bool lala = _nodeName_entire.modify_if(nodeName, 
-				[&minimizerSeq](KminmerSequenceMap::value_type& v) { // key exist
-					if(!v.second._loaded){
-						v.second._loaded = true;
-						v.second._minimizers = minimizerSeq;
-					}
-				});
-
-
-
-				bool loulou = _nodeName_left.modify_if(nodeName, 
-				[&lengthStart, &minimizerSeq](KminmerSequenceMap::value_type& v) { // key exist
-					if(!v.second._loaded){
-
-						vector<MinimizerType> minimizerSeq_sub;
-
-						u_int32_t startPosition = 0; //kminmerInfo._read_pos_start;
-						u_int32_t len = startPosition+lengthStart;
-
-						for(size_t i=startPosition; i<len; i++){
-							minimizerSeq_sub.push_back(minimizerSeq[i]);
-						}
-
-						v.second._loaded = true;
-						v.second._minimizers = minimizerSeq_sub;
-					}
-				});
-
-
-				_nodeName_right.modify_if(nodeName, 
-				[&lengthEnd, &minimizerSeq](KminmerSequenceMap::value_type& v) { // key exist
-					if(!v.second._loaded){
-			
-						vector<MinimizerType> minimizerSeq_sub;
-
-						u_int32_t startPosition = minimizerSeq.size() - lengthEnd;  //kminmerInfo._position_of_second_to_last_minimizer_seq;
-						u_int32_t len = startPosition+lengthEnd; //kminmerInfo._read_pos_end
-
-						//_logFile << "right: " << startPosition << " " << len << endl;
-
-						for(size_t i=startPosition; i<len; i++){
-							//_logFile << i << " " << " " << minimizerSeq.size() << endl;
-
-							minimizerSeq_sub.push_back(minimizerSeq[i]);
-							//_logFile << minimizerSeq[i] << " ";
-						}
-
-						v.second._loaded = true;
-						v.second._minimizers = minimizerSeq_sub;
-					}
-				});
-
-
-
-			}
-		}
-
-		kminmerFile.close();
-	}
-	
-
-	/*
-	void extractKminmerSequences (){
-
-
-		_logFile << "Extracting kminmers (reads)" << endl;
-		KminmerParser parser(_filename_readMinimizers, _minimizerSize, _kminmerSize, true);
-		auto fp = std::bind(&ToMinspace::extractKminmerSequences_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-		parser.parseMinspace(fp);
-	}
-	*/
-	
-
-	ofstream _outputFile;
 
 	void createMinimizerContigs(){
 
 		_nextReadIndexWriter = 0;
 
 		_checksum = 0;
-		size_t firstK = _kminmerSizeFirst;
 
 		Logger::get().debug() << "";
 		Logger::get().debug() << "Creating mContigs";
 		Logger::get().debug() << "";
 
-		//_mdbg = new MDBG(firstK);
-		//_mdbg->load(_inputDir + "/kminmerData_min_init.txt", false);
-
-		//ofstream testCsv(_inputDir + "/minimizerContigsDebug.csv");
-		//testCsv << "Name,Colour" << endl;
-
-		//gzFile outputContigFile = gzopen(_filename_outputContigs.c_str(),"wb");
 
 		_outputFile = ofstream(_filename_output);
 
-		NodePathParserParallel parser2(_filename_inputContigs, _nbCores);
-		parser2.parse(CreateMinimizerContigsFunctor(*this));
-
+		NodePathParserParallel parser(_filename_inputContigs, _nbCores);
+		parser.parse(CreateMinimizerContigsFunctor(*this));
 
 		_outputFile.close();
-
-		/*
-		//gzFile contigFile = gzopen(_filename_inputContigs.c_str(), "rb");
-		ifstream contigFile(_filename_inputContigs);
-
-		u_int64_t contig_index = 0;
-
-		int nbFailed = 0;
-		while(true){
-
-			vector<u_int32_t> nodePath;
-			//vector<u_int64_t> supportingReads;
-			u_int64_t size;
-			contigFile.read((char*)&size, sizeof(size));
-			
-
-			if(contigFile.eof()) break;
-
-
-			u_int8_t isCircular;
-			contigFile.read((char*)&isCircular, sizeof(isCircular));
-			//u_int8_t isCircular;
-			//gzread(contigFile, (char*)&isCircular, sizeof(isCircular));
-
-			nodePath.resize(size);
-			//supportingReads.resize(size);
-			contigFile.read((char*)&nodePath[0], size * sizeof(u_int32_t));
-			//gzread(contigFile, (char*)&supportingReads[0], size * sizeof(u_int64_t));
-
-
-			vector<u_int64_t> contigSequence;
-
-			long checkmSumLocal = 0;
-
-			for(size_t i=0; i<nodePath.size(); i++){
-				
-				u_int32_t nodeIndex = nodePath[i];
-
-				checkmSumLocal += nodeIndex;
-
-				bool orientation;
-				u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex, orientation);
-
-				if(i == 0){
-					
-					
-					if(orientation){ //+
-
-						vector<u_int64_t> minimizers = _nodeName_entire[nodeName]._minimizers;
-						for(u_int64_t minimizer : minimizers) contigSequence.push_back(minimizer);
-					}
-					else{
-						vector<u_int64_t> minimizers = _nodeName_entire[nodeName]._minimizers;
-						std::reverse(minimizers.begin(), minimizers.end());
-						for(u_int64_t minimizer : minimizers) contigSequence.push_back(minimizer);
-
-					}
-				}
-				else {
-					if(orientation){
-						if(_nodeName_right.find(nodeName) == _nodeName_right.end()){
-							 _logFile << "omg: " << nodeName << endl;
-							 //getchar();
-						}
-						vector<u_int64_t> minimizers = _nodeName_right[nodeName]._minimizer;
-						for(u_int64_t minimizer : minimizers) contigSequence.push_back(minimizer);
-					}
-					else{
-						if(_nodeName_left.find(nodeName) == _nodeName_left.end()){
-							 _logFile << "omg: " << nodeName << endl;
-							 //getchar();
-						}
-						vector<u_int64_t> minimizers = _nodeName_left[nodeName]._minimizer;
-						for(u_int64_t minimizer : minimizers) contigSequence.push_back(minimizer);
-					}
-				}
-
-				_checksum += checkmSumLocal*nodePath.size();
-			}
-
-
-
-			u_int32_t contigSize = contigSequence.size();
-			//_logFile << "Write: " << contigSize << endl;
-			//getchar();
-			outputFile.write((const char*)&contigSize, sizeof(contigSize));
-			outputFile.write((const char*)&isCircular, sizeof(isCircular));
-			outputFile.write((const char*)&contigSequence[0], contigSize*sizeof(u_int64_t));
-			*/
-
-
-			
-			/*
-			vector<KmerVec> kminmers; 
-			vector<ReadKminmer> kminmersInfo;
-			vector<u_int64_t> minimizersPos; 
-			vector<u_int64_t> rlePositions;
-			MDBG::getKminmers(_minimizerSize, firstK, contigSequence, minimizersPos, kminmers, kminmersInfo, rlePositions, -1, false);
-
-			u_int64_t nbFoundMinimizers = 0;
-			for(size_t i=0; i<kminmers.size(); i++){
-				KmerVec& vec = kminmers[i];
-				
-
-				if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
-					_logFile << "Not good: " << i << endl;
-					continue;	
-				}
-
-				u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
-
-				nbFoundMinimizers += 1;
-
-			}
-
-			//_logFile << "Is circular: " << ((int)isCircular) << endl;
-			//_logFile << "Found nodes: " << nbFoundMinimizers << endl;
-			if(nbFoundMinimizers != kminmers.size()){
-				_logFile << "Nb kminmers: " << kminmers.size() << endl;
-				_logFile << "Found nodes: " << nbFoundMinimizers << endl;
-				_logFile << nodePath.size() << " " << contigSequence.size() << endl;
-				_logFile << "issue minspace" << endl;
-				//getchar();
-			}
-			//if(contigSequence.size() > 10000)
-			//getchar();
-			
-
-			contig_index += 1;
-		}
-
-
-		*/
-		//_logFile << nbFailed << " " << contig_index << endl;
-		//contigFile.close();
-		//outputFile.close();
-		
-		//_logFile << "Checksum: " << _checksum << endl;
-		//gzclose(outputContigFile);
-		//testCsv.close();
-
-		//if(_kminmerSize == 21) exit(1);
-
-
 	}
 
 
@@ -816,12 +232,12 @@ public:
 
 		public:
 
-		ToMinspace& _graph;
+		ToMinspace& _parent;
 
-		CreateMinimizerContigsFunctor(ToMinspace& graph) : _graph(graph){
+		CreateMinimizerContigsFunctor(ToMinspace& parent) : _parent(parent){
 		}
 
-		CreateMinimizerContigsFunctor(const CreateMinimizerContigsFunctor& copy) : _graph(copy._graph){
+		CreateMinimizerContigsFunctor(const CreateMinimizerContigsFunctor& copy) : _parent(copy._parent){
 		}
 
 		~CreateMinimizerContigsFunctor(){
@@ -829,7 +245,7 @@ public:
 		
 		void operator () (const NodePath& nodePathObject) {
 			
-				
+			/*
 			vector<MinimizerType> contigSequence;
 
 			long checkmSumLocal = 0;
@@ -879,7 +295,7 @@ public:
 
 				//_checksum += checkmSumLocal*nodePath.size();
 			}
-
+			*/
 			/*
 			#pragma omp critical(createMinimizerContigs)
 			{
@@ -894,11 +310,57 @@ public:
 
 			}
 			*/
-			_graph.writeRead(nodePathObject._readIndex, contigSequence, nodePathObject._isCircular);
+
+			vector<MinimizerType> minimizers;
+			unitigSequenceToMinimizerSequence(nodePathObject._nodePath, minimizers);
+
+			if(nodePathObject._isCircular && minimizers.size() > _parent._kminmerSize){
+				minimizers.push_back(minimizers[_parent._kminmerSize-1]);
+			}
+
+			_parent.writeRead(nodePathObject._readIndex, minimizers, nodePathObject._isCircular);
+		}
+
+		void unitigSequenceToMinimizerSequence(const vector<UnitigType>& unitigs, vector<MinimizerType>& minimizersSequence){
+
+			minimizersSequence.clear();
+
+
+			for(size_t i=0; i<unitigs.size(); i++){
+
+				UnitigType unitigIndex = unitigs[i];
+				//cout << UnitigGraph2::unitigIndexToString(unitigIndex) << endl;
+
+				bool isReversed;
+				const UnitigType& unitigName = UnitigGraph2::unitigIndex_to_unitigName(unitigIndex, isReversed);
+
+				vector<MinimizerType> minimizers = _parent._unitigName_to_minimizers[unitigName];
+
+				if(isReversed){
+					std::reverse(minimizers.begin(), minimizers.end());
+				}
+
+				if(i==0){
+
+					minimizersSequence = minimizers;
+				}
+				else{
+
+					minimizersSequence.insert( minimizersSequence.end(), minimizers.begin()+_parent._kminmerSize-1, minimizers.end());
+					//for(size_t i=_kminmerSize-1; i<minimizers.size(); i++){
+					//    minimizersSequence.push_back(minimizers[i]);
+					//}
+				}
+			}
+
+
+
 		}
 
 	};
 
+
+	
     struct ReadWriter{
         u_int64_t _readIndex;
 		vector<MinimizerType> _contigSequence;
@@ -913,6 +375,7 @@ public:
 
 	priority_queue<ReadWriter, vector<ReadWriter> , ReadWriter_Comparator> _readWriterQueue;
 	u_int64_t _nextReadIndexWriter;
+	unordered_map<MinimizerType, u_int64_t> _minimizerCount;
 
 	void writeRead(u_int64_t readIndex, const vector<MinimizerType>& contigSequence, u_int8_t isCircular){
 
@@ -928,12 +391,67 @@ public:
 
 				if(readWriter._readIndex == _nextReadIndexWriter){
 
+					
+					//if(readWriter._isCircular){
+					//	cout << "Discard circular" << endl;
+					//	_readWriterQueue.pop();
+					//	_nextReadIndexWriter += 1;
+					//	continue;
+						//for(MinimizerType m : readWriter._contigSequence){
+						//	cout << "\t" << m << endl;
+						//}
 
+						//getchar();
+					//}
+					
+
+					//if(!readWriter._isCircular){
 					u_int32_t contigSize = readWriter._contigSequence.size();
 					_outputFile.write((const char*)&contigSize, sizeof(contigSize));
 					_outputFile.write((const char*)&readWriter._isCircular, sizeof(readWriter._isCircular));
 					_outputFile.write((const char*)&readWriter._contigSequence[0], contigSize*sizeof(MinimizerType));
 
+					//_checksum += (readWriter._readIndex*contigSize);
+
+					for(MinimizerType m : readWriter._contigSequence){
+						_checksum += (m*contigSize);
+						//_minimizerCount[m] += 1;
+						//cout << "\t" << m << endl;
+					}
+
+					//cout << readWriter._readIndex << " " << readWriter._contigSequence.size() << " " << _checksum << endl;
+
+					for(MinimizerType m : readWriter._contigSequence){
+					//	cout << "\t" << m << endl;
+					}
+					//getchar();
+
+					//cout << readWriter._readIndex << " " << readWriter._contigSequence.size() << " " << _checksum << endl;
+					//}
+					/*
+					//if(readWriter._isCircular){
+
+					//	cout << "circ" << endl;
+
+					//}
+
+					if(!readWriter._isCircular){
+						
+
+
+
+					}
+					else{
+						cout << "circ" << endl;
+						cout << readWriter._readIndex << " " << readWriter._contigSequence.size() << " " << _checksum << endl;
+
+						for(MinimizerType m : readWriter._contigSequence){
+							cout << "\t" << m << endl;
+						}
+					}
+					*/
+					//cout << readWriter._readIndex << " " << readWriter._contigSequence.size() << " " << _checksum << endl;
+					//getchar();
 					_readWriterQueue.pop();
 					_nextReadIndexWriter += 1;
 				}
@@ -947,6 +465,8 @@ public:
 		}
 
 	}
+	
+
 	/*
 	struct Contig{
 		u_int64_t _readIndex;

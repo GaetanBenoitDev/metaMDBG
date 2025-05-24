@@ -486,19 +486,17 @@ public:
         ifstream infile(_outputDir + "/assembly_graph.gfa");
 
         std::string line;
-        vector<string>* fields = new vector<string>();
-        vector<string>* fields_optional = new vector<string>();
 
 
         while (std::getline(infile, line)){
             
-            GfaParser::tokenize(line, fields, '\t');
+            const vector<string>& fields = Utils::split(line, '\t');
             
             //cout << (*fields)[0] << endl;
 
 
 
-			if((*fields)[0] == "S"){
+			if((fields)[0] == "S"){
 				/*
 				//cout << line << endl;
 				//for(size_t i=0; i<(*fields).size(); i++){
@@ -525,7 +523,7 @@ public:
 
 				*/
 
-				string name = (*fields)[1];
+				string name = (fields)[1];
 				//size_t pos = name.find("utg");
 				name.erase(0, 3);
 				u_int32_t utg = stoull(name);
@@ -540,9 +538,6 @@ public:
             
         }
 
-
-        delete fields;
-        delete fields_optional;
 
 
 
@@ -612,8 +607,6 @@ public:
         ifstream infile(filename);
 
         std::string line;
-        vector<string>* fields = new vector<string>();
-        vector<string>* fields_optional = new vector<string>();
         //u_int64_t unitig_id = 0;
 
         //u_int32_t nbNodes = 0;
@@ -630,27 +623,27 @@ public:
 
         while (std::getline(infile, line)){
             
-            GfaParser::tokenize(line, fields, '\t');
+            const vector<string>& fields = Utils::split(line, '\t');
             
             //cout << (*fields)[0] << endl;
 
-            if((*fields)[0] == "S"){
+            if((fields)[0] == "S"){
                 
                 size_t i=0;
-                for(string& field : (*fields)){
+                for(const string& field : (fields)){
                     if(i> 2){
                         //cout << field << endl;
-                        GfaParser::tokenize(field, fields_optional, ':');
-                        if((*fields_optional)[0] == "LN"){
-                            string& unitig_name = (*fields)[1];
-                            u_int64_t unitig_length = std::stoull((*fields_optional)[2]);
+                        const vector<string>& fields_optional = Utils::split(field, ':');
+                        if((fields_optional)[0] == "LN"){
+                            const string& unitig_name = (fields)[1];
+                            u_int64_t unitig_length = std::stoull((fields_optional)[2]);
 
 							_nodeLength[unitig_name] = unitig_length;
 
                         }
-						else if((*fields_optional)[0] == "dp"){
-                            string& unitig_name = (*fields)[1];
-                            u_int64_t unitig_abundance = std::stoull((*fields_optional)[2]);
+						else if((fields_optional)[0] == "dp"){
+                            const string& unitig_name = (fields)[1];
+                            u_int64_t unitig_abundance = std::stoull((fields_optional)[2]);
 
 							_nodeAbundance[unitig_name] = unitig_abundance;
 
@@ -661,15 +654,15 @@ public:
 
                 //unitig_id += 1;
             }
-            else if((*fields)[0] == "L"){
+            else if((fields)[0] == "L"){
 
-                string& from = (*fields)[1];
-				string& fromOrient = (*fields)[2];
+                const string& from = (fields)[1];
+				const string& fromOrient = (fields)[2];
                 //bool fromOrient = (*fields)[2] == "+";
-                string& to = (*fields)[3];
-				string& toOrient = (*fields)[4];
+                const string& to = (fields)[3];
+				const string& toOrient = (fields)[4];
                 //bool toOrient = (*fields)[4] == "+";
-                u_int64_t overlap = std::stoull((*fields)[5]);
+                u_int64_t overlap = std::stoull((fields)[5]);
 
                 //u_int32_t from_id = unitigName_to_id(from);
                 //u_int32_t to_id = unitigName_to_id(to);
@@ -732,8 +725,6 @@ public:
         }
 
 
-        delete fields;
-        delete fields_optional;
 
 
 
@@ -767,13 +758,13 @@ public:
 
         while (std::getline(infile, line)){
             
-            GfaParser::tokenize(line, fields, '\t');
+            const vector<string>& fields = Utils::split(line, '\t');
             
             //cout << (*fields)[0] << endl;
 
-            if((*fields)[0] == "S"){
+            if((fields)[0] == "S"){
                 
-                string& nodeName = (*fields)[1];
+                const string& nodeName = (fields)[1];
 
 				string nodeNamForward = nodeName + "+";	
 				string nodeNamReverse = nodeName + "-";
@@ -785,15 +776,15 @@ public:
 				}
 
             }
-            else if((*fields)[0] == "L"){
+            else if((fields)[0] == "L"){
 
-                string& from = (*fields)[1];
-				string& fromOrient = (*fields)[2];
+                const string& from = (fields)[1];
+				const string& fromOrient = (fields)[2];
                 //bool fromOrient = (*fields)[2] == "+";
-                string& to = (*fields)[3];
-				string& toOrient = (*fields)[4];
+                const string& to = (fields)[3];
+				const string& toOrient = (fields)[4];
                 //bool toOrient = (*fields)[4] == "+";
-                u_int64_t overlap = std::stoull((*fields)[5]);
+                u_int64_t overlap = std::stoull((fields)[5]);
 
                 //u_int32_t from_id = unitigName_to_id(from);
                 //u_int32_t to_id = unitigName_to_id(to);
@@ -833,8 +824,6 @@ public:
         }
 
 
-        delete fields;
-        delete fields_optional;
 
 		outfile.close();
 

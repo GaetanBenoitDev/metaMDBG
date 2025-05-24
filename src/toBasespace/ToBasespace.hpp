@@ -39,7 +39,7 @@ public:
 	string _filename_outputContigs;
 	string _filename_kminmerSequences;
 	//MDBG* _mdbg;
-	MinimizerParser* _minimizerParser;
+	//MinimizerParser* _minimizerParser;
 	string _truthInputFilename;
 	int _nbCores;
 	
@@ -110,6 +110,7 @@ public:
 
 	gzFile _outputFile_left;
 	gzFile _outputFile_right;
+	unordered_set<MinimizerType> _isRepetitiveMinimizers;
 	//std::unique_ptr<spoa::AlignmentEngine> _alignment_engine;
 	//bool _useHomopolymerCompression;
 
@@ -230,7 +231,7 @@ public:
 
 		//_filename_outputContigs = _inputDir + "/contigs.fasta.gz";
 		//_filename_outputContigs = _inputFilenameContig + ".fasta.gz"; //_inputDir + "/tmpContigs.fasta.gz";
-		_minimizerParser = new MinimizerParser(_minimizerSize, _minimizerDensity);
+		//_minimizerParser = new MinimizerParser(_minimizerSize, _minimizerDensity, _isRepetitiveMinimizers);
 	}
 
 	vector<vector<u_int32_t>> _unitigDatas;
@@ -242,7 +243,7 @@ public:
 
     void execute (){
 		
-
+		_isRepetitiveMinimizers = Commons::loadRepetitiveMinimizers(_inputDir);
 		_checksum = 0;
 		_bestSupportChecksum = 0;
 
@@ -1617,7 +1618,7 @@ public:
 		ExtractKminmerSequenceFunctor(size_t minimizerSize, float minimizerDensity, ToBasespace& toBasespace, bool collectModel) : _toBasespace(toBasespace){
 			_minimizerSize = minimizerSize;
 			_minimizerDensity = minimizerDensity;
-			_minimizerParser = new MinimizerParser(minimizerSize, minimizerDensity);
+			_minimizerParser = new MinimizerParser(minimizerSize, minimizerDensity, _toBasespace._isRepetitiveMinimizers);
 			
 			_collectModel = collectModel;
 		}
@@ -1625,7 +1626,7 @@ public:
 		ExtractKminmerSequenceFunctor(const ExtractKminmerSequenceFunctor& copy) : _toBasespace(copy._toBasespace){
 			_minimizerSize = copy._minimizerSize;
 			_minimizerDensity = copy._minimizerDensity;
-			_minimizerParser = new MinimizerParser(_minimizerSize, _minimizerDensity);
+			_minimizerParser = new MinimizerParser(_minimizerSize, _minimizerDensity, _toBasespace._isRepetitiveMinimizers);
 
 			_collectModel = copy._collectModel;
 

@@ -44,6 +44,7 @@
 #include "../utils/edlib.h"
 #include "../utils/spoa/include/spoa/spoa.hpp"
 #include "../utils/DnaBitset.hpp"
+#include "ContigDerep.hpp"
 //#include "../utils/abPOA2/include/abpoa.h"
 //#include "../utils/pafParser/paf_parser.hpp"
 
@@ -392,8 +393,6 @@ public:
 		//_nbCores = 2;
 
 
-		_fields = new vector<string>();
-		_fields_optional = new vector<string>();
 
 
 	}
@@ -1399,8 +1398,6 @@ public:
 	*/
 
 
-	vector<string>* _fields;
-	vector<string>* _fields_optional;
 
 	void parseAlignmentsGz(bool indexPartitionOnly){
 
@@ -1449,25 +1446,25 @@ public:
 		//getchar();
 
 
-		GfaParser::tokenize(line, _fields, '\t');
+		const vector<string>& _fields = Utils::split(line, '\t');
 
 		//_logFile << line << endl;
 
-		const string& readName = Utils::shortenHeader((*_fields)[0]);
-		const string& contigName = Utils::shortenHeader((*_fields)[5]);
+		const string& readName = Utils::shortenHeader((_fields)[0]);
+		const string& contigName = Utils::shortenHeader((_fields)[5]);
 		
 
-		u_int32_t readStart = stoull((*_fields)[2]);
-		u_int32_t readEnd = stoull((*_fields)[3]);
-		u_int32_t contigLength = stoull((*_fields)[6]);
-		u_int32_t contigStart = stoull((*_fields)[7]);
-		u_int32_t contigEnd = stoull((*_fields)[8]);
+		u_int32_t readStart = stoull((_fields)[2]);
+		u_int32_t readEnd = stoull((_fields)[3]);
+		u_int32_t contigLength = stoull((_fields)[6]);
+		u_int32_t contigStart = stoull((_fields)[7]);
+		u_int32_t contigEnd = stoull((_fields)[8]);
 
-		u_int64_t nbMatches = stoull((*_fields)[9]);
-		u_int64_t alignLength = stoull((*_fields)[10]);
-		u_int64_t queryLength = stoull((*_fields)[1]);
+		u_int64_t nbMatches = stoull((_fields)[9]);
+		u_int64_t alignLength = stoull((_fields)[10]);
+		u_int64_t queryLength = stoull((_fields)[1]);
 
-		bool strand = (*_fields)[4] == "-";
+		bool strand = (_fields)[4] == "-";
 		//float score = (double) nbMatches / (double) queryLength;
 		//float score2 = (double) nbMatches / (double) alignLength;
 

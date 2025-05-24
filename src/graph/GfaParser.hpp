@@ -144,7 +144,7 @@ public:
         return graph;
     }
     */
-   
+    /*
     static BiGraph* createBiGraph_lol(const string& filename, bool indexSuccessors, u_int32_t nbNodes){
 
         unordered_set<DbgEdge, hash_pair> seenEdges;
@@ -226,8 +226,8 @@ public:
 
         return graph;
     }
-
-
+    */
+    /*
     static BiGraph* createBiGraph_binary(const string& filename, bool indexSuccessors, u_int32_t nbNodes, float kminmerLengthMean, float kminmerOverlapMean){
 
         u_int8_t isS = 0;
@@ -237,45 +237,7 @@ public:
 
         
         ifstream infile(filename);
-        /*
-
-
-        if(nbNodes == 0){
-
-            while(true){
-                u_int8_t type;
-                infile.read((char*)&type, sizeof(type));
-
-                if(infile.eof())break;
-
-
-                if(type == isS){
-
-                    u_int32_t nodeName;
-                    u_int32_t abundance;
-
-                    infile.read((char*)&nodeName, sizeof(nodeName));
-                    infile.read((char*)&abundance, sizeof(abundance));
-
-                    nbNodes += 1;
-                }
-                else{
-
-                    u_int32_t nodeName1;
-                    u_int32_t nodeName2;
-                    u_int8_t ori1;
-                    u_int8_t ori2;
-
-                    infile.read((char*)&nodeName1, sizeof(nodeName1));
-                    infile.read((char*)&ori1, sizeof(ori1));
-                    infile.read((char*)&nodeName2, sizeof(nodeName2));
-                    infile.read((char*)&ori2, sizeof(ori2));
-                }
-
-            }
-            
-        }
-        */
+        
 
         infile.clear();
         infile.seekg(0, std::ios::beg);
@@ -323,16 +285,7 @@ public:
 
                 bool fromOrient = ori1 == edgePlus;
                 bool toOrient = ori2 == edgePlus;
-                /*
-                string& from = (*fields)[1];
-                bool fromOrient = (*fields)[2] == "+";
-                string& to = (*fields)[3];
-                bool toOrient = (*fields)[4] == "+";
-                u_int16_t overlap = std::stoull((*fields)[5]);
 
-                u_int32_t from_id = std::stoull(from);
-                u_int32_t to_id = std::stoull(to);
-                */
                 
                 if(nodeName1 == nodeName2) continue; //self loop
 
@@ -353,7 +306,9 @@ public:
 
         return graph;
     }
+    */
 
+    /*
     static void binaryGraph_to_gfa(const string& filename, float kminmerLengthMean, float kminmerOverlapMean, const string& outputFilename, const vector<u_int32_t>& nodeDatas){
 
         ofstream outputFile(outputFilename);
@@ -504,6 +459,7 @@ public:
         outputFile.close();
 
     }
+    */
     /*
     UnitigGraph* createGraph(const string& filename, vector<int32_t>& node_to_unitig, vector<u_int32_t>& unitigLengths){
 
@@ -703,6 +659,7 @@ public:
     }
     */
 
+    /*
     static void getNodeData(const string& filename, vector<u_int32_t>& nodeAbundances, vector<u_int32_t>& nodeLengths){ //unordered_map<u_int32_t, u_int32_t>& nodeAbundances, unordered_map<u_int32_t, u_int32_t>& nodeLengths){
 
         //nodeAbundances.clear();
@@ -748,7 +705,7 @@ public:
         delete fields;
         delete fields_optional;
     }
-
+    */
     /*
     BiGraph* createBiGraph(const string& filename, vector<int32_t>& node_to_unitig, vector<u_int32_t>& unitigLengths){
 
@@ -837,23 +794,7 @@ public:
     }
     */
 
-    static void tokenize(const string& line, vector<string>* tokens, char delim){
 
-        tokens->clear();
-
-        int start = 0;
-        int end = line.find(delim);
-        
-        while (end != -1) {
-            tokens->push_back(line.substr(start, end - start));
-            //cout << line.substr(start, end - start) << endl;
-            start = end + 1; //del.size();
-            end = line.find(delim, start);
-        }
-
-        tokens->push_back(line.substr(start, end - start));
-
-    }
 
     /*
     static u_int32_t unitigName_to_id(string unitig_name){

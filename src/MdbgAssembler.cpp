@@ -20,7 +20,7 @@ on peut aussi ne charger que les nodes du forward en therorie, car on peut retro
 #include "readSelection/ReadSelection.hpp"
 
 #include "toBasespace/ToMinspace.hpp"
-#include "mapping/MappingContigToGraph.hpp"
+//#include "mapping/MappingContigToGraph.hpp"
 
 
 
@@ -66,10 +66,10 @@ void displayHelp(string programName){
 	cout << " Usage: " + programName + " [command]" << endl;
 	cout << endl;
 	cout << " command:" << endl;
-	cout << " \tasm: perform read assembly" << endl;
-	//cout << " \tpolish   : polish contigs" << endl;
+	cout << " \tasm:    perform read assembly" << endl;
+	cout << " \tpolish: polish contigs" << endl;
 	//cout << " \tderep    : purge strain duplication" << endl;
-	cout << " \tgfa: generate an assembly graph (.gfa). Require a finished metaMDBG run" << endl;
+	cout << " \tgfa:    generate an assembly graph (.gfa). Require a finished metaMDBG run" << endl;
 	//cout << "\treadSelection      : transform readset into its minimizer reprentation" << endl;
 	//cout << "\tdgraph   : create minimizer de-bruijn graph" << endl;
 
@@ -127,6 +127,7 @@ int main (int argc, char* argv[])
     		if(programName == "readCorrection"){
                 ReadCorrection().run (argc, args);
     		}
+			
     		else if(programName == "setupCorr"){
                 SetupCorrectionEvaluation().run (argc, args);
     		}
@@ -145,9 +146,9 @@ int main (int argc, char* argv[])
     		else if(programName == "toMinspace"){
                 ToMinspace().run (argc, args);
     		}
-			else if(programName == "map"){
-                MappingContigToGraph().run (argc, args);
-    		}
+			//else if(programName == "map"){
+              //  MappingContigToGraph().run (argc, args);
+    		//}
 	
 			
 			else if(programName == "graph"){

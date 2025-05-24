@@ -5,6 +5,7 @@
 
 #include "../Commons.hpp"
 #include "OverlapRemover.hpp"
+#include "RepeatRemover.hpp"
 
 class ToBasespaceNoCorrection : public Tool{
     
@@ -21,6 +22,7 @@ public:
 	//bool _isFirstPass;
 	//bool _isOutputFasta;
 	int _nbCores;
+	bool _hasQuality;
 
 	float _minimizerSpacingMean;
 	float _kminmerLengthMean;
@@ -47,6 +49,7 @@ public:
 		args::Positional<std::string> arg_inputContigFilename(parser, "inputContigFilename", "", args::Options::Required);
 		args::Positional<std::string> arg_outputContigFilename(parser, "outputContigFilename", "", args::Options::Required);
 		args::Positional<std::string> arg_inputReadFilename(parser, "inputReadFilename", "", args::Options::Required);
+		args::Flag arg_hasQuality(parser, "", "Is quality in read data", {"has-quality"});
 		//args::Positional<std::string> arg_contigs(parser, "contigs", "", args::Options::Required);
 		//args::PositionalList<std::string> arg_readFilenames(parser, "reads", "Input filename(s) (separated by space)", args::Options::Required);
 		//args::ValueFlag<int> arg_l(parser, "", "Minimizer length", {ARG_MINIMIZER_LENGTH2}, 13);
@@ -82,6 +85,10 @@ public:
 		_inputFilename = args::get(arg_inputReadFilename);
 		_nbCores = args::get(arg_nbCores);
 
+		_hasQuality = false;
+		if(arg_hasQuality){
+			_hasQuality = true;
+		}
 
 		string filename_parameters = _inputDir + "/parameters.gz";
 		gzFile file_parameters = gzopen(filename_parameters.c_str(),"rb");
@@ -117,10 +124,15 @@ public:
 
 
 		{
+			//cout << "A remettre overlap remover" << endl;
 			OverlapRemover overlapRemover(_inputDir, _inputFilenameContig, _kminmerSize);
 			overlapRemover.execute();
 		}
 		
+		{
+			RepeatRemover repeatRemover(_inputDir, _inputFilenameContig, _kminmerSize, _minimizerDensity, _hasQuality, _nbCores);
+			repeatRemover.execute();
+		}
 		//closeLogFile();
 
 	}

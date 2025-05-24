@@ -1,5 +1,7 @@
 
 
+
+
 #ifndef MDBG_METAG_OverlapRemover
 #define MDBG_METAG_OverlapRemover
 
@@ -11,10 +13,12 @@ class OverlapRemover {
 
 public:
 
+	typedef phmap::parallel_flat_hash_map<u_int128_t, vector<ReadType>, phmap::priv::hash_default_hash<u_int128_t>, phmap::priv::hash_default_eq<u_int128_t>, std::allocator<std::pair<u_int128_t, vector<ReadType>>>, 4, std::mutex> KminmerPosMap;
+
 	string _inputDir;
 	string _inputFilenameContig;
 	size_t _kminmerSize;
-
+	
 	OverlapRemover(const string& inputDir, const string& inputFilenameContig, size_t kminmerSize){
 		_inputDir = inputDir;
 		_inputFilenameContig = inputFilenameContig;
@@ -94,6 +98,7 @@ public:
 
 	void execute(){
 
+				
 		indexKminmers();
 		indexContigs();
 		bool isModification = false;
@@ -665,6 +670,8 @@ public:
 
 
 
+	
+	
 };	
 
 

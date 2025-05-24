@@ -113,6 +113,9 @@ ContigPolisher:
 #include "utils/Logger.h"
 #include <exception>
 #include "utils/unordered_dense.h"
+//#include <sys/types.h>
+#include <sys/wait.h>
+#include <fcntl.h>
 
 namespace fs = std::filesystem;
 using namespace std::chrono;
@@ -124,6 +127,8 @@ using namespace std::chrono;
 
 typedef unsigned __int128 u_int128_t;
 typedef u_int32_t ReadType;
+typedef u_int32_t UnitigType;
+typedef u_int32_t AbundanceType;
 
 
 //#include <sys/types.h>
@@ -285,7 +290,7 @@ const string ARG_FIRST_PASS = "firstpass";
 //const string ARG_FASTA = "fasta";
 const string ARG_NB_CORES = "t";
 //const string ARG_EVAL = "eval";
-const string ARG_BLOOM_FILTER = "nofilter";		
+//const string ARG_BLOOM_FILTER = "nofilter";		
 const char ARG_MIN_IDENTITY = 'i';
 //const char ARG_CIRCULAR_LENGTH = 'c';
 //const char ARG_LINEAR_LENGTH = 'l';
@@ -316,6 +321,7 @@ const string ARG_MAXK = "max-k";
 //const char ARG_INPUT_FILENAME_CONTIG2 = 'c';
 //const char ARG_INPUT_FILENAME_ABUNDANCE2 = 'a';
 const string ARG_NB_CORES2 = "threads";
+const string ARG_MIN_KMINMER_ABUNDANCE = "min-abundance";
 //const string ARG_CIRCULARIZE = "circ";
 //const int MIN_NB_MINIMIZER_REFERENCE = 4000;
 //const int MIN_NB_MINIMIZER_QUERY = 4000;
@@ -568,7 +574,7 @@ struct KmerVec{
 		return vec_reverse;
 	}
 
-	KmerVec normalize(){
+	KmerVec normalize() const{
 		/*
 		KmerVec vec_reverse = reverse();
 
@@ -584,7 +590,7 @@ struct KmerVec{
 		
 	}
 
-	KmerVec normalize(bool& isReversed){
+	KmerVec normalize(bool& isReversed) const{
 
 		KmerVec vec_reverse = reverse();
 		
@@ -629,6 +635,14 @@ struct KmerVec{
 		return seed;
 	}
 	
+	u_int128_t hash128() const{
+		u_int128_t seed = _kmers.size();
+		for(auto& i : _kmers) {
+			seed ^= i + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+		}
+		return seed;
+	}
+
 	/*
     inline static u_int64_t simplehash16_64(u_int64_t key, int  shift)
     {
@@ -645,7 +659,7 @@ struct KmerVec{
     }
 	*/
 
-	string toString(){
+	string toString() const{
 		string s = "";
 		for(MinimizerType m : _kmers){
 			s += to_string(m) + " ";
@@ -830,6 +844,20 @@ struct KminmerEdge2{
 	bool _isPrefix;
 };
 
+struct KminmerEdge3{
+	MinimizerType _minimizer;
+	bool _isReversed;
+	bool _isPrefix;
+	bool _isUnitigged;
+};
+
+struct KminmerEdge4{
+	MinimizerType _minimizer;
+	bool _isReversed;
+	bool _isPrefix;
+	u_int32_t _unitigIndex;
+};
+
 struct KminmerEdge{
 	u_int32_t _nodeName;
 	KmerVec _vec;
@@ -838,8 +866,10 @@ struct KminmerEdge{
 
 //typedef phmap::parallel_flat_hash_set<KmerVec, phmap::priv::hash_default_hash<KmerVec>, phmap::priv::hash_default_eq<KmerVec>, std::allocator<KmerVec>, 4, std::mutex> KmerVecSet;
 typedef phmap::parallel_flat_hash_map<KmerVec, DbgNode, phmap::priv::hash_default_hash<KmerVec>, phmap::priv::hash_default_eq<KmerVec>, std::allocator<std::pair<KmerVec, DbgNode>>, 4, std::mutex> MdbgNodeMap;
-typedef phmap::parallel_flat_hash_map<KmerVec, vector<KminmerEdge>, phmap::priv::hash_default_hash<KmerVec>, phmap::priv::hash_default_eq<KmerVec>, std::allocator<std::pair<KmerVec, vector<KminmerEdge>>>, 4, std::mutex> MdbgEdgeMap;
-typedef phmap::parallel_flat_hash_map<KmerVec, vector<KminmerEdge2>, phmap::priv::hash_default_hash<KmerVec>, phmap::priv::hash_default_eq<KmerVec>, std::allocator<std::pair<KmerVec, vector<KminmerEdge2>>>, 4, std::mutex> MdbgEdgeMap2;
+//typedef phmap::parallel_flat_hash_map<KmerVec, vector<KminmerEdge>, phmap::priv::hash_default_hash<KmerVec>, phmap::priv::hash_default_eq<KmerVec>, std::allocator<std::pair<KmerVec, vector<KminmerEdge>>>, 4, std::mutex> MdbgEdgeMap;
+typedef phmap::parallel_flat_hash_map<u_int128_t, vector<KminmerEdge2>, phmap::priv::hash_default_hash<u_int128_t>, phmap::priv::hash_default_eq<u_int128_t>, std::allocator<std::pair<u_int128_t, vector<KminmerEdge2>>>, 4, std::mutex> MdbgEdgeMap2;
+typedef phmap::parallel_flat_hash_map<u_int128_t, vector<KminmerEdge3>, phmap::priv::hash_default_hash<u_int128_t>, phmap::priv::hash_default_eq<u_int128_t>, std::allocator<std::pair<u_int128_t, vector<KminmerEdge3>>>, 4, std::mutex> MdbgEdgeMap3;
+typedef phmap::parallel_flat_hash_map<u_int128_t, vector<KminmerEdge4>, phmap::priv::hash_default_hash<u_int128_t>, phmap::priv::hash_default_eq<u_int128_t>, std::allocator<std::pair<u_int128_t, vector<KminmerEdge4>>>, 4, std::mutex> MdbgEdgeMap4;
 //typedef phmap::parallel_flat_hash_set<KmerVec, phmap::priv::hash_default_hash<KmerVec>, phmap::priv::hash_default_eq<KmerVec>, std::allocator<KmerVec>, 4, std::mutex> KminmerSet;
 
 
@@ -876,9 +906,17 @@ struct KminmerListPaired{
 
 
 struct NodePath{
-	u_int64_t _readIndex;
-	vector<u_int32_t> _nodePath;
+	ReadType _readIndex;
+	vector<UnitigType> _nodePath;
 	bool _isCircular;
+	//vector<KmerVec> _kminmers;
+	//vector<ReadKminmer> _kminmersInfo;
+};
+
+struct UnitigNodeObject{
+	UnitigType _unitigName;
+	vector<MinimizerType> _minimizers;
+	//bool _isCircular;
 	//vector<KmerVec> _kminmers;
 	//vector<ReadKminmer> _kminmersInfo;
 };
@@ -886,6 +924,27 @@ struct NodePath{
 class Commons{
 
 public:
+
+	static unordered_set<MinimizerType> loadRepetitiveMinimizers(const string& tmpDir){
+
+		unordered_set<MinimizerType> isRepetitiveMinimizers;
+
+		ifstream file(tmpDir + "/repetitiveMinimizers.bin" );
+		
+		while (true) {
+			
+			MinimizerType minimizer;
+			file.read((char*)&minimizer, sizeof(minimizer));
+
+			if(file.eof())break;
+
+			isRepetitiveMinimizers.insert(minimizer);
+		}
+
+		file.close();
+
+		return isRepetitiveMinimizers;
+	}
 
 	static string inputFileToFilenames(const string& inputFilename){
 
@@ -987,6 +1046,31 @@ class Utils{
 
 public:
 
+	static u_int32_t unitigIndexToReverseDirection(const u_int32_t& unitigIndex){
+		if(unitigIndex % 2 == 0){
+			return unitigIndex + 1;
+		}
+		else{
+			return unitigIndex - 1;
+		}
+	}
+
+	static vector<KmerVec> minimizersToKminmers(const vector<MinimizerType>& minimizers, const size_t& kminmerSize){
+
+		vector<KmerVec> kminmers;
+
+		for(size_t i=0; i<minimizers.size()-kminmerSize+1; i++){
+			KmerVec vec;
+			for(size_t j=0; j<kminmerSize; j++){
+				vec._kmers.push_back(minimizers[i+j]);
+			}
+			
+			kminmers.push_back(vec);
+		}
+
+		return kminmers;
+	}
+
 	static bool isReadTooShort(const MinimizerRead& minimizerReadLowDensity){
 		if(minimizerReadLowDensity._minimizers.size() < 10) return true;
 		//if(minimizerReadLowDensity._readLength < 500) return true;
@@ -1055,6 +1139,26 @@ public:
 		//getchar();
 		//return Utils::split(circularStr, '=')[1] == "yes";
 	}
+
+	/*
+    static void tokenize(const string& line, vector<string>* tokens, char delim){
+
+        tokens->clear();
+
+        int start = 0;
+        int end = line.find(delim);
+        
+        while (end != -1) {
+            tokens->push_back(line.substr(start, end - start));
+            //cout << line.substr(start, end - start) << endl;
+            start = end + 1; //del.size();
+            end = line.find(delim, start);
+        }
+
+        tokens->push_back(line.substr(start, end - start));
+
+    }
+	*/
 
 	static vector<string> split(const string& str, const char& delimiter){
 		vector<string> fields;
@@ -1475,6 +1579,117 @@ public:
 		*/
 	}
 
+
+	// Helper to split a command string into argv format
+	static std::vector<char*> parse_command(const std::string& cmd) {
+		std::istringstream iss(cmd);
+		std::string token;
+		std::vector<char*> args;
+
+		while (iss >> token) {
+			char* arg = new char[token.size() + 1];
+			std::strcpy(arg, token.c_str());
+			args.push_back(arg);
+		}
+		args.push_back(nullptr); // execvp expects a null-terminated array
+		return args;
+	}
+
+	static void free_args(std::vector<char*>& args) {
+		for (char* arg : args) {
+			delete[] arg;
+		}
+	}
+
+	static void executeMinimap2(const string& command, const string& outputFilename){
+		pipeCommands(command, "gzip", outputFilename);
+	}
+
+	static int pipeCommands(const string cmd1, const string cmd2, const string outputFile) {
+
+
+		Logger::get().debug() << "";
+		Logger::get().debug() << "";
+		Logger::get().debug() << cmd1;
+		Logger::get().debug() << cmd2;
+		Logger::get().debug() << outputFile;
+
+		int pipefd[2];
+		if (pipe(pipefd) == -1) {
+			perror("pipe");
+			return 1;
+		}
+
+		pid_t pid1 = fork();
+		if (pid1 == -1) {
+			perror("fork");
+			return 1;
+		}
+
+		if (pid1 == 0) {
+			// First child: cmd1 -> write to pipe
+			dup2(pipefd[1], STDOUT_FILENO);
+			close(pipefd[0]);
+			close(pipefd[1]);
+
+			std::vector<char*> args1 = parse_command(cmd1);
+			execvp(args1[0], args1.data());
+			perror("execvp cmd1");
+			free_args(args1);
+			exit(1);
+		}
+
+		pid_t pid2 = fork();
+		if (pid2 == -1) {
+			perror("fork");
+			return 1;
+		}
+
+		if (pid2 == 0) {
+
+			if(fs::exists(outputFile)) fs::remove(outputFile);
+
+			// Second child: read from pipe, write to file
+			int fd = open(outputFile.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
+
+			if (fd < 0) {
+				perror("open output file");
+				exit(1);
+			}
+
+			dup2(pipefd[0], STDIN_FILENO);
+			dup2(fd, STDOUT_FILENO);  // Redirect stdout to file
+			close(pipefd[1]);
+			close(pipefd[0]);
+			close(fd);
+
+			std::vector<char*> args2 = parse_command(cmd2);
+			execvp(args2[0], args2.data());
+			perror("execvp cmd2");
+			free_args(args2);
+			exit(1);
+		}
+
+		
+		// Parent
+		close(pipefd[0]);
+		close(pipefd[1]);
+
+		int status1 = 0;
+		int status2 = 0;
+		
+		waitpid(pid1, &status1, 0);
+		waitpid(pid2, &status2, 0);
+
+		if(status1 != 0 || status2 != 0){
+			Logger::get().error() << "";
+			Logger::get().error() << "ERROR (see logs: " << Logger::get()._logFilename << ")";
+
+			exit(1);
+		}
+		
+		return 0;
+	}
 
 	static void executeCommand(const string& command, const string& outputDir){
 
@@ -2941,7 +3156,7 @@ public:
 	u_int32_t _node_id;
 	//unordered_map<KmerVec, DbgNode> _dbg_nodes;
 	MdbgNodeMap _dbg_nodes;
-	MdbgEdgeMap _dbg_edges;
+	//MdbgEdgeMap _dbg_edges;
 	//unordered_map<KmerVec, vector<KmerVec>> _dbg_edges;
 
 	MDBG(size_t k){
@@ -3001,6 +3216,70 @@ public:
 		gzclose(file);
 	}
 	*/
+
+
+
+	//static bool readKminmer(u_int32_t& nodeName, u_int32_t& abundance, vector<MinimizerType>& minimizers, ifstream& inputFile, const size_t& kminmerSize){
+	static bool readKminmer(vector<MinimizerType>& minimizers, ifstream& inputFile, const size_t& kminmerSize){
+
+		//u_int32_t nodeName = node._index;
+		//u_int32_t abundance = node._abundance;
+
+
+		//vector<MinimizerType> minimizerSeq = vec._kmers;
+
+		//inputFile.read((char*)&nodeName, sizeof(nodeName));
+
+		u_int16_t size = kminmerSize;
+		
+		minimizers.resize(size);
+		inputFile.read((char*)&minimizers[0], size*sizeof(MinimizerType));
+
+		if(inputFile.eof()) return true;
+
+		//inputFile.read((char*)&nodeName, sizeof(nodeName));
+		//inputFile.read((char*)&abundance, sizeof(abundance));
+
+		return false;
+	}
+
+	//static void writeKminmer(const u_int32_t& nodeName, const u_int32_t& abundance, const vector<MinimizerType>& minimizers, ofstream& outputFile){
+	static void writeKminmer(const vector<MinimizerType>& minimizers, ofstream& outputFile){
+
+		//u_int32_t nodeName = node._index;
+		//u_int32_t abundance = node._abundance;
+
+
+		//vector<MinimizerType> minimizerSeq = vec._kmers;
+
+		//outputFile.write((const char*)&nodeName, sizeof(nodeName));
+
+		u_int16_t size = minimizers.size();
+		
+		outputFile.write((const char*)&minimizers[0], size*sizeof(MinimizerType));
+
+		//outputFile.write((const char*)&nodeName, sizeof(nodeName));
+		//outputFile.write((const char*)&abundance, sizeof(abundance));
+
+	}
+
+	static bool readKminmerAbundance(u_int128_t& vecHash, AbundanceType& abundance, ifstream& inputFile){
+
+		inputFile.read((char*)&vecHash, sizeof(vecHash));
+
+		if(inputFile.eof()) return true;
+
+		inputFile.read((char*)&abundance, sizeof(abundance));
+		
+		return false;
+	}
+
+	static void writeKminmerAbundance(const u_int128_t& vecHash, const AbundanceType& abundance, ofstream& outputFile){
+
+		outputFile.write((const char*)&vecHash, sizeof(vecHash));
+		outputFile.write((const char*)&abundance, sizeof(abundance));
+
+	}
 
 	void dump(const string& filename){
 
@@ -3461,6 +3740,7 @@ public:
 	vector<string> _filenames;
 	u_int64_t _nbDatasets;
 	int _nbCores;
+	u_int64_t _maxReads;
 
 	ReadParserParallel(const string& inputFilename, bool isFile, bool isBitset, int nbCores) {
 
@@ -3473,6 +3753,7 @@ public:
 		_isFile = isFile;
 		_isBitset = isBitset;
 		_nbCores = nbCores;
+		_maxReads = 0;
 		
 		if(_isFile){
 			_nbDatasets = 1;
@@ -3490,6 +3771,7 @@ public:
 		_l = l;
 		_k = k;
 		_density = density;
+		_maxReads = 0;
 
 		if(_isFile){
 			_nbDatasets = 1;
@@ -3553,6 +3835,8 @@ public:
 
 			Logger::get().debug() << "Parsing file: " << filename;
 
+			u_int64_t readIndexPerDataset = 0;
+
 			gzFile fp = gzopen(filename.c_str(), "r");
 			kseq_t *seq;
 			seq = kseq_init(fp);
@@ -3584,8 +3868,11 @@ public:
 						int result = kseq_read(seq);
 						isEOF = result < 0;
 
+						if(_maxReads > 0 && readIndexPerDataset > _maxReads) isEOF = true;
+
 						if(!isEOF){
 							readIndex += 1;
+							readIndexPerDataset += 1;
 
 							string header = "";
 							if(seq->comment.l == 0){
@@ -4242,6 +4529,88 @@ public:
 };
 
 
+
+
+
+
+
+		
+class UnitigNodeParser{
+
+public:
+
+	string _inputFilename;
+	int _nbCores;
+
+	UnitigNodeParser(){
+	}
+
+	UnitigNodeParser(const string& inputFilename, int nbCores){
+		_inputFilename = inputFilename;
+		_nbCores = nbCores;
+	}
+
+	template<typename Functor>
+	void parse(const Functor& functor){
+
+		ifstream inputFile(_inputFilename);
+
+		ReadType readIndex = -1;
+
+		#pragma omp parallel num_threads(_nbCores)
+		{
+
+			bool isEOF = false;
+			Functor functorSub(functor);
+			
+			u_int32_t size;
+			UnitigType unitigName;
+			vector<MinimizerType> minimizers;
+			UnitigNodeObject unitigNodeObject;
+
+			while(true){
+				
+
+				#pragma omp critical(UnitigNodeParser_parse)
+				{
+					
+
+
+					inputFile.read((char*)&size, sizeof(size));
+
+					if(inputFile.eof()) isEOF = true;
+
+					if(!isEOF){
+
+						readIndex += 1;
+
+						unitigNodeObject = {};
+
+						minimizers.resize(size);
+
+						inputFile.read((char*)&minimizers[0], size*sizeof(MinimizerType));
+						inputFile.read((char*)&unitigName, sizeof(unitigName));
+					}
+
+				}
+
+				
+
+				if(isEOF) break;
+
+				unitigNodeObject._unitigName = unitigName;
+				unitigNodeObject._minimizers = minimizers;
+
+				functorSub(unitigNodeObject);
+			}
+		}
+
+		inputFile.close();
+
+	}
+};
+
+
 class NodePathParserParallel{
 
 public:
@@ -4260,9 +4629,9 @@ public:
 	template<typename Functor>
 	void parse(const Functor& functor){
 
-		ifstream file_readData(_inputFilename);
+		ifstream inputFile(_inputFilename);
 
-		u_int64_t readIndex = -1;
+		ReadType readIndex = -1;
 
 		#pragma omp parallel num_threads(_nbCores)
 		{
@@ -4271,7 +4640,7 @@ public:
 			Functor functorSub(functor);
 			
 			u_int32_t size;
-			vector<u_int32_t> nodePath;
+			vector<UnitigType> nodePath;
 			u_int8_t isCircular;
 			NodePath nodePathObject;
 
@@ -4280,26 +4649,11 @@ public:
 
 				#pragma omp critical(NodePathParserParallel_parse)
 				{
-					/*
-					//vector<u_int64_t> supportingReads;
-					u_int64_t size;
-					contigFile.read((char*)&size, sizeof(size));
-					
-
-					if(contigFile.eof()) break;
-
-					u_int8_t isCircular;
-					contigFile.read((char*)&isCircular, sizeof(isCircular));
-
-					nodePath.resize(size);
-					//supportingReads.resize(size);
-					contigFile.read((char*)&nodePath[0], size * sizeof(u_int32_t));
-					*/
 
 
-					file_readData.read((char*)&size, sizeof(size));
+					inputFile.read((char*)&size, sizeof(size));
 
-					if(file_readData.eof()) isEOF = true;
+					if(inputFile.eof()) isEOF = true;
 
 					if(!isEOF){
 
@@ -4310,23 +4664,14 @@ public:
 						nodePath.resize(size);
 
 						
-						file_readData.read((char*)&isCircular, sizeof(isCircular));
+						inputFile.read((char*)&isCircular, sizeof(isCircular));
 
-						file_readData.read((char*)&nodePath[0], size*sizeof(u_int32_t));
-						//if(_usePos) file_readData.read((char*)&minimizersPosOffsets[0], size*sizeof(u_int16_t));
-						//if(_hasQuality) file_readData.read((char*)&minimizerQualities[0], size*sizeof(u_int8_t));
+						inputFile.read((char*)&nodePath[0], size*sizeof(UnitigType));
 					}
 
 				}
 
 				
-
-				//if(_isReadProcessed.size() > 0 && _isReadProcessed.find(readIndex) != _isReadProcessed.end()){
-				//	readIndex += 1;
-				//	continue;
-				//}
-
-				//cout << "----" << endl;
 
 				if(isEOF) break;
 
@@ -4337,7 +4682,7 @@ public:
 			}
 		}
 
-		file_readData.close();
+		inputFile.close();
 
 	}
 };
@@ -5337,6 +5682,8 @@ public:
         fs::path pathNorm = dirNorm;
         std::string parentDir = pathNorm.parent_path().string();
 		
+		if(parentDir == "") parentDir = dir;
+
 		_logFilename = parentDir + "/metaMDBG.log";
 		Logger::get().setOutputFile(_logFilename);
 	}

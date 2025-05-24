@@ -20,6 +20,7 @@ public:
 	string _filename_exe;
 	string _truthInputFilename;
 	int _nbCores;
+	int _minKminmerAbundance;
 	//bool _useInitialKminmerFilter;
 
 	size_t _firstK;
@@ -96,9 +97,10 @@ public:
 		args::NargsValueFlag<std::string> arg_readFilenames_nanopore(groupInputOutput, "", "Nanopore R10.4+ read filename(s) (separated by space)", {ARG_INPUT_NANOPORE}, 2);
 		args::ValueFlag<int> arg_nbCores(groupInputOutput, "", "Number of cores", {ARG_NB_CORES2}, NB_CORES_DEFAULT_INT);
 
-		args::ValueFlag<int> arg_minimizerSize(groupAssembly, "", "k-mer size", {ARG_MINIMIZER_LENGTH2}, 13);
+		args::ValueFlag<int> arg_minimizerSize(groupAssembly, "", "k-mer size", {ARG_MINIMIZER_LENGTH2}, 15);
 		args::ValueFlag<float> arg_densityAssembly(groupAssembly, "", "Fraction of total k-mers used for assembly", {ARG_MINIMIZER_DENSITY_ASSEMBLY}, 0.005f);
 		args::ValueFlag<int> arg_maxK(groupAssembly, "", "Stop assembly after k iterations", {ARG_MAXK}, 0);
+		args::ValueFlag<int> arg_minAbundance(groupAssembly, "", "Minimum abundance for k-min-mers (default = rescue mode)", {ARG_MIN_KMINMER_ABUNDANCE}, 0);
 		
 		args::ValueFlag<float> arg_minReadQuality(groupCorrection, "", "Minimum read average quality", {ARG_MIN_READ_QUALITY}, 0.0);
 		args::ValueFlag<float> arg_densityCorrection(groupCorrection, "", "Fraction of total k-mers used for correction", {ARG_MINIMIZER_DENSITY_CORRECTION}, 0.025f);
@@ -175,6 +177,7 @@ public:
 		_minimizerSize = args::get(arg_minimizerSize);
 		//_minimizerDensity = args::get(arg_d);
 		_nbCores = args::get(arg_nbCores);
+		_minKminmerAbundance  = args::get(arg_minAbundance);
 
 		_maxK = 0;
 		if(arg_maxK){
@@ -299,6 +302,7 @@ public:
 		//Logger::get().debug() << "Input: " << _inputFilename;
 		Logger::get().info() << "Output dir:              " << _outputDir;
 		Logger::get().info() << "Minimizer length:        " << _minimizerSize;
+		Logger::get().info() << "Min k-min-mer abundance: " << _minKminmerAbundance;
 		Logger::get().info() << "Density correction:      " << _params._minimizerDensityCorrection;
 		Logger::get().info() << "Density assembly:        " << _params._minimizerDensityAssembly;
 		Logger::get().info() << "Min read quality:        " << _params._minReadQuality;
@@ -374,7 +378,7 @@ public:
 		fs::remove(_tmpDir + "/kminmerData_min_init.txt");
 		fs::remove(_tmpDir + "/kminmerData_min.txt");
 		fs::remove(_tmpDir + "/minimizer_graph.gfa");
-		fs::remove(_tmpDir + "/read_data_corrected.txt");
+		//fs::remove(_tmpDir + "/read_data_corrected.txt");
 		//fs::remove(_tmpDir + "/read_data_init.txt");
 		//fs::remove(_tmpDir + "/read_stats.txt");
 		fs::remove(_tmpDir + "/unitig_data.txt");
@@ -385,7 +389,7 @@ public:
 		fs::remove(_tmpDir + "/perf.txt");
 		fs::remove(_tmpDir + "/time.txt");
 		//fs::remove(_tmpDir + "/data.txt");
-		fs::remove(_tmpDir + "/contig_data_backup.txt");
+		//fs::remove(_tmpDir + "/contig_data_backup.txt");
 		//fs::remove(_tmpDir + "/contig_data.txt");
 		
 	}
@@ -393,7 +397,7 @@ public:
 
 
     void execute_pipeline(){
-
+		
 		_firstK = 4;
 
 		string command = "";
@@ -413,6 +417,7 @@ public:
 		if(_params._useReadCorrection) command += " --output-quality";
 		executeCommand(command);
 		
+
 
 
 		//cout << "AssemblyPipeline: Setting density to 0.005" << endl;
@@ -657,6 +662,7 @@ public:
 
 		if(pass == 0){
 			command = _filename_exe + " graph " + _tmpDir + " --threads " + to_string(_nbCores);
+			command += " --min-abundance " + to_string(_minKminmerAbundance);
 			//if(!_useInitialKminmerFilter){
 			//	command += " --nofilter ";
 			//}
@@ -720,7 +726,11 @@ public:
 			string contigFilenameCompressed = _tmpDir + "/contigs_uncorrected.fasta.gz";
 
 			string command = _filename_exe + " toBasespaceFast " + " " + _tmpDir + " " + _tmpDir + "/contig_data.txt " + " " + contigFilenameDummy + " " + _inputFilename + " --threads " + to_string(_nbCores);
+			if(_params._useReadCorrection){
+				command += " --has-quality";
+			}
 			executeCommand(command);
+
 
 
 			Logger::get().info() << "Constructing base-space contigs";
@@ -859,6 +869,7 @@ public:
 			if(!isFirstPass){
 				command = _filename_exe + " toMinspace " + " " + _tmpDir + " " + _tmpDir + "/assembly_graph.gfa.unitigs.nodepath" + " " + _tmpDir + "/assembly_graph.gfa.unitigs --threads " + to_string(_nbCores);
 				executeCommand(command);
+				//cout << "AssemblyPipeline: skip assembly graph toMinspace" << endl;
 			}
 
 			
@@ -876,6 +887,10 @@ public:
 			
 		savePassData(k);
 		//cout << "done" << endl;
+
+		
+		Logger::get().debug() << "pass done: " << k;
+		//exit(1);
 		//getchar();
 	}
 
@@ -918,6 +933,7 @@ public:
 
 		_duplicatedContigIndex.clear();
 	}
+
 
 
 	void dumpDereplicatedContigs_read(const vector<MinimizerType>& readMinimizers, u_int8_t isCircular, u_int64_t readIndex){

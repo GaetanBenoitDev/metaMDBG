@@ -20,869 +20,581 @@ public:
     };
 
     struct BubbleSide{
-        UnitigGraph::Node* _unitig;
+        UnitigType _unitigIndex;
+        u_int32_t _startNode;
         size_t _nbNodes;
-        u_int32_t _nodeIndexSum;
+        //u_int32_t _nodeIndexSum;
         //u_int32_t _quality;
     };
 
+    
     static bool BubbleSideComparator(const BubbleSide &a, const BubbleSide &b){
 
         if(a._nbNodes == b._nbNodes){
-            return a._nodeIndexSum > b._nodeIndexSum;
+            return a._startNode > b._startNode;
         }
         return a._nbNodes > b._nbNodes;
 
     }
 
-    static bool SuperbubbleComparator(UnitigGraph::Node* p1, UnitigGraph::Node* p2){
-        if(p1->_nodes.size() == p2->_nodes.size()){
-            return p1->startNode() > p2->startNode();
+    static bool BubbleSideComparatorRev(const BubbleSide &a, const BubbleSide &b){
+
+        if(a._nbNodes == b._nbNodes){
+            return a._startNode > b._startNode;
         }
-        return p1->_nodes.size() > p2->_nodes.size();
+        return a._nbNodes < b._nbNodes;
+
     }
 
-    /*
-    class SuperbubbleRemover{
-
-        public:
-
-        ProgressiveAbundanceFilter* _progressiveAbundanceFilter;
-        UnitigGraph* _unitigGraph;
-        u_int64_t _maxLength;
-        u_int64_t _nbRemovedTotal;
-
-        std::set<UnitigGraph::Node*, SuperbubbleComparator> _queue;
-        //priority_queue<UnitigGraph::Node*, vector<UnitigGraph::Node*> , SuperbubbleComparator> _queue;
-        u_int64_t _nextReadIndexWriter;
-        u_int64_t _nbRemoved;
-
-        SuperbubbleRemover(ProgressiveAbundanceFilter* progressiveAbundanceFilter, u_int64_t maxLength){
-            _progressiveAbundanceFilter = progressiveAbundanceFilter;
-            _unitigGraph = _progressiveAbundanceFilter->_unitigGraph;
-            _maxLength = maxLength;
-            _nbRemovedTotal = 0;
-        }
-
-        bool execute(){
-
-            return removeSuperbubble();
-          
-        }
-
-        bool removeSuperbubble(){
-
-            
-            for(UnitigGraph::Node* node : _progressiveAbundanceFilter->_validNodes){
-
-                if(node->_unitigIndex == -1) continue;
-                if(node->_successors.size() <= 1) continue;
-
-                if(_unitigGraph->_graphChangedIndex._superBubbleIndex2_notSuperbubble.find(node->_unitigIndex) != _unitigGraph->_graphChangedIndex._superBubbleIndex2_notSuperbubble.end()){
-                    continue;
-                }
-        
-
-                //if(node->_length > _maxLength) continue;
-                //if(node->_unitigIndex % 2 == 1) continue;
-
-                //if(isTip(node)){
-                _queue.insert(node);
-                //}
-            }
-            
-
-            bool isModification = false;
-
-            bool lala = false;
-            while(!_queue.empty()){
-
-                auto top = _queue.begin();
-                UnitigGraph::Node* node = *top;
-                _queue.erase(top);
-
-                if(node->_unitigIndex == -1) continue;
-                if(node->_successors.size() <= 1) continue;
-
-                
-
-                //cout << node->_nodes.size() << endl;
-
-                //cout << "is bubble? " << node->_unitigIndex << " " << (_lol.find(node->_unitigIndex) != _lol.end()) << " " << (_lol.find(_unitigGraph->unitigIndex_toReverseDirection(node->_unitigIndex)) != _lol.end()) << endl;
-                vector<u_int32_t> seenNodes;
-                UnitigGraph::Node* nodeExit = isSuperbubble(node, seenNodes);
-
-                if(nodeExit == nullptr){
-                    indexNotSuperbubble(node, seenNodes);
-                    continue;
-                }
-                
-                if(nodeExit == _unitigGraph->unitigIndex_toReverseDirection(node)){
-                    indexNotSuperbubble(node, seenNodes);
-                    continue; //loop side of an inverse repeat
-                }
-                if(nodeExit == node){
-                    if(node->_length < 400000){
-                        indexNotSuperbubble(node, seenNodes);
-                        continue;
-                    }
-                }
-
-                //cout << "\tRemove superbubble: " << node->_unitigIndex << " " << nodeExit->_unitigIndex << endl;
-
-                isModification = true;
-
-                collapseSuperbubble(node, nodeExit);
-                _nbRemoved += 1;
-                _nbRemovedTotal += 1;
-                
-                _unitigGraph->recompact(node);
-                //_unitigGraph->removeNode(bubbleSide);
-                //_unitigGraph->recompact(node);
-
-                //_queue.erase(node);
-                //_queue.erase(_unitigGraph->unitigIndex_toReverseDirection(node));
-                _queue.insert(node);
-                //_queue.insert(_unitigGraph->unitigIndex_toReverseDirection(node));
-                //_queue.insert(nodeExit);
-                //_queue.insert(_unitigGraph->unitigIndex_toReverseDirection(nodeExit));
-                //_queue.push(node);
-                //_queue.push(_unitigGraph->unitigIndex_toReverseDirection(node));
-
-            }
-
-            return isModification;
-        }
-
-
-        void indexNotSuperbubble(UnitigGraph::Node* nodeSource, const vector<u_int32_t>& seenNodes){
-            for(u_int32_t unitigIndex : seenNodes){
-                _unitigGraph->_graphChangedIndex._superBubbleIndex2_notSuperbubbleNodes[unitigIndex].push_back(nodeSource->_unitigIndex);
-            }
-            _unitigGraph->_graphChangedIndex._superBubbleIndex2_notSuperbubble.insert(nodeSource->_unitigIndex);
-        }
-
-        UnitigGraph::Node* isSuperbubble(UnitigGraph::Node* nodeSource, vector<u_int32_t>& seenNodes){
-
-            seenNodes.clear();
-
-            //vector<ProgressiveAbundanceFilter::SuperbubbleNode> nodes;
-            unordered_set<u_int32_t> isVisited;
-            unordered_set<u_int32_t> seen;
-            unordered_map<u_int32_t, u_int64_t> pathLength;
-            vector<UnitigGraph::Node*> queue;
-
-            queue.push_back(nodeSource);
-            pathLength[nodeSource->_unitigIndex] = 0;
-            seenNodes.push_back(nodeSource->_unitigIndex);
-
-            while(queue.size() > 0){
-
-                UnitigGraph::Node* vNode = queue[queue.size()-1];
-                u_int32_t v = vNode->_unitigIndex;
-
-
-                //nodes.push_back({vNode, (u_int64_t)vNode->_nodes.size(), (u_int64_t)vNode->successorSum(), (u_int64_t)vNode->predecessorSum()});
-
-                queue.pop_back();
-
-                if(pathLength[v] > _maxLength){
-                    //_progressiveAbundanceFilter->_superBubbleIndex[nodeSource->_unitigIndex] = nodes;
-                    return nullptr;
-                }
-
-                isVisited.insert(v);
-                if(seen.find(v) != seen.end()){
-                    seen.erase(v);
-                }
-
-                //vector<u_int32_t> successors;
-                //_graph->getSuccessors_unitig(v, 0, successors);
-
-                if(vNode->_successors.size() == 0){
-                    //_progressiveAbundanceFilter->_superBubbleIndex[nodeSource->_unitigIndex] = nodes;
-                    return nullptr; //abort tip
-                }
-
-
-                //std::sort(successors.begin(),successors.end(), [this](const u_int32_t& unitigIndex1, const u_int32_t& unitigIndex2) {
-                //    return _graph->_unitigs[unitigIndex1]._startNode < _graph->_unitigs[unitigIndex2]._startNode;
-                //});
-
-                //for(const u_int32_t& u : successors){
-                for(UnitigGraph::Node* uNode : vNode->_successors){
-
-
-                    u_int32_t u = uNode->_unitigIndex;
-                    seenNodes.push_back(u);
-                    
-
-               
-
-                    //if(isBubble[_unitigs[u]._startNode]) return -1;
-                    //if(isBubble[nodeIndex_toReverseDirection(_unitigs[u]._startNode)]) return -1;
-                    if(uNode == nodeSource){
-                        //_progressiveAbundanceFilter->_superBubbleIndex[nodeSource->_unitigIndex] = nodes;
-                        return nullptr; //cycle including s
-                    }
-
-                    if(isVisited.find(u) == isVisited.end()){
-                        seen.insert(u);
-                        //long length = uNode->_length - _unitigGraph->_kminmerOverlapMean;
-                        //_logFile << _unitigs[u]._length << " " << node._overlap << endl;
-                        //if(length < 0) length = _unitigs[u]._length;
-                        //pathLength[u] = pathLength[v] + length;
-                        //pathLength[u] = pathLength[v] + _unitigs[u]._nbNodes;
-
-                        if(vNode == nodeSource){
-                            pathLength[u] = uNode->_length;
-                        }
-                        else{
-                            pathLength[u] = pathLength[v] + (uNode->_nodes.size() * _unitigGraph->_kminmerLengthNonOverlap);
-                        }
-                    }
-                    else{
-
-                        //_progressiveAbundanceFilter->_superBubbleIndex[nodeSource->_unitigIndex] = nodes;
-                        //_logFile << "exit 4" << endl;
-                        return nullptr; //Cycle within superbubble
-                    }
-
-                }
-
-
-                for(UnitigGraph::Node* uNode : vNode->_successors){
-
-                    u_int32_t u = uNode->_unitigIndex;
-                    //u_int32_t u = node._index;
-                    //_logFile << "\t\tVisiting: " << BiGraph::nodeIndex_to_nodeName(_unitigs[u]._startNode) << " " << BiGraph::nodeIndex_to_nodeName(_unitigs[u]._endNode) << endl;
-
-                    //vector<u_int32_t> predecessors;
-                    //_graph->getPredecessors_unitig(u, 0, predecessors);
-                    bool allPredecessorsAreVisited = true;
-                    //for(u_int32_t p : predecessors){
-                    for(UnitigGraph::Node* pNode : uNode->_predecessors){
-                        if(isVisited.find(pNode->_unitigIndex) == isVisited.end()){
-                            allPredecessorsAreVisited = false;
-                            break;
-                        }
-                    }
-
-                    if(allPredecessorsAreVisited){
-                        //_logFile << "\t\tAll predecessors visited: " << BiGraph::nodeIndex_to_nodeName(_unitigs[u]._startNode) << endl;
-                        queue.push_back(uNode);
-                    }
-
-                    //_logFile << "\t\t\tQueue size: " << queue.size() << " " << seen.size() << endl;
-                    if(queue.size() == 1 && seen.size() == 1 && seen.find(queue[0]->_unitigIndex) != seen.end()){ //only one vertex t is left in S and no other vertex is seen 
-                        
-                        UnitigGraph::Node* tNode = queue[0];
-                        u_int32_t t = tNode->_unitigIndex;
-                        //vector<u_int32_t> successors_t;
-                        //_graph->getSuccessors_unitig(t, 0, successors_t);
-                        
-
-                        if(std::find(tNode->_successors.begin(), tNode->_successors.end(), nodeSource) == tNode->_successors.end()){
-                            return tNode;
-                        }
-                        else{
-                            //_logFile << "exit 5" << endl;
-                            //_progressiveAbundanceFilter->_superBubbleIndex[nodeSource->_unitigIndex] = nodes;
-                            return nullptr; // cycle including s
-                        }
-
-                    }
-
-
-                }
-
-            }
-
-
-            //_progressiveAbundanceFilter->_superBubbleIndex[nodeSource->_unitigIndex] = nodes;
-            return nullptr;
-
-        }
-        
-        void collapseSuperbubble(UnitigGraph::Node* sourceNode, UnitigGraph::Node* exitNode){
-
-            vector<UnitigGraph::Node*> superbubbleNodes;
-            collectSuperbubbleNodes(sourceNode, exitNode, superbubbleNodes);
-
-            unordered_set<u_int32_t> keepNodes;
-            //vector<u_int32_t> nodes;
-
-            //Choose one path in the superbubble
-            //u_int32_t unitigIndex = source_unitigIndex;
-            UnitigGraph::Node* nodeCurrent = sourceNode;
-            //vector<UnitigGraph::Node*> path = {nodeCurrent};
-
-
-            while(true){
-
-                //vector<u_int32_t> successors;
-                //_graph->getSuccessors_unitig(unitigIndex, 0, successors);
-
-
-                vector<UnitigGraph::Node*> maxAbNodes;
-                float maxAbundance = 0;
-                u_int32_t maxV = -1;
-
-                for(UnitigGraph::Node* nn : nodeCurrent->_successors){
-                    
-                    if(nn->_abundance == maxAbundance){
-                        maxAbNodes.push_back(nn);
-                    }
-                    else if(nn->_abundance > maxAbundance){
-                        maxAbundance = nn->_abundance;
-                        maxAbNodes.clear();
-                        maxAbNodes.push_back(nn);
-                    }
-                }
-
-                if(maxAbNodes.size() == 1){
-                    keepNodes.insert(maxAbNodes[0]->_unitigIndex);
-                    //path.push_back(maxAbNodes[0]);
-                    nodeCurrent = maxAbNodes[0];
-                }
-                else{
-
-                    
-                    vector<BubbleSide> bubbleSides;
-                    for(UnitigGraph::Node* nn : maxAbNodes){
-
-                        
-                        //u_int64_t sum = 0;
-                        //for(u_int32_t nodeIndex : _unitigs[unitigIndex]._nodes){
-                        //    sum += nodeIndex;
-                        //}
-                        
-                        bubbleSides.push_back({nn, nn->_nodes.size(), nn->startNode()}); //_unitigs[unitigIndex]._quality
-                    }
-
-
-                    std::sort(bubbleSides.begin(), bubbleSides.end(), BubbleSideComparator);
-                    //path.push_back(bubbleSides[0]._unitig);
-                    keepNodes.insert(bubbleSides[0]._unitig->_unitigIndex);
-                    //_logFile << "Keep: " << bubbleSides[0]._unitigIndex << endl;
-
-                    nodeCurrent = bubbleSides[0]._unitig;
-
-                    //_logFile << "Keep node: " << _unitigs[unitigIndex]._startNode << endl;
-                    //_logFile << _unitigs[unitigIndex]._nbNodes;
-                    //getchar();
-                }
-                
-
-                if(nodeCurrent == exitNode) break;
-            }
-
-            for(UnitigGraph::Node* node : superbubbleNodes){
-                if(keepNodes.find(node->_unitigIndex) != keepNodes.end()) continue;
-                
-                _unitigGraph->removeNode(node);
-            }
-            
-        }
-
-        void collectSuperbubbleNodes(UnitigGraph::Node* sourceNode, UnitigGraph::Node* exitNode, vector<UnitigGraph::Node*>& nodes){
-
-            nodes.clear();
-
-            unordered_set<u_int32_t> isVisited;
-            queue<UnitigGraph::Node*> queue;
-
-            isVisited.insert(sourceNode->_unitigIndex);
-            isVisited.insert(exitNode->_unitigIndex);
-            queue.push(sourceNode);
-
-            while (!queue.empty()){
-
-                UnitigGraph::Node* currentNode = queue.front();
-                u_int32_t unitigIndex_current = currentNode->_unitigIndex;
-                queue.pop();
-
-                for(UnitigGraph::Node* nn : currentNode->_successors){
-
-                    if (isVisited.find(nn->_unitigIndex) != isVisited.end()) continue;
-
-                    queue.push(nn);
-                    isVisited.insert(nn->_unitigIndex);
-                    nodes.push_back(nn);
-
-                }
-            }
-
-        }
-
+    struct Bubble{
+        UnitigType _unitigIndexSource;
+        UnitigType _unitigIndexExit;
     };
-    */
+
+
+    struct SuperbubbleSource{
+        UnitigType _unitigIndex;
+        u_int32_t _nodeName;
+        u_int32_t _nbMinimizers;
+    };
+
+    static bool SuperbubbleComparator(const SuperbubbleSource& p1, const SuperbubbleSource& p2){
+        if(p1._nbMinimizers == p2._nbMinimizers){
+            return p1._nodeName > p2._nodeName;
+        }
+        return p1._nbMinimizers > p2._nbMinimizers;
+    }
+
     
     class SuperbubbleRemoverOld{
 
         public:
 
         ProgressiveAbundanceFilter* _progressiveAbundanceFilter;
-        UnitigGraph* _unitigGraph;
+        UnitigGraph2* _unitigGraph2;
         u_int64_t _maxLength;
-
-
-
-        //std::set<UnitigGraph::Node*, SuperbubbleComparator> _queue;
-        //priority_queue<UnitigGraph::Node*, vector<UnitigGraph::Node*> , SuperbubbleComparator> _queue;
-        //u_int64_t _nextReadIndexWriter;
         u_int64_t _nbRemoved;
-        //vector<UnitigGraph::Node*> _queue;
+        u_int64_t _nbUnitigNameRemoved;
 
         SuperbubbleRemoverOld(ProgressiveAbundanceFilter* progressiveAbundanceFilter, u_int64_t maxLength){
             _progressiveAbundanceFilter = progressiveAbundanceFilter;
-            _unitigGraph = _progressiveAbundanceFilter->_unitigGraph;
+            _unitigGraph2 = _progressiveAbundanceFilter->_unitigGraph2;
             _maxLength = maxLength;
         }
 
 
         bool execute(){
 
-            
-
-            
-
-            //_progressiveAbundanceFilter->_debugOuputFile = ofstream("/home/gats/workspace/tmp/lala1.txt");
-            //bool isModification = removeSuperbubble();
-
-            //cout << removeSuperbubble() << endl;
-            //getchar();
-            
             bool isModification = false;
 
             while(true){
-
-                /*
-                for(size_t i=0; i<_unitigGraph->_nodes.size(); i++){
-
-                    UnitigGraph::Node* node = _unitigGraph->_nodes[i];
-                    for(u_int32_t nodeIndex : node->_nodes){
-                        if(nodeIndex == 11231202){
-
-                            cout << "haha " << node->_unitigIndex << endl;
-                            for(u_int32_t nodeIndex : node->_nodes){
-                                if(nodeIndex == 11231202){
-                                    cout << nodeIndex << " *" << endl;
-                                }
-                                else{
-                                    cout << nodeIndex << endl;
-                                }
-                            }
-
-                            for(UnitigGraph::Node* nn : node->_successors){
-                                cout << "S: " << nn->startNode() << endl;
-                            }
-                            for(UnitigGraph::Node* nn : node->_predecessors){
-                                cout << "P: " << nn->startNode() << endl;
-                            }
-                        }
-                    }
-                }
-                */
-
-                /*
-                for(UnitigGraph::Node* node : _progressiveAbundanceFilter->_validNodes){
-                    if(_unitigGraph->_graphChangedIndex._superBubbleIndex2_notSuperbubble.find(node->_unitigIndex) != _unitigGraph->_graphChangedIndex._superBubbleIndex2_notSuperbubble.end()){
-                        if(_unitigGraph->_graphChangedIndex._superBubbleIndex2_notSuperbubble.find(_unitigGraph->unitigIndex_toReverseDirection(node)->_unitigIndex) == _unitigGraph->_graphChangedIndex._superBubbleIndex2_notSuperbubble.end()){
-                            cout << "outch" << endl;
-                            getchar();
-                        }    
-                    }
-                }
-                */
 
 
                 auto start = high_resolution_clock::now();
                 
                 _nbRemoved = 0;
+                _nbUnitigNameRemoved = 0;
                 bool isMod = removeSuperbubble();
 
-
-                Logger::get().debug() << "Nb superbubble removed: " << _nbRemoved << " (" << duration_cast<seconds>(high_resolution_clock::now() - start).count() << "s)";
-                /*
-
-                int nbUnitigs = 0;
-                for(size_t i=0; i<_unitigGraph->_nodes.size(); i++){
-
-                    UnitigGraph::Node* node = _unitigGraph->_nodes[i];
-                    if(node->_unitigIndex == -1) continue;
-                    nbUnitigs += 1;
-                }
-
-                cout << "Nb unitigs: " << nbUnitigs << endl;
-                cout << "Checksum ab: " << _unitigGraph->computeChecksum_abundance() << endl;
-                */
-
-                /*
-                cout << "Checksum ab: " << _unitigGraph->computeChecksum_abundance() << endl;
-                _progressiveAbundanceFilter->_debugOuputFile = ofstream("/home/gats/workspace/tmp/lala1.txt");
-
-                vector<UnitigGraph::Node*> nodes;
-                for(UnitigGraph::Node* node : _unitigGraph->_nodes){
-                    if(node->_unitigIndex == -1) continue;
-                    if(node->isCircular()) continue;
-                    nodes.push_back(node);
-                }
-
-                std::sort(nodes.begin(), nodes.end(), UnitigGraph::NodeComparator);
-                for(UnitigGraph::Node* node : nodes){
-
-                    _progressiveAbundanceFilter->_debugOuputFile << node->startNode() << " " << node->endNode() << " " << node->_length << " " << node->_abundance << endl;
-                    
-
-                }
-
-                _progressiveAbundanceFilter->_debugOuputFile.close();
+        
+                Logger::get().debug() << "Nb superbubble removed: " << _nbRemoved << " " << _nbUnitigNameRemoved << " (" << duration_cast<seconds>(high_resolution_clock::now() - start).count() << "s)";
+                //cout << "Nb superbubble removed: " << _nbRemoved << " " << _nbUnitigNameRemoved << " (" << duration_cast<seconds>(high_resolution_clock::now() - start).count() << "s)" << endl;
+            
+                //cout << "Nb superbubble removed: " << _nbRemoved << " " << _nbUnitigNameRemoved << " (" << duration_cast<seconds>(high_resolution_clock::now() - start).count() << "s)" << endl;
+                //cout << "Nb unitigs: " << _unitigGraph2->getNbUnitigs() << endl;
+                break;
+                //getchar();
                 
-
-                for(size_t i=0; i<_unitigGraph->_nodes.size(); i++){
-
-                    UnitigGraph::Node* node = _unitigGraph->_nodes[i];
-                    for(u_int32_t nodeIndex : node->_nodes){
-                        if(nodeIndex == 11822266){
-
-                            cout << node->isCircular() << endl;
-                            cout << "haha " << node->_unitigIndex << endl;
-                            for(u_int32_t nodeIndex : node->_nodes){
-                                if(nodeIndex == 11822266){
-                                    cout << nodeIndex << " *" << endl;
-                                }
-                                else{
-                                    cout << nodeIndex << endl;
-                                }
-                            }
-                        }
-                    }
-                }
-                
-
-                _progressiveAbundanceFilter->_debugOuputFile.close();
-                cout << "up" << endl;
-                getchar();
-                */
-
-                //for(size_t i=0; i<_unitigGraph->_nodes.size(); i++){
-
-                //    UnitigGraph::Node* node = _unitigGraph->_nodes[i];
-                //    if(node->startNode() == 1845619) cout << "yes" << endl;
-                //}
-
                 if(isMod) isModification = true;
                 if(!isMod) break;
             }
             
-
-
-
-
-            
-
-                    
-
-
-            
-
-            
-            //exit(1);
-
-            /*
-            _progressiveAbundanceFilter->_debugOuputFile = ofstream("/home/gats/workspace/tmp/lala1.txt");
-
-            vector<UnitigGraph::Node*> nodes = _unitigGraph->_nodes;
-            std::sort(nodes.begin(), nodes.end(), UnitigGraph::NodeComparator);
-            for(size_t i=0; i<nodes.size(); i++){
-
-                UnitigGraph::Node* node = nodes[i];
-                if(node->_unitigIndex == -1){
-                    _progressiveAbundanceFilter->_debugOuputFile << i << " " << node->startNode() << " " << node->endNode() << " " << " removed" << endl;
-                }
-                else{
-                    _progressiveAbundanceFilter->_debugOuputFile << i << " " << node->startNode() << " " << node->endNode() << " " << node->_length << " " << node->_abundance << endl;
-                }
-
-            }
-
-            _progressiveAbundanceFilter->_debugOuputFile.close();
-            cout << "up" << endl;
-            //exit(1);
-            */
 
             return isModification;
         }
 
         bool removeSuperbubble(){
 
-            /*
-            u_int64_t nbNodesIndexed = 0;
-            for(auto& it : _progressiveAbundanceFilter->_superBubbleIndex){
-                for(const ProgressiveAbundanceFilter::SuperbubbleNode& node : it.second){
-                    nbNodesIndexed += 1;
-                }
-            }
-            cout << "Nb nodes indexed: " << nbNodesIndexed << endl;
-            */
            
-           
-            vector<UnitigGraph::Node*> queue;
 
-            for(UnitigGraph::Node* node : _progressiveAbundanceFilter->_validNodes){
+            vector<SuperbubbleSource> queue;
 
-                if(node->_unitigIndex == -1) continue;
-                if(node->_successors.size() <= 1) continue;
+            for(const UnitigType& unitigName : _progressiveAbundanceFilter->_validNodes2){
 
-                /*
-                if(node->startNode() == 2713422){
-                    cout << (_unitigGraph->_graphChangedIndex._superBubbleIndex2_notSuperbubble.find(node->_unitigIndex) != _unitigGraph->_graphChangedIndex._superBubbleIndex2_notSuperbubble.end()) << endl;
-                }
-                if(node->startNode() == 2713423){
-                    cout << (_unitigGraph->_graphChangedIndex._superBubbleIndex2_notSuperbubble.find(node->_unitigIndex) != _unitigGraph->_graphChangedIndex._superBubbleIndex2_notSuperbubble.end()) << endl;
-                }
-                if(node->endNode() == 2713422){
-                    cout << (_unitigGraph->_graphChangedIndex._superBubbleIndex2_notSuperbubble.find(node->_unitigIndex) != _unitigGraph->_graphChangedIndex._superBubbleIndex2_notSuperbubble.end()) << endl;
-                }
-                if(node->endNode() == 2713423){
-                    cout << (_unitigGraph->_graphChangedIndex._superBubbleIndex2_notSuperbubble.find(node->_unitigIndex) != _unitigGraph->_graphChangedIndex._superBubbleIndex2_notSuperbubble.end()) << endl;
-                }
-                */
+                UnitigGraph2::UnitigNode* node = _unitigGraph2->_unitigs[unitigName];
 
-                if(_unitigGraph->_graphChangedIndex._superBubbleIndex2_notSuperbubble.find(node->_unitigIndex) != _unitigGraph->_graphChangedIndex._superBubbleIndex2_notSuperbubble.end()){
-                    continue;
+                if(node == nullptr) continue;
+
+                const UnitigType& unitigIndex1 = UnitigGraph2::unitigName_to_unitigIndex(unitigName, false);
+
+                if(_unitigGraph2->nbSuccessors(unitigIndex1) > 1){
+                    queue.push_back({unitigIndex1, _unitigGraph2->getStartNode(unitigIndex1), node->_nbMinimizers});
                 }
 
-                /*
-                if(_progressiveAbundanceFilter->_superBubbleIndex.find(node->_unitigIndex) != _progressiveAbundanceFilter->_superBubbleIndex.end()){
-                    const vector<ProgressiveAbundanceFilter::SuperbubbleNode>& nodes = _progressiveAbundanceFilter->_superBubbleIndex[node->_unitigIndex];
+                const UnitigType& unitigIndex2 = UnitigGraph2::unitigName_to_unitigIndex(unitigName, true);
 
-                    bool isChanged = false;
-                    for(const ProgressiveAbundanceFilter::SuperbubbleNode& node : nodes){
-                        if((node._node->_unitigIndex == -1) || (node._node->successorSum() != node._succSum) || (node._node->predecessorSum() != node._predSum) || (node._node->_nodes.size() != node._nbNodes)){
-                            isChanged = true;
-                            break;
-                        }
-                    }
-
-                    if(isChanged){
-                        _progressiveAbundanceFilter->_superBubbleIndex.erase(node->_unitigIndex);
-                    }
-                    else{
-                        //cout << "no changed" << endl;
-                        continue;
-                    }
+                if(_unitigGraph2->nbSuccessors(unitigIndex2) > 1){
+                    queue.push_back({unitigIndex2, _unitigGraph2->getStartNode(unitigIndex2), node->_nbMinimizers});
                 }
-                */
-                //if(node->_length > _maxLength) continue;
-                //if(node->_unitigIndex % 2 == 1) continue;
 
-                //if(isTip(node)){
-                queue.push_back(node);
+                //if(_unitigGraph->_graphChangedIndex._superBubbleIndex2_notSuperbubble.find(node->_unitigIndex) != _unitigGraph->_graphChangedIndex._superBubbleIndex2_notSuperbubble.end()){
+                //    continue;
                 //}
+
+              
+                //queue.push_back(node);
+                
             }
             
+            //std::sort(queue.begin(), queue.end(), SuperbubbleComparator);
 
-            std::sort(queue.begin(), queue.end(), SuperbubbleComparator);
+            /*
+            ofstream debugFile("/pasteur/appa/homes/gbenoit/zeus/tmp//lala_1.txt");
+
+            for(size_t i=0; i<queue.size(); i++){
+
+                const SuperbubbleSource& superbubbleSource = queue[i];
+                const UnitigType& unitigIndex = superbubbleSource._unitigIndex;
+
+                bool isReversed;
+                const UnitigType& unitigName = UnitigGraph2::unitigIndex_to_unitigName(unitigIndex, isReversed);
+
+                UnitigGraph2::UnitigNode* node = _unitigGraph2->_unitigs[unitigName];
+
+                //debugFile << unitigIndex << " " << node->_startNode_forward << " " << node->_startNode_reverse << endl;
+            }
+
+            debugFile.close();
+            cout << "done" << endl;
+            //getchar();
+            */
+
+            //auto rng = std::default_random_engine {};
+            //std::shuffle(std::begin(queue), std::end(queue), rng);
+
+
+            //cout << queue.size() << endl;
+
+            //ofstream debugFile("/pasteur/appa/homes/gbenoit/zeus/tmp//lala.txt");
+            //ofstream debugFile("/pasteur/appa/homes/gbenoit/zeus/tmp//lala.txt");
+
 
             bool isModification = false;
-            unordered_set<UnitigGraph::Node*> isUnitigBubble;
+            unordered_set<UnitigType> isUnitigBubble;
+            unordered_set<UnitigType> isUnitigIndexBubble;
 
-            int nbProcessed = 0;
-            bool lala = false;
-            //for(UnitigGraph::Node* node : _unitigGraph->_nodes){
-            for(UnitigGraph::Node* node : queue){
+            int nbProcessed = queue.size();
+            vector<Bubble> bubbles;
 
-                nbProcessed += 1;
-                //if(nbProcessed % 100000 == 0){
-                //    cout << nbProcessed << " / " << queue.size() << "    utg" <<  node->_unitigIndex << endl;
+            #pragma omp parallel for num_threads(_progressiveAbundanceFilter->_nbCores)
+            for(size_t i=0; i<queue.size(); i++){
+            //for(const SuperbubbleSource& superbubbleSource : queue){
+
+                const SuperbubbleSource& superbubbleSource = queue[i];
+                const UnitigType& unitigIndex = superbubbleSource._unitigIndex;
+
+                bool isReversed;
+                const UnitigType& unitigName = UnitigGraph2::unitigIndex_to_unitigName(unitigIndex, isReversed);
+
+                UnitigGraph2::UnitigNode* node = _unitigGraph2->_unitigs[unitigName];
+
+                //#pragma omp atomic
+                //nbProcessed += 1;
+
+                if(node == nullptr) continue;
+                if(_unitigGraph2->nbSuccessors(unitigIndex) <= 1) continue;
+
+                //bool exists = false;
+                //#pragma omp critical(superbubble)
+                //{
+                    //cout << i << " " << queue.size() << endl;
+                //    if(isUnitigBubble.find(unitigName) != isUnitigBubble.end()) exists = true;
                 //}
-                //UnitigGraph::Node* node = _queue.top();
-                //_queue.pop();
+                //if(exists) continue;
 
-                //auto top = _queue.begin();
-                //UnitigGraph::Node* node = *top;
-                //_queue.erase(top);
-
-            
-                //if(node->startNode() == 150812){
-                //    cout << "---------------" << endl;
-                //}
-
-                //if(node == nullptr) continue;
-                if(node->_unitigIndex == -1) continue;
-                if(node->_successors.size() <= 1) continue;
-
-                if(isUnitigBubble.find(node) != isUnitigBubble.end()) continue;
-                if(isUnitigBubble.find(_unitigGraph->unitigIndex_toReverseDirection(node)) != isUnitigBubble.end()) continue;
-                
-                //if(node->startNode() == 11231202){
-                //    cout << "2" << endl;
-                //}
-
-                //cout << node->_nodes.size() << endl;
-
-                //cout << "is bubble? " << node->_unitigIndex << " " << (_lol.find(node->_unitigIndex) != _lol.end()) << " " << (_lol.find(_unitigGraph->unitigIndex_toReverseDirection(node->_unitigIndex)) != _lol.end()) << endl;
-                vector<u_int32_t> seenNodes;
-                UnitigGraph::Node* nodeExit = isSuperbubble(node, isUnitigBubble, seenNodes);
+                vector<UnitigType> seenNodes;
+                UnitigType unitigIndexExit = -1;
+                bool foundExit = isSuperbubble(unitigIndex, unitigIndexExit, isUnitigBubble, seenNodes);
 
 
 
-                if(nodeExit == nullptr){
-                    indexNotSuperbubble(node, seenNodes);
+
+                if(!foundExit){
+                    //indexNotSuperbubble(node, seenNodes);
                     continue;
                 }
                 
-                if(nodeExit == _unitigGraph->unitigIndex_toReverseDirection(node)){
-                    indexNotSuperbubble(node, seenNodes);
+                if(unitigIndexExit == UnitigGraph2::unitigIndex_to_reverseDirection(unitigIndex)){
+                    //indexNotSuperbubble(node, seenNodes);
                     continue; //loop side of an inverse repeat
                 }
-                if(nodeExit == node){
-                    if(node->_length < 400000){
-                        indexNotSuperbubble(node, seenNodes);
+                
+                if(unitigIndexExit == unitigIndex){
+                    if(node->getLength(_unitigGraph2) < 400000){
+                        //indexNotSuperbubble(node, seenNodes);
                         continue;
                     }
                 }
-                if(isUnitigBubble.find(nodeExit) != isUnitigBubble.end()){
-                    indexNotSuperbubble(node, seenNodes);
-                    continue;
-                }
-                if(isUnitigBubble.find(_unitigGraph->unitigIndex_toReverseDirection(nodeExit)) != isUnitigBubble.end()){
-                    indexNotSuperbubble(node, seenNodes);
+
+                //if(isUnitigBubble.find(UnitigGraph2::unitigIndex_to_unitigName(unitigIndexExit)) != isUnitigBubble.end()){
+                    //indexNotSuperbubble(node, seenNodes);
+                //   continue;
+                //}
+
+                //if(isUnitigBubble.find(_unitigGraph->unitigIndex_toReverseDirection(nodeExit)) != isUnitigBubble.end()){
+                //    indexNotSuperbubble(node, seenNodes);
+                //    continue;
+                //}
+
+
+                vector<UnitigType> successors;
+                _unitigGraph2->getSuccessors(unitigIndex, successors);
+
+                if(std::find(successors.begin(), successors.end(), unitigIndexExit) != successors.end()){
                     continue;
                 }
 
-                bool isInvalid = false;
-                for(const UnitigGraph::Node* nn : node->_successors){
-                    if(nn == nodeExit){
-                        isInvalid = true;
+                //bool isInvalid = false;
+                //for(const UnitigType& unitigIndexSuccessor : successors){
+                //    if(unitigIndexSuccessor == unitigIndexExit){
+                //        isInvalid = true;
+                //        break;
+                //    }
+                //}
+                //if(isInvalid){
+                //    //indexNotSuperbubble(node, seenNodes);
+                //    continue;
+                //}
+
+
+
+                //debugFile << "Superbubble: " << unitigIndex << " " << unitigIndexExit << " " << isUnitigIndexBubble.size() << endl;
+                //getchar();
+
+                #pragma omp critical(superbubble)
+                {
+
+
+                    if(unitigIndex < unitigIndexExit){
+                        vector<UnitigType> unitigIndexToRemove;
+                        collapseSuperbubble2(unitigIndex, unitigIndexExit, unitigIndexToRemove);
+                        for(const UnitigType& unitigIndex : unitigIndexToRemove){
+                            isUnitigBubble.insert(UnitigGraph2::unitigIndex_to_unitigName(unitigIndex));
+                        }
+                        //collapseSuperbubble(unitigIndex, unitigIndexExit, isUnitigBubble, isUnitigIndexBubble);
+                        bubbles.push_back({unitigIndex, unitigIndexExit});
                     }
+                    else{
+                        vector<UnitigType> unitigIndexToRemove;
+                        collapseSuperbubble2(UnitigGraph2::unitigIndex_to_reverseDirection(unitigIndexExit), UnitigGraph2::unitigIndex_to_reverseDirection(unitigIndex), unitigIndexToRemove);
+                        for(const UnitigType& unitigIndex : unitigIndexToRemove){
+                            isUnitigBubble.insert(UnitigGraph2::unitigIndex_to_unitigName(unitigIndex));
+                        }
+                        bubbles.push_back({UnitigGraph2::unitigIndex_to_reverseDirection(unitigIndexExit), UnitigGraph2::unitigIndex_to_reverseDirection(unitigIndex)});
+                        //collapseSuperbubble(UnitigGraph2::unitigIndex_to_reverseDirection(unitigIndexExit), UnitigGraph2::unitigIndex_to_reverseDirection(unitigIndex), isUnitigBubble, isUnitigIndexBubble);
+                    }
+                
+                    isModification = true;
+                    _nbRemoved += 1;
                 }
-                if(isInvalid){
-                    indexNotSuperbubble(node, seenNodes);
-                    continue;
-                }
-
-                //if(node->startNode() == 150812){
-                //    cout << "3    " << nodeExit->startNode() << " " << nodeExit->endNode() << endl;
-                //}
-
-                //_progressiveAbundanceFilter->_debugOuputFile << node->startNode() << " " << node->endNode() << " " << nodeExit->startNode() << " " << nodeExit->endNode() << endl;
-                //cout << "\tRemove superbubble: " << node->_unitigIndex << " " << nodeExit->_unitigIndex << endl;
-
-                isModification = true;
-
-                //if(node->startNode() == 1845619){
-                //    cout << "4" << endl;
-                //}
-
-                collapseSuperbubble(node, nodeExit, isUnitigBubble);
-                _nbRemoved += 1;
-                //_unitigGraph->recompact(node);
-                //_unitigGraph->removeNode(bubbleSide);
-                //_unitigGraph->recompact(node);
-
-                //_queue.erase(node);
-                //_queue.erase(_unitigGraph->unitigIndex_toReverseDirection(node));
-                //_queue.insert(node);
-                //_queue.insert(_unitigGraph->unitigIndex_toReverseDirection(node));
-                //_queue.push(node);
-                //_queue.push(_unitigGraph->unitigIndex_toReverseDirection(node));
 
             }
 
-        
-            unordered_set<UnitigGraph::Node*> recompactNodes;
 
-            //cout << "lala 1" << endl;
-            for(UnitigGraph::Node* node : isUnitigBubble){
-                if(node->_unitigIndex == -1) continue;
+            unordered_set<UnitigType> allUnitigIndexToRemove;
 
-                vector<UnitigGraph::Node*> succs = node->_successors;
-                vector<UnitigGraph::Node*> preds = node->_predecessors;
-                _unitigGraph->removeNode(node);
+            #pragma omp parallel for num_threads(_progressiveAbundanceFilter->_nbCores)
+            for(size_t i=0; i<bubbles.size(); i++){
 
-                for(UnitigGraph::Node* predecessor : preds){
-                    if(predecessor->_unitigIndex == -1) continue;
+                const Bubble& bubble = bubbles[i];
+                const UnitigType& unitigIndexSource = bubble._unitigIndexSource;
+                const UnitigType& unitigIndexExit = bubble._unitigIndexExit;
+
+
+                const UnitigType& unitigNameSource = UnitigGraph2::unitigIndex_to_unitigName(unitigIndexSource);
+                const UnitigType& unitigNameExit = UnitigGraph2::unitigIndex_to_unitigName(unitigIndexExit);
+
+                //if(_unitigGraph2->_unitigs[unitigNameSource] == nullptr) continue;
+                //if(_unitigGraph2->_unitigs[unitigNameExit] == nullptr) continue;
+
+                if(isUnitigBubble.find(unitigNameSource) != isUnitigIndexBubble.end()) continue;
+                if(isUnitigBubble.find(unitigNameExit) != isUnitigIndexBubble.end()) continue;
+
+                //unordered_set<UnitigType> keepNodes_forward;
+                //getSuperbubblePath(unitigIndexSource, unitigIndexExit, keepNodes_forward);
+
+                //unordered_set<UnitigType> keepNodes_reverse;
+                //getSuperbubblePath(UnitigGraph2::unitigIndex_to_reverseDirection(unitigIndexExit), UnitigGraph2::unitigIndex_to_reverseDirection(unitigIndexSource), keepNodes_reverse);
+
+                vector<UnitigType> unitigIndexToRemove;
+
+                //if(keepNodes_forward.size() > keepNodes_reverse.size()){
+                collapseSuperbubble2(unitigIndexSource, unitigIndexExit, unitigIndexToRemove);
+                //}
+                //else{
+                  //  collapseSuperbubble2(UnitigGraph2::unitigIndex_to_reverseDirection(unitigIndexExit), UnitigGraph2::unitigIndex_to_reverseDirection(unitigIndexSource), unitigIndexToRemove);
+                //}
+
+                #pragma omp critical(superbubble)
+                {
+                    for(const UnitigType& unitigIndex : unitigIndexToRemove){
+                        allUnitigIndexToRemove.insert(unitigIndex);
+                    }
+                }
+            }
+
+
+            unordered_set<UnitigType> recompactNodes;
+
+    
+            for(const UnitigType& unitigIndex : allUnitigIndexToRemove){
+                
+                const UnitigType& unitigName = UnitigGraph2::unitigIndex_to_unitigName(unitigIndex);
+                
+                if(_unitigGraph2->_unitigs[unitigName] == nullptr) continue;
+
+                //vector<UnitigType> succs = node->_successors;
+                //vector<UnitigType> preds = node->_predecessors;
+
+
+                vector<UnitigType> succs;
+                _unitigGraph2->getSuccessors(unitigIndex, succs);
+
+                vector<UnitigType> preds;
+                _unitigGraph2->getPredecessors(unitigIndex, preds);
+
+                //cout << "Removing node: " << unitigIndex << " " << unitigName << endl;
+                _unitigGraph2->removeNode(_unitigGraph2->_unitigs[unitigName]);
+
+                for(const UnitigType& predecessor : preds){
+                    if(_unitigGraph2->_unitigs[UnitigGraph2::unitigIndex_to_unitigName(predecessor)] == nullptr) continue;
                     recompactNodes.insert(predecessor);
                 }
 
-                for(UnitigGraph::Node* successor : succs){
-                    if(successor->_unitigIndex == -1) continue;
-                    recompactNodes.insert(_unitigGraph->unitigIndex_toReverseDirection(successor));
+                for(const UnitigType& successor : succs){
+                    if(_unitigGraph2->_unitigs[UnitigGraph2::unitigIndex_to_unitigName(successor)] == nullptr) continue;
+                    recompactNodes.insert(UnitigGraph2::unitigIndex_to_reverseDirection(successor));
                 }
 
             }
+
             /*
-            //cout << "lala 2" << endl;
-            for(UnitigGraph::Node* node : recompactNodes){
-                if(node->_unitigIndex == -1) continue;
-                _unitigGraph->recompact(node);
+            unordered_set<UnitigType> recompactNodes;
+
+            for(size_t i=0; i<queue.size(); i++){
+
+                const SuperbubbleSource& superbubbleSource = queue[i];
+                const UnitigType& unitigIndex = superbubbleSource._unitigIndex;
+
+
+                const UnitigType& unitigName = UnitigGraph2::unitigIndex_to_unitigName(unitigIndex);
+                
+                if(_unitigGraph2->_unitigs[unitigName] == nullptr) continue;
+                if(isUnitigIndexBubble.find(unitigIndex) != isUnitigIndexBubble.end()) continue;
+
+
+
+                vector<UnitigType> successors;
+                _unitigGraph2->getSuccessors(unitigIndex, successors);
+
+                int nbBubbleSuccessors = 0;
+
+                for(const UnitigType& unitigIndexSuccessor : successors){
+                    if(isUnitigIndexBubble.find(unitigIndexSuccessor) != isUnitigIndexBubble.end()){
+                        nbBubbleSuccessors += 1;
+                    }
+                }
+                
+                if(nbBubbleSuccessors < 2 || nbBubbleSuccessors != successors.size()) continue;
+
+                //cout << "Collapsing: " << i << " " << unitigIndex << " " << unitigName << endl;
+
+                vector<UnitigType> unitigIndexToRemove;
+                collapseSuperbubble2(unitigIndex, isUnitigIndexBubble, unitigIndexToRemove);
+
+                for(const UnitigType& unitigIndex : unitigIndexToRemove){
+                    
+                    const UnitigType& unitigName = UnitigGraph2::unitigIndex_to_unitigName(unitigIndex);
+                    
+                    if(_unitigGraph2->_unitigs[unitigName] == nullptr) continue;
+
+                    //vector<UnitigType> succs = node->_successors;
+                    //vector<UnitigType> preds = node->_predecessors;
+
+
+                    vector<UnitigType> succs;
+                    _unitigGraph2->getSuccessors(unitigIndex, succs);
+
+                    vector<UnitigType> preds;
+                    _unitigGraph2->getPredecessors(unitigIndex, preds);
+
+                    //cout << "Removing node: " << unitigIndex << " " << unitigName << endl;
+                    _unitigGraph2->removeNode(_unitigGraph2->_unitigs[unitigName]);
+
+                    for(const UnitigType& predecessor : preds){
+                        if(_unitigGraph2->_unitigs[UnitigGraph2::unitigIndex_to_unitigName(predecessor)] == nullptr) continue;
+                        recompactNodes.insert(predecessor);
+                    }
+
+                    for(const UnitigType& successor : succs){
+                        if(_unitigGraph2->_unitigs[UnitigGraph2::unitigIndex_to_unitigName(successor)] == nullptr) continue;
+                        recompactNodes.insert(UnitigGraph2::unitigIndex_to_reverseDirection(successor));
+                    }
+
+                }
+
+
             }
+
             */
 
-            vector<UnitigGraph::Node*> recompactNodesVec;
-            for(UnitigGraph::Node* node : recompactNodes){
+
+
+            
+            //cout << isUnitigIndexBubble.size() << endl;
+            
+            /*
+            //cout << "lala 1" << endl;
+            for(const UnitigType& unitigIndex : isUnitigIndexBubble){
+                
+                const UnitigType& unitigName = UnitigGraph2::unitigIndex_to_unitigName(unitigIndex);
+                
+                if(_unitigGraph2->_unitigs[unitigName] == nullptr) continue;
+
+                //vector<UnitigType> succs = node->_successors;
+                //vector<UnitigType> preds = node->_predecessors;
+
+
+                vector<UnitigType> succs;
+                _unitigGraph2->getSuccessors(unitigIndex, succs);
+
+                vector<UnitigType> preds;
+                _unitigGraph2->getPredecessors(unitigIndex, preds);
+
+                
+                _unitigGraph2->removeNode(_unitigGraph2->_unitigs[unitigName]);
+
+                for(const UnitigType& predecessor : preds){
+                    if(_unitigGraph2->_unitigs[UnitigGraph2::unitigIndex_to_unitigName(predecessor)] == nullptr) continue;
+                    recompactNodes.insert(predecessor);
+                }
+
+                for(const UnitigType& successor : succs){
+                    if(_unitigGraph2->_unitigs[UnitigGraph2::unitigIndex_to_unitigName(successor)] == nullptr) continue;
+                    recompactNodes.insert(UnitigGraph2::unitigIndex_to_reverseDirection(successor));
+                }
+
+            }
+            */
+            //debugFile.close();
+            //cout << _nbUnitigNameRemoved << endl;
+            //getchar();
+
+            //for(const UnitigType& unitigName : recompactUnitigNames){
+                
+            //    if(_unitigGraph2->_unitigs[unitigName] == nullptr) continue;
+
+            //    _unitigGraph2->recompact(_unitigGraph2->_unitigs[unitigName]);
+            //}
+
+            
+            //cout << recompactNodes.size() << endl;
+
+            vector<BubbleSide> recompactNodesVec;
+            for(const UnitigType& unitigIndex : recompactNodes){
+
+                const UnitigType& unitigName = UnitigGraph2::unitigIndex_to_unitigName(unitigIndex);
+
+                if(_unitigGraph2->_unitigs[unitigName] == nullptr) continue;
+
+                recompactNodesVec.push_back({unitigIndex, _unitigGraph2->getStartNode(unitigIndex), _unitigGraph2->_unitigs[unitigName]->_nbMinimizers});
+            }
+
+            std::sort(recompactNodesVec.begin(), recompactNodesVec.end(), BubbleSideComparatorRev);
+
+
+            for(const BubbleSide& bubbleSide : recompactNodesVec){
+
+                const UnitigType& unitigName = UnitigGraph2::unitigIndex_to_unitigName(bubbleSide._unitigIndex);
+
+                //const UnitigType& unitigName = bubbleSide._unitigIndex;
+                if(_unitigGraph2->_unitigs[unitigName] == nullptr) continue;
+
+
+                //debugFile << "Superbubble compacting: " << bubbleSide._unitigIndex << endl;
+
+                _unitigGraph2->recompact(bubbleSide._unitigIndex);
+            }
+
+            //debugFile.close();
+
+            //cout << "done" << endl;
+            //getchar();
+            //cout << "Remove superbubble end: " << _unitigGraph2->computeChecksum_abundance() << endl;
+            /*
+            vector<UnitigGraph2::UnitigNode*> recompactNodesVec;
+            for(UnitigGraph2::UnitigNode* node : recompactNodes){
                 if(node->_unitigIndex == -1) continue;
                 recompactNodesVec.push_back(node);
             }
 
             std::sort(recompactNodesVec.begin(), recompactNodesVec.end(), UnitigGraph::NodeComparatorByLengthRev);
 
-            for(UnitigGraph::Node* node : recompactNodesVec){
+            for(UnitigGraph2::UnitigNode* node : recompactNodesVec){
                 if(node->_unitigIndex == -1) continue;
                 _unitigGraph->recompact(node);
             }
-
-            //cout << "lala 3" << endl;
-
-            //exit(1);
+            */
 
             return isModification;
         }
 
-        void indexNotSuperbubble(UnitigGraph::Node* nodeSource, const vector<u_int32_t>& seenNodes){
-            for(u_int32_t unitigIndex : seenNodes){
-                _unitigGraph->_graphChangedIndex._superBubbleIndex2_notSuperbubbleNodes[unitigIndex].push_back(nodeSource->_unitigIndex);
-            }
-            _unitigGraph->_graphChangedIndex._superBubbleIndex2_notSuperbubble.insert(nodeSource->_unitigIndex);
+
+        void indexNotSuperbubble(UnitigGraph2::UnitigNode* nodeSource, const vector<UnitigType>& seenNodes){
+            //for(u_int32_t unitigIndex : seenNodes){
+            //    _unitigGraph->_graphChangedIndex._superBubbleIndex2_notSuperbubbleNodes[unitigIndex].push_back(nodeSource->_unitigIndex);
+            //}
+            //_unitigGraph->_graphChangedIndex._superBubbleIndex2_notSuperbubble.insert(nodeSource->_unitigIndex);
         }
 
-        UnitigGraph::Node* isSuperbubble(UnitigGraph::Node* nodeSource, unordered_set<UnitigGraph::Node*>& isUnitigBubble, vector<u_int32_t>& seenNodes){
+        bool isSuperbubble(const UnitigType& unitigIndexSource, UnitigType& unitigIndexExit, unordered_set<UnitigType>& isUnitigBubble, vector<UnitigType>& seenNodes){
 
             
+            //cout << "\tIs superbubble: " << unitigIndexSource << endl;
+
+            bool isReversed;
+            const UnitigType& unitigNameSource = UnitigGraph2::unitigIndex_to_unitigName(unitigIndexSource, isReversed);
+
+            UnitigGraph2::UnitigNode* nodeSource = _unitigGraph2->_unitigs[unitigNameSource];
 
             seenNodes.clear();
 
             //vector<ProgressiveAbundanceFilter::SuperbubbleNode> nodes;
-            unordered_set<u_int32_t> isVisited;
-            unordered_set<u_int32_t> seen;
-            unordered_map<u_int32_t, u_int64_t> pathLength;
-            vector<UnitigGraph::Node*> queue;
+            unordered_set<UnitigType> isVisited;
+            unordered_set<UnitigType> seen;
+            unordered_map<UnitigType, u_int64_t> pathLength;
+            vector<UnitigType> queue;
 
-            queue.push_back(nodeSource);
-            pathLength[nodeSource->_unitigIndex] = 0;
-            //nodes.push_back({nodeSource, (u_int16_t)nodeSource->_nodes.size(), (u_int64_t)nodeSource->successorSum(), (u_int64_t)nodeSource->predecessorSum()});
-            seenNodes.push_back(nodeSource->_unitigIndex);
+            queue.push_back(unitigIndexSource);
+            pathLength[unitigIndexSource] = 0;
+            seenNodes.push_back(unitigIndexSource);
 
             while(queue.size() > 0){
 
-                UnitigGraph::Node* vNode = queue[queue.size()-1];
-                u_int32_t v = vNode->_unitigIndex;
+                UnitigType v = queue[queue.size()-1];
 
-                if(_progressiveAbundanceFilter->_cutoffIndex == 0 && vNode->_successors.size() > 5) return nullptr;
-                //if(nodeSource->startNode() == 150812){
-                //    cout << vNode->startNode() << " " << pathLength[v] << " " << vNode->_successors.size() << endl;
-                //}
+                //cout << "\t\t" << v << endl;
 
-                //nodes.push_back({vNode, (u_int16_t)vNode->_nodes.size(), (u_int16_t)vNode->_successors.size(), (u_int16_t)vNode->_predecessors.size()});
+                vector<UnitigType> vSuccessors;
+                _unitigGraph2->getSuccessors(v, vSuccessors);
+                //u_int32_t v = vNode->_unitigIndex;
+
+                if(_progressiveAbundanceFilter->_cutoffIndex == 0 && vSuccessors.size() > 5) return false;
 
                 queue.pop_back();
 
                 if(pathLength[v] > _maxLength){
-                    //_progressiveAbundanceFilter->_superBubbleIndex[nodeSource->_unitigIndex] = nodes;
-                    return nullptr;
+                    return false;
                 }
 
                 isVisited.insert(v);
@@ -890,586 +602,541 @@ public:
                     seen.erase(v);
                 }
 
-                //vector<u_int32_t> successors;
-                //_graph->getSuccessors_unitig(v, 0, successors);
 
-                if(vNode->_successors.size() == 0){
-                    //_progressiveAbundanceFilter->_superBubbleIndex[nodeSource->_unitigIndex] = nodes;
-                    return nullptr; //abort tip
+                if(vSuccessors.size() == 0){
+                    return false; //abort tip
                 }
 
 
-                //std::sort(successors.begin(),successors.end(), [this](const u_int32_t& unitigIndex1, const u_int32_t& unitigIndex2) {
-                //    return _graph->_unitigs[unitigIndex1]._startNode < _graph->_unitigs[unitigIndex2]._startNode;
-                //});
+                //cout << "\t\taa" << endl;
 
-                //for(const u_int32_t& u : successors){
-                for(UnitigGraph::Node* uNode : vNode->_successors){
+                for(const UnitigType& u : vSuccessors){
 
-                    seenNodes.push_back(uNode->_unitigIndex);
-                    /*
-                    bool exist = false;
-                    for(const ProgressiveAbundanceFilter::SuperbubbleNode& sNode : nodes){
-                        if(sNode._node == uNode){
-                            exist = true;
-                            break;
-                        }
-                    }
+                    //cout << "\t\t\tL1" << u << endl;
 
-                    if(!exist){
-                        nodes.push_back({uNode, (u_int16_t)uNode->_nodes.size(), (u_int64_t)uNode->successorSum(), (u_int64_t)uNode->predecessorSum()});
-                    }
-                    */
+                    //UnitigGraph2::UnitigNode* uNode;
+                    seenNodes.push_back(u);
+                    const UnitigType& uName = UnitigGraph2::unitigIndex_to_unitigName(u);
 
-                    if(isUnitigBubble.find(uNode) != isUnitigBubble.end()){
-                        //_progressiveAbundanceFilter->_superBubbleIndex[nodeSource->_unitigIndex] = nodes;
-                        return nullptr;
-                    }
-                    if(isUnitigBubble.find(_unitigGraph->unitigIndex_toReverseDirection(uNode)) != isUnitigBubble.end()){
-                        //_progressiveAbundanceFilter->_superBubbleIndex[nodeSource->_unitigIndex] = nodes;
-                        return nullptr;
-                    }
+                    //if(isUnitigBubble.find(uName) != isUnitigBubble.end()){
+                    //    return false;
+                    //}
 
 
-                    u_int32_t u = uNode->_unitigIndex;
+                    //u_int32_t u = uNode->_unitigIndex;
                     
 
-                    //if(isBubble[_unitigs[u]._startNode]) return -1;
-                    //if(isBubble[nodeIndex_toReverseDirection(_unitigs[u]._startNode)]) return -1;
-                    if(uNode == nodeSource){
-                        //_progressiveAbundanceFilter->_superBubbleIndex[nodeSource->_unitigIndex] = nodes;
-                        return nullptr; //cycle including s
+                    if(u == unitigIndexSource){
+                        return false; //cycle including s
                     }
 
                     if(isVisited.find(u) == isVisited.end()){
                         seen.insert(u);
-                        //long length = uNode->_length - _unitigGraph->_kminmerOverlapMean;
-                        //_logFile << _unitigs[u]._length << " " << node._overlap << endl;
-                        //if(length < 0) length = _unitigs[u]._length;
-                        //pathLength[u] = pathLength[v] + length;
-                        //pathLength[u] = pathLength[v] + _unitigs[u]._nbNodes;
 
 
-                        if(vNode == nodeSource){
-                            pathLength[u] = uNode->_length;
+                        if(v == unitigIndexSource){
+                            pathLength[u] = _unitigGraph2->_unitigs[uName]->getLength(_unitigGraph2); // uNode->_length;
                         }
                         else{
-                            pathLength[u] = pathLength[v] + (uNode->_nodes.size() * _unitigGraph->_kminmerLengthNonOverlap);
+                            pathLength[u] = pathLength[v] + ((_unitigGraph2->_unitigs[uName]->_nbMinimizers-_unitigGraph2->_kminmerSize+1) * _unitigGraph2->_kminmerLengthNonOverlap);
                         }
                         
                     }
                     else{
 
-                        //_progressiveAbundanceFilter->_superBubbleIndex[nodeSource->_unitigIndex] = nodes;
-                        //_logFile << "exit 4" << endl;
-                        return nullptr; //Cycle within superbubble
+                        return false; //Cycle within superbubble
                     }
 
                 }
 
+                //cout << "\t\tbb" << endl;
 
-                for(UnitigGraph::Node* uNode : vNode->_successors){
+                for(const UnitigType& u : vSuccessors){
 
-                    u_int32_t u = uNode->_unitigIndex;
-                    //u_int32_t u = node._index;
-                    //_logFile << "\t\tVisiting: " << BiGraph::nodeIndex_to_nodeName(_unitigs[u]._startNode) << " " << BiGraph::nodeIndex_to_nodeName(_unitigs[u]._endNode) << endl;
-
-                    //vector<u_int32_t> predecessors;
-                    //_graph->getPredecessors_unitig(u, 0, predecessors);
+                    vector<UnitigType> uPredecessors;
+                    _unitigGraph2->getPredecessors(u, uPredecessors);
+                    
                     bool allPredecessorsAreVisited = true;
-                    //for(u_int32_t p : predecessors){
-                    for(UnitigGraph::Node* pNode : uNode->_predecessors){
-                        if(isVisited.find(pNode->_unitigIndex) == isVisited.end()){
+                    
+                    for(const UnitigType& p : uPredecessors){
+                        if(isVisited.find(p) == isVisited.end()){
                             allPredecessorsAreVisited = false;
                             break;
                         }
                     }
 
                     if(allPredecessorsAreVisited){
-                        //_logFile << "\t\tAll predecessors visited: " << BiGraph::nodeIndex_to_nodeName(_unitigs[u]._startNode) << endl;
-                        queue.push_back(uNode);
+                        queue.push_back(u);
                     }
 
-                    //_logFile << "\t\t\tQueue size: " << queue.size() << " " << seen.size() << endl;
-                    if(queue.size() == 1 && seen.size() == 1 && seen.find(queue[0]->_unitigIndex) != seen.end()){ //only one vertex t is left in S and no other vertex is seen 
+                    if(queue.size() == 1 && seen.size() == 1 && seen.find(queue[0]) != seen.end()){ 
+                    //if(seen.size() == 1){ 
                         
-                        UnitigGraph::Node* tNode = queue[0];
-                        u_int32_t t = tNode->_unitigIndex;
-                        //vector<u_int32_t> successors_t;
-                        //_graph->getSuccessors_unitig(t, 0, successors_t);
+                        UnitigType t = (*begin(seen));
+                        //UnitigType t = queue[0];
+                        //u_int32_t t = tNode->_unitigIndex;
                         
+                        vector<UnitigType> tSuccessors;
+                        _unitigGraph2->getSuccessors(t, tSuccessors);
 
-                        if(std::find(tNode->_successors.begin(), tNode->_successors.end(), nodeSource) == tNode->_successors.end()){
-                            return tNode;
+                        if(std::find(tSuccessors.begin(), tSuccessors.end(), unitigIndexSource) == tSuccessors.end()){
+                            unitigIndexExit = t;
+                            //return tNode;
+                            return true;
                         }
                         else{
-                            //_logFile << "exit 5" << endl;
-                            //_progressiveAbundanceFilter->_superBubbleIndex[nodeSource->_unitigIndex] = nodes;
-                            return nullptr; // cycle including s
+                            return false; // cycle including s
                         }
 
                     }
-
 
                 }
 
             }
 
-
-            //_progressiveAbundanceFilter->_superBubbleIndex[nodeSource->_unitigIndex] = nodes;
-            return nullptr;
+            return false;
 
         }
         
-        void collapseSuperbubble(UnitigGraph::Node* sourceNode, UnitigGraph::Node* exitNode, unordered_set<UnitigGraph::Node*>& isUnitigBubble){
+        void getSuperbubblePath(const UnitigType& unitigIndexSource, const UnitigType& unitigIndexExit, unordered_set<UnitigType>& keepNodes){
 
-
-
-
-            vector<UnitigGraph::Node*> superbubbleNodes;
-            collectSuperbubbleNodes(sourceNode, exitNode, superbubbleNodes);
-
-            unordered_set<u_int32_t> keepNodes;
-            //vector<u_int32_t> nodes;
-
-            //Choose one path in the superbubble
-            //u_int32_t unitigIndex = source_unitigIndex;
-            UnitigGraph::Node* nodeCurrent = sourceNode;
-            //vector<UnitigGraph::Node*> path = {nodeCurrent};
-
-            /*
-            bool print = false;
-            for(UnitigGraph::Node* node : superbubbleNodes){
-
-                for(u_int32_t nodeIndex : node->_nodes){
-                    if(nodeIndex == 11822266 || nodeIndex == 11822267){
-                        cout << "-----" << endl;
-                        print = true;
-                    }
-                }
-            }
-            */
-
+            
+            keepNodes.clear();
+            //unordered_set<UnitigType> keepNodes;
+            //UnitigGraph2::UnitigNode* nodeCurrent = sourceNode;
+            UnitigType unitigIndex = unitigIndexSource;
 
             while(true){
-                //vector<u_int32_t> successors;
-                //_graph->getSuccessors_unitig(unitigIndex, 0, successors);
-
-                /*
-                if(print){
-                    cout << "----------------------" << endl;
-                    for(u_int32_t nodeIndex : nodeCurrent->_nodes){
-                        cout << nodeIndex << endl;
-                    }
-                }
-                */
 
 
-
-                vector<UnitigGraph::Node*> maxAbNodes;
+                vector<UnitigType> maxAbNodes;
                 float maxAbundance = 0;
-                u_int32_t maxV = -1;
 
-                for(UnitigGraph::Node* nn : nodeCurrent->_successors){
+                vector<UnitigType> successors;
+                _unitigGraph2->getSuccessors(unitigIndex, successors);
+
+                for(const UnitigType& unitigIndexSuccessor : successors){
+
+                    const float& abundance = _unitigGraph2->_unitigs[UnitigGraph2::unitigIndex_to_unitigName(unitigIndexSuccessor)]->_abundance;
                     
-                    if(nn->_abundance == maxAbundance){
-                        maxAbNodes.push_back(nn);
+
+                    if(abundance == maxAbundance){
+                        maxAbNodes.push_back(unitigIndexSuccessor);
                     }
-                    else if(nn->_abundance > maxAbundance){
-                        maxAbundance = nn->_abundance;
+                    else if(abundance > maxAbundance){
+                        maxAbundance = abundance;
                         maxAbNodes.clear();
-                        maxAbNodes.push_back(nn);
+                        maxAbNodes.push_back(unitigIndexSuccessor);
                     }
                 }
+
 
                 if(maxAbNodes.size() == 1){
-                    keepNodes.insert(maxAbNodes[0]->_unitigIndex);
-                    //path.push_back(maxAbNodes[0]);
-                    nodeCurrent = maxAbNodes[0];
+                    keepNodes.insert(maxAbNodes[0]);
+                    unitigIndex = maxAbNodes[0];
                 }
                 else{
 
                     
                     vector<BubbleSide> bubbleSides;
-                    for(UnitigGraph::Node* nn : maxAbNodes){
-
+                    for(const UnitigType& unitigIndex : maxAbNodes){
                         
-                        //u_int64_t sum = 0;
-                        //for(u_int32_t nodeIndex : _unitigs[unitigIndex]._nodes){
-                        //    sum += nodeIndex;
-                        //}
-                        
-                        bubbleSides.push_back({nn, nn->_nodes.size(), nn->startNode()}); //_unitigs[unitigIndex]._quality
+                        bubbleSides.push_back({unitigIndex, _unitigGraph2->getStartNode(unitigIndex), _unitigGraph2->_unitigs[UnitigGraph2::unitigIndex_to_unitigName(unitigIndex)]->_nbMinimizers}); 
                     }
 
 
                     std::sort(bubbleSides.begin(), bubbleSides.end(), BubbleSideComparator);
-                    //path.push_back(bubbleSides[0]._unitig);
-                    keepNodes.insert(bubbleSides[0]._unitig->_unitigIndex);
-                    //_logFile << "Keep: " << bubbleSides[0]._unitigIndex << endl;
+                    keepNodes.insert(bubbleSides[0]._unitigIndex);
 
-                    nodeCurrent = bubbleSides[0]._unitig;
+                    unitigIndex = bubbleSides[0]._unitigIndex;
 
-                    //_logFile << "Keep node: " << _unitigs[unitigIndex]._startNode << endl;
-                    //_logFile << _unitigs[unitigIndex]._nbNodes;
-                    //getchar();
                 }
                 
 
-                if(nodeCurrent == exitNode) break;
-            }
-
-
-            for(UnitigGraph::Node* node : superbubbleNodes){
-
-                //for(u_int32_t nodeIndex : node->_nodes){
-                //    if(nodeIndex == 11822266){
-                //        cout << "lala" << endl;
-                //    }
-                //}
-
-                if(keepNodes.find(node->_unitigIndex) != keepNodes.end()) continue;
-                
-                isUnitigBubble.insert(node);
-                isUnitigBubble.insert(_unitigGraph->unitigIndex_toReverseDirection(node));
-                //_unitigGraph->removeNode(node);
+                if(unitigIndex == unitigIndexExit) break;
             }
             
 
         }
 
-        void collectSuperbubbleNodes(UnitigGraph::Node* sourceNode, UnitigGraph::Node* exitNode, vector<UnitigGraph::Node*>& nodes){
+        void collapseSuperbubble2(const UnitigType& unitigIndexSource, const UnitigType& unitigIndexExit, vector<UnitigType>& unitigIndexToRemove){
 
-            nodes.clear();
 
-            unordered_set<u_int32_t> isVisited;
-            queue<UnitigGraph::Node*> queue;
 
-            isVisited.insert(sourceNode->_unitigIndex);
-            isVisited.insert(exitNode->_unitigIndex);
-            queue.push(sourceNode);
+            //unordered_set<UnitigType> keepNodes;
+            //getSuperbubblePath(unitigIndexSource, unitigIndexExit, keepNodes);
+
+            vector<UnitigType> superbubbleNodes;
+            collectSuperbubbleNodes(unitigIndexSource, unitigIndexExit, superbubbleNodes);
+
+            unordered_set<UnitigType> keepNodes;
+            BellmanFord(unitigIndexSource, unitigIndexExit, keepNodes, superbubbleNodes);
+
+            //cout << "----" << endl;
+            for(const UnitigType& unitigIndex : superbubbleNodes){
+
+                if(keepNodes.find(unitigIndex) != keepNodes.end()){
+                    //cout << "Keep: " << UnitigGraph2::unitigIndex_to_unitigName(unitigIndex) << " " << _unitigGraph2->_unitigs[UnitigGraph2::unitigIndex_to_unitigName(unitigIndex)]->_abundance << endl;
+                    continue;
+                }
+                
+                //cout << "Remove: " << UnitigGraph2::unitigIndex_to_unitigName(unitigIndex) << " " << _unitigGraph2->_unitigs[UnitigGraph2::unitigIndex_to_unitigName(unitigIndex)]->_abundance << endl;
+                unitigIndexToRemove.push_back(unitigIndex);
+            }
+
+            //getchar();
+            /*
+            //unordered_set<UnitigType> isVisited;
+            queue<UnitigType> queue;
+
+            //isVisited.insert(unitigIndexSource);
+            queue.push(unitigIndexSource);
 
             while (!queue.empty()){
 
-                UnitigGraph::Node* currentNode = queue.front();
-                u_int32_t unitigIndex_current = currentNode->_unitigIndex;
+                UnitigType unitigIndex = queue.front();
+                //u_int32_t unitigIndex_current = currentNode->_unitigIndex;
                 queue.pop();
 
-                if(currentNode->_successors.size() > _progressiveAbundanceFilter->_maxNbSuccessors){
-                    _progressiveAbundanceFilter->_maxNbSuccessors = currentNode->_successors.size();
-                    Logger::get().debug() << "Max successors: " << _progressiveAbundanceFilter->_maxNbSuccessors;
-                }
+                //if(currentNode->_successors.size() > _progressiveAbundanceFilter->_maxNbSuccessors){
+                //    _progressiveAbundanceFilter->_maxNbSuccessors = currentNode->_successors.size();
+                //    Logger::get().debug() << "Max successors: " << _progressiveAbundanceFilter->_maxNbSuccessors;
+                //}
                 
-                for(UnitigGraph::Node* nn : currentNode->_successors){
+                vector<UnitigType> successors;
+                _unitigGraph2->getSuccessors(unitigIndex, successors);
 
-                    if (isVisited.find(nn->_unitigIndex) != isVisited.end()) continue;
+                for(const UnitigType& unitigIndexSuccessor : successors){
 
-                    queue.push(nn);
-                    isVisited.insert(nn->_unitigIndex);
-                    nodes.push_back(nn);
+                    //if (isVisited.find(unitigIndexSuccessor) != isVisited.end()) continue;
+                    
+
+
+                    if(isUnitigIndexBubble.find(unitigIndexSuccessor) == isUnitigIndexBubble.end()){
+                        continue;
+                    }
+
+                    queue.push(unitigIndexSuccessor);
+
+
+                    if(keepNodes.find(unitigIndexSuccessor) == keepNodes.end()){
+                        unitigIndexToRemove.push_back(unitigIndexSuccessor);
+                    }
+
+                    //isVisited.insert(unitigIndexSuccessor);
+                    //nodes.push_back(unitigIndexSuccessor);
+
+                    //if(unitigIndexSource == 211512){
+                    //    cout << "lol: " << unitigIndexSuccessor << endl;
+                    //}
 
                 }
             }
+            */
+
+        }
+
+        void collapseSuperbubble(const UnitigType& unitigIndexSource, const UnitigType& unitigIndexExit, unordered_set<UnitigType>& isUnitigBubble, unordered_set<UnitigType>& isUnitigIndexBubble){
+
+
+            vector<UnitigType> superbubbleNodes;
+            collectSuperbubbleNodes(unitigIndexSource, unitigIndexExit, superbubbleNodes);
+
+            /*
+            unordered_set<UnitigType> keepNodes;
+            //UnitigGraph2::UnitigNode* nodeCurrent = sourceNode;
+            UnitigType unitigIndex = unitigIndexSource;
+
+            while(true){
+
+
+                vector<UnitigType> maxAbNodes;
+                float maxAbundance = 0;
+                //UnitigType maxV = -1;
+
+                vector<UnitigType> successors;
+                _unitigGraph2->getSuccessors(unitigIndex, successors);
+
+                for(const UnitigType& unitigIndexSuccessor : successors){
+                    
+                    const float& abundance = _unitigGraph2->_unitigs[UnitigGraph2::unitigIndex_to_unitigName(unitigIndexSuccessor)]->_abundance;
+                    
+                    //if(unitigIndexSource == 211512){
+                    //    cout << "rofl: " << unitigIndexSuccessor << " " << abundance << endl;
+                    //}
+
+                    if(abundance == maxAbundance){
+                        maxAbNodes.push_back(unitigIndexSuccessor);
+                    }
+                    else if(abundance > maxAbundance){
+                        maxAbundance = abundance;
+                        maxAbNodes.clear();
+                        maxAbNodes.push_back(unitigIndexSuccessor);
+                    }
+                }
+
+                if(maxAbNodes.size() == 1){
+                    keepNodes.insert(maxAbNodes[0]);
+                    unitigIndex = maxAbNodes[0];
+                }
+                else{
+
+                    
+                    vector<BubbleSide> bubbleSides;
+                    for(const UnitigType& unitigIndex : maxAbNodes){
+                        
+                        bubbleSides.push_back({unitigIndex, _unitigGraph2->_unitigs[UnitigGraph2::unitigIndex_to_unitigName(unitigIndex)]->_nbMinimizers}); 
+                    }
+
+
+                    std::sort(bubbleSides.begin(), bubbleSides.end(), BubbleSideComparator);
+                    keepNodes.insert(bubbleSides[0]._unitigIndex);
+
+                    unitigIndex = bubbleSides[0]._unitigIndex;
+
+                }
+                
+
+                if(unitigIndex == unitigIndexExit) break;
+            }
+            */
+
+            
+            //#pragma omp critical(superbubble)
+            //{
+            for(const UnitigType& unitigIndex : superbubbleNodes){
+
+                //if(keepNodes.find(unitigIndex) != keepNodes.end()) continue;
+                
+                const UnitigType& uName = UnitigGraph2::unitigIndex_to_unitigName(unitigIndex);
+
+
+                isUnitigBubble.insert(uName);
+                isUnitigIndexBubble.insert(unitigIndex);
+                isUnitigIndexBubble.insert(UnitigGraph2::unitigIndex_to_reverseDirection(unitigIndex));
+                //isUnitigBubble.insert(_unitigGraph->unitigIndex_toReverseDirection(node));
+
+                //if(unitigIndexSource == 211512){
+                //    cout << "lal: " << unitigIndex << endl;
+                //    cout << "lal: " << UnitigGraph2::unitigIndex_to_reverseDirection(unitigIndex) << endl;
+                //}
+
+            }
+            //}
+            
+            /*
+            #pragma omp critical(superbubble)
+            {
+
+                bool isValid = true;
+
+                if(isUnitigBubble.find(UnitigGraph2::unitigIndex_to_unitigName(unitigIndexExit)) != isUnitigBubble.end()){
+                    isValid = false;
+                }
+                
+                for(const UnitigType& unitigIndex : superbubbleNodes){
+                    if(keepNodes.find(unitigIndex) != keepNodes.end()) continue;
+
+                    const UnitigType& uName = UnitigGraph2::unitigIndex_to_unitigName(unitigIndex);
+
+                    if(isUnitigBubble.find(uName) != isUnitigBubble.end()){
+                        isValid = false;
+                        break;
+                    }
+                }
+
+                if(isValid){
+
+                    for(const UnitigType& unitigIndex : superbubbleNodes){
+
+                        if(keepNodes.find(unitigIndex) != keepNodes.end()) continue;
+                        
+                        const UnitigType& uName = UnitigGraph2::unitigIndex_to_unitigName(unitigIndex);
+
+
+                        isUnitigBubble.insert(uName);
+                        isUnitigIndexBubble.insert(unitigIndex);
+                        isUnitigIndexBubble.insert(UnitigGraph2::unitigIndex_to_reverseDirection(unitigIndex));
+                        //isUnitigBubble.insert(_unitigGraph->unitigIndex_toReverseDirection(node));
+
+                        //if(unitigIndexSource == 211512){
+                        //    cout << "lal: " << unitigIndex << endl;
+                        //    cout << "lal: " << UnitigGraph2::unitigIndex_to_reverseDirection(unitigIndex) << endl;
+                        //}
+
+                    }
+                }
+            }
+            */
+        }
+
+        void collectSuperbubbleNodes(const UnitigType& unitigIndexSource, const UnitigType& unitigIndexExit, vector<UnitigType>& nodes){
+
+            nodes.clear();
+
+            unordered_set<UnitigType> isVisited;
+            queue<UnitigType> queue;
+
+            isVisited.insert(unitigIndexSource);
+            isVisited.insert(unitigIndexExit);
+            queue.push(unitigIndexSource);
+
+            while (!queue.empty()){
+
+                UnitigType unitigIndex = queue.front();
+                //u_int32_t unitigIndex_current = currentNode->_unitigIndex;
+                queue.pop();
+
+                //if(currentNode->_successors.size() > _progressiveAbundanceFilter->_maxNbSuccessors){
+                //    _progressiveAbundanceFilter->_maxNbSuccessors = currentNode->_successors.size();
+                //    Logger::get().debug() << "Max successors: " << _progressiveAbundanceFilter->_maxNbSuccessors;
+                //}
+                
+                vector<UnitigType> successors;
+                _unitigGraph2->getSuccessors(unitigIndex, successors);
+
+                for(const UnitigType& unitigIndexSuccessor : successors){
+
+                    if (isVisited.find(unitigIndexSuccessor) != isVisited.end()) continue;
+
+                    queue.push(unitigIndexSuccessor);
+                    isVisited.insert(unitigIndexSuccessor);
+                    nodes.push_back(unitigIndexSuccessor);
+
+
+                    //if(unitigIndexSource == 211512){
+                    //    cout << "lol: " << unitigIndexSuccessor << endl;
+                    //}
+
+                }
+            }
+
+        }
+        
+
+        void BellmanFord(const UnitigType& unitigIndexSource, const UnitigType& unitigIndexExit, unordered_set<UnitigType>& keepNodes, vector<UnitigType> superbubbleNodes){
+
+            //cout << "----" << endl;
+            //cout << unitigIndexSource << " " << unitigIndexExit << endl;
+
+            unordered_map<UnitigType, UnitigType> parent;
+            //parent[unitigIndexSource] = -1;
+
+            superbubbleNodes.push_back(unitigIndexSource);
+            //superbubbleNodes.push_back(unitigIndexExit);
+
+            unordered_map<UnitigType, double> dist;
+
+            for(const UnitigType& unitigIndex : superbubbleNodes){
+                dist[unitigIndex] = INT_MAX;
+            }
+
+
+            dist[unitigIndexSource] = 0;
+
+            for(const UnitigType& uu : superbubbleNodes){
+                for(const UnitigType& u : superbubbleNodes){
+
+                    vector<UnitigType> successors;
+                    _unitigGraph2->getSuccessors(u, successors);
+
+                    for(const UnitigType& v : successors){
+
+                        int weight = - _unitigGraph2->_unitigs[UnitigGraph2::unitigIndex_to_unitigName(v)]->_abundance;
+
+                        if (dist[u] != INT_MAX && dist[u] + weight < dist[v]){
+                            parent[v] = u;
+                            dist[v] = dist[u] + weight;
+                        }
+                    }
+                }
+            }
+
+            UnitigType currentUnitigIndex = unitigIndexExit;
+
+            while(true){
+
+                //cout << currentUnitigIndex << endl;
+                //getchar();
+                keepNodes.insert(currentUnitigIndex);
+                currentUnitigIndex = parent[currentUnitigIndex];
+                if(currentUnitigIndex == unitigIndexSource) break;
+            }
+
 
         }
 
     };
     
-
-    class BubbleRemover{
-
-        public:
-
-        ProgressiveAbundanceFilter* _progressiveAbundanceFilter;
-        UnitigGraph* _unitigGraph;
-        u_int64_t _maxLength;
-        u_int64_t _nbRemoved;
-
-
-        BubbleRemover(ProgressiveAbundanceFilter* progressiveAbundanceFilter, u_int64_t maxLength){
-            _progressiveAbundanceFilter = progressiveAbundanceFilter;
-            _unitigGraph = _progressiveAbundanceFilter->_unitigGraph;
-            _maxLength = maxLength;
-        }
-
-        bool execute(){
-
-            bool isModification = false;
-
-            while(true){
-
-
-                //_progressiveAbundanceFilter->_debugOuputFile = ofstream("/home/gats/workspace/tmp/lala1.txt");
-                auto start = high_resolution_clock::now();
-                
-                _nbRemoved = 0;
-                bool isMod = removeBubbleOld();
-
-                Logger::get().debug() << "Nb bubble removed: " << _nbRemoved << " (" << duration_cast<seconds>(high_resolution_clock::now() - start).count() << "s)";
-                //_progressiveAbundanceFilter->_debugOuputFile.close();
-                //cout << "up" << endl;
-                //getchar();
-
-                if(isMod) isModification = true;
-                if(!isMod) break;
-            }
-
-            return isModification;
-        }
-
-        /*
-        bool removeBubble(){
-
-
-            //if(isUnitigBubble.find(node) != isUnitigBubble.end()) continue;
-            //if(isUnitigBubble.find(_unitigGraph->unitigIndex_toReverseDirection(node)) != isUnitigBubble.end()) continue;
-
-            bool isModification = false;
-            unordered_set<UnitigGraph::Node*> isUnitigBubble;
-
-            for(UnitigGraph::Node* node : _progressiveAbundanceFilter->_validNodes){
-
-                if(node == nullptr) continue;
-                if(node->_unitigIndex == -1) continue;
-                
-
-                //cout << "is bubble? " << node->_unitigIndex << " " << (_lol.find(node->_unitigIndex) != _lol.end()) << " " << (_lol.find(_unitigGraph->unitigIndex_toReverseDirection(node->_unitigIndex)) != _lol.end()) << endl;
-                UnitigGraph::Node* bubbleSide = isBubble(node);
-
-                if(bubbleSide != nullptr){
-
-                    //cout << "\tRemove bubble: " << node->_unitigIndex << " " << bubbleSide->_unitigIndex << endl;
-
-                    isModification = true;
-
-                    _unitigGraph->removeNode(bubbleSide);
-                    _unitigGraph->recompact(node);
-
-                    //getchar();
-                    //for(UnitigGraph::Node* predecessor : node->_predecessors){
-                    //    _unitigGraph->removePredecessor(node, predecessor);
-                    //    _unitigGraph->recompact(predecessor);
-                    //}
-
-                    //return false;
-                }
-                else{
-                    //cout << "\tno" << endl;
-                }
-            }
-
-            return isModification;
-        }
-        */
-
-        bool removeBubbleOld(){
-
-            vector<UnitigGraph::Node*> queue;
-
-            for(UnitigGraph::Node* node : _progressiveAbundanceFilter->_validNodes){
-
-                if(node == nullptr) continue;
-                if(node->_unitigIndex == -1) continue;
-                if(node->_successors.size() <= 1 || node->_successors.size() > 5) continue;
-                
-                queue.push_back(node);
-            }
-
-            std::sort(queue.begin(), queue.end(), SuperbubbleComparator);
-
-            bool isModification = false;
-            unordered_set<UnitigGraph::Node*> isUnitigBubble;
-
-            for(UnitigGraph::Node* node : queue){
-                
-                if(isUnitigBubble.find(node) != isUnitigBubble.end()) continue;
-                //if(isUnitigBubble.find(_unitigGraph->unitigIndex_toReverseDirection(node)) != isUnitigBubble.end()) continue;
-
-                UnitigGraph::Node* bubbleSide = isBubble(node, isUnitigBubble);
-
-
-                if(bubbleSide == nullptr) continue;
-                //if(isUnitigBubble.find(bubbleSide) != isUnitigBubble.end()) continue;
-                //if(isUnitigBubble.find(_unitigGraph->unitigIndex_toReverseDirection(bubbleSide)) != isUnitigBubble.end()) continue;
-
-                if(isUnitigBubble.find(bubbleSide) != isUnitigBubble.end()) continue;
-
-                isModification = true;
-                //_progressiveAbundanceFilter->_debugOuputFile << node->startNode() << " " << node->endNode() << " " << bubbleSide->startNode() << " " << bubbleSide->endNode() << endl;
-
-                //_unitigGraph->removeNode(bubbleSide);
-                //_unitigGraph->recompact(node);
-                isUnitigBubble.insert(bubbleSide);
-                isUnitigBubble.insert(_unitigGraph->unitigIndex_toReverseDirection(bubbleSide));
-                _nbRemoved += 1;
-            }
-
-            unordered_set<UnitigGraph::Node*> recompactNodes;
-
-            //cout << "lala 1" << endl;
-            for(UnitigGraph::Node* node : isUnitigBubble){
-                if(node->_unitigIndex == -1) continue;
-
-                vector<UnitigGraph::Node*> succs = node->_successors;
-                vector<UnitigGraph::Node*> preds = node->_predecessors;
-                _unitigGraph->removeNode(node);
-
-                for(UnitigGraph::Node* predecessor : preds){
-                    if(predecessor->_unitigIndex == -1) continue;
-                    recompactNodes.insert(predecessor);
-                }
-
-                for(UnitigGraph::Node* successor : succs){
-                    if(successor->_unitigIndex == -1) continue;
-                    recompactNodes.insert(_unitigGraph->unitigIndex_toReverseDirection(successor));
-                }
-
-            }
-            
-            /*
-            //cout << "lala 2" << endl;
-            for(UnitigGraph::Node* node : recompactNodes){
-                if(node->_unitigIndex == -1) continue;
-                _unitigGraph->recompact(node);
-            }
-            */
-            vector<UnitigGraph::Node*> recompactNodesVec;
-            for(UnitigGraph::Node* node : recompactNodes){
-                if(node->_unitigIndex == -1) continue;
-                recompactNodesVec.push_back(node);
-            }
-
-            std::sort(recompactNodesVec.begin(), recompactNodesVec.end(), UnitigGraph::NodeComparatorByLengthRev);
-
-            for(UnitigGraph::Node* node : recompactNodesVec){
-                if(node->_unitigIndex == -1) continue;
-                _unitigGraph->recompact(node);
-            }
-
-
-            return isModification;
-        }
-
-        UnitigGraph::Node* isBubble(UnitigGraph::Node* utg_1, unordered_set<UnitigGraph::Node*>& isUnitigBubble){
-
-            //cout << utg_1->_successors.size() << endl;
-
-
-
-            //vector<u_int32_t> successors;
-            //for(UnitigGraph::Node* nn : utg_1->_successors){
-                //cout << nn->_unitigIndex << endl;
-            //    successors.push_back(nn->_unitigIndex);
-            //}
-
-            //std::sort(successors.begin(), successors.end(), [this](const u_int32_t& unitigIndex1, const u_int32_t& unitigIndex2) {
-            //    return _unitigGraph->_nodes[unitigIndex1]->startNode() < _unitigGraph->_nodes[unitigIndex2]->startNode();
-            //});
-
-
-            bool isBubble = false;
-
-            const vector<UnitigGraph::Node*>& utg_1_successors = utg_1->_successors;
-
-            for(size_t i=0; i<utg_1_successors.size(); i++) {
-                
-                UnitigGraph::Node* utg_2 = utg_1_successors[i]; //_unitigGraph->_nodes[successors[i]];
-                //if(isUnitigBubble.find(utg_2) != isUnitigBubble.end()) continue;
-
-                for(size_t j=i+1; j<utg_1_successors.size(); j++){
-
-                    UnitigGraph::Node* utg_3 = utg_1_successors[j]; //_unitigGraph->_nodes[successors[j]];
-                    //if(isUnitigBubble.find(utg_3) != isUnitigBubble.end()) continue;
-                    
-                    if(utg_2->_predecessors.size() != 1) continue;
-                    if(utg_2->_successors.size() != 1) continue;
-
-                    if(utg_3->_predecessors.size() != 1) continue;
-                    if(utg_3->_successors.size() != 1) continue;
-
-                    if(utg_2->_length > _maxLength || utg_3->_length > _maxLength) continue;
-
-                    if(utg_2->_successors[0] != utg_3->_successors[0]) continue;
-                    UnitigGraph::Node* utg_4 = utg_2->_successors[0];
-                    //if(isUnitigBubble.find(utg_4) != isUnitigBubble.end()) continue;
-
-                    if(BiGraph::nodeIndex_to_nodeName(utg_1->endNode()) == BiGraph::nodeIndex_to_nodeName(utg_4->startNode())) continue; //Repeated unitig with a cycle on on side
-                    
-
-                    if(utg_2->_abundance > utg_3->_abundance){
-                        return utg_3;
-                    }
-                    else if(utg_2->_abundance < utg_3->_abundance){
-                        return utg_2;
-                    }
-                    else{
-                        
-                        vector<BubbleSide> bubbleSides;
-                        bubbleSides.push_back({utg_2, utg_2->_nodes.size(), utg_2->startNode()}); //_unitigs[utg_2._index]._quality
-                        bubbleSides.push_back({utg_3, utg_3->_nodes.size(), utg_3->startNode()}); //_unitigs[utg_3._index]._quality
-
-                        std::sort(bubbleSides.begin(), bubbleSides.end(), BubbleSideComparator);
-
-                        return bubbleSides[1]._unitig;
-                    }
-                    
-                }
-            }
-
-            return nullptr;
-        }
-
-
-    };
-
+    
     class TipRemover{
 
         public:
 
-        ProgressiveAbundanceFilter* _progressiveAbundanceFilter;
-        UnitigGraph* _unitigGraph;
-        u_int64_t _maxLength;
+        struct TipData{
+            UnitigType _unitigName;
+            u_int32_t _startNode;
+            float _abundance;
+            u_int32_t _nbMinimizers;
+        };
 
-        //struct Tip{
-        //    UnitigGraph::Node* _unitig;
-        //};
+        ProgressiveAbundanceFilter* _progressiveAbundanceFilter;
+        UnitigGraph2* _unitigGraph2;
+        u_int64_t _maxLength;
 
         u_int64_t _nbTipRemoved;
 
+        /*
         struct TipComparator {
-            bool operator()(UnitigGraph::Node* p1, UnitigGraph::Node* p2) const{
-                if(p1->_nodes.size() == p2->_nodes.size()){
+            bool operator()(UnitigGraph2::UnitigNode* p1, UnitigGraph2::UnitigNode* p2) const{
+                if(p1->_nbMinimizers == p2->_nbMinimizers){
                     if(p1->_abundance == p2->_abundance){
-                        return p1->startNode() > p2->startNode();
+                        return p1->startNode2() > p2->startNode2();
                     }
                     return p1->_abundance < p2->_abundance;
                 }
-                return p1->_nodes.size() < p2->_nodes.size();
+                return p1->_nbMinimizers < p2->_nbMinimizers;
+            }
+        };
+        */
+
+        struct TipComparator2 {
+            bool operator()(const TipData& p1, const TipData& p2) const{
+                
+                if(p1._nbMinimizers == p2._nbMinimizers){
+                    if(p1._abundance == p2._abundance){
+                        return p1._startNode > p2._startNode;
+                    }
+                    return p1._abundance < p2._abundance;
+                }
+                return p1._nbMinimizers < p2._nbMinimizers;
             }
         };
 
+
+        /*
         struct TipComparatorAbundance {
-            bool operator()(UnitigGraph::Node* p1, UnitigGraph::Node* p2) const{
+            bool operator()(UnitigGraph2::UnitigNode* p1, UnitigGraph2::UnitigNode* p2) const{
                 if(p1->_abundance == p2->_abundance){
-                    if(p1->_nodes.size() == p2->_nodes.size()){
-                        return p1->startNode() > p2->startNode();
+                    if(p1->_nbMinimizers == p2->_nbMinimizers){
+                        return p1->startNode2() > p2->startNode2();
                     }
-                    return p1->_nodes.size() < p2->_nodes.size();
+                    return p1->_nbMinimizers < p2->_nbMinimizers;
                 }
-                //return p1->_nodes.size() < p2->_nodes.size();
                 return p1->_abundance < p2->_abundance;
             }
         };
+        */
 
         //vector<UnitigGraph::Node*> _queue;
         //vector<UnitigGraph::Node*> _nextQueue;
-        std::set<UnitigGraph::Node*, TipComparator> _queue;
+        std::set<TipData, TipComparator2> _queue;
         //priority_queue<UnitigGraph::Node*, vector<UnitigGraph::Node*> , TipComparator> _queue;
         u_int64_t _nextReadIndexWriter;
 
         TipRemover(ProgressiveAbundanceFilter* progressiveAbundanceFilter, u_int64_t maxLength){
             _progressiveAbundanceFilter = progressiveAbundanceFilter;
-            _unitigGraph = _progressiveAbundanceFilter->_unitigGraph;
+            _unitigGraph2 = _progressiveAbundanceFilter->_unitigGraph2;
             _nbTipRemoved = 0;
             _maxLength = maxLength;
 	        //_queue = priority_queue<UnitigGraph::Node*, vector<UnitigGraph::Node*> , TipComparator>();
@@ -1478,501 +1145,255 @@ public:
 
         u_int64_t execute(){
 
+            UnitigType unitigIndexDummy;
 
-            for(UnitigGraph::Node* node : _progressiveAbundanceFilter->_validNodes){
+            for(const UnitigType& unitigName : _progressiveAbundanceFilter->_validNodes2){
 
+                UnitigGraph2::UnitigNode* node = _unitigGraph2->_unitigs[unitigName];
 
-                //if(node == nullptr) continue;
-                //if(node->_length > _maxLength) continue;
-                //if(node->_unitigIndex % 2 == 1) continue;
+                if(isTipAny(node, unitigIndexDummy)){
+                    /*
+                    bool isReversed = false;
+                    UnitigGraph2::unitigIndex_to_unitigName(unitigIndexDummy, isReversed);
+                    
+                    u_int32_t startNode = 0;
 
-                if(isTipAny(node, true)){
-                    _queue.insert(node);
-                    //_nextQueue.push_back(node);
+                    if(isReversed){
+                        startNode = node->_startNode_reverse;
+                    }
+                    else{
+                        startNode = node->_startNode_forward;
+                    }
+                    */
+
+                    _queue.insert({node->_unitigName, _unitigGraph2->getStartNode(unitigIndexDummy), node->_abundance, node->_nbMinimizers});
                 }
             }  
 
 
+            //cout << _queue.size() << endl;
 
-            //std::sort(queue.begin(), queue.end(), SuperbubbleComparator);
-
-            
             auto start = high_resolution_clock::now();
             bool isModification = removeTips(false, _maxLength);
             Logger::get().debug() << "Nb Tip removed: " << _nbTipRemoved << " (" << duration_cast<seconds>(high_resolution_clock::now() - start).count() << "s)";
-                
+            //cout << "Nb Tip removed: " << _nbTipRemoved << " (" << duration_cast<seconds>(high_resolution_clock::now() - start).count() << "s)" << endl;
+            //getchar();
+
             return isModification;
             
             
-            /*
-            bool isModification = false;
-            
-            while(true){
-                
-                bool isModSub = false;
-
-                while(true){
-                    _nbTipRemoved = 0;
-                    bool isModif = removeTips(true, _progressiveAbundanceFilter->_kminmerSize);
-                    if(isModif){
-                        isModification = true;
-                        isModSub = true;
-                    }
-
-                    if(!isModif) break;
-
-                    cout << "Nb removed tips: " << _nbTipRemoved << endl;// << "    " << _unitigGraph->computeChecksum_abundance() << endl;
-
-
-                }
-
-                
-                if(isModSub) continue;
-
-                while(true){
-                    _nbTipRemoved = 0;
-                    bool isModif = removeTips(true, _progressiveAbundanceFilter->_kminmerSize*2);
-                    if(isModif){
-                        isModification = true;
-                        isModSub = true;
-                    }
-
-                    if(!isModif) break;
-                    cout << "Nb removed tips: " << _nbTipRemoved << endl;//<< "    " << _unitigGraph->computeChecksum_abundance() << endl;
-                }
-
-                if(isModSub) continue;
-
-                while(true){
-                    _nbTipRemoved = 0;
-                    bool isModif = removeTips(false, _maxLength);
-                    if(isModif){
-                        isModification = true;
-                        isModSub = true;
-                    }
-
-                    if(!isModif) break;
-                    cout << "Nb removed tips: " << _nbTipRemoved << endl;//<< "    " << _unitigGraph->computeChecksum_abundance() << endl;
-                }
-                
-
-                if(!isModSub) break;
-
-            }
-
-
-            //cout << "Nb tips removed: " << _nbTipRemoved << endl;
-            return isModification;
-            
-
-            //bool isModification = removeTips();
-            */
-            /*
-            for(UnitigGraph::Node* node : _unitigGraph->_nodes){
-
-
-                if(isTip(node)){
-                    cout << "nop" << endl;
-                    getchar();
-                }
-            }
-            */
-            
-            //bool isModification = false;
-
-            //while(true){
-            //    bool isMod = removeTips();
-            //return removeTips();
-
-            //    if(isMod) isModification = true;
-            //    if(!isMod) break;
-            //}
-            
-            //exit(1);
-            /*
-            tip(50000, false, currentSaveState, false, true, false);
-            
-            
-            while(true){
-
-                bool isTipRemoved = false;
-
-                while(true){
-                    compact(true, unitigDatas);
-                    u_int64_t nbRemoved = tip(_kminmerSize, false, currentSaveState, true, false, false);
-                    #ifdef PRINT_DEBUG_SIMPLIFICATION
-                        _logFile << "Nb tip removed: " << nbRemoved << endl;
-                    #endif
-                    if(nbRemoved > 0){
-                        isModification = true;
-                        isModSub = true;
-                        isTipRemoved = true;
-                    }
-                    else{
-                        break;
-                    }
-                }
-
-
-                //_logFile << "Tip 1: " << getChecksumGlobal_utg() << " " << getChecksumGlobal_abundanceUtg() << endl;
-                //getchar();
-
-                //_logFile << "Tip 1: " << getChecksumGlobal() << " " << _tip_checksum << endl;
-                //getchar();
-
-                if(isTipRemoved) continue;
-
-                while(true){
-                    compact(true, unitigDatas);
-                    u_int64_t nbRemoved = tip(_kminmerSize*2, false, currentSaveState, true, false, false);
-                    #ifdef PRINT_DEBUG_SIMPLIFICATION
-                        _logFile << "Nb tip removed: " << nbRemoved << endl;
-                    #endif
-                    if(nbRemoved > 0){
-                        isModification = true;
-                        isModSub = true;
-                        isTipRemoved = true;
-                    }
-                    else{
-                        break;
-                    }
-                }
-
-                //_logFile << "Tip 2: " << getChecksumGlobal_utg() << " " << getChecksumGlobal_abundanceUtg() << endl;
-                //getchar();
-                //_logFile << "Tip 2: " << getChecksumGlobal() << " " << _tip_checksum << endl;
-                //getchar();
-
-                if(isTipRemoved) continue;
-
-                while(true){
-                    compact(true, unitigDatas);
-                    u_int64_t nbRemoved = tip(50000, false, currentSaveState, false, false, false);
-                    #ifdef PRINT_DEBUG_SIMPLIFICATION
-                        _logFile << "Nb tip removed: " << nbRemoved << endl;
-                    #endif
-                    if(nbRemoved > 0){
-                        isModification = true;
-                        isModSub = true;
-                        isTipRemoved = true;
-                    }
-                    else{
-                        break;
-                    }
-                }
-
-
-                //_logFile << "Tip 3: " << getChecksumGlobal_utg() << " " << getChecksumGlobal_abundanceUtg() << endl;
-                //getchar();
-                //_logFile << "Tip 3: " << getChecksumGlobal() << " " << _tip_checksum << " " << _unitigs.size() << endl;
-                //getchar();
-
-                if(!isTipRemoved) break;
-            }
-            */
-
-            
-            //return nbremoved;
         }
 
         bool removeTips(bool useK, u_int64_t maxLength){
 
-            //_queue = _nextQueue;
-            //_nextQueue.clear();
-            //u_int64_t nbRemoved = 0;
+            //ofstream debugFile("/pasteur/appa/homes/gbenoit/zeus/tmp//lala_1.txt");
 
-
-
-            /*
-
-            while(!_queue.empty()){
-
-      
-
-                auto top = _queue.begin();
-                UnitigGraph::Node* node = *top;
-                _queue.erase(top);
-
-                cout << node->_nodes.size() << endl;
-            }          
-            getchar();
-            */
-            /*
-            while(!_queue.empty()){
-                UnitigGraph::Node* node = _queue.top();
-                _queue.pop();
-                _progressiveAbundanceFilter->_debugOuputFile << node->startNode() << " " << node->endNode() << " " << node->_nodes.size() << " " << node->_predecessors.size() << " " << node->_successors.size() << endl;
-            }
-
-            for(UnitigGraph::Node* node : _unitigGraph->_nodes){
-
-                //if(node == nullptr) continue;
-                //if(node->_length > _maxLength) continue;
-                //if(node->_unitigIndex % 2 == 1) continue;
-
-                if(isTip(node)){
-                    _queue.push(node);
-                }
-            }
-            */
-
-            /*
-            while(!_queue.empty()){
-                auto top = _queue.begin();
-                UnitigGraph::Node* node = *top;
-                _queue.erase(top);
-
-                _nbTipRemoved2 += 1;
-            }
-            */
-
-
-            //unordered_set<UnitigGraph::Node*> recompactNodes;
+            UnitigType unitigIndexTip;
             bool isModification = false;
             bool lala = false;
 
-            //for(UnitigGraph::Node* node : _queue){
             while(!_queue.empty()){
 
-                /*
-                priority_queue<UnitigGraph::Node*, vector<UnitigGraph::Node*> , TipComparator> _queueTmp = _queue;
-
-                int i =0;
-                while(!_queue.empty()){
-                    UnitigGraph::Node* node = _queue.top();
-                    _queue.pop();
-                    _progressiveAbundanceFilter->_debugOuputFile << i << " " << node->startNode() << " " << node->endNode() << " " << node->_nodes.size() << " " << node->_predecessors.size() << " " << node->_successors.size() << endl;
-                    i += 1;
-                }
-
-                _queue = _queueTmp;
-                */
-
                 auto top = _queue.begin();
-                UnitigGraph::Node* node = *top;
+                TipData tipData = *top;
                 _queue.erase(top);
 
-                if(!isTipAny(node, true)){
+                if(_unitigGraph2->_unitigs[tipData._unitigName] == nullptr) continue;
+
+                UnitigGraph2::UnitigNode* node = _unitigGraph2->_unitigs[tipData._unitigName];
+
+                if(!isTipAny(node, unitigIndexTip)){
                     //_nextQueue.push_back(node);
                     continue;
                 }
 
-                //cout << node->_length << " " << node->_abundance << endl;
-                //getchar();
-                //if(node->_unitigIndex == -1){
-                //    continue;
-                //}
 
-                //_progressiveAbundanceFilter->_debugOuputFile << node->startNode() << " " << node->endNode() << " " << node->_nodes.size() << " " << node->_predecessors.size() << " " << node->_successors.size() << endl;
-                
-           
-           
-                //cout << "Remove tip: " << node->_nodes.size() << endl;
-                //cout << "Remove tip: " << node->_unitigIndex << " " << node->_abundance << " " << node->_length << endl;
-                //cout << node->_length << endl;
-                //nbRemoved += 1;
+                //debugFile << "Tip: " << unitigIndexTip << " " << node->_nbMinimizers << " " << node->_abundance << " " <<  node->_startNode_forward << " " << node->_startNode_reverse << endl;
+                //continue;
+
                 isModification = true;
                 _nbTipRemoved += 1;
 
 
+                //cout << "Remove tip: " << node->_unitigName*2 << " " << node->startNode2() << " " << node->_abundance << " " << node->getLength(_unitigGraph2) << " " << _unitigGraph2->computeChecksum_abundance() << endl;
+                //debugFile << "Tip: " << unitigIndexTip << " " << node->_abundance << " " << node->getLength(_unitigGraph2) << endl;
+                //getchar();
+                
+
+                vector<UnitigType> preds;
+                _unitigGraph2->getPredecessors(unitigIndexTip, preds);
 
 
-                unordered_set<UnitigGraph::Node*> recompactNodes;
 
-                //cout << "lala 1" << endl;
+
+
+                std::sort(preds.begin(), preds.end(), UnitigGraph2::NodeComparator);
+
+
+                //const UnitigType& unitigName = unitigIndex_to_unitigName(unitigIndex);
+
+                //vector<UnitigType> predecessors;
+                //getPredecessors(unitigIndex, predecessors);
+                
+                //u_int32_t unitigIndexToRemove = unitigIndex; //unitigIndex_to_reverseDirection(unitigIndex);
+                //vector<UnitigType> predecessors;
+                //getPredecessors(unitigIndex, predecessors);
+
+                for(const UnitigType& unitigIndexPredecessor : preds){
+
+                    bool isReversedSuccessor;
+                    const UnitigType& unitigNamePredecessor = UnitigGraph2::unitigIndex_to_unitigName(unitigIndexPredecessor, isReversedSuccessor);
+
+                    if(_unitigGraph2->_unitigs[unitigNamePredecessor] == nullptr) continue;
+
+                    //debugFile << "Tip removePred: " << unitigIndexTip << " " << unitigIndexPredecessor << endl;
+
+                    //cout << "\t" << unitigIndexToString(unitigIndexSuccessor) << endl;
+
+
+                    UnitigGraph2::UnitigNode* predecessor = _unitigGraph2->_unitigs[unitigNamePredecessor];
+
+                    if(isReversedSuccessor){
+
+
+                        vector<UnitigType>& successorsReverse = _unitigGraph2->_unitigs[unitigNamePredecessor]->_successors_reverse;
+
+                        //for(UnitigType unitigIndex : successorsReverse){
+                        //    cout << "\t\t" << unitigIndex << endl;
+                        //}
+
+                        //int nbSuccessors = successorsReverse.size();
+                        //cout << successorsReverse.size() << endl;
+                        successorsReverse.erase(std::remove(successorsReverse.begin(), successorsReverse.end(), unitigIndexTip), successorsReverse.end());
+                        //cout << successorsReverse.size() << endl;
+                        
+
+
+                    }
+                    else{
+
+
+                        vector<UnitigType>& successorsFoward = _unitigGraph2->_unitigs[unitigNamePredecessor]->_successors_forward;
+
+                        //for(UnitigType unitigName : successorsFoward){
+                        //    cout << "\t\t" << unitigName << endl;
+                        //}
+
+                        //int nbSuccessors = successorsFoward.size();
+                        //cout << successorsFoward.size() << endl;
+                        successorsFoward.erase(std::remove(successorsFoward.begin(), successorsFoward.end(), unitigIndexTip), successorsFoward.end());
+                        //cout << successorsFoward.size() << endl;
+
+
+                    }
+
+
+                    //debugFile << "Tip recompacting: " << unitigIndexPredecessor << endl;
+                    _unitigGraph2->recompact(unitigIndexPredecessor);
+
+                    UnitigType unitigIndexTip2;
+                    if(isTipAny(predecessor, unitigIndexTip2)){
+                        //debugFile << "Tip add: " << unitigIndexTip2 << " " << predecessor->_abundance << " " << predecessor->getLength(_unitigGraph2) << endl;
+                        _queue.insert({predecessor->_unitigName, _unitigGraph2->getStartNode(unitigIndexTip2), predecessor->_abundance, predecessor->_nbMinimizers});
+                    }
+                    
+
+                }
+
+                node->_successors_forward.clear();
+                node->_successors_reverse.clear();
+
+                //getchar();
+
                 /*
-                vector<UnitigGraph::Node*> succs = node->_successors;
-                vector<UnitigGraph::Node*> preds = node->_predecessors;
-                _unitigGraph->removeNode(node);
+                _unitigGraph2->removePredecessors(unitigIndexTip, debugFile);
 
-                for(UnitigGraph::Node* predecessor : preds){
-                    if(predecessor->_unitigIndex == -1) continue;
-                    recompactNodes.insert(predecessor);
-                }
+                
+                for(const UnitigType& unitigIndexPredecessor : preds){
+                    
+                    
+                    UnitigGraph2::UnitigNode* predecessor = _unitigGraph2->_unitigs[UnitigGraph2::unitigIndex_to_unitigName(unitigIndexPredecessor)];
 
-                for(UnitigGraph::Node* successor : succs){
-                    if(successor->_unitigIndex == -1) continue;
-                    recompactNodes.insert(_unitigGraph->unitigIndex_toReverseDirection(successor));
-                }
+                    if(predecessor == nullptr) continue;
+                
+                    //UnitigGraph2::UnitigNode* predecessor_rc = _unitigGraph->unitigIndex_toReverseDirection(predecessor);
+                 
+                    
+                
+
+                    //_unitigGraph->removePredecessor(node, predecessor);
+                    //recompactNodes.insert(predecessor);
+                    //debugFile << "Tip recompacting: " << unitigIndexPredecessor << endl;
+                    //_unitigGraph2->recompact(unitigIndexPredecessor);
 
 
-                vector<UnitigGraph::Node*> recompactNodesVec;
-                for(UnitigGraph::Node* node : recompactNodes){
-                    if(node->_unitigIndex == -1) continue;
-                    recompactNodesVec.push_back(node);
-                }
+                    if(isTipAny(predecessor, unitigIndexTip)){
+                        debugFile << "Tip add1: " << unitigIndexTip << endl;
+                        _queue.insert({predecessor->_unitigName, predecessor->_abundance, predecessor->_nbMinimizers});
+                    }
 
-                std::sort(recompactNodesVec.begin(), recompactNodesVec.end(), UnitigGraph::NodeComparatorByLengthRev);
+                    //if(isTipAny(predecessor_rc, unitigIndexTip)){
+                    //    _queue.insert(predecessor_rc);
+                    //}
+                    
 
-                for(UnitigGraph::Node* node : recompactNodesVec){
-                    if(node->_unitigIndex == -1) continue;
-                    _unitigGraph->recompact(node);
+
                 }
                 */
-
                 
-
-                vector<UnitigGraph::Node*> preds = node->_predecessors;
-                vector<UnitigGraph::Node*> nodeToAdd;
-
-                for(UnitigGraph::Node* predecessor : preds){
-                    
-                    if(predecessor->_unitigIndex == -1) continue;
-                
-                    UnitigGraph::Node* predecessor_rc = _unitigGraph->unitigIndex_toReverseDirection(predecessor);
-                    //_queue.erase(predecessor);
-                    //_queue.erase(predecessor_rc);
-                    //_progressiveAbundanceFilter->_debugOuputFile << "    R" << predecessor->startNode() << " " << predecessor->_nodes.size()  << endl;
-
-                    //cout << predecessor->_unitigIndex << endl;
-
-
-
-                
-
-                    _unitigGraph->removePredecessor(node, predecessor);
-                    //recompactNodes.insert(predecessor);
-                    _unitigGraph->recompact(predecessor);
-
-
-                    if(isTipAny(predecessor, true)){
-                        _queue.insert(predecessor);
-                    }
-                    if(isTipAny(predecessor_rc, true)){
-                        _queue.insert(predecessor_rc);
-                    }
-                    
-
-
-                }
-                
-                
-
-                //for(UnitigGraph::Node* node : nodeToAdd){
-                    //_queue.push(node);
-                //}
-
             }
 
-            /*
-            for(UnitigGraph::Node* node : _progressiveAbundanceFilter->_validNodes){
-                if(node->_unitigIndex == -1) continue;
-                _unitigGraph->recompact(node);
-            } 
-            */ 
-            /*
-            for(UnitigGraph::Node* node : recompactNodes){
-                if(node->_unitigIndex == -1) continue;
-                _unitigGraph->recompact(node);
-
-                if(isTipAny(node)){
-                    _nextQueue.push_back(node);
-                }
-
-                UnitigGraph::Node* node_rc = _unitigGraph->unitigIndex_toReverseDirection(node);
-
-                if(isTipAny(node_rc)){
-                    _nextQueue.push_back(node_rc);
-                }
-
-            }
-            */
+            //cout << "done" << endl;
+            //debugFile.close();
+            //getchar();
             
-            //return nbRemoved > 0;
             return isModification;
         }
 
-        bool isTipAny(UnitigGraph::Node* node, bool checkNeighborTip){
 
-            //if(node == nullptr) return false;
-            if(node->_unitigIndex == -1) return false;
+        bool isTipAny(const UnitigGraph2::UnitigNode* node, UnitigType& unitigIndexTip){
+
+            if(node == nullptr) return false;
+            if(node->getLength(_unitigGraph2) > _maxLength) return false;
+            //if(node->_abundance > 1) return false;
             
-            if(node->_length > _maxLength) return false;
-            //if(_progressiveAbundanceFilter->_kminmerSize==4 && node->_abundance > _progressiveAbundanceFilter->_maxAbundance) return false;
-            //if(node->_unitigIndex % 2 == 1) return false;
-            if(node->_successors.size() > 0) return false;
-            //if(node->_predecessors.size() != 1) return false;
-            if(node->_predecessors.size() == 0) return false;
+            const UnitigType& unitigIndex1 = UnitigGraph2::unitigName_to_unitigIndex(node->_unitigName, false);
+            const UnitigType& unitigIndex2 = UnitigGraph2::unitigName_to_unitigIndex(node->_unitigName, true);
 
-            
-            /*
-            if(checkNeighborTip){
-                if(node->_predecessors.size() == 1){
-
-                    bool isEndTip = true;
-
-
-                    u_int32_t maxAbundance = 0;
-
-                    UnitigGraph::Node* nodeParent = node->_predecessors[0];
-                    for(UnitigGraph::Node* nodeSuccessor : nodeParent->_successors){
-
-                        if(nodeSuccessor == node) continue;
-                        
-                        if(!isTipAny(nodeSuccessor, false)){
-                            isEndTip = false;
-                        }
-                        if(nodeSuccessor->_abundance > maxAbundance){
-                            maxAbundance = nodeSuccessor->_abundance;
-                        }
-                    }
-
-                    if(isEndTip){
-                        if(node->_abundance <= maxAbundance){
-                            return true;
-                        }
-                        else{
-                            return false;
-                        }
-                    }
-                }
+            if(!_unitigGraph2->hasSuccessors(unitigIndex1) && !_unitigGraph2->hasNoPredecessors(unitigIndex1)){
+                unitigIndexTip = unitigIndex1;
+                return true;
             }
-            */
 
-            return true;
+            if(!_unitigGraph2->hasSuccessors(unitigIndex2) && !_unitigGraph2->hasNoPredecessors(unitigIndex2)){
+                unitigIndexTip = unitigIndex2;
+                return true;
+            }
+
+            //if(node->_successors_forward.size() > 0 && node->_successors_reverse.size() == 0) return true;
+            //if(node->_successors_forward.size() == 0 && node->_successors_reverse.size() > 0) return true;
+
+            //vector<UnitigType> successors;
+            //_unitigGraph2->getSuccessors(UnitigGraph2::unitigName_to_unitigIndex(2025, false), successors);
+
+            //vector<UnitigType> predecessors;
+            //_unitigGraph2->getPredecessors(UnitigGraph2::unitigName_to_unitigIndex(2025, false), predecessors);
+
+            //if(node->_successors.size() > 0) return false;
+            //if(node->_predecessors.size() == 0) return false;
+
+       
+
+            return false;
         }
 
-        /*
-        bool isTip(const UnitigGraph::Node* node, bool useK, u_int64_t maxLength){
-
-            //if(node == nullptr) return false;
-            if(node->_unitigIndex == -1) return false;
-
-            
-            if(useK){
-                if(node->_nodes.size() > maxLength) return false;
-            }
-            else{
-                if(node->_length > maxLength) return false;
-            }
-            
-            //if(node->_length > 50000) return false;
-            
-            //if(node->_unitigIndex % 2 == 1) return false;
-            if(node->_successors.size() > 0) return false;
-            //if(node->_predecessors.size() != 1) return false;
-            if(node->_predecessors.size() == 0) return false;
-
-            return true;
-        }
-        */
     };
 
-    UnitigGraph* _unitigGraph;
+    UnitigGraph2* _unitigGraph2;
     vector<SaveState> _cachedGraphStates;
     SaveState _currentSaveState;
     size_t _kminmerSize;
 
-    /*
-    struct SuperbubbleNode{
-        UnitigGraph::Node* _node;
-        u_int16_t _nbNodes;
-        //u_int16_t _nbSuccessors;
-        //u_int16_t _nbPredecessors; 
-        u_int64_t _succSum; 
-        u_int64_t _predSum;
-    };
-    */
 
     struct CutoffIndex{
         u_int32_t _cutoffIndex;
@@ -1988,16 +1409,19 @@ public:
     //ofstream _debugOuputFile;
     bool _removeBubble;
     bool _isFirstPass;
+    int _nbCores;
 
-    ProgressiveAbundanceFilter(UnitigGraph* unitigGraph, const string& tmpDir, size_t kminmerSize, bool removeBubble, bool isFirstPass){
-        _unitigGraph = unitigGraph;
+    ProgressiveAbundanceFilter(UnitigGraph2* unitigGraph2, const string& tmpDir, size_t kminmerSize, bool removeBubble, bool isFirstPass, int nbCores){
+        _unitigGraph2 = unitigGraph2;
         _tmpDir = tmpDir;
         _kminmerSize = kminmerSize;
         _removeBubble = removeBubble;
         _isFirstPass = isFirstPass;
+        _nbCores = nbCores;
     }
 
-    vector<UnitigGraph::Node*> _validNodes;
+    //vector<UnitigGraph::Node*> _validNodes;
+    vector<UnitigType> _validNodes2;
 
 	template<typename Functor>
 	//void parse(const Functor& functor){
@@ -2006,6 +1430,62 @@ public:
         //functor(0);
         //return;
 
+        //cout << "Save graph init" << endl;
+        //_unitigGraph2->save(_tmpDir + "/assembly_graph_init.gfa");
+        //_unitigGraph2->save("/pasteur/appa/homes/gbenoit/zeus/tmp//assembly_graph_init_1.gfa");
+        //exit(1);
+        //getchar();
+        /*
+        //exit(1);
+        cout << _unitigGraph2->_unitigs[2025]->_successors_forward.size() << " " << _unitigGraph2->_unitigs[2025]->_successors_reverse.size() << endl;
+        
+
+        vector<UnitigType> successors;
+        _unitigGraph2->getSuccessors(UnitigGraph2::unitigName_to_unitigIndex(2025, false), successors);
+
+        vector<UnitigType> predecessors;
+        _unitigGraph2->getPredecessors(UnitigGraph2::unitigName_to_unitigIndex(2025, false), predecessors);
+
+        cout << successors.size() << " " << predecessors.size() << endl;
+
+        for(const UnitigType& unitigIndex : successors){
+            cout << "Succ: " << UnitigGraph2::unitigIndexToString(unitigIndex) << endl;
+        }
+        for(const UnitigType& unitigIndex : predecessors){
+            cout << "Pred: " << UnitigGraph2::unitigIndexToString(unitigIndex) << endl;
+        }
+
+        exit(1);
+        */
+        /*
+        UnitigType unitigNameToRemove = 594;
+
+        unordered_set<UnitigType> recompactUnitigNames;
+        for(const UnitigType& unitigIndex : _unitigGraph2->_unitigs[unitigNameToRemove]->_successors_forward){
+            recompactUnitigNames.insert(UnitigGraph2::unitigIndex_to_unitigName(unitigIndex));
+        }
+        for(const UnitigType& unitigIndex : _unitigGraph2->_unitigs[unitigNameToRemove]->_successors_reverse){
+            recompactUnitigNames.insert(UnitigGraph2::unitigIndex_to_unitigName(unitigIndex));
+        }
+
+        _unitigGraph2->removeNode(_unitigGraph2->_unitigs[unitigNameToRemove]);
+
+        for(const UnitigType& unitigName : recompactUnitigNames){
+            _unitigGraph2->recompact(_unitigGraph2->_unitigs[unitigName]);
+        }
+
+        _unitigGraph2->save("/pasteur/appa/homes/gbenoit/zeus/tmp/assembly_graph.gfa");
+        exit(1);
+        */
+
+        //for(UnitigGraph2::UnitigNode* node : _unitigGraph2->_unitigs){
+        //    _unitigGraph2->removeNode(node);
+        //    _unitigGraph2->save("/pasteur/appa/homes/gbenoit/zeus/tmp/assembly_graph.gfa");
+        //    getchar();
+        //}
+        //_unitigGraph2->removeNode(_unitigGraph2->_unitigs[3782]);
+        //exit(1);
+        //exit(1);
         //_unitigGraph->save(_tmpDir + "/assembly_graph_init.gfa", 0);
 
         _checksumAbundanceTotal = 0;
@@ -2014,8 +1494,15 @@ public:
         _maxAbundance = 1;
         //_debugOuputFile = ofstream("/home/gats/workspace/tmp/lala_" + to_string(_kminmerSize) + ".txt");
 
+
+        //_unitigGraph->save(_tmpDir + "/assembly_graph.gfa", 0);
+        //_cutoffIndex = 0;
+        //checkSaveState(0);
+        //return;
+        
         u_int32_t maxAbundance = 0;
-        for(UnitigGraph::Node* node : _unitigGraph->_nodes){
+        for(UnitigGraph2::UnitigNode* node : _unitigGraph2->_unitigs){
+            if(node == nullptr) continue;
             if(node->_abundance > maxAbundance){
                 maxAbundance = node->_abundance;
             }
@@ -2023,6 +1510,9 @@ public:
         
 
         Logger::get().debug() << "Max abundance: " << maxAbundance;
+        Logger::get().debug() << "Nb unitigs: " << _unitigGraph2->getNbUnitigs();
+        //cout << "Checksum: " << _unitigGraph2->computeChecksum_successors() << endl;
+        //cout << "Checksum: " << _unitigGraph2->computeChecksum_abundance() << endl;
 
         simplifyProgressive(functor);
 
@@ -2058,6 +1548,7 @@ public:
             if(isMod){
                 isModification = true;
             }
+
 
             //cout << "Max superbubble successors: " << currentCutoff << " " << _maxNbSuccessors << endl;
             checkSaveState(currentCutoff);
@@ -2097,6 +1588,8 @@ public:
 
         if(!saveStateExist){
 
+            //_unitigGraph2->save("/pasteur/appa/homes/gbenoit/zeus/tmp/assembly_graph_" + to_string(_cutoffIndex) + "_2.gfa");
+            //getchar();
             //cout << "saving state: " << currentCutoff << endl;
 
             //cout << "attention assemblygraph.gfa save" << endl;
@@ -2114,7 +1607,7 @@ public:
                 cout << nbUnitigs << endl;
                 */
                 if(!_isFirstPass){
-                    _unitigGraph->save(_tmpDir + "/assembly_graph.gfa", 0);
+                    _unitigGraph2->save(_tmpDir + "/assembly_graph.gfa");
                 }
                 //getchar();
                 //exit(1);
@@ -2136,10 +1629,10 @@ public:
             //currentSaveState._nodeNameRemoved_tmp.clear();
 
             int nbUnitigs = 0;
-            for(size_t i=0; i<_unitigGraph->_nodes.size(); i++){
+            for(size_t i=0; i<_unitigGraph2->_unitigs.size(); i++){
 
-                UnitigGraph::Node* node = _unitigGraph->_nodes[i];
-                if(node->_unitigIndex == -1) continue;
+                UnitigGraph2::UnitigNode* node = _unitigGraph2->_unitigs[i];
+                if(node == nullptr) continue;
                 nbUnitigs += 1;
             }
 
@@ -2159,6 +1652,7 @@ public:
 
     bool simplify(){
 
+        
         bool isModification = false;
         static u_int64_t maxTipLength = 50000;
         static u_int64_t maxBubbleLength = 50000;
@@ -2168,12 +1662,12 @@ public:
 
             bool isModificationSub = false;
             
-            _validNodes.clear();
-            for(UnitigGraph::Node* node : _unitigGraph->_nodes){
+            _validNodes2.clear();
+            for(UnitigGraph2::UnitigNode* node : _unitigGraph2->_unitigs){
 
-                if(node->_unitigIndex == -1) continue;
+                if(node == nullptr) continue;
 
-                _validNodes.push_back(node);
+                _validNodes2.push_back(node->_unitigName);
             }
 
             /*
@@ -2194,14 +1688,13 @@ public:
             */
             
             
-        
             if(_removeBubble){
                 while(true){
                     bool isModBubble = false;
 
                     
                     //cout << "Superbubble" << endl;
-
+                    
                     Logger::get().debug() << "Superbubble";
                     SuperbubbleRemoverOld superbubbleRemover(this, maxBubbleLength);
                     bool isModificationSuperbubble = superbubbleRemover.execute();
@@ -2211,8 +1704,10 @@ public:
                         isModificationSub = true;
                     }
                     
-                    
-                    
+                    break;
+                    //_unitigGraph2->save("/pasteur/appa/homes/gbenoit/zeus/tmp/assembly_graph_init.gfa");
+                    //cout << "check" << endl;
+                    //getchar();
                     
                     //cout << "Nb superbubble removed: " << superbubbleRemover._nbRemovedTotal << endl;
 
@@ -2222,6 +1717,8 @@ public:
                     //getchar();
                     
                     
+                    
+                    /*
                     Logger::get().debug() << "Bubble";
                     auto start = high_resolution_clock::now();
                     
@@ -2232,16 +1729,27 @@ public:
                         isModBubble = true;
                         isModificationSub = true;
                     }
+                    */
+                    //getchar();
                     
+                    //_unitigGraph2->save("/pasteur/appa/homes/gbenoit/zeus/tmp/assembly_graph_init2.gfa");
+                    //cout << "check" << endl;
+                    //getchar();
+                    
+                    //break;
                     //cout << duration_cast<seconds>(high_resolution_clock::now() - start).count() << "s" << endl;
                     
 
                     if(!isModBubble) break;
                 }
             }
+            
 
-            
-            
+
+            //cout << "check" << endl;
+            //getchar();
+            //_unitigGraph2->save("/pasteur/appa/homes/gbenoit/zeus/tmp/assembly_graph_init2.gfa");
+
             Logger::get().debug() << "Tip";
             //auto start = high_resolution_clock::now();
             
@@ -2253,7 +1761,7 @@ public:
                 isModificationSub = true;
             }
             
-            
+            //getchar();
 
             //_logFile << "Nb unitigs: " << _unitigGraph->nbUnitigs() << endl;
             
@@ -2275,15 +1783,17 @@ public:
             if(!isModificationSub) break;
         }
 
+        //getchar();
+
         return isModification;
     }  
 
     struct AbundanceComparator {
-        bool operator()(UnitigGraph::Node* p1, UnitigGraph::Node* p2) const{
-            if(p1->_nodes.size() == p2->_nodes.size()){
-                return p1->startNode() > p2->startNode();
+        bool operator()(UnitigGraph2::UnitigNode* p1, UnitigGraph2::UnitigNode* p2) const{
+            if(p1->_nbMinimizers == p2->_nbMinimizers){
+                return p1->startNode2() > p2->startNode2();
             }
-            return p1->_nodes.size() < p2->_nodes.size();
+            return p1->_nbMinimizers < p2->_nbMinimizers;
         }
     };
 
@@ -2291,47 +1801,8 @@ public:
 	template<typename Functor>
     u_int64_t removeAbundanceNoQueue(float abundanceCutoff_min, float& currentCutoff, Functor& functor){
 
-        //_debugOuputFile = ofstream("/home/gats/workspace/tmp/lala1.txt");
-        //_logFile << "Checksum ab: " << _unitigGraph->computeChecksum_abundance() << endl;
-        /*
-        std::set<UnitigGraph::Node*, TipComparatorLala> _queueLala;
-        for(UnitigGraph::Node* node : _validNodes){
-            _queueLala.insert(node);
-        }  
 
-        while(!_queueLala.empty()){
-
-            auto top = _queueLala.begin();
-            UnitigGraph::Node* node = *top;
-            _queueLala.erase(top);
-
-            
-            if(node->startNode() == 11838786){
-                int abSum = 0;
-                for(float ab : node->_abundances){
-                    abSum += ab;
-                }
-                cout << abSum << endl;
-                cout << node->startNode() << " " << node->_abundance << " " << node->_nodes.size() << " " << node->_abundances.size() << endl;
-                for(u_int32_t nodeIndex : node->_nodes){
-                    cout << "\t" << nodeIndex << " " << _unitigGraph->_nodeDatas[BiGraph::nodeIndex_to_nodeName(nodeIndex)]._abundance << endl;
-                }
-                getchar();
-            }
-            
-            
-            //cout << node->startNode() << " " << node->_abundance << endl;
-            //for(u_int32_t nodeIndex : node->_nodes){
-            //    cout << "\t" << nodeIndex << " " << _unitigGraph->_nodeDatas[BiGraph::nodeIndex_to_nodeName(nodeIndex)]._abundance << endl;
-            //}
-            //getchar();
-            if(node->isCircular()) continue;
-            //_debugOuputFile << node->startNode() << " " << node->_nodes.size() << " " << node->_abundance << endl;
-        }
-        */
-        
-        //_debugOuputFile.close();
-        //exit(1);
+        //ofstream debugFile("/pasteur/appa/homes/gbenoit/zeus/tmp//lala.txt");
 
         u_int64_t nbErrorsRemoved = 0;
         float localCutoffRate = 0.5;
@@ -2344,95 +1815,56 @@ public:
 
         while(t < abundanceCutoff_min){ 
             
+
             auto start = high_resolution_clock::now();
-            //if(saveAllState) checkSaveState(currentCutoff, unitigDatas, detectRoundabout, maxBubbleLength, saveState, insertBubble, doesSaveUnitigGraph, mdbg, minimizerSize, nbCores);
 
             currentCutoff = t;
             _maxAbundance = currentCutoff*2;
-            //unordered_set<u_int32_t> removedUnitigs;
 
-            //cout << t << " " << abundanceCutoff_min << endl;
-
-            /*
-            for(UnitigGraph::Node* node : nodes){
-
-                if(node->_abundance >= t) continue;
-
-                vector<UnitigGraph::Node*> preds = node->_predecessors;
-                _unitigGraph->removeNode(node);
-                nbErrorsRemoved += 1;
-
-
-                for(UnitigGraph::Node* predecessor : preds){
-                    
-                    if(predecessor->_unitigIndex == -1) continue;
-                    recompactNodes.insert(predecessor);
-                    recompactNodes.insert(_unitigGraph->unitigIndex_toReverseDirection(predecessor));
-                }
-            }
-            */
-
-
-            //compact(true, unitigDatas);
 
             
-            _queue = std::set<UnitigGraph::Node*, AbundanceComparator>();
-            //_queue = priority_queue<UnitigGraph::Node*, vector<UnitigGraph::Node*> , AbundanceComparator>();
-            //for(UnitigGraph::Node* node : _unitigGraph->_nodes){
-            //    if(node->_unitigIndex == -1) continue;
-            //    if(node->)
-            //    _queue.push(node);
-            //}
-            /*
-            for(size_t i=0; i<_unitigGraph->_nodes.size(); i+=2){
+            _queue = std::set<UnitigGraph2::UnitigNode*, AbundanceComparator>();
 
-                UnitigGraph::Node* node1 = _unitigGraph->_nodes[i];
-                UnitigGraph::Node* node2 = _unitigGraph->_nodes[i+1];
-                UnitigGraph::Node* node = nullptr;
-
-                if(node1->_unitigIndex == -1) continue;
-                if(node2->_unitigIndex == -1) continue;
-
-                if(node1->startNode() < node2->startNode()){
-                    node = node1;
-                }
-                else{
-                    node = node2;
-                }
-
-                if(node->_abundance >= t) continue;
-            */
-            unordered_set<UnitigGraph::Node*> recompactNodes;
+            unordered_set<UnitigType> recompactNodes;
 
 
-            for(size_t i=0; i<_validNodes.size(); i+=2){
+            for(const UnitigType& unitigName : _validNodes2){
 
-                UnitigGraph::Node* node1 = _validNodes[i];
-                UnitigGraph::Node* node2 = _validNodes[i+1];
-                UnitigGraph::Node* node = nullptr;
+                if(_unitigGraph2->_unitigs[unitigName] == nullptr) continue;
 
-                if(node1->_unitigIndex == -1) continue;
-                if(node2->_unitigIndex == -1) continue;
-
-                if(node1->startNode() < node2->startNode()){
-                    node = node1;
-                }
-                else{
-                    node = node2;
-                }
+                UnitigGraph2::UnitigNode* node = _unitigGraph2->_unitigs[unitigName];
+                //if(node == nullptr) continue;
 
                 if(node->_abundance >= t) continue;
 
-                vector<UnitigGraph::Node*> succs = node->_successors;
-                vector<UnitigGraph::Node*> preds = node->_predecessors;
-                _unitigGraph->removeNode(node);
+                const UnitigType& unitigIndex = UnitigGraph2::unitigName_to_unitigIndex(node->_unitigName, false);
+                /*
+                for(const UnitigType& unitigIndex : node->_successors_forward){
+                    recompactNodes.insert(unitigIndex);
+                }
+                for(const UnitigType& unitigIndex : node->_successors_reverse){
+                    recompactNodes.insert(unitigIndex);
+                }
+               
+                //debugFile << "Abundance: " << node->_unitigName*2 << endl;
+                //cout << "Remove node: " << node->_unitigName*2 << " " << node->startNode2() << " " << _unitigGraph2->computeChecksum_abundance() << endl;
+                _unitigGraph2->removeNode(node);
+                */
 
-                nbErrorsRemoved += 1;
+                vector<UnitigType> predecessors;
+                _unitigGraph2->getPredecessors(unitigIndex, predecessors);
+
+                vector<UnitigType> successors;
+                _unitigGraph2->getSuccessors(unitigIndex, successors);
+
+                _unitigGraph2->removeNode(node);
+
+                //debugFile << "Abundance: " << unitigIndex << endl;
 
 
-                for(UnitigGraph::Node* predecessor : preds){
+                for(const UnitigType& predecessor : predecessors){
                     
-                    if(predecessor->_unitigIndex == -1) continue;
+                    if(_unitigGraph2->_unitigs[UnitigGraph2::unitigIndex_to_unitigName(predecessor)] == nullptr) continue;
                     //if(predecessor->_abundance < t) continue;
 
                     recompactNodes.insert(predecessor);
@@ -2441,82 +1873,95 @@ public:
                 }
 
 
-                for(UnitigGraph::Node* successor : succs){
+                for(const UnitigType& successor : successors){
                     
-                    if(successor->_unitigIndex == -1) continue;
+                    if(_unitigGraph2->_unitigs[UnitigGraph2::unitigIndex_to_unitigName(successor)] == nullptr) continue;
                     //if(predecessor->_abundance < t) continue;
 
                     //recompactNodes.insert(successor);
-                    recompactNodes.insert(_unitigGraph->unitigIndex_toReverseDirection(successor));
+                    recompactNodes.insert(UnitigGraph2::unitigIndex_to_reverseDirection(successor));
 
                 }
+
+                
+                nbErrorsRemoved += 1;
+
+            }
+
+            /*
+            for(const UnitigType& unitigName : recompactUnitigNames){
+                
+                if(_unitigGraph2->_unitigs[unitigName] == nullptr) continue;
+
+                debugFile << "Abundance recompacting: " << unitigName*2 << endl;
+
+                _unitigGraph2->recompact(_unitigGraph2->_unitigs[unitigName]);
+            }
+            */
+            vector<BubbleSide> recompactNodesVec;
+            for(const UnitigType& unitigIndex : recompactNodes){
+
+                const UnitigType& unitigName = UnitigGraph2::unitigIndex_to_unitigName(unitigIndex);
+
+                if(_unitigGraph2->_unitigs[unitigName] == nullptr) continue;
+
+                recompactNodesVec.push_back({unitigIndex, _unitigGraph2->getStartNode(unitigIndex), _unitigGraph2->_unitigs[unitigName]->_nbMinimizers});
+            }
+
+            std::sort(recompactNodesVec.begin(), recompactNodesVec.end(), BubbleSideComparatorRev);
+
+
+            for(const BubbleSide& bubbleSide : recompactNodesVec){
+
+                const UnitigType& unitigName = UnitigGraph2::unitigIndex_to_unitigName(bubbleSide._unitigIndex);
+
+                //const UnitigType& unitigName = bubbleSide._unitigIndex;
+                if(_unitigGraph2->_unitigs[unitigName] == nullptr) continue;
+
+
+                //debugFile << "Abundance compacting: " << bubbleSide._unitigIndex << endl;
+
+                _unitigGraph2->recompact(bubbleSide._unitigIndex);
             }
 
 
             
-            vector<UnitigGraph::Node*> recompactNodesVec;
-            for(UnitigGraph::Node* node : recompactNodes){
-                if(node->_unitigIndex == -1) continue;
-                recompactNodesVec.push_back(node);
-            }
 
-            std::sort(recompactNodesVec.begin(), recompactNodesVec.end(), UnitigGraph::NodeComparatorByLengthRev);
-
-            for(UnitigGraph::Node* node : recompactNodesVec){
-                if(node->_unitigIndex == -1) continue;
-                _unitigGraph->recompact(node);
-            }
-
-            /*
-            for(UnitigGraph::Node* node : recompactNodes){
-
-                if(node->_unitigIndex == -1) continue;
-        
-                _unitigGraph->recompact(node);
-            }
-            */
             
 
             t = t * (1+aplha);
 
             if(nbErrorsRemoved > 0){
                 Logger::get().debug() << "Nb errors removed: " << nbErrorsRemoved << " (" << duration_cast<seconds>(high_resolution_clock::now() - start).count() << "s)";
+                
 
-                /*
-                int nbUnitigs = 0;
-                for(size_t i=0; i<_unitigGraph->_nodes.size(); i++){
-
-                    UnitigGraph::Node* node = _unitigGraph->_nodes[i];
-                    if(node->_unitigIndex == -1) continue;
-                    nbUnitigs += 1;
-                }
-
-                _logFile << "Nb unitigs: " << nbUnitigs << endl;
-                //getchar();
-                */
             }
 
-            //if(!_removeBubble){
             if(isCutoffProcessed.find(t) == isCutoffProcessed.end()){
                 isCutoffProcessed.insert(t);
                 functor(t);
             }
-            //}
 
             if(nbErrorsRemoved > 0) break;
+            
         }
+
         
+        //debugFile.close();
+        //getchar();
 
         return nbErrorsRemoved;
 
     }
 
+    std::set<UnitigGraph2::UnitigNode*, AbundanceComparator> _queue;
+    /*
     //priority_queue<UnitigGraph::Node*, vector<UnitigGraph::Node*> , AbundanceComparator> _queue;
     std::set<UnitigGraph::Node*, AbundanceComparator> _queue;
 
     struct TipComparatorLala {
         bool operator()(UnitigGraph::Node* p1, UnitigGraph::Node* p2) const{
-            return p1->startNode() > p2->startNode();
+            return p1->startNode2() > p2->startNode2();
         }
     };
 
@@ -2544,24 +1989,6 @@ public:
 
             //cout << t << " " << abundanceCutoff_min << endl;
 
-            /*
-            for(UnitigGraph::Node* node : nodes){
-
-                if(node->_abundance >= t) continue;
-
-                vector<UnitigGraph::Node*> preds = node->_predecessors;
-                _unitigGraph->removeNode(node);
-                nbErrorsRemoved += 1;
-
-
-                for(UnitigGraph::Node* predecessor : preds){
-                    
-                    if(predecessor->_unitigIndex == -1) continue;
-                    recompactNodes.insert(predecessor);
-                    recompactNodes.insert(_unitigGraph->unitigIndex_toReverseDirection(predecessor));
-                }
-            }
-            */
 
 
             //compact(true, unitigDatas);
@@ -2574,25 +2001,7 @@ public:
             //    if(node->)
             //    _queue.push(node);
             //}
-            /*
-            for(size_t i=0; i<_unitigGraph->_nodes.size(); i+=2){
-
-                UnitigGraph::Node* node1 = _unitigGraph->_nodes[i];
-                UnitigGraph::Node* node2 = _unitigGraph->_nodes[i+1];
-                UnitigGraph::Node* node = nullptr;
-
-                if(node1->_unitigIndex == -1) continue;
-                if(node2->_unitigIndex == -1) continue;
-
-                if(node1->startNode() < node2->startNode()){
-                    node = node1;
-                }
-                else{
-                    node = node2;
-                }
-
-                if(node->_abundance >= t) continue;
-            */
+           
             for(size_t i=0; i<_validNodes.size(); i+=2){
 
                 UnitigGraph::Node* node1 = _validNodes[i];
@@ -2602,7 +2011,7 @@ public:
                 if(node1->_unitigIndex == -1) continue;
                 if(node2->_unitigIndex == -1) continue;
 
-                if(node1->startNode() < node2->startNode()){
+                if(node1->startNode2() < node2->startNode2()){
                     node = node1;
                 }
                 else{
@@ -2656,7 +2065,7 @@ public:
                             //cout << predecessor->_unitigIndex << endl;
                             //cout << "push; " << predecessor->_unitigIndex << endl;
 
-                            if(predecessor->startNode() < predecessor_rc->startNode()){
+                            if(predecessor->startNode2() < predecessor_rc->startNode2()){
                                 //predecessor = node1;
                             }
                             else{
@@ -2710,23 +2119,26 @@ public:
             if(predecessor->_unitigIndex == -1) continue;
             _unitigGraph->recompact(predecessor);
         }
-        /*
-        for(UnitigGraph::Node* node : _unitigGraph->_nodes){
-            if(node == nullptr) continue;
-            if(node->_unitigIndex == -1) continue;
-            _unitigGraph->recompact(node);
-        }*/
-        
+
         
 
         return nbErrorsRemoved;
 
     }
+    */
 
     u_int64_t _checksumAbundanceTotal;
     u_int64_t _checksumNodeTotal;
 
     void dumpUnitigs(float currentCutoff){
+
+        //cout << "dump unitigs: a remettre" << endl;
+        //return;
+
+        u_int64_t skipped = 0;
+
+        //cout << "dumpUnitigs" << _cutoffIndex << " truc a remettre: isCirulcar, isRepeatSide" << endl;
+        int lala = 0;
 
         u_int64_t checksumTotal = 0;
         u_int64_t checksumAbundanceTotal = 0;
@@ -2735,47 +2147,82 @@ public:
         //cout << "dump unitigs: " << currentCutoff << endl;
         ofstream outputFile(_tmpDir + "/filter/unitigs_" + to_string(_cutoffIndex) + ".bin");
 
+        for(size_t i=0; i<_unitigGraph2->_unitigs.size(); i++){
+
+            UnitigGraph2::UnitigNode* node = _unitigGraph2->_unitigs[i];
+            if(node == nullptr) continue;
+
         //for(UnitigGraph::Node* node : _unitigGraph->_nodes){
-        for(size_t i=0; i<_unitigGraph->_nodes.size(); i+=2){
+        //for(size_t i=0; i<_unitigGraph->_nodes.size(); i+=2){
 
-            UnitigGraph::Node* node1 = _unitigGraph->_nodes[i];
-            UnitigGraph::Node* node2 = _unitigGraph->_nodes[i+1];
-            UnitigGraph::Node* node = nullptr;
+            //UnitigGraph::Node* node1 = _unitigGraph->_nodes[i];
+            //UnitigGraph::Node* node2 = _unitigGraph->_nodes[i+1];
+            //UnitigGraph::Node* node = nullptr;
 
-            if(node1->startNode() < node2->startNode()){
-                node = node1;
-            }
-            else{
-                node = node2;
-            }
+            //if(node1->startNode2() < node2->startNode2()){
+            //    node = node1;
+            //}
+            //else{
+            //    node = node2;
+            //}
 
             //if(node == nullptr) continue;
-            if(node->_unitigIndex == -1) continue;
+            //if(node->_unitigIndex == -1) continue;
             //if(node->_unitigIndex % 2 == 1) continue;
-            if(node->_successors.size() == 0 && node->_predecessors.size() == 0 && node->_abundance == 1) continue;
 
-            u_int32_t size = node->_nodes.size();
+            //const vector<UnitigType>& successors;
+            //_unitigGraph2->getSuccessors()
+
+            if(node->_successors_forward.size() == 0 && node->_successors_reverse.size() == 0 && node->_abundance == 1){
+            //if(node->_successors.size() == 0 && node->_predecessors.size() == 0 && node->_abundance == 1) {
+                //skipped += node->_unitigIndex;
+                //cout << "omg: " <<  node->_unitigIndex << endl;
+                continue;
+            }
+
+            vector<UnitigType> unitigs;
+            if(node->_unitigMerge.size() == 0){
+                unitigs.push_back(UnitigGraph2::unitigName_to_unitigIndex(node->_unitigName, false));    
+            }
+            else{
+                unitigs = node->_unitigMerge;
+            }
+
+            u_int32_t size = unitigs.size();
             outputFile.write((const char*)&size, sizeof(size));
             
 
-            u_int8_t isCircular = node->isCircular(_unitigGraph);
+            u_int8_t isCircular = _unitigGraph2->isCircular(node);
+
+
+
             //if(isCircular) continue;
             //isCircular = false;
             outputFile.write((const char*)&isCircular, sizeof(isCircular));
             
-            bool isRepeatSide_ = isRepeatSide(node);
+            bool isRepeatSide_ = _unitigGraph2->isRepeatSide(node);
             outputFile.write((const char*)&isRepeatSide_, sizeof(isRepeatSide_));
+
+            //if(isRepeatSide_){
+                //cout << "derp: " << node->_unitigName*2 << " " << node->getLength(_unitigGraph2) << " " << node->_abundance << endl;
+                //getchar();
+            //}
 
             //if(node->_nodes.size() > 1000){
             //    cout << isCircular << endl;
             //    getchar();
             //}
-
+            //cout << "Write unitig: " << i << " " << node->_unitigIndex << endl;
             float abundance = node->_abundance;
             outputFile.write((const char*)&abundance, sizeof(abundance));
 
-            outputFile.write((const char*)&node->_nodes[0], size * sizeof(u_int32_t));
+            u_int32_t nbMinimizers = node->_nbMinimizers;
+            outputFile.write((const char*)&nbMinimizers, sizeof(nbMinimizers));
+
+            outputFile.write((const char*)&unitigs[0], size * sizeof(UnitigType));
             
+            //cout << "dump: " << unitigs.size() << endl;
+            /*
             u_int64_t checksum = 0;
             u_int64_t checksumAbundance = 0;
             for(u_int32_t nodeIndex : node->_nodes){
@@ -2787,35 +2234,23 @@ public:
             checksumTotal += checksum;
             _checksumAbundanceTotal += checksumAbundance;
             _checksumNodeTotal += checksum;
+            */
+            //cout << "Dump unitig: " << node->_unitigIndex << " " << node->_abundance << endl;
+            lala += 1;
         }
 
+        //cout << "yo? " << lala << endl;
+        //cout << "skipped: " << skipped << endl;
 
         outputFile.close();
 
         _cutoffIndex += 1;
+
+
+        //getchar();
     }
 
-	bool isRepeatSide(UnitigGraph::Node* node){
 
-		//if(node->_length > 50000) return false;
-		if(node->_nodes.size() > _kminmerSize*2) return false;
-		if(node->_successors.size() == 0) return false;
-		if(node->_predecessors.size() == 0) return false;
-
-		for(UnitigGraph::Node* nodeS : node->_successors){
-			if(nodeS == node) continue;
-
-			for(UnitigGraph::Node* nodeP : node->_predecessors){
-				if(nodeP == node) continue;
-
-				if(nodeS == nodeP){
-					return true;
-				}
-			}
-		}
-
-		return false;
-	}
 
     
 };

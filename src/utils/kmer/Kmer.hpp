@@ -7,6 +7,7 @@
 #include <vector>
 #include <string>
 #include <cmath>
+#include <unordered_set>
 
 //#include "hasher.hpp"
 //#include "enumerator.hpp"
@@ -1110,8 +1111,9 @@ public:
 	double _minimizerBound;
 	//double _minimizerBound_int32;
 	size_t _trimBps;
+	unordered_set<MinimizerType>& _isRepetitiveMinimizers;
 
-	MinimizerParser(u_int16_t minimizerSize, double minimizerDensity){
+	MinimizerParser(u_int16_t minimizerSize, double minimizerDensity, unordered_set<MinimizerType>& isRepetitiveMinimizers) : _isRepetitiveMinimizers(isRepetitiveMinimizers) {
 		_minimizerSize = minimizerSize;
 		_kmerModel = new KmerModel(_minimizerSize);
 		_seed = 42;
@@ -1122,6 +1124,10 @@ public:
 		//u_int32_t maxHashValue_int32 = -1;
 		//_minimizerBound_int32 = minimizerDensity * maxHashValue_int32;
 		_trimBps = 1; 
+
+
+		//cout << _isRepetitiveMinimizers.size() << endl;
+		//getchar();
 	}
 
 	~MinimizerParser(){
@@ -1171,9 +1177,17 @@ public:
 			//kmer_type kmerMin = min(itKmer->value(), revcomp(itKmer->value(), _kmerSize));
 			//if(lala < 100 ) cout << model.toString(itKmer->value()) << endl;
 			//lala += 1;
+
 			u_int64_t kmerValue = kmers[pos];
+			//MinimizerType minimizer = revhash(kmerValue);
 			MurmurHash3_x64_128 ((const char*)&kmerValue, sizeof(kmerValue), _seed, _hash_otpt);
 			MinimizerType minimizer = _hash_otpt[0];
+
+			//u_int64_t kmerValue = kmers[pos];
+			//MinimizerType hash = 0;
+			//MurmurHash3_x86_32 ((const char*)&kmerValue, sizeof(kmerValue), _seed, &hash);
+			//MinimizerType minimizer = hash;//_hash_otpt[0];
+			//MinimizerType minimizer = revhash(kmerValue);
 
 			//u_int32_t minimizer_32bit = minimizer;;
 
@@ -1182,6 +1196,7 @@ public:
 			if(minimizer < _minimizerBound){//_minimizerDensity){
 			//if(minimizer_32bit < _minimizerBound_int32){//_minimizerDensity){
 
+				if(_isRepetitiveMinimizers.size() > 0 && _isRepetitiveMinimizers.find(minimizer) != _isRepetitiveMinimizers.end()) continue;
 
 				minimizers.push_back(minimizer);
 				minimizersPos.push_back(pos);
@@ -1200,6 +1215,14 @@ public:
 
 	}
 
+	u_int32_t revhash(u_int32_t key){
+		key ^= key >> 16;
+		key = (key * 0x21f0aaad) & 0xFFFFFFFF;
+		key ^= key >> 15;
+		key = (key * 0xd35a2d97) & 0xFFFFFFFF;
+		key ^= key >> 15;
+		return key;
+	}
 
 	/*
 	void parseMod(const string& seq, uint64_t w, uint64_t k, vector<MinimizerType>& minimizers, vector<u_int32_t>& minimizersPos, vector<u_int8_t>& minimizersDirection){                                                       

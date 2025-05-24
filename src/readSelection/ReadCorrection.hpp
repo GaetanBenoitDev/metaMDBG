@@ -3048,18 +3048,7 @@ public:
 
 		MinimizerRead correctRead(const MinimizerRead& referenceRead){
 			
-			ReadMinimizerPositionMap referenceReadMinimizerPositionMapHighDensity;
 
-
-			for(u_int32_t i=0; i<referenceRead._minimizers.size(); i++){
-
-				MinimizerType minimizer = referenceRead._minimizers[i];
-				u_int32_t position = referenceRead._minimizersPos[i];
-				bool isReversed = referenceRead._readMinimizerDirections[i];
-
-				MinimizerPosition minmizerPosition = {position, i, isReversed};
-				referenceReadMinimizerPositionMapHighDensity[minimizer].push_back(minmizerPosition);
-			}
 			
 			const vector<ReadType>& alignedQueryReads = _parent._lowDensityAlignments[referenceRead._readIndex];
 			if(alignedQueryReads.size() <= 0) return referenceRead;
@@ -3070,8 +3059,10 @@ public:
 			//}
 			
 			
-			const vector<AlignmentResult2>& bestAlignments = convertToHighDensityAlignments(referenceRead, referenceReadMinimizerPositionMapHighDensity, alignedQueryReads);
+			const vector<ReadType>& bestAlignments = filterAlignments(referenceRead, alignedQueryReads);
 			if(bestAlignments.size() <= 0) return referenceRead;
+			
+			//const vector<AlignmentResult2>& bestAlignmentsLowDensity = convertToLowDensityAlignments(referenceReadLowDensity, alignedQueryReads);
 			//float alignmentCoverage = estimateAlignmentCoverage(referenceRead, bestAlignments, referenceReadMinimizerPositionMapHighDensity);
 			
 			//if(alignmentCoverage <= 2){
@@ -3082,26 +3073,39 @@ public:
 			//{
 			//cout << alignmentCoverage << endl;
 			//}
-			
 
-			const MinimizerRead& correctedRead = performPoaCorrection4(referenceRead, bestAlignments, referenceReadMinimizerPositionMapHighDensity);
+			const MinimizerRead& referenceReadLowDensity = Utils::getLowDensityMinimizerRead(referenceRead, _parent._minimizerDensity_assembly);
+			const MinimizerRead& correctedRead = performPoaCorrection4(referenceReadLowDensity, bestAlignments);
 			
-			const MinimizerRead& correctedReadLow = performPoaCorrection5(correctedRead, bestAlignments);
+			//const MinimizerRead& correctedReadLow = performPoaCorrection5(referenceRead, bestAlignments);
 			
 
 			if(_parent._eval_correction){
 				//_parent.evaluateCorrection(correctedRead, alOverlap);
 			}
 			
-			return correctedReadLow;
+			return correctedRead;
 		}
 
 		
 
-		vector<AlignmentResult2> convertToHighDensityAlignments(const MinimizerRead& referenceReadHighDensity, ReadMinimizerPositionMap& referenceReadMinimizerPositionMap, const vector<ReadType>& alignedQueryReads){
+		vector<ReadType> filterAlignments(const MinimizerRead& referenceRead, const vector<ReadType>& alignedQueryReads){
+
+			ReadMinimizerPositionMap referenceReadMinimizerPositionMap;
+
+
+			for(u_int32_t i=0; i<referenceRead._minimizers.size(); i++){
+
+				MinimizerType minimizer = referenceRead._minimizers[i];
+				u_int32_t position = referenceRead._minimizersPos[i];
+				bool isReversed = referenceRead._readMinimizerDirections[i];
+
+				MinimizerPosition minmizerPosition = {position, i, isReversed};
+				referenceReadMinimizerPositionMap[minimizer].push_back(minmizerPosition);
+			}
 
 			//cout << referenceReadHighDensity._readIndex << " " << referenceReadHighDensity._minimizers.size() << endl;
-			vector<AlignmentResult2> alignments;
+			vector<ReadType> alignments;
 
 			//const MinimizerRead& referenceRead = _mReads[referenceReadIndex];
 			//const MinimizerRead& referenceRead_lowDensity = Utils::getLowDensityMinimizerRead(_mReads[read._readIndex], _minimizerDensity_assembly);
@@ -3140,7 +3144,7 @@ public:
 				}
 
 			
-				AlignmentResult2 chainingAlignment = _minimizerChainer->computeChainingAlignment(anchors, referenceReadHighDensity, queryReadHighDensity, _minimizerAligner, _parent._maxChainingBand_highDensity);
+				AlignmentResult2 chainingAlignment = _minimizerChainer->computeChainingAlignment(anchors, referenceRead, queryReadHighDensity, _minimizerAligner, _parent._maxChainingBand_highDensity);
 				
 				
 				//cout << mashDistance << " " << chainingAlignment._divergence << endl;
@@ -3148,14 +3152,14 @@ public:
 				//if(chainingAlignment._nbMatches - chainingAlignment._nbMissmatches < 5) continue;
 				//if(chainingAlignment._nbMatches < 1000*_minimizerDensity_correction) continue;
 				//if(chainingAlignment._divergence > 0.04) continue;
-				if(chainingAlignment._overHangStart > 2000) continue;
-				if(chainingAlignment._overHangEnd > 2000) continue;
+				if(chainingAlignment._overHangStart > 1000) continue;
+				if(chainingAlignment._overHangEnd > 1000) continue;
 				if(chainingAlignment._alignLength < _parent._minOverlapLength) continue;
 				if(chainingAlignment._identity < _parent._minIdentity) continue;
 				//if(chainingAlignment._divergence > 0.04) continue;
 				if(chainingAlignment._alignments.empty()) continue;
 
-				alignments.push_back(chainingAlignment);
+				alignments.push_back(queryReadIndex);
 
 			}
 
@@ -3178,7 +3182,7 @@ public:
 			//return alignments;
 		}
 	
-
+		/*
 		float estimateAlignmentCoverage(const MinimizerRead& referenceRead, const vector<AlignmentResult2>& alignments, ReadMinimizerPositionMap& referenceReadMinimizerPositionMap){
 			
 			
@@ -3206,10 +3210,11 @@ public:
 
 			return median;
 		}
+		*/
 
 		Graph* _debugDbgGraph;
 		
-		MinimizerRead performPoaCorrection4(const MinimizerRead& referenceRead, const vector<AlignmentResult2>& alignments, ReadMinimizerPositionMap& referenceReadMinimizerPositionMap){
+		MinimizerRead performPoaCorrection4(const MinimizerRead& referenceRead, const vector<ReadType>& alignedQueryReads){
 
 			Graph* dbgGraph = new Graph(referenceRead._minimizers, referenceRead._qualities);
 
@@ -3275,11 +3280,66 @@ public:
 			//});
 
 
-			for(size_t i=0; i<alignments.size(); i++){
+			ReadMinimizerPositionMap referenceReadMinimizerPositionMap;
 
-				const AlignmentResult2& alignment = alignments[i];
 
-				const MinimizerRead& queryRead = _parent._mReads[alignment._queryReadIndex];
+			for(u_int32_t i=0; i<referenceRead._minimizers.size(); i++){
+
+				MinimizerType minimizer = referenceRead._minimizers[i];
+				u_int32_t position = referenceRead._minimizersPos[i];
+				bool isReversed = referenceRead._readMinimizerDirections[i];
+
+				MinimizerPosition minmizerPosition = {position, i, isReversed};
+				referenceReadMinimizerPositionMap[minimizer].push_back(minmizerPosition);
+			}
+
+			//cout << referenceReadHighDensity._readIndex << " " << referenceReadHighDensity._minimizers.size() << endl;
+			vector<ReadType> alignments;
+
+			//const MinimizerRead& referenceRead = _mReads[referenceReadIndex];
+			//const MinimizerRead& referenceRead_lowDensity = Utils::getLowDensityMinimizerRead(_mReads[read._readIndex], _minimizerDensity_assembly);
+			//const MinimizerRead& referenceRead_highDensity = _mReads[read._readIndex];
+			//cout << read._readIndex << endl;
+
+
+
+			for(const ReadType& queryReadIndex : alignedQueryReads){
+
+				//if(queryReadIndex == referenceReadHighDensity._readIndex) continue;
+
+				//const MinimizerRead& queryReadHighDensity = _parent._mReads[queryReadIndex];
+				const MinimizerRead& queryRead = Utils::getLowDensityMinimizerRead(_parent._mReads[queryReadIndex], _parent._minimizerDensity_assembly);
+				
+
+
+				vector<Anchor> anchors;
+				//_minimizerChainer->_anchorIndex = 0;
+
+				for(size_t i=0; i<queryRead._minimizers.size(); i++){
+
+					MinimizerType queryMinimizer = queryRead._minimizers[i];
+
+					if(referenceReadMinimizerPositionMap.find(queryMinimizer) == referenceReadMinimizerPositionMap.end()) continue;
+
+					u_int32_t queryPosition = queryRead._minimizersPos[i];
+					bool queryIsReversed = queryRead._readMinimizerDirections[i];
+
+					const vector<MinimizerPosition>& referenceMinimizerPositions = referenceReadMinimizerPositionMap[queryMinimizer];
+					
+					for(const MinimizerPosition& referenceMinimizerPosition : referenceMinimizerPositions){
+						anchors.push_back({referenceMinimizerPosition._position, queryPosition, referenceMinimizerPosition._isReversed != queryIsReversed, referenceMinimizerPosition._positionIndex, i});
+					}
+
+
+
+
+				}
+
+			
+				AlignmentResult2 alignment = _minimizerChainer->computeChainingAlignment(anchors, referenceRead, queryRead, _minimizerAligner, _parent._maxChainingBand_highDensity);
+				
+
+				//const MinimizerRead& queryRead = _parent._mReads[alignment._queryReadIndex];
 
 				dbgGraph->addAlignment2(alignment, referenceRead._minimizers, queryRead._minimizers, queryRead._qualities);
 
@@ -3316,7 +3376,7 @@ public:
 			return correctedReadTrimmed;
 		}
 
-		
+		/*
 		MinimizerRead performPoaCorrection5(const MinimizerRead& referenceReadHigh, const vector<AlignmentResult2>& alignmentsHigh){
 
 
@@ -3427,7 +3487,7 @@ public:
 			
 			return correctedReadTrimmed;
 		}
-		
+		*/
 
 		void getAlignmentScore(const vector<MinimizerType>& s1, const vector<MinimizerType>& s2, MinimizerAligner* minimizerAligner, MinimizerAligner::Alignment& alignmentResult, int64_t& nbMatches, int64_t& alignScore){
 			
