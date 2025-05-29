@@ -690,7 +690,7 @@ public:
 			vector<u_int32_t> minimizers_pos;//(minimizers.size());
 			vector<KmerVec> kminmers; 
 			vector<ReadKminmer> kminmersInfo;
-			MDBG::getKminmers(_minimizerSize, _graph._kminmerSizeFirst, readMinimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, 0, false);
+			MDBG::getKminmers(_minimizerSize, _graph._kminmerSizePrev, readMinimizers, minimizers_pos, kminmers, kminmersInfo, rlePositions, 0, false);
 
 			//string s = "";
 

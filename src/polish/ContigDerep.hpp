@@ -43,13 +43,13 @@ public:
 
     void execute (){
 
-		cout << "Aligning contigs vs contigs" << endl;
+		Logger::get().debug() << "\tAligning contigs vs contigs";
 		alignContigs();
 
-		cout << "Loading contig overlaps" << endl;
+		Logger::get().debug() << "\tLoading contig overlaps";
 		loadAlignments();
 		
-		cout << "Dereplicating contigs" << endl;
+		Logger::get().debug() << "\tDereplicating contigs";
 		derepContigs();
 		
 	}
@@ -58,7 +58,7 @@ public:
 
 		//    let args = ["-t", &opts.nb_threads.to_string(), "-c", "-xasm20", "-DP", "--dual=no", "--no-long-join", "-r100", "-z200", "-g2k", fasta_path_str, fasta_path_str];
 
-		string command = "minimap2 -c -m 500 -x asm20 -I " + _maxMemory + "G -t " + to_string(_nbCores) + " -DP --dual=no --no-long-join -r100 -z200 -g2k " + _inputContigFilename + " " + _inputContigFilename;
+		string command = "minimap2 -v 0 -c -m 500 -x asm20 -I " + _maxMemory + "G -t " + to_string(_nbCores) + " -DP --dual=no --no-long-join -r100 -z200 -g2k " + _inputContigFilename + " " + _inputContigFilename;
 		Utils::executeMinimap2(command, _alignFilename);
 		//cout << command << endl;
 		//command += " | gzip -c - > " + _alignFilename;
@@ -68,7 +68,7 @@ public:
 
 	
 	void loadAlignments(){
-		Logger::get().debug() << "Loading alignments";
+		Logger::get().debug() << "\tLoading alignments";
 
 		PafParser pafParser(_alignFilename);
 		auto fp = std::bind(&ContigDerep::loadAlignments_read, this, std::placeholders::_1);
@@ -120,6 +120,13 @@ public:
 	
 
 		if((float)identity < (float)_minIdentity) return;
+
+		if(queryLength < targetLength){
+			if(queryLength > 30000) return;
+		}
+		else{
+			if(targetLength > 30000) return;
+		}
 
 		MappingType mappingType;
 
@@ -352,8 +359,6 @@ public:
 	}
 
 	void derepContigs(){
-		
-		Logger::get().debug() << "Dereplicating contigs" ;
 
 		_outputContigFile = gzopen(_outputContigFilename.c_str(),"wb");
 
@@ -389,8 +394,8 @@ public:
 
 	void writeContig(string header, const string& sequence){
 
-		//Utils::ContigHeader contigHeader = Utils::extractContigHeader(header);
-		//header = Utils::createContigHeader(contigHeader._contigIndex, sequence.size(), contigHeader._coverage, contigHeader._isCircular);
+		Utils::ContigHeader contigHeader = Utils::extractContigHeader(header);
+		header = Utils::createContigHeader(contigHeader._contigIndex, sequence.size(), contigHeader._coverage, contigHeader._isCircular);
 
 		string headerFasta = ">" + header + '\n';
 		gzwrite(_outputContigFile, (const char*)&headerFasta[0], headerFasta.size());

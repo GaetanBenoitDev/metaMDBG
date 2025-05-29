@@ -28,6 +28,13 @@ public:
 	KminmerPosMap _kminmer_to_readIndexes;
 	ofstream _outputFile;
 
+	struct ReadAbundance{
+		u_int32_t _readLength;
+		float _readAbundance;
+	};
+
+	//unordered_map<u_int128_t, ReadAbundance> _kminmer_to_readAbundance;
+
 	RepeatRemover(const string& inputDir, const string& inputFilenameContig, size_t kminmerSize, float minimizerDensity, bool hasQuality, int nbCores){
 		_inputDir = inputDir;
 		_inputFilenameContig = inputFilenameContig;
@@ -43,11 +50,11 @@ public:
 		Logger::get().debug() << "Indexing initial unitigs";
 		loadUnitigIndex();
 
-		Logger::get().debug() << "Indexing reads";
-		indexReads();
-
 		Logger::get().debug() << "Indexing kminmer abundance";
 		loadKminmerAbundance();
+
+		Logger::get().debug() << "Indexing reads";
+		indexReads();
 
 		//cout << "Sorting read index" << endl;
 		//for(auto& it : _kminmer_to_readIndexes){
@@ -78,6 +85,7 @@ public:
 		//cout << "Done" << endl;
 	}
 	
+
 	void loadUnitigIndex(){
 
 		//const string& unitigFilename = _inputDir + "/unitig_data.txt.init";
@@ -188,7 +196,7 @@ public:
 		void operator () (const KminmerList& kminmerList) {
 
 			ReadType readIndex = kminmerList._readIndex;
-
+			
 			for(u_int32_t i=0; i<kminmerList._kminmersInfo.size(); i++){
 			
 				
@@ -234,6 +242,7 @@ public:
 			ReadType readIndex = kminmerList._readIndex;
 			//if(readIndex % 100000 == 0)  Logger::get().debug() << "\tIndexing reads: " << readIndex;
 
+			vector<float> abundances;
 			unordered_set<u_int32_t> distinctUnitigIndex;
 
 			for(size_t i=0; i<kminmerList._kminmersInfo.size(); i++){
@@ -245,7 +254,44 @@ public:
 				if(_parent._kminmer_to_unitigIndex.find(vecHash) == _parent._kminmer_to_unitigIndex.end()) continue;
 
 				distinctUnitigIndex.insert(_parent._kminmer_to_unitigIndex[vecHash]);
+
+				if(_parent._kminmer_to_abundance.find(vecHash) != _parent._kminmer_to_abundance.end()){
+					abundances.push_back(_parent._kminmer_to_abundance[vecHash]);
+				}
 			}
+
+			/*
+			if(abundances.size() > 20){
+
+				float readAbundance = Utils::compute_median_float(abundances);
+
+				#pragma omp critical(IndexReadsFunctor)
+				{
+
+					for(size_t i=0; i<kminmerList._kminmersInfo.size(); i++){
+						
+						const ReadKminmerComplete& kminmerInfo = kminmerList._kminmersInfo[i];
+						const KmerVec& vec = kminmerInfo._vec;
+						const u_int128_t& vecHash = vec.hash128();
+						
+						if(_parent._kminmer_to_readAbundance.find(vecHash) == _parent._kminmer_to_readAbundance.end()){
+							_parent._kminmer_to_readAbundance[vecHash] = {(u_int32_t) kminmerList._kminmersInfo.size(), readAbundance};
+						}
+						else{
+							
+							ReadAbundance existingReadAbundance = _parent._kminmer_to_readAbundance[vecHash];
+
+							float abundance = min(existingReadAbundance._readAbundance, readAbundance);
+							_parent._kminmer_to_readAbundance[vecHash] = {(u_int32_t) kminmerList._kminmersInfo.size(), abundance};
+							//if(kminmerList._kminmersInfo.size() > existingReadAbundance._readLength){
+							//	_parent._kminmer_to_readAbundance[vecHash] = {(u_int32_t) kminmerList._kminmersInfo.size(), readAbundance};
+							//}
+						}
+					}
+				}
+			}
+			*/
+
 			
 
 			if(distinctUnitigIndex.size() <= 1) return;
@@ -326,6 +372,8 @@ public:
 
 
 	void breakUnbridgedRepeats(){
+
+		//cout << "single core" << endl;
 		KminmerParserParallel parser(_inputFilenameContig, -1, _kminmerSize, false, false, _nbCores);
 		parser.parse(BreakUnbridgedRepeatsFunctor(*this));
 	}
@@ -383,6 +431,7 @@ public:
 				const KmerVec& vec = kminmersInfos[i]._vec;
 				const u_int128_t& vecHash = vec.hash128();
 
+				//cout << i << "\t" << _parent._kminmer_to_abundance[vecHash] << "\t" << _parent._kminmer_to_readAbundance[vecHash]._readAbundance << endl;//<< " " << _parent._kminmer_to_readAbundance[vecHash]._readLength << endl;
 				if(_parent._kminmer_to_unitigIndex.find(vecHash) == _parent._kminmer_to_unitigIndex.end()) continue;
 
 
@@ -419,13 +468,42 @@ public:
 						sum += fragmentAbundances[i];
 						n += 1;
 					}
-						
+
 					float fragmentCoverage = 0;
 					if(n > 0){
 						fragmentCoverage = sum / n;
 					}
+
+					/*
+					long double sumSmooth = 0;
+					long double nSmooth = 0;
+
+					for(size_t i=fragmentStartPos; i <= fragmentEndPos; i++){
+
+						const KmerVec& vec = kminmersInfos[i]._vec;
+						const u_int128_t& vecHash = vec.hash128();
+
+						if(_parent._kminmer_to_readAbundance.find(vecHash) != _parent._kminmer_to_readAbundance.end()){
+							const ReadAbundance& readAbundance = _parent._kminmer_to_readAbundance[vecHash];
+							if(readAbundance._readLength > fragmentLength){
+								sumSmooth += readAbundance._readAbundance;
+								nSmooth += 1;
+							}
+						}
+
+					}
+						
+					if(nSmooth > 0){
+						float fragmentCoverageSmoothed = sumSmooth / nSmooth;
+						fragmentCoverage = max(fragmentCoverage, fragmentCoverageSmoothed);
+					}
+					*/
 					
 					//cout << fragmentIndex << "\t" << fragmentStartPos << "\t" << fragmentEndPos << "\t" << fragmentLength << "\t" << fragmentCoverage << endl; //<< "\t" << getCoverageInBounds(repeats, fragmentStartPos, fragmentEndPos) << endl;
+
+					//for(size_t i=fragmentStartPos; i <= fragmentEndPos; i++){
+
+					//}
 
 					Fragment fragment = {fragmentIndex, fragmentStartPos, fragmentEndPos, fragmentLength, fragmentCoverage, -1, {}};
 					fragments.push_back(fragment);
@@ -527,7 +605,6 @@ public:
 
 			//cout << "Nb final contigs: " << nbContigsFinal << endl;
 
-
 			int64_t startPos = 0;
 			currentContigIndex = fragments[0]._finalContigIndex;
 
@@ -553,7 +630,13 @@ public:
 						//cout << "Write contig: " << endPos-startPos << "\t" << kminmersInfos.size() << endl; 
 
 						vector<MinimizerType>::const_iterator first = readMinimizers.begin() + startPos;
-						vector<MinimizerType>::const_iterator last = readMinimizers.begin() + endPos+_parent._kminmerSize;
+
+						//int endPos2 = endPos+1;
+						//if(fragments[i]._finalContigIndex == -2){ //final fragment
+						//	endPos2 = endPos + _parent._kminmerSize;
+						//}
+
+						vector<MinimizerType>::const_iterator last = readMinimizers.begin() + endPos + _parent._kminmerSize;
 						vector<MinimizerType> contigMinimizers(first, last);
 
 

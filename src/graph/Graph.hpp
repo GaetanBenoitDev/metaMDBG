@@ -198,7 +198,7 @@ public:
         }
 
         double computeMedianAbundance(){
-            
+            /*
             long double sum = 0;
             long double n = 0;
 
@@ -208,7 +208,8 @@ public:
             }
 
             return sum / n;
-            /*
+            */
+            
             size_t size = _abundances.size();
 
             if (size == 0){
@@ -223,7 +224,7 @@ public:
                     return _abundances[size / 2];
                 }
             }
-            */
+            
         }
 
         UnitigType startNode2() const{

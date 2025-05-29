@@ -145,6 +145,9 @@ public:
 			exit(0);
 		}
 
+
+		Commons::checkRequiredArgs(parser, arg_outputDir, arg_readFilenames_hifi, arg_readFilenames_nanopore);
+		/*
 		if(!arg_outputDir){
 			std::cerr << parser;
 			cerr << " Argument --out-dir is required" << endl;
@@ -171,6 +174,7 @@ public:
 			cerr << endl;
 			exit(0);
 		}
+		*/
 
 		_outputDir = args::get(arg_outputDir);
 		_tmpDir = _outputDir + "/tmp/";
@@ -802,49 +806,61 @@ public:
 			//	readFilenames += filename + " ";
 			//}
 
-			int minimapBatchSize = 1;
-			float peakMemory = getPeakMemory();
-			if(peakMemory < 8 || peakMemory > 1000000){
-				minimapBatchSize = 1;
-			}
-			else{
-				minimapBatchSize = peakMemory / 8;
-			}
-			if(minimapBatchSize < 0){
-				minimapBatchSize = 1;
-			}
-			if(minimapBatchSize > 100){
-				minimapBatchSize = 100;
-			}
+			//int minimapBatchSize = 1;
+			int peakMemory = ceil(getPeakMemory());
+			//if(peakMemory < 8 || peakMemory > 1000000){
+			//	minimapBatchSize = 1;
+			//}
+			//else{
+			//	minimapBatchSize = peakMemory / 8;
+			//}
+			//if(minimapBatchSize < 0){
+			//	minimapBatchSize = 1;
+			//}
+			//if(minimapBatchSize > 100){
+			//	minimapBatchSize = 100;
+			//}
 
 			
-			command = "minimap2 -I " + to_string(minimapBatchSize) + "G -t " + to_string(_nbCores) + " " + _params._minimap2Params + " " + contigFilenameCompressed + " " + Commons::inputFileToFilenames(_tmpDir + "/input.txt");
-			command += " | gzip -c - > " + readPartitionDir + "/polish_mapping.paf.gz";
-			Utils::executeCommand(command, _tmpDir);
+			//command = "minimap2 -I " + to_string(minimapBatchSize) + "G -t " + to_string(_nbCores) + " " + _params._minimap2Params + " " + contigFilenameCompressed + " " + Commons::inputFileToFilenames(_tmpDir + "/input.txt");
+			//command += " | gzip -c - > " + readPartitionDir + "/polish_mapping.paf.gz";
+			//Utils::executeCommand(command, _tmpDir);
 
 
 			Logger::get().info() << "Polishing contigs";
 
-			command = _filename_exe + " polish " + contigFilenameCompressed + " " + _tmpDir + " " + " --threads " + to_string(_nbCores) + " -n " + to_string(_params._usedCoverageForContigPolishing) + " --metaMDBG"; //--circ
+			string inputReadStr = "";
+			if(_params._dataType == DataType::HiFi){
+				inputReadStr = "--in-hifi";
+			}
+			else if(_params._dataType == DataType::Nanopore){
+				inputReadStr = "--in-ont";
+			}
+
+			command = _filename_exe + " polish --polish-target " + contigFilenameCompressed + " --out-dir " + _tmpDir + " " + " --threads " + to_string(_nbCores) + " -n " + to_string(_params._usedCoverageForContigPolishing) + " --metaMDBG --max-memory " + to_string(peakMemory) + " " + inputReadStr + " " + Commons::inputFileToFilenames(_tmpDir + "/input.txt"); //--circ
 			executeCommand(command);
+
+
+			
+			Logger::get().info() << "Moving final contigs to destination";
+			fs::rename(_tmpDir + "/contigs.fasta.gz", _outputDir + "/contigs.fasta.gz");
+			
 			//generatedContigs = true;
 
+			//Logger::get().info() << "Mapping contigs vs contigs";
+			//string polishedContigFilename = _tmpDir + "/contigs_polished.fasta.gz";
+
+			//command = "minimap2 -X -I " + to_string(minimapBatchSize) + "G -t " + to_string(_nbCores) + " " + polishedContigFilename + " " + polishedContigFilename;
+			//command += " | gzip -c - > " + _tmpDir + "/_tmp_mapping_derep__.paf.gz";
+			//Utils::executeCommand(command, _tmpDir);
 
 
-			Logger::get().info() << "Mapping contigs vs contigs";
-			string polishedContigFilename = _tmpDir + "/contigs_polished.fasta.gz";
-
-			command = "minimap2 -X -I " + to_string(minimapBatchSize) + "G -t " + to_string(_nbCores) + " " + polishedContigFilename + " " + polishedContigFilename;
-			command += " | gzip -c - > " + _tmpDir + "/_tmp_mapping_derep__.paf.gz";
-			Utils::executeCommand(command, _tmpDir);
-
-
-			Logger::get().info() << "Purging strain duplication";
+			//Logger::get().info() << "Purging strain duplication";
 			//cerr << "Purging strain duplication..." << endl;
 			//_logFile << "Polishing contigs..." << endl;
-			string polishedContigFilenamederep = _outputDir + "/contigs.fasta.gz ";
-			command = _filename_exe + " derep " + polishedContigFilename + " " + polishedContigFilenamederep + " " + _tmpDir + " --threads " + to_string(_nbCores) + " -i " + to_string(_params._contigDereplicationIdentityThreshold); // + " -l " + to_string(_strainPurging_minContigLength) + " -i " + to_string(_strainPurging_minIdentity);
-			executeCommand(command);
+			//string polishedContigFilenamederep = _outputDir + "/contigs.fasta.gz ";
+			//command = _filename_exe + " derep " + polishedContigFilename + " " + polishedContigFilenamederep + " " + _tmpDir + " --threads " + to_string(_nbCores) + " -i " + to_string(_params._contigDereplicationIdentityThreshold); // + " -l " + to_string(_strainPurging_minContigLength) + " -i " + to_string(_strainPurging_minIdentity);
+			//executeCommand(command);
 
 		}
 		else{

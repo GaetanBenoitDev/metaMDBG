@@ -454,6 +454,14 @@ public:
 		int nbRepetitiveMinimizers = fractionRepititiveMinimizersToFilterOut * minimizer_to_abunbance_vec.size();
 		nbRepetitiveMinimizers = max(nbRepetitiveMinimizers, 1);
 
+		//if(minimizer_to_abunbance_vec.size() > 5000){
+		//	nbRepetitiveMinimizers = max(nbRepetitiveMinimizers, 5);
+		//}
+		//else if(minimizer_to_abunbance_vec.size() > 10000){
+		//	nbRepetitiveMinimizers = max(nbRepetitiveMinimizers, 10);
+		//}
+
+		Logger::get().debug() << "Nb minimizers: " << minimizer_to_abunbance_vec.size();
 
 		Logger::get().debug() << "Top 1000 repetitive minimizers:";
 		for(size_t i=0; i<1000 && i < minimizer_to_abunbance_vec.size(); i++){
@@ -476,10 +484,12 @@ public:
 
 		ofstream outputFile(_inputDir + "/repetitiveMinimizers.bin" );
 		
-		for(const MinimizerType& minimizer : _isRepetitiveMinimizer){
-			outputFile.write((const char*)&minimizer, sizeof(minimizer));
+		if(!_useHomopolymerCompression){
+			for(const MinimizerType& minimizer : _isRepetitiveMinimizer){
+				outputFile.write((const char*)&minimizer, sizeof(minimizer));
+			}
 		}
-
+		
 		outputFile.close();
 	}
 	

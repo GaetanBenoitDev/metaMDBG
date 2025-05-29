@@ -2497,6 +2497,7 @@ void CreateMdbg::dumpUnitigAbundances(){
 
 void CreateMdbg::loadRefinedAbundances(){
 
+	/*
 	ifstream kminmerAbundanceFile(_outputDir + "/kminmerData_abundance_init.txt");
 
 	while (true) {
@@ -2513,8 +2514,8 @@ void CreateMdbg::loadRefinedAbundances(){
 
 
 	}
-
-	/*
+	*/
+	
 	u_int64_t nbNodesOriginal = 0;
 	u_int64_t sumAbundanceOriginal = 0;
 
@@ -2544,7 +2545,7 @@ void CreateMdbg::loadRefinedAbundances(){
 
 	kminmerAbundanceFile.close();
 	
-	cout << "Nb nodes original: " << _kminmerAbundances.size() << endl;
+	//cout << "Nb nodes original: " << _kminmerAbundances.size() << endl;
 
 
 
@@ -2622,6 +2623,7 @@ void CreateMdbg::loadRefinedAbundances(){
 
 	nodeFile.close();
 	
+	/*
 	u_int64_t nbNodes = 0;
 	u_int64_t nbAbundantNodes = 0;
 	u_int64_t sumAbundance = 0;

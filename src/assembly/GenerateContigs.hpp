@@ -635,9 +635,9 @@ public:
 			const UnitigType& unitigName = it.first;
 			const NodeAb& nodeAb = it.second;
 
-			//u_int32_t abundance = ceil(nodeAb._abundance);
-			//if(nodeAb._nbNodes-_kminmerSize+1 > _kminmerSize) abundance = max(abundance, (u_int32_t)2);
-			float abundance = nodeAb._abundance;
+			u_int32_t abundance = ceil(nodeAb._abundance);
+			if(nodeAb._nbNodes-_kminmerSize+1 > _kminmerSize) abundance = max(abundance, (u_int32_t)2);
+			//float abundance = nodeAb._abundance;
 
 			outputFile.write((const char*)&unitigName, sizeof(unitigName));
 			outputFile.write((const char*)&abundance, sizeof(abundance));

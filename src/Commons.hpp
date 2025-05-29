@@ -268,7 +268,7 @@ struct AlignmentResult{
 typedef u_int32_t ReadIndexType;
 
 
-const string METAMDBG_VERSION = "1.1";
+const string METAMDBG_VERSION = "2.0";
 const string ARG_HOMOPOLYMER_COMPRESSION = "homopolymer-compression";
 //const string ARG_INPUT_FILENAME = "i";
 //const string ARG_INPUT_FILENAME_TRUTH = "itruth";
@@ -287,6 +287,7 @@ const string ARG_INPUT_FILENAME_CONTIG_FASTA = "cf";
 //const string ARG_INPUT_FILENAME_BINNING = "bi";
 //const string ARG_OUTPUT_FILENAME_BINNING = "bo";
 const string ARG_FIRST_PASS = "firstpass";
+const string ARG_POLISH_TARGET = "polish-target";
 //const string ARG_FASTA = "fasta";
 const string ARG_NB_CORES = "t";
 //const string ARG_EVAL = "eval";
@@ -296,6 +297,7 @@ const char ARG_MIN_IDENTITY = 'i';
 //const char ARG_LINEAR_LENGTH = 'l';
 const char ARG_NB_WINDOWS = 'n';
 const string ARG_MIN_READ_QUALITY = "min-read-quality";
+const string ARG_MAX_MEMORY = "max-memory";
 //const string ARG_HOMOPOLYMER_COMPRESSION = "hpc";		
 //const string ARG_CORRECTION = "correction";	
 
@@ -925,6 +927,37 @@ class Commons{
 
 public:
 
+
+	static void checkRequiredArgs(const auto& parser, const auto& arg_outputDir, const auto& arg_readFilenames_hifi, const auto& arg_readFilenames_nanopore){
+
+		if(!arg_outputDir){
+			std::cerr << parser;
+			cerr << " Argument --out-dir is required" << endl;
+			exit(0);
+		}
+
+		if(!arg_readFilenames_hifi && !arg_readFilenames_nanopore){
+			std::cerr << parser;
+			cerr << " One of the arguments ";
+			for(const string& arg : possibleInputArguments){
+				cerr << arg + " ";
+			}
+			cerr << "is required" << endl;
+			exit(0);
+		}
+
+		if(arg_readFilenames_hifi && arg_readFilenames_nanopore){
+			std::cerr << parser;
+			cerr << " Choose only one of the arguments ";
+			for(const string& arg : possibleInputArguments){
+				cerr << arg + " ";
+			}
+			cerr << endl;
+			exit(0);
+		}
+
+	}
+	
 	static unordered_set<MinimizerType> loadRepetitiveMinimizers(const string& tmpDir){
 
 		unordered_set<MinimizerType> isRepetitiveMinimizers;
@@ -1608,11 +1641,12 @@ public:
 	static int pipeCommands(const string cmd1, const string cmd2, const string outputFile) {
 
 
-		Logger::get().debug() << "";
-		Logger::get().debug() << "";
-		Logger::get().debug() << cmd1;
-		Logger::get().debug() << cmd2;
-		Logger::get().debug() << outputFile;
+		//Logger::get().debug() << "";
+		//Logger::get().debug() << "";
+		Logger::get().debug() << "\t" << cmd1;
+		Logger::get().debug() << "\t" << cmd2;
+		Logger::get().debug() << "\t" << outputFile;
+		auto start = high_resolution_clock::now();
 
 		int pipefd[2];
 		if (pipe(pipefd) == -1) {
@@ -1688,6 +1722,8 @@ public:
 			exit(1);
 		}
 		
+		Logger::get().debug() << "\tDone " << " (" << duration_cast<seconds>(high_resolution_clock::now() - start).count() << "s)";
+
 		return 0;
 	}
 
@@ -3833,7 +3869,7 @@ public:
 
 		for(const string& filename : _filenames){
 
-			Logger::get().debug() << "Parsing file: " << filename;
+			Logger::get().debug() << "\tParsing file: " << filename;
 
 			u_int64_t readIndexPerDataset = 0;
 
@@ -3915,7 +3951,7 @@ public:
 			datasetIndex += 1;
 		}
 
-		Logger::get().debug() << "Parsing file done (nb reads: " << (readIndex+1) << ")";
+		Logger::get().debug() << "\tParsing file done (nb reads: " << (readIndex+1) << ")";
 	}
 };
 
@@ -4003,7 +4039,7 @@ public:
 
 		for(const string& filename : _filenames){
 
-			Logger::get().debug() << "Parsing file: " << filename;
+			Logger::get().debug() << "\tParsing file: " << filename;
 			//cout << filename << endl;
 
 			/*
