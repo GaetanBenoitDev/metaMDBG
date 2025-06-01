@@ -1679,6 +1679,7 @@ public:
 
     void save(const string& outputFilename){
 
+        
         u_int64_t checksum = 0;
         u_int64_t sumAbundance = 0;
         u_int64_t sumLength = 0;

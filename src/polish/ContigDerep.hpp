@@ -18,20 +18,22 @@ public:
 	string _tmpDirPolishing;
 	float _minIdentity;
 	int _nbCores;
-	string _maxMemory;
+	int _minimapBatchSize;
 	string _alignFilename;
+	u_int32_t _minContigLength;
 
 	typedef pair<int64_t, int64_t> Overlap;
 	gzFile _outputContigFile;
 	unordered_map<string, Overlap> _contigName_to_alignmentBounds;
 
-	ContigDerep(const string& inputContigFilename, const string& outputContigFilename, const string& maxMemory, const string& tmpDir, const string& tmpDirPolishing, const float& minIdentity, const int& nbCores){
+	ContigDerep(const string& inputContigFilename, const string& outputContigFilename, const int& minimapBatchSize, const string& tmpDir, const string& tmpDirPolishing, const float& minIdentity, const u_int32_t& minContigLength, const int& nbCores){
 		_inputContigFilename = inputContigFilename;
 		_outputContigFilename = outputContigFilename;
-		_maxMemory = maxMemory;
+		_minimapBatchSize = minimapBatchSize;
 		_tmpDir = tmpDir;
 		_tmpDirPolishing = tmpDirPolishing;
 		_minIdentity = minIdentity;
+		_minContigLength = minContigLength;
 		_nbCores = nbCores;
 
 		_alignFilename = _tmpDirPolishing + "/align_contigsVsContigs.paf.gz";
@@ -56,9 +58,10 @@ public:
 
 	void alignContigs(){
 
+		int minimapBatchSizeC = max(1, _minimapBatchSize / 4);
 		//    let args = ["-t", &opts.nb_threads.to_string(), "-c", "-xasm20", "-DP", "--dual=no", "--no-long-join", "-r100", "-z200", "-g2k", fasta_path_str, fasta_path_str];
 
-		string command = "minimap2 -v 0 -c -m 500 -x asm20 -I " + _maxMemory + "G -t " + to_string(_nbCores) + " -DP --dual=no --no-long-join -r100 -z200 -g2k " + _inputContigFilename + " " + _inputContigFilename;
+		string command = "minimap2 -v 0 -c -m 500 -x asm20 -I " + to_string(minimapBatchSizeC) + "G -t " + to_string(_nbCores) + " -DP --dual=no --no-long-join -r100 -z200 -g2k " + _inputContigFilename + " " + _inputContigFilename;
 		Utils::executeMinimap2(command, _alignFilename);
 		//cout << command << endl;
 		//command += " | gzip -c - > " + _alignFilename;
@@ -385,7 +388,7 @@ public:
 			}
 
 			int64_t contigLength = bounds.second - bounds.first;
-			if(contigLength < 1000) return;
+			if(contigLength < _minContigLength) return;
 
 			string contigSequence = read._seq.substr(bounds.first, contigLength);
 			writeContig(read._header, contigSequence);

@@ -1,19 +1,29 @@
 
 /*
 
+- flag isMetaMDBG, l'utiliser partout ou on créé des header metaMDBG (trimCOntig, COntigDerep)
+
+- enelever le bordel de _windowPositionOffset
+- contig header desactiver pendant le debuggage
+- quand on charche le successeur d'un read dans le graph, il est possible qu'on ne choississe pas le meilleur successeur (genre le read d'une autre strain), si quand on effecture un le minimap2 alignment, on se rend compte qu'il y a un petit overhang entre les deux reads (< 200), on pourrait essayer d'autrees successeurs
+
+- read contigStart/End, fuat-il rajouter la length non alignée, pour tirer les alignement par ordre du contig aussi
+
+- on pourrait rafiner les bord des contigs en ajoutant les reads qui mappent au bout puis une dereplication massive des overlaps, mais risqué ptet
+- contig derep: gros peak de mémoire vu qu'on utilise le meme -I 8G que pour le mapping en minimizer-space, essayer de fix le -I XG de 1 à 4
+
 - mode --genomic: discard all kminmer since once in first pass
+- checkpoint system
 
 - ont read correction: moins bon resultat peut venir de la correction final via le chaining plutot que l'alignement (a test sur ZymoFecal)
-- en mode ont on eneleve vraiment cp de minimizer reptitive, pas sur de ça (check sur le soil aussi)
-
-- fix les zero cov: faire le trimming apres le derep
-- je pense que les header ne sont pas mis a jour apres le trimming (ou le derep) (champ length=)
+- en mode ont on eneleve vraiment bcp de minimizer reptitive, pas sur de ça (check sur le soil aussi)
 
 - RepeatRemover: baisser le 50 à 10 sourceUnitig
 - RepeatRemover: si on a aucun source unitig (nbMinimizer > 50), il faudrait au moins prendre le plus grand par defaut, pour que chaque contig soit checké
 - RepeatRemover: comment gerer l'endroit ou ont split les contig? (Actuellement on laisse un overlap mais il faudrait enlever l'overlap pour le fragment le plus petit), on peut aussi limité la taille des contigs a derepliquer (max 30000 par exemple, le but est d'enlever les erreurs)
 - isCircular checker: readMapping + rafinement des bord
 
+- maintenant qu'on dereplique bien, plus besoin d'enlever des contigs juste par leur taille (3000 ou 2500)
 */
 
 /*
@@ -27,9 +37,6 @@
 - parallelisation
 - sur le soil va falloir check la conso mémoire, check les potentiel memory leak
 - _contigSequences: on peut le clear des qu'on a refait les alignment reads vs contigs (avant graphOverlapPath)
-
-- new version:
-	- la command gfa ne fonctionne pas actuellement car on n'output pas les minimizer sequence des unitig dans le graph->save()
 
 - Polishing:
 	- racon: selection des N window: doivent provenir de la strain dominante en priorité (donc plus grand alignment)
@@ -55,6 +62,8 @@ python3 ~/zeus/scripts/nanopore/evaluation/run_metaquast.py asm/contigs.fasta.gz
 python3 ~/zeus/scripts/nanopore/eval_clipping.py asm/contigs_2.fasta.gz /pasteur/appa/scratch/gbenoit/data/nanopore/mock/Zymo_D6331/SRR17913199_Q20/SRR17913199.1.fastq.gz 32
 
 /pasteur/appa/homes/gbenoit/zeus/tools/merging/metaMDBG_7/metaMDBG/build/bin/metaMDBG polish --polish-target ctg40713l_uncorrected.fasta --out-dir ./ctg40713l_polish/ --in-ont ctg40713l_reads.fastq --max-memory 17 --threads 32 -n 100 --metaMDBG
+
+/pasteur/appa/homes/gbenoit/zeus/tools/merging/metaMDBG/build/bin/metaMDBG polish --polish-target ctg5583c_uncorrected.fasta --out-dir ./ctg5583c_polish/ --in-ont ctg5583c_reads.fastq --max-memory 17 --threads 32 -n 100 --metaMDBG
 */
 
 /*
@@ -88,9 +97,10 @@ public:
 	constexpr static const float _minimizerDensity = 0.1;
 	constexpr static const int32_t _refineAlignEndsSize = 1000;
 	constexpr static const float intFrac = 0.8;
-	constexpr static const int64_t maxHang = 200;
+	constexpr static const int64_t maxHang = 50;
 	constexpr static const int64_t minOverlap = 500;
 	constexpr static const int32_t _useAlignedLength = 200;
+	constexpr static const u_int32_t _minContigLength = 2500;
 	//constexpr static const bool _testAllVsAllAlignments = false;
 
 
@@ -119,9 +129,9 @@ public:
 			_originalChainingAlignmentLength = 0;
 		}
 
-			void printAll() const{
-				cout << _queryStart << " " << _queryEnd << "    " << _referenceStart << " " << _referenceEnd << " " << _isReversed << endl;
-			}
+		void printAll() const{
+			cout << _queryStart << " " << _queryEnd << "    " << _referenceStart << " " << _referenceEnd << " " << _isReversed << endl;
+		}
 
 	};
 
@@ -215,6 +225,8 @@ public:
 		u_int32_t _contigStart;
 		u_int32_t _contigEnd;
 		float _identity;
+		u_int32_t _readLength;
+		u_int32_t _contigLength;
 		//float _score;
 		//u_int64_t _length;
 		
@@ -277,6 +289,7 @@ public:
 	string _outputContigFilename;
 	int _nbCores;
 	size_t _windowLength;
+	size_t _windowPositionOffset;
 	size_t _windowLengthVariance;
 	size_t _maxWindowCopies;
 	//string _mapperOutputExeFilename;
@@ -285,7 +298,7 @@ public:
 	string _tmpDir;
 	string _readPartitionDir;
 	bool _circularize;
-	u_int64_t _minContigLength;
+	//u_int64_t _minContigLength;
 	
 	string _outputFilename_mapping;
 	string _outputMappingFilename_contigsVsUsedReads;
@@ -293,7 +306,7 @@ public:
 	double _qualityThreshold;
 	bool _isMetaMDBG;
 
-	gzFile _outputContigFile_polished;
+	//gzFile _outputContigFile_polished;
 	gzFile _outputContigFile_trimmed;
 	bool _print_debug;
 	//abpoa_para_t *abpt;
@@ -354,6 +367,7 @@ public:
 
 
 	void parseArgs(int argc, char* argv[]){
+
 
 		_print_debug = false;
 		string ARG_NO_QUAL = "noqual";
@@ -475,10 +489,11 @@ public:
 
 
 		_windowLength = 500;
+		_windowPositionOffset = 0;
 		_windowLengthVariance = _windowLength*0.01;
 		_maxWindowCopies = args::get(arg_nbWindows);
 		_qualityThreshold = 10.0;
-		_minContigLength = 0;
+		//_minContigLength = 0;
 
 		_tmpDir = _outputDir;// + "/tmp/";
 		//if(!fs::exists(_tmpDir)){
@@ -583,6 +598,12 @@ public:
 
     void execute (){
 
+		//for(size_t i=0; i<40; i++){
+			//_partitionNbReads[i] = 10000;
+		//	processPartition(i);
+		//}
+		//exit(1);
+		
 		//for(size_t i=2; i<50; i++){
 		//	_partitionNbReads[i] = 10000;
 		//	detectWeakRepeats2(i);
@@ -658,7 +679,7 @@ public:
 		indexReadName();
 		//if(_circularize) executeCircularize();
 		
-		loadAlignments(_outputFilename_mapping, false, false, true);
+		loadAlignments(_outputFilename_mapping, false, false, false);
 
 		_contigName_to_contigIndex.clear();
 		_readName_to_readIndex.clear();
@@ -680,8 +701,12 @@ public:
 		//_outputContigFile = gzopen(_outputFilename_contigs.c_str(),"wb");
 		_usedReadFile = gzopen(_usedReadFilename.c_str(),"wb");
 
+		//_partitionNbReads[28] = 10000;
+		//processPartition(28);
+		//exit(1);
+
 		for(size_t i=0; i<_nbPartitions; i++){
-			//_partitionNbReads[i] = 10000;
+			_partitionNbReads[i] = 10000;
 			processPartition(i);
 		}
 
@@ -693,18 +718,40 @@ public:
 		//}
 
 		Logger::get().debug() << "";
-		Logger::get().debug() << "Polishing contigs";
-
-		const string& outputContigFilename_polished = _readPartitionDir + "/contigs_polished.fasta.gz";
-		_outputContigFile_polished = gzopen(outputContigFilename_polished.c_str(),"wb");
+		Logger::get().debug() << "Polishing contigs (pass 1)";
+		_windowPositionOffset = 0;
 
 		for(size_t i=0; i<_nbPartitions; i++){
 
+			
+			string inputContigFilename = _readPartitionDir + "/" + to_string(i) + "_contigsCurated.gz";
+			string outputContigFilename = _readPartitionDir + "/" + to_string(i) + "_contigsPolished.gz";
+			gzFile outputContigFile = gzopen(outputContigFilename.c_str(),"wb");
+
 			//_partitionNbReads[i] = 10000;
-			polishPartition(i);
+			polishPartition(i, inputContigFilename, outputContigFile);
+
+			gzclose(outputContigFile);
 		}
 
-		gzclose(_outputContigFile_polished);
+
+		Logger::get().debug() << "";
+		Logger::get().debug() << "Polishing contigs (pass 2)";
+		_windowPositionOffset = 0; //_windowLength/2;
+
+		const string& outputContigFilename_polished = _readPartitionDir + "/contigs_polished.fasta.gz";
+		gzFile outputContigFile_polished = gzopen(outputContigFilename_polished.c_str(),"wb");
+
+		for(size_t i=0; i<_nbPartitions; i++){
+
+
+			string inputContigFilename = _readPartitionDir + "/" + to_string(i) + "_contigsPolished.gz";
+
+			polishPartition(i, inputContigFilename, outputContigFile_polished);
+
+		}
+
+		gzclose(outputContigFile_polished);
 		
 		//exit(1);
 		//indexContigName();
@@ -769,11 +816,13 @@ public:
 
 	void trimContigs(const string& inputContigFilename, const string& outputContigFilename, const int& minimapBatchSize){
 		
+		int minimapBatchSizeC = max(1, minimapBatchSize / 4);
+
 		auto start = high_resolution_clock::now();
 		Logger::get().debug() << "\tMap used reads to final contigs";
 		
 		const string& alignFilename = _readPartitionDir + "/align_contigsVsUsedReads.paf.gz";
-		string command1 = "minimap2 -v 0 -p 1 -c -I " + to_string(minimapBatchSize) + "G -t " + to_string(_nbCores) + " -x " + _minimap2Preset_map + " " + inputContigFilename + " " + _usedReadFilename;
+		string command1 = "minimap2 -v 0 -p 1 -c -I " + to_string(minimapBatchSizeC) + "G -t " + to_string(_nbCores) + " -x " + _minimap2Preset_map + " " + inputContigFilename + " " + _usedReadFilename;
 		//cout << _outputFilename_mapping << endl;
 		Utils::executeMinimap2(command1, alignFilename);
 
@@ -861,6 +910,8 @@ public:
 				contigSequenceTrimmed = contigSequenceTrimmed.substr(0, contigSequenceTrimmed.size()-endLengthToRemove);
 			}
 
+			if(contigSequenceTrimmed.size() < ContigPolisher::_minContigLength) return;
+
 			string header = read._header;
 			Utils::ContigHeader contigHeader = Utils::extractContigHeader(header);
 			header = Utils::createContigHeader(contigHeader._contigIndex, contigSequenceTrimmed.size(), contigHeader._coverage, contigHeader._isCircular);
@@ -878,7 +929,7 @@ public:
 
 		auto start = high_resolution_clock::now();
 
-		ContigDerep contigDerep(inputContigFilename, outputContigFilename, to_string(minimapBatchSize), _tmpDir, _readPartitionDir, 0.9, _nbCores);
+		ContigDerep contigDerep(inputContigFilename, outputContigFilename, minimapBatchSize, _tmpDir, _readPartitionDir, 0.9, _minContigLength, _nbCores);
 		contigDerep.execute();
 		
 		Logger::get().debug() << "\tDone " << " (" << duration_cast<seconds>(high_resolution_clock::now() - start).count() << "s)";
@@ -1578,7 +1629,7 @@ public:
 		Logger::get().debug() << "\tCurating partition: " << _currentPartition << "/" << _nbPartitions;
 		auto start = high_resolution_clock::now();
 
-		//if(_partitionNbReads[partition] == 0) return;
+		if(_partitionNbReads[partition] == 0) return;
 
 
 		//cout << "--------------" << endl;
@@ -1586,57 +1637,21 @@ public:
 		string readFilename = _readPartitionDir + "/" + to_string(partition) + "_reads.gz";
 		//string contigFilename = _readPartitionDir + "/" + to_string(partition) + "_contigs.gz";
 		string outputContigFilename = _readPartitionDir + "/" + to_string(partition) + "_contigsCurated.gz";
-		_outputContigFilePartition = gzopen(outputContigFilename.c_str(),"wb");
 
 		//indexContigs();
 		clearPass();
+		
+		
+		_outputContigFilePartition = gzopen(outputContigFilename.c_str(),"wb");
+		
 		//loadContigs(_inputFilename_contigs, false);
 		//parseAlignmentsGz(true);
-
-		/*
-		//Logger::get().debug() << "\tAligning window sequences";
-		cout << "Align reads to contigs" << endl;
-
-		const string& alignFilename = _readPartitionDir + "/align.paf.gz";
-		string command = "minimap2 -c --secondary=no -m 500 -t " + to_string(_nbCores) + " " + _minimap2Params + " " + contigFilename + " " + readFilename;
-		command += " | gzip -c - > " + alignFilename;
-		cout << command << endl;
-		Utils::executeCommand(command, _tmpDir);
-
-		indexContigName(contigFilename);
-		loadContigs(contigFilename, true);
-		loadAlignments(alignFilename, true, true, false);
-		*/
 
 		
 		//cout << "Load contigs" << endl;
 		Logger::get().debug() << "\tLoading contigs";
 		loadContigs(_inputFilename_contigs, false);
 		
-
-
-		/*
-		//string readFilename = _readPartitionDir + "/" + to_string(partition) + "_reads.gz";
-		string contigFilename = _readPartitionDir + "/" + to_string(partition) + "_contigsRepeats.gz";
-		//string outputContigFilename = _readPartitionDir + "/" + to_string(partition) + "_contigs.gz";
-
-
-		cout << "Map reads to curated contigs" << endl;
-
-		const string& alignFilename = _readPartitionDir + "/align.paf.gz";
-		string command = "minimap2 -m 500 -t " + to_string(_nbCores) + " -x " + _minimap2Preset_map + " " + contigFilename + " " + readFilename;
-		Utils::executeMinimap2(command, alignFilename);
-		//command += " | gzip -c - > " + alignFilename;
-		//cout << command << endl;
-		//Utils::executeCommand(command, _tmpDir);
-
-		indexContigName(contigFilename);
-		loadContigs(contigFilename, true);
-		loadAlignments(alignFilename, true, false, false);
-		//computeContigCoverages(contigFilename);
-
-
-		*/
 
 		Logger::get().debug() << "\tAligning reads vs contigs";
 		auto start2 = high_resolution_clock::now();
@@ -1648,28 +1663,6 @@ public:
 
 
 
-		
-
-		//computeReadsToContigsAlignments(partition);
-		//cout << "HAAAA: " << _alignments_readsVsContigs.size() << endl;
-		/*
-		if(_testAllVsAllAlignments){
-			cout << "Aligning reads vs reads" << endl;
-			const string& alignFilename_readsVsReads = _readPartitionDir + "/" + to_string(partition) + "_readsVsReads_align.paf.gz";
-			if(fs::exists(alignFilename_readsVsReads)){
-				cout << "Align reads vs reads exists (skipping)" << endl;
-			}
-			else{
-				mapReadsVsReads(readFilename, alignFilename_readsVsReads);
-			}
-			//_contigName_to_contigIndex.clear();
-			//_readName_to_readIndex.clear();
-
-
-			cout << "Loading reads vs reads alignments" << endl;
-			loadReadsVsReadsAlignments(alignFilename_readsVsReads);
-		}
-		*/
 
 		Logger::get().debug() << "\tIndexing reads"; 
 		auto start3 = high_resolution_clock::now();
@@ -1708,12 +1701,63 @@ public:
 		writeUsedReads();
 		Logger::get().debug() << "\tDone " << " (" << duration_cast<seconds>(high_resolution_clock::now() - start6).count() << "s)";
 
-		
-
 		mm_idx_destroy(_minimap2Index);
 		
+
+		//collectOverlappingReads(outputContigFilename, readFilename);
+
 		Logger::get().debug() << "\tPartition " << partition << " done " << " (" << duration_cast<seconds>(high_resolution_clock::now() - start).count() << "s)";
+		//cout << "done" << endl;
+		//getchar();
 	}
+
+	
+	void collectOverlappingReads(const string& contigFilename, const string& readFilename){
+
+		const string& alignFilename = _readPartitionDir + "/align.paf.gz";
+		string command = "minimap2 -v 0 -m 500 -t " + to_string(_nbCores) + " -x " + _minimap2Preset_map + " " + contigFilename + " " + readFilename;
+		cout << command << endl;
+		Utils::executeMinimap2(command, alignFilename);
+
+		indexContigName(contigFilename);
+		loadContigs(contigFilename, true);
+		loadAlignments(alignFilename, true, true, false);
+
+		for(const auto& it : _alignments_readsVsContigs){
+
+			const u_int32_t& contigIndex = it.first;
+			const auto& alignments = it.second;
+
+			for(const auto& it2: alignments){
+
+				const ReadType& readIndex = it2.first;
+				const Alignment& alignment = it2.second;
+
+				AlignmentBounds alignmentBounds;
+				alignmentBounds._queryStart = alignment._readStart;
+				alignmentBounds._queryEnd = alignment._readEnd;
+				alignmentBounds._referenceStart = alignment._contigStart;
+				alignmentBounds._referenceEnd = alignment._contigEnd;
+				alignmentBounds._queryLength = alignment._readLength;
+				alignmentBounds._referenceLength = alignment._contigLength;
+				alignmentBounds._isReversed = alignment._strand;
+
+				if(isValidAlignment(alignmentBounds, 0)){
+					cout << _contigHeaders[contigIndex] << "\t" << alignmentBounds._referenceStart << "\t" << alignmentBounds._referenceEnd << "\t" << _contigSequences[contigIndex].size() << "\t\t" << readIndex << " " << alignmentBounds._isReversed << endl;
+					//alignmentBounds.printAll();
+				}
+
+
+				//if(_contigHeaders[contigIndex] == "ctg52409l_1" && alignmentBounds._referenceStart > 20000){
+				//	cout << "b " << _contigHeaders[contigIndex] << "\t" << alignmentBounds._referenceStart << "\t" << alignmentBounds._referenceEnd << "\t" << _contigSequences[contigIndex].size() << "\t\t" << readIndex << "\t" << alignmentBounds._isReversed << "\t" << alignment._readLength << endl;
+					
+				//}
+			}
+		}
+
+		getchar();
+	}
+	
 
 	void writeUsedReads(){
 
@@ -1960,6 +2004,7 @@ public:
 					}
 					lastReadLength = readSeq2.size();
 
+
 					//print(str(i) + ": " + nodeName1 + " " + str(name_to_alignment[nodeName1]) + " -> " + str(name_to_alignment[nodeName2]))
 
 					/*
@@ -2079,6 +2124,11 @@ public:
 						if(_print_debug) cout << "Init contig seq: " << contigSeq.size() << endl;
 
 					}
+					
+					u_int32_t contigOverHang = readSeq1.size() - alignmentBounds._referenceEnd;
+					if(contigOverHang > 0){
+						contigSeq = contigSeq.substr(0, contigSeq.size()-contigOverHang);
+					}
 
 					contigSeq += endSeq2;
 					if(_print_debug) cout << "Contig length: " << contigSeq.size() << "   added: " << endSeq2.size() << endl;
@@ -2117,7 +2167,7 @@ public:
 
 
 
-			if(contigSeq.size() == 0) return;
+			if(contigSeq.size() <= _parent._windowLength) return;
 			//return contigSeq
 
 			#pragma omp critical(convertOverlapPathToSequence)
@@ -2129,7 +2179,7 @@ public:
 
 				//contigSeq = contigSeq.substr(0, contigSeq.size()-20000);
 				//contigSeq = contigSeq.substr(20000, contigSeq.size()-20000);
-				//cout << "Write contig: " << contigSeq.size() << " " << _parent._contigSequences[overlapPath._contigIndex].size() << endl;
+				if(_print_debug) cout << "Write contig: " << contigSeq.size() << " " << _parent._contigSequences[overlapPath._contigIndex].size() << endl;
 
 				string header = _parent._contigHeaders[overlapPath._contigIndex];
 
@@ -2179,7 +2229,7 @@ public:
 		
 		vector<ContigLength> contigLengths;
 		//cout << "single core here" << endl;
-		int nbCores = _nbCores;
+		//int nbCores = _nbCores;
 		//if(_testAllVsAllAlignments) nbCores = 1;
 
 		//vector<u_int32_t> contigIndexes;
@@ -2188,6 +2238,10 @@ public:
 			const u_int32_t& contigIndex = it.first;
 			const u_int32_t& contigLength = _contigSequences[it.first].size();
 
+			//if(_print_debug){
+			//	if(_contigHeaders[contigIndex] != "ctg53061l") continue;
+			//}
+			
 			contigLengths.push_back({contigIndex, contigLength});
 		}
 
@@ -2198,8 +2252,10 @@ public:
 
 		size_t i = 0;
 
+		int nbCores = _nbCores;
+		if(_print_debug) nbCores = 1;
 
-		#pragma omp parallel num_threads(_nbCores)
+		#pragma omp parallel num_threads(nbCores)
 		{
 
 			ComputeContigOverlapPathFunctor functorSub(*this, _print_debug);//(functor);
@@ -2331,7 +2387,7 @@ public:
 			transitiveReduction2(overlapGraph);
 
 			if(_print_debug) cout << "Repeat overlap cleaning" << endl;
-			cleanRepeatOverlaps(overlapGraph);
+			//cleanRepeatOverlaps(overlapGraph);
 
 			//exportToGfa(overlapGraph, "/pasteur/appa/homes/gbenoit/zeus/tmp//assembly_graph.gfa");
 			//exit(1);
@@ -2355,10 +2411,22 @@ public:
 				//getchar();
 			}
 
+			//order overlap path per reference position
+			std::sort(paths.begin(), paths.end(), [](const OverlapGraphPath& a, const OverlapGraphPath& b){
+				return a._referenceStart < b._referenceStart;
+			});
+
+			for(size_t i=0; i<paths.size(); i++){
+				paths[i]._pathIndex = i;
+			}
+
 			//getchar();
 
 			#pragma omp critical(computeContigOverlapPath)
 			{
+
+				
+
 				for (const OverlapGraphPath& path : paths){
 					_parent._contigOverlapPaths.push_back(path);
 				}
@@ -2997,7 +3065,7 @@ public:
 					
 
 					//cout << "2" << endl;
-					isBestAlignment = getBestAlignment(currentAlignment, successorAlignments, existingPaths, bestSuccessorAlignment, nullptr);
+					isBestAlignment = getBestOverlap(currentAlignment, successorAlignments, existingPaths, bestSuccessorAlignment);
 					
 
 
@@ -3100,10 +3168,62 @@ public:
 		}
 
 		bool getBestOverlap(const Alignment& prevAlignment, const vector<Alignment>& alignments, const vector<OverlapGraphPath>& existingPaths, Alignment& resultAlignment){
-
+			/*
 			static vector<u_int32_t> overlapLengths = {10000, 9000, 8000, 7000, 6000, 5000, 4000, 3000, 2000, 1000, minOverlap};
 			//static vector<u_int32_t> lengths = {100000, 50000, 25000, 10000, 5000, 0};
 			static vector<float> identities = {0.97, 0.96, 0.95, 0.94, 0.93, 0.92, 0.91, 0.9, 0.8, 0.7, 0.6, 0.5};
+			
+			for(float minIdentity : identities){
+				for(u_int32_t minLength : overlapLengths){
+
+					float highestIdentity = 0;
+
+					for(const Alignment& alignment : alignments){
+
+						if(alignment._identity < minIdentity) continue;
+
+						int32_t overlapLength = _parent.getEstimatedOverlapLength(prevAlignment, alignment);
+						if(overlapLength < minLength) continue;
+
+						if(alignmentIsContainsInExistingPath(alignment, existingPaths)) continue;
+
+
+						if(alignment._identity > highestIdentity){
+							highestIdentity = alignment._identity;
+							resultAlignment = alignment;
+						}
+					}
+
+					if(highestIdentity > 0){
+						return true;
+					}
+						
+				}
+			}
+						
+
+			return false;
+			*/
+			///static vector<u_int32_t> overlapLengths = {10000, 9000, 8000, 7000, 6000, 5000, 4000, 3000, 2000, 1000, minOverlap};
+			static vector<u_int32_t> lengths1 = {10000, 9000, 8000, 7000, 6000, 5000};
+			static vector<float> identities1 = {0.99, 0.98};
+
+			if(getBestOverlapSub(prevAlignment, alignments, existingPaths, resultAlignment, lengths1, identities1)) return true;			
+
+			static vector<u_int32_t> lengths2 = {10000, 9000, 8000, 7000, 6000, 5000, 4000, 3000, 2000, 1000, minOverlap};
+			static vector<float> identities2 = {0.99, 0.98, 0.97, 0.96, 0.95, 0.94, 0.93, 0.92, 0.91, 0.9, 0.8, 0.7, 0.6, 0.5};
+
+			if(getBestOverlapSub(prevAlignment, alignments, existingPaths, resultAlignment, lengths2, identities2)) return true;	
+
+			return false;
+
+		}
+
+		bool getBestOverlapSub(const Alignment& prevAlignment, const vector<Alignment>& alignments, const vector<OverlapGraphPath>& existingPaths, Alignment& resultAlignment, const vector<u_int32_t>& overlapLengths, const vector<float>& identities){
+
+			//static vector<u_int32_t> overlapLengths = {10000, 9000, 8000, 7000, 6000, 5000, 4000, 3000, 2000, 1000, minOverlap};
+			//static vector<u_int32_t> lengths = {100000, 50000, 25000, 10000, 5000, 0};
+			//static vector<float> identities = {0.97, 0.96, 0.95, 0.94, 0.93, 0.92, 0.91, 0.9, 0.8, 0.7, 0.6, 0.5};
 			
 			for(float minIdentity : identities){
 				for(u_int32_t minLength : overlapLengths){
@@ -3218,7 +3338,7 @@ public:
 
 			//cout << prevAlignment._readIndex << " " << nextAlignment._readIndex << endl;
 			//getchar();
-			return isValidAlignment(chaingingALignment, _parent.getEstimatedOverlapLength(prevAlignment, nextAlignment));
+			return _parent.isValidAlignment(chaingingALignment, _parent.getEstimatedOverlapLength(prevAlignment, nextAlignment));
 			
 			//cout << "aaaaaa" << endl;
 
@@ -3290,12 +3410,61 @@ public:
 
 		bool overlapOnTheReference(const Alignment& prevAlignment, const Alignment& nextAlignment){
 
+			
+			int32_t prevLeftOverhang = 0;
+			int32_t prevRightOverhang = 0;
+
+			if(prevAlignment._strand){
+				prevLeftOverhang = prevAlignment._readLength - prevAlignment._readEnd;
+				prevRightOverhang = prevAlignment._readStart;
+			}
+			else{
+				prevLeftOverhang = prevAlignment._readStart;
+				prevRightOverhang = prevAlignment._readLength - prevAlignment._readEnd;
+			}
+
+			int32_t nextLeftOverhang = 0;
+			int32_t nextRightOverhang = 0;
+
+			if(nextAlignment._strand){
+				nextLeftOverhang = nextAlignment._readLength - nextAlignment._readEnd;
+				nextRightOverhang = nextAlignment._readStart;
+			}
+			else{
+				nextLeftOverhang = nextAlignment._readStart;
+				nextRightOverhang = nextAlignment._readLength - nextAlignment._readEnd;
+			}
+
+			//prevLeftOverhang = 0;
+			//prevRightOverhang = 0;
+			//nextLeftOverhang = 0;
+			//nextRightOverhang = 0;
+
+			int32_t prevStart = ((int32_t) prevAlignment._contigStart) - prevLeftOverhang;
+			int32_t prevEnd = ((int32_t) prevAlignment._contigEnd) + prevRightOverhang;
+
+			int32_t nextStart = ((int32_t) nextAlignment._contigStart) - nextLeftOverhang;
+			int32_t nextEnd = ((int32_t) nextAlignment._contigEnd) + nextRightOverhang;
+
+
 			u_int32_t alignmentOffset = minOverlap;
 
-			u_int32_t refStart = prevAlignment._contigStart;
-			u_int32_t refEnd = prevAlignment._contigEnd;
+			//u_int32_t refStart = prevAlignment._contigStart;
+			//u_int32_t refEnd = prevAlignment._contigEnd;
 
-			if (nextAlignment._contigStart > refStart+alignmentOffset && nextAlignment._contigStart < refEnd-alignmentOffset && nextAlignment._contigEnd > refEnd+alignmentOffset) return true;
+			/*
+			cout << "----" << endl;
+			cout << prevAlignment._strand << " " << nextAlignment._strand << endl;
+			cout << prevAlignment._contigStart << "\t" << prevAlignment._contigEnd << endl;
+			cout << nextAlignment._contigStart << "\t" << nextAlignment._contigEnd << endl;
+			cout << endl;
+			cout << prevLeftOverhang << "\t" << prevRightOverhang << endl;
+			cout << prevStart << "\t" << prevEnd << endl;
+			cout << nextStart << "\t" << nextEnd << endl;
+			getchar();
+			*/
+
+			if (nextStart > prevStart+alignmentOffset && nextStart < prevEnd-alignmentOffset && nextEnd > prevEnd+alignmentOffset) return true;
 
 			return false;
 		}
@@ -3304,95 +3473,95 @@ public:
 
 
 
-		bool isValidAlignment(const AlignmentBounds& alignmentBounds, const int32_t& expectedOverlapLength){
-
-			if(alignmentBounds._queryStart == -1) return false;
-			if(alignmentBounds._isReversed) return false; 
-
-			int32_t actualOverlapLength = alignmentBounds._queryEnd - alignmentBounds._queryStart;
-			int32_t error = abs(expectedOverlapLength - actualOverlapLength);
-			
-			//cout << error << endl;
-
-			//if(error > 2000) return false;
-
-
-			int64_t queryLength = alignmentBounds._queryLength;
-			int64_t queryStart = alignmentBounds._queryStart;
-			int64_t queryEnd = alignmentBounds._queryEnd;
-			
-			int64_t targetLength = alignmentBounds._referenceLength;
-			int64_t targetStart = alignmentBounds._referenceStart;
-			int64_t targetEnd = alignmentBounds._referenceEnd;
-			bool isReversed = alignmentBounds._isReversed;
-			//int64_t nbMatches = stoull((*_fields)[9]);
-			//int64_t alignLength = stoull((*_fields)[10]);
-
-			
-
-			//double length = max((double)(contigEnd - contigStart), (double)(readEnd - readStart));
-			//double error = 1 - min((double)(contigEnd - contigStart), (double)(readEnd - readStart)) / length;
-			//_logFile << error << " " << errorThreshold << endl;
-			
-			//if(error > errorThreshold) return;
-
-			//float identity =  ((float)nbMatches) / alignLength;
-
-			//u_int32_t queryIndex = _readName_to_readIndex[readName];
-			//u_int32_t targetIndex = _readName_to_readIndex[contigName];
-
-
-			int64_t tl3 = 0;
-			int64_t tl5 = 0;
-			int64_t ext3 = 0;
-			int64_t ext5 = 0;
-
-			if(isReversed){
-				tl5 = targetLength - targetEnd;
-				tl3 = targetStart;
-			}
-			else{
-				tl5 = targetStart;
-				tl3 = targetLength - targetEnd;
-			}
-
-			if(queryStart < tl5){
-				ext5 = queryStart;
-			}
-			else{
-				ext5 = tl5;
-			}
-
-			if (queryLength - queryEnd < tl3){
-				ext3 = queryLength - queryEnd;
-			}
-			else{
-				ext3 = tl3;
-			}
-
-			//cout << tl3 << " " << tl5 << " " << ext3 << " " << ext5 << " " << queryLength << " " << targetLength << endl;
-			
-			//cout << queryStart << " " << queryEnd << " " << ext5 << " " << ext3 << endl;
-			//getchar();
-
-			if (ext5 > maxHang || ext3 > maxHang || queryEnd - queryStart < (queryEnd - queryStart + ext5 + ext3) * intFrac) return false;
-
-
-			if (queryStart <= tl5 && queryLength - queryEnd <= tl3) return false; //query contained
-			else if (queryStart >= tl5 && queryLength - queryEnd >= tl3) return false; //target contained
-
-			if (queryEnd - queryStart + ext5 + ext3 < minOverlap) return false; //Short overlap
-			if (targetEnd - targetStart + ext5 + ext3 < minOverlap) return false; //Short overlap
-
-
-			return true;
-
-		}
-
 	};
 
 
 
+
+	bool isValidAlignment(const AlignmentBounds& alignmentBounds, const int32_t& expectedOverlapLength){
+
+		if(alignmentBounds._queryStart == -1) return false;
+		if(alignmentBounds._isReversed) return false; 
+
+		int32_t actualOverlapLength = alignmentBounds._queryEnd - alignmentBounds._queryStart;
+		int32_t error = abs(expectedOverlapLength - actualOverlapLength);
+		
+		//cout << error << endl;
+
+		//if(error > 2000) return false;
+
+
+		int64_t queryLength = alignmentBounds._queryLength;
+		int64_t queryStart = alignmentBounds._queryStart;
+		int64_t queryEnd = alignmentBounds._queryEnd;
+		
+		int64_t targetLength = alignmentBounds._referenceLength;
+		int64_t targetStart = alignmentBounds._referenceStart;
+		int64_t targetEnd = alignmentBounds._referenceEnd;
+		bool isReversed = alignmentBounds._isReversed;
+		//int64_t nbMatches = stoull((*_fields)[9]);
+		//int64_t alignLength = stoull((*_fields)[10]);
+
+		
+		if(targetStart < queryStart) return false;
+		//double length = max((double)(contigEnd - contigStart), (double)(readEnd - readStart));
+		//double error = 1 - min((double)(contigEnd - contigStart), (double)(readEnd - readStart)) / length;
+		//_logFile << error << " " << errorThreshold << endl;
+		
+		//if(error > errorThreshold) return;
+
+		//float identity =  ((float)nbMatches) / alignLength;
+
+		//u_int32_t queryIndex = _readName_to_readIndex[readName];
+		//u_int32_t targetIndex = _readName_to_readIndex[contigName];
+
+
+		int64_t tl3 = 0;
+		int64_t tl5 = 0;
+		int64_t ext3 = 0;
+		int64_t ext5 = 0;
+
+		if(isReversed){
+			tl5 = targetLength - targetEnd;
+			tl3 = targetStart;
+		}
+		else{
+			tl5 = targetStart;
+			tl3 = targetLength - targetEnd;
+		}
+
+		if(queryStart < tl5){
+			ext5 = queryStart;
+		}
+		else{
+			ext5 = tl5;
+		}
+
+		if (queryLength - queryEnd < tl3){
+			ext3 = queryLength - queryEnd;
+		}
+		else{
+			ext3 = tl3;
+		}
+
+		//cout << tl3 << " " << tl5 << " " << ext3 << " " << ext5 << " " << queryLength << " " << targetLength << endl;
+		
+		//cout << queryStart << " " << queryEnd << " " << ext5 << " " << ext3 << endl;
+		//getchar();
+
+		if (ext5 > maxHang || ext3 > maxHang || queryEnd - queryStart < (queryEnd - queryStart + ext5 + ext3) * intFrac) return false;
+
+
+		if (queryStart <= tl5 && queryLength - queryEnd <= tl3) return false; //query contained
+		else if (queryStart >= tl5 && queryLength - queryEnd >= tl3) return false; //target contained
+
+		if (queryEnd - queryStart + ext5 + ext3 < minOverlap) return false; //Short overlap
+		if (targetEnd - targetStart + ext5 + ext3 < minOverlap) return false; //Short overlap
+
+
+		return true;
+
+	}
 
 
 	int32_t getMappableLength(const AlignmentBounds& alignmentBounds){
@@ -3469,7 +3638,14 @@ public:
 
 		//if(_currentPartition == 0) _logFile << "Loading contig in partition 0: " << contigIndex << endl;
 		_contigSequences[contigIndex] = read._seq;
-		size_t nbWindows = ceil((double)read._seq.size() / (double)_windowLength);
+
+		size_t nbWindows = ceil(((double)read._seq.size()-_windowPositionOffset) / (double)_windowLength);
+		
+		if(_windowPositionOffset > 0){
+			if(read._seq.size() > _windowPositionOffset) nbWindows += 1;
+		}
+
+		//cout << "loadContigs_read: Nb windows + 1 si offsrt polishing" << endl;
 		vector<vector<Window>> windows(nbWindows);
 
 		_contigWindowSequences[contigIndex] = windows;
@@ -3855,7 +4031,7 @@ public:
 		
 		float identity = ((long double) nbMatches) / ((long double) readSizeMappable);
 
-		Alignment alignment = {contigIndex, readIndex, strand, readStart, readEnd, contigStart, contigEnd, identity}; //, score
+		Alignment alignment = {contigIndex, readIndex, strand, readStart, readEnd, contigStart, contigEnd, identity, readLength, contigLength}; //, score
 
 		if(_indexPerContig){
 
@@ -4071,7 +4247,7 @@ public:
 
 			int64_t overhang = readSeq.size() - readSizeMappable;
 			//cout << overhang << endl;
-			if(overhang > ContigPolisher::maxHang) return;
+			//if(overhang > ContigPolisher::maxHang) return;
 
 
 
@@ -4102,7 +4278,7 @@ public:
 
 
 			float identity = ((long double) nbMatches) / ((long double) readSizeMappable);
-			Alignment alignment = {al._contigIndex, readIndex, al._strand, al._readStart, al._readEnd, al._contigStart, al._contigEnd, identity};
+			Alignment alignment = {al._contigIndex, readIndex, al._strand, al._readStart, al._readEnd, al._contigStart, al._contigEnd, identity, al._readLength, al._contigLength};
 			
 
 			//cout << identity << endl;
@@ -4213,7 +4389,7 @@ public:
 	};
 
 
-	void polishPartition(u_int32_t partition){
+	void polishPartition(u_int32_t partition, const string& contigFilename, gzFile& outputContigFile){
 		_currentPartition = partition;
 		//if(_contigSequences.size() == 0) return;
 		
@@ -4230,7 +4406,6 @@ public:
 
 		string readFilename = _readPartitionDir + "/" + to_string(partition) + "_reads.gz";
 		//string contigFilename = _readPartitionDir + "/" + to_string(partition) + "_contigsRepeats.gz";
-		string contigFilename = _readPartitionDir + "/" + to_string(partition) + "_contigsCurated.gz";
 		
 		//string outputContigFilename = _readPartitionDir + "/" + to_string(partition) + "_contigs.gz";
 
@@ -4264,7 +4439,7 @@ public:
 		//getchar();
 		
 		Logger::get().debug() << "\tPerform correction";
-		performCorrection();
+		performCorrection(outputContigFile);
 
 
 		Logger::get().debug() << "\tPartition " << partition << " done " << " (" << duration_cast<seconds>(high_resolution_clock::now() - start).count() << "s)";
@@ -4370,23 +4545,29 @@ public:
 		void find_breaking_points_from_cigar(uint32_t window_length, const Alignment& al, u_int64_t readLength, char* cigar_, const string& readSequence, const string& qualSequence)
 		{
 			
-			vector<std::pair<uint32_t, uint32_t>> breaking_points_;
-			u_int64_t t_begin_ = al._contigStart;
-			u_int64_t t_end_ = al._contigEnd;
-			u_int64_t q_begin_ = al._readStart;
-			u_int64_t q_end_ = al._readEnd;
+			//cout << "Alignment: " << al._contigStart << " " << al._contigEnd << endl;
+			vector<std::pair<int32_t, int32_t>> breaking_points_;
+			int32_t t_begin_ = al._contigStart;
+			int32_t t_end_ = al._contigEnd;
+			int32_t q_begin_ = al._readStart;
+			int32_t q_end_ = al._readEnd;
 			bool strand_ = al._strand;
-			u_int64_t q_length_ = readLength;
+			int32_t q_length_ = readLength;
 
 			// find breaking points from cigar
 			std::vector<int32_t> window_ends;
-			for (uint32_t i = 0; i < t_end_; i += window_length) {
+
+			for (int32_t i = -_contigPolisher._windowPositionOffset; i < t_end_; i += window_length) {
+				
 				if (i > t_begin_) {
 					window_ends.emplace_back(i - 1);
+					//cout << "\tWindow end: " << (i-1) << endl;
 				}
 			}
 			window_ends.emplace_back(t_end_ - 1);
+			//cout << "\tWindow end: " << (t_end_ - 1) << endl;
 
+			//getchar();
 			uint32_t w = 0;
 			bool found_first_match = false;
 			std::pair<uint32_t, uint32_t> first_match = {0, 0}, last_match = {0, 0};
@@ -4448,6 +4629,10 @@ public:
 				
 			for (uint32_t j = 0; j < breaking_points_.size(); j += 2) {
 
+				//cout << "---" << endl;
+				//cout << "Break point: " << j << " " << breaking_points_[j].first << " " << breaking_points_[j + 1].first << endl;
+				//cout << "Break point: " << j << " " << breaking_points_[j].second << " " << breaking_points_[j + 1].second << endl;
+
 				if(breaking_points_[j].second >= readSequence.size()) return;
 				if(breaking_points_[j + 1].second >= readSequence.size()) return;
 
@@ -4472,9 +4657,12 @@ public:
 				
 
 				//uint64_t window_id = id_to_first_window_id[overlaps[i]->t_id()] +
-				uint64_t window_id = breaking_points_[j].first / _windowLength;
-				uint32_t window_start = (breaking_points_[j].first / _windowLength) * _windowLength;
+				uint64_t window_id = (breaking_points_[j].first+_contigPolisher._windowPositionOffset) / _windowLength;
+				int32_t window_start = window_id * _windowLength - _contigPolisher._windowPositionOffset;
+				window_start = max(0, window_start);
 
+				//cout << "Window id: " << window_id << endl;
+				//cout << "Window start: " << window_start << endl;
 				//const char* data = overlaps[i]->strand() ?
 				//	&(sequence->reverse_complement()[breaking_points[j].second]) :
 				//	&(sequence->data()[breaking_points[j].second]);
@@ -4548,8 +4736,14 @@ public:
 				}
 				*/
 
-                u_int32_t posStart = breaking_points_[j].first - window_start;
-                u_int32_t posEnd =  breaking_points_[j + 1].first - window_start - 1;
+                int32_t posStart = (breaking_points_[j].first) - window_start;
+				posStart = max(0, posStart);
+                int32_t posEnd =  (breaking_points_[j + 1].first) - window_start - 1;
+
+				//cout << (breaking_points_[j].first) << " " << window_start << " " << posStart << endl;
+				//cout << (breaking_points_[j + 1].first) << " " << window_start - 1 << " " << posEnd << endl;
+
+				//getchar();
 
 				string quality = "";
 				if(_contigPolisher._useQual && qualSequence.size() > 0){
@@ -4582,6 +4776,7 @@ public:
 				*/
 			}
 
+			//getchar();
 			/*
 			for(size_t i=0; i<breaking_points_.size()-1; i++){
 				u_int64_t contigWindowStart = breaking_points_[i].first;
@@ -4615,9 +4810,12 @@ public:
 			#pragma omp critical(indexWindow)
 			{
 				
+				//cout << windowIndex << " " << _contigWindowSequences[al._contigIndex].size() << " " << posStart << " " << posEnd << " " << windowSequence << endl;
+
 				//size_t contigWindowIndex = contigWindowStart / _windowLength;
 				vector<Window>& windows = _contigWindowSequences[al._contigIndex][windowIndex];
 				
+
 				/*
 				if(contigWindowIndex == 0){
 					//_logFile << contigWindowStart << endl;
@@ -4807,7 +5005,7 @@ public:
 	unordered_map<u_int32_t, vector<CorrectedWindow>> _currentContigs;
 
 
-	void performCorrection(){
+	void performCorrection(gzFile& outputContigFile){
 		
 		u_int64_t checksum = 0;
 
@@ -4893,23 +5091,30 @@ public:
 				std::unique_ptr<spoa::AlignmentEngine> alignmentEngine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kNW, 3, -5, -4);
 					
 				
-				u_int64_t wStart = windowIndexLocal*_windowLength;
-				u_int64_t wEnd = min(_contigSequences[contigIndexLocal].size(), wStart+_windowLength);
+				int64_t wStart = (int32_t)windowIndexLocal * (int32_t) _windowLength - _windowPositionOffset;
+				int64_t wEnd = min((int64_t)_contigSequences[contigIndexLocal].size(), (int64_t)(wStart+_windowLength)) ;
+				wStart = max((int64_t)0, wStart);
+				//cout << "a" << " " << _contigSequences[contigIndexLocal].size() << " " << wStart << " " << wEnd-wStart << endl;
 				string contigOriginalSequence = _contigSequences[contigIndexLocal].substr(wStart, wEnd-wStart);
+				//cout << "b" << endl;
+				//cout << contigOriginalSequence << endl;
 
 				if(sequences.size() < 2){
 
+					//cout << "c" << endl;
 					for(size_t i=0; i<sequences.size(); i++){ 
 						delete sequences[i]._sequence;
 					}
 
-					addCorrectedWindow(false, new DnaBitset2(contigOriginalSequence), contigIndexLocal, windowIndexLocal);	
+					//cout << "d" << endl;
+					addCorrectedWindow(false, new DnaBitset2(contigOriginalSequence), contigIndexLocal, windowIndexLocal, outputContigFile);	
 					//correctedWindows[w] = new DnaBitset2(contigOriginalSequence);
 					//_logFile << "No sequences for window" << endl;
 					continue;
 				}
 				
 
+				//cout << "e" << endl;
 
 				std::sort(sequences.begin(), sequences.end(), [&](const Window& lhs, const Window& rhs) {
 					return lhs._posStart < rhs._posStart; });
@@ -4923,6 +5128,7 @@ public:
 					backboneQuality += '!';
 				}
 
+				//cout << "f" << endl;
 				graph.AddAlignment(
 					spoa::Alignment(),
 					contigOriginalSequence.c_str(), contigOriginalSequence.size(),
@@ -4932,6 +5138,7 @@ public:
 				u_int32_t offset = 0.01 * contigOriginalSequence.size();
 
 
+				//cout << "g" << endl;
 				for(size_t i=0; i<sequences.size(); i++){ 
 
 					//size_t i = order[ii];
@@ -4939,6 +5146,7 @@ public:
 					//const DnaBitset2* dna = variant._sequence; //sequenceCopies[s._sequenceIndex];
 					char* dnaStr = window._sequence->to_string();
 
+					//cout << i << " " << string(dnaStr, strlen(dnaStr)) << " " << window._posStart << " " << window._posEnd << endl;
 						
 					spoa::Alignment alignment;
 					if (window._posStart < offset && window._posEnd > contigOriginalSequence.size() - offset) {
@@ -4957,6 +5165,7 @@ public:
 						subgraph.UpdateAlignment(mapping, &alignment);
 					}
 					
+					//cout << "aa" << endl;
 					if (window._quality.size() == 0) {
 						graph.AddAlignment(
 							alignment,
@@ -4968,10 +5177,13 @@ public:
 							window._quality.c_str(), window._quality.size());
 					}
 					
+					//cout << "bb" << endl;
 					free(dnaStr);
 					delete window._sequence;
+					//cout << "cc" << endl;
 				}
 
+				//cout << "h" << endl;
 
 				std::vector<uint32_t> coverages;
 				string correctedSequence = graph.GenerateConsensus(&coverages);
@@ -5001,7 +5213,7 @@ public:
 				//	checksum += letter;
 				//}
 
-				addCorrectedWindow(true, new DnaBitset2(correctedSequence), contigIndexLocal, windowIndexLocal);
+				addCorrectedWindow(true, new DnaBitset2(correctedSequence), contigIndexLocal, windowIndexLocal, outputContigFile);
 
 				//correctedWindows[w] = new DnaBitset2(correctedSequence);
 
@@ -5181,7 +5393,7 @@ public:
 	}
 
 
-	void addCorrectedWindow(bool success, DnaBitset2* seq, size_t contigIndexLocal, size_t windowIndexLocal){
+	void addCorrectedWindow(bool success, DnaBitset2* seq, size_t contigIndexLocal, size_t windowIndexLocal, gzFile& outputContigFile){
 
 		
 		#pragma omp critical(addCorrectedWindow)
@@ -5189,13 +5401,13 @@ public:
 			_currentContigs[contigIndexLocal].push_back({windowIndexLocal, seq, success});
 
 			if(_currentContigs[contigIndexLocal].size() == _contigWindowSequences[contigIndexLocal].size()){
-				dumpCorrectedContig(contigIndexLocal);
+				dumpCorrectedContig(contigIndexLocal, outputContigFile);
 			}
 		}
 		
 	}
 
-	void dumpCorrectedContig(const u_int32_t& contigIndex){
+	void dumpCorrectedContig(const u_int32_t& contigIndex, gzFile& outputContigFile){
 
 
 		u_int64_t nbCorrectedWindows = 0;
@@ -5231,7 +5443,7 @@ public:
 			if(_contigCoverages[contigIndex] <= 1){
 				isValid = false;
 			}
-			else if(length < 2500){
+			else if(length < _minContigLength){
 				isValid = false;
 			}
 			//else if(length < 7500 && _contigCoverages[contigIndex] < 3){
@@ -5243,8 +5455,11 @@ public:
 			if(isValid){
 
 				string header = _contigHeaders[contigIndex];
-				header = Utils::split(header, '_')[0]; //Remove curator subpath suffix
 				
+				
+				
+				header = Utils::split(header, '_')[0]; //Remove curator subpath suffix
+
 				if(_isMetaMDBG){
 					
 					bool isCircular = false;
@@ -5274,9 +5489,9 @@ public:
 				//cout << "Polish contig: " << contigSequence.size() << endl;
 				header = ">" + header + '\n';// ">ctg" + to_string(contigIndex) + '\n';
 				//header += '\n';
-				gzwrite(_outputContigFile_polished, (const char*)&header[0], header.size());
+				gzwrite(outputContigFile, (const char*)&header[0], header.size());
 				contigSequence +=  '\n';
-				gzwrite(_outputContigFile_polished, (const char*)&contigSequence[0], contigSequence.size());
+				gzwrite(outputContigFile, (const char*)&contigSequence[0], contigSequence.size());
 				//_logFile << _contigHeaders[contigIndex] << " " << contigSequence.size() << endl;
 				
 				_outputContigIndex += 1;
@@ -5329,6 +5544,40 @@ public:
 
 	int32_t getEstimatedOverlapLength(const Alignment& prevAlignment, const Alignment& nextAlignment){
 
+		
+		int32_t prevLeftOverhang = 0;
+		int32_t prevRightOverhang = 0;
+
+		if(prevAlignment._strand){
+			prevLeftOverhang = prevAlignment._readLength - prevAlignment._readEnd;
+			prevRightOverhang = prevAlignment._readStart;
+		}
+		else{
+			prevLeftOverhang = prevAlignment._readStart;
+			prevRightOverhang = prevAlignment._readLength - prevAlignment._readEnd;
+		}
+
+		int32_t nextLeftOverhang = 0;
+		int32_t nextRightOverhang = 0;
+
+		if(nextAlignment._strand){
+			nextLeftOverhang = nextAlignment._readLength - nextAlignment._readEnd;
+			nextRightOverhang = nextAlignment._readStart;
+		}
+		else{
+			nextLeftOverhang = nextAlignment._readStart;
+			nextRightOverhang = nextAlignment._readLength - nextAlignment._readEnd;
+		}
+
+		int32_t prevStart = ((int32_t) prevAlignment._contigStart) - prevLeftOverhang;
+		int32_t prevEnd = ((int32_t) prevAlignment._contigEnd) + prevRightOverhang;
+
+		int32_t nextStart = ((int32_t) nextAlignment._contigStart) - nextLeftOverhang;
+		int32_t nextEnd = ((int32_t) nextAlignment._contigEnd) + nextRightOverhang;
+
+
+		return (int32_t)prevEnd - (int32_t)nextStart;
+		
 		return (int32_t)prevAlignment._contigEnd - (int32_t)nextAlignment._contigStart;
 	}
 
@@ -5384,21 +5633,73 @@ public:
 		int32_t expectedQueryStart = alignment2._readStart;
 		int32_t expectedQueryEnd = expectedQueryStart + expectedOverlapLength;
 
+
 		u_int32_t maxError = -1;
+		u_int32_t minLength = 0;
+
+		/*
+		if(n_reg > 1){
+
+			int nbValidAlignments = 0;
+			cout << alignment1._readIndex << " " << alignment2._readIndex << endl;
+
+			for (j = 0; j < n_reg; ++j) { // traverse hits and print them out
+
+
+				mm_reg1_t *r = &reg[j];
+
+				int32_t actualOverlapLength = r->qe - r->qs;
+
+				int error = abs(expectedOverlapLength - actualOverlapLength) + abs(expectedQueryStart - r->qs);
+
+				AlignmentBounds alignment2;
+				alignment2._referenceLength = reference.size();
+				alignment2._queryLength = query.size();
+				alignment2._queryStart = r->qs;
+				alignment2._queryEnd = r->qe;
+				alignment2._referenceStart = r->rs;
+				alignment2._referenceEnd = r->re;
+				alignment2._isReversed = r->rev;
+				
+
+				cout << "Minimap2 align: " << r->qs << "\t" << r->qe << "\t\t" << r->rs << "\t" << r->re << "\t\t" << error << "\t" << isValidAlignment(alignment2, 0) << endl;
+
+				if(isValidAlignment(alignment2, 0)){
+					nbValidAlignments += 1;
+				}
+			}
+
+			if(nbValidAlignments > 1) getchar();
+		}
+		*/
 
 		for (j = 0; j < n_reg; ++j) { // traverse hits and print them out
 		
 			mm_reg1_t *r = &reg[j];
 
+			AlignmentBounds alignment2;
+			alignment2._referenceLength = reference.size();
+			alignment2._queryLength = query.size();
+			alignment2._queryStart = r->qs;
+			alignment2._queryEnd = r->qe;
+			alignment2._referenceStart = r->rs;
+			alignment2._referenceEnd = r->re;
+			alignment2._isReversed = r->rev;
+			
+			if(!isValidAlignment(alignment2, 0)) continue;
+
 			int32_t actualOverlapLength = r->qe - r->qs;
 
 			int error = abs(expectedOverlapLength - actualOverlapLength) + abs(expectedQueryStart - r->qs);
 
+			u_int32_t alignLength = min(r->qe - r->qs, r->re - r->rs);
 			//cout << "Minimap2 align: " << r->qs << " " << r->qe << "    " << r->rs << " " << r->re << "    " << error << endl;
 			
 
-			if(error < maxError){
-				maxError = error;
+			//if(error < maxError){
+			if(alignLength > minLength){
+				minLength = alignLength;
+				//maxError = error;
 
 				alignment._queryStart = r->qs;
 				alignment._queryEnd = r->qe;

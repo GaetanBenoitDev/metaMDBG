@@ -3,14 +3,11 @@
 #ifndef MDBG_METAG_MDBGASSEMBLER
 #define MDBG_METAG_MDBGASSEMBLER
 
-/*
-"reprise: unitig graph check si sir les petits jeux successor file == predecessor file
-on pourrait peut etre ne pas sauver les abondances des nodeIndex dans les unitigs
-on peut aussi ne charger que les nodes du forward en therorie, car on peut retrouver l'un depuis lautre"
-*/
+
+
+#include "polish/ContigPolisher.hpp" //!
 
 #include "readSelection/ReadCorrection.hpp"
-
 
 //#include "readSelection/SetupCorrectionEvaluationSimulation.hpp"
 #include "readSelection/SetupCorrectionEvaluation.hpp"
@@ -44,8 +41,7 @@ on peut aussi ne charger que les nodes du forward en therorie, car on peut retro
 //#include "mapping/Mapping_BinReads.hpp"
 //#include "mapping/Mapping_ContigToMDBG.hpp"
 //#include "mapping/Mapping_BinToMDBG.hpp"
-#include "polish/ContigPolisher.hpp" //!
-#include "polish/PurgeDups.hpp" //!
+//#include "polish/PurgeDups.hpp" //!
 //#include "contigFeatures/KminmerCounter.hpp"
 //#include "assembly/Circulizer2.hpp"
 //#include "contigFeatures/KmerHicLinker.hpp"
@@ -119,8 +115,11 @@ int main (int argc, char* argv[])
     		string programName = string(argv[1]);
 
 
+			//if(programName == "polish"){
+            //    ContigPolisher().run (argc, args); //!
+    		//}
 			
-
+			
 			//else if(programName == "readSelectionPaired"){
             //    ReadSelectionPaired().run (argc, args);
     		//}
@@ -190,9 +189,9 @@ int main (int argc, char* argv[])
     		//else if(programName == "derepgraph"){
                 //PurgeGraph().run (argc, args);
     		//}
-    		else if(programName == "derep"){
-                PurgeDups().run (argc, args); //!
-    		}
+    		//else if(programName == "derep"){
+            //    PurgeDups().run (argc, args); //!
+    		//}
     		//else if(programName == "derepOld"){
             //    Dereplicater().run (argc, args);
     		//}

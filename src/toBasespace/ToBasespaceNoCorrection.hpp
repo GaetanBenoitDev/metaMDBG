@@ -130,8 +130,8 @@ public:
 		}
 		
 		{
-			RepeatRemover repeatRemover(_inputDir, _inputFilenameContig, _kminmerSize, _minimizerDensity, _hasQuality, _nbCores);
-			repeatRemover.execute();
+			//RepeatRemover repeatRemover(_inputDir, _inputFilenameContig, _kminmerSize, _minimizerDensity, _hasQuality, _nbCores);
+			//repeatRemover.execute();
 		}
 		//closeLogFile();
 
