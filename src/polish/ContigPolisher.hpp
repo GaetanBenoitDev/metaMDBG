@@ -1,11 +1,17 @@
 
 /*
 
-- checkpoint system: small_contig pas safe pour le moment (besoin de le mettre dans un fichier a part pendant createMDBG)
 
-- dans peformCorrection y'a un std::unique_ptr<spoa::AlignmentEngine> alignmentEngine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kNW, 3, -5, -4); qui se balade, le mettre dans une variable?
-- on a aucun circular=yes dans les headers actellement: ça doit etre dans la deuxieme pass du polishing vu qu'on a deja transformer les headers
-- ptet qu'on a pas besoin de RemoverRepeat pour les circular contigs si on voit qu'il ne sont jamais contaminé
+- preparer le benchmark qui integre:
+	- clipping
+	- zero cov
+	- contamination
+	- besoin d'opti un peu le script clipping en mémoire
+
+- si on fait le minimap2 polishing en -c, on peut utiliser le cigar fournit par minimap2
+	- trop couteux a stocker en mémoire, autre alternative: au lieu de edlib on utilise un minimap2align
+
+- checkpoint system: ajouter des checkpint dans le polisher
 
 - todo circ check:
 	- alignement sur le debut et la fin d'un contig
@@ -18,19 +24,19 @@
 	- attention le trimming des windows peut generer une courte sequence si on a selectionner une majorité de window incomplete par exemple, il faudrait faire evoluer le seuile de trimming tant que le consensus est trop court
 	- on pourrait aussi empecher des window trop courte d'etre utiliser pendant la correction
 
-- repeatremover: faire un choix sur son utilisation: regarder precisemment l'abondance des contig chimerique etc
 - subsample for repetitive minimizers: essayer de predire un peu cb de reads il faut parser en fonction de la taille du jeu d'entrée
-- flag isMetaMDBG, l'utiliser partout ou on créé des header metaMDBG (trimCOntig, COntigDerep)
 
 - quand on charche le successeur d'un read dans le graph, il est possible qu'on ne choississe pas le meilleur successeur (genre le read d'une autre strain), si quand on effecture un le minimap2 alignment, on se rend compte qu'il y a un petit overhang entre les deux reads (< 200), on pourrait essayer d'autrees successeurs
 
 - read contigStart/End, fuat-il rajouter la length non alignée, pour tirer les alignement par ordre du contig aussi
 
-- on pourrait rafiner les bord des contigs en ajoutant les reads qui mappent au bout puis une dereplication massive des overlaps, mais risqué ptet
-- contig derep: gros peak de mémoire vu qu'on utilise le meme -I 8G que pour le mapping en minimizer-space, essayer de fix le -I XG de 1 à 4
+- rafinage du bord des contigs
 
-- mode --genomic: discard all kminmer since once in first pass
-- checkpoint system
+- mode --genomic:
+	- discard all kminmer since once in first pass
+	- desactiver le repeat remover
+	- tip removing?
+
 
 - ont read correction: moins bon resultat peut venir de la correction final via le chaining plutot que l'alignement (a test sur ZymoFecal)
 - en mode ont on eneleve vraiment bcp de minimizer reptitive, pas sur de ça (check sur le soil aussi)
@@ -43,28 +49,10 @@
 */
 
 /*
-- en test:
-	- is circular: verifier qu'on enleve le circular flag si on a decouper un contig
-	- ReadCorrection ont: performPoaCorrection5: remettre le chaining alignment pour le poa en low-density
 
-- getBestAlignment: acutellement on peut selection un tous petit overlap avec 0.99% identity, il faudrait faire une selection en deux temps, tout d'abord, minimum 5k overlap, puis si on a rien tout overlap length autorisé
-- computeOverlapPath: plus que 1000?
 - transitive reudction: possible de l'accelerer en reactivant le code de filtrage basé sur la length
-- parallelisation
 - sur le soil va falloir check la conso mémoire, check les potentiel memory leak
 - _contigSequences: on peut le clear des qu'on a refait les alignment reads vs contigs (avant graphOverlapPath)
-
-- Polishing:
-	- racon: selection des N window: doivent provenir de la strain dominante en priorité (donc plus grand alignment)
-	- racon: verifier erreurs sur le bord des window?
-	- integrer abpoa ou virer du code de spoa qui n'est pas utiliser a la compil
-	- mm2-fast, version rapide de minimap2: https://github.com/bwa-mem2/mm2-fast
-
-- repeat post-process:
-	- reessayer de detcter les repeat dans le polisher via de l'alignement
-	- si le coverage splitting est validé, il faudra bien delimité les bounds des fragments avant de split
-	- estimation coverage: peut etre mauvais pour les reads qui mappe sur plusieurs bord de contig (vu qu'on garde que le meilleur alignement)
-	- fix le k et density si on conserve le decoupage en unitig
 
 - si on valide k=15, on pourra ptet changer les minimizer pair en minimizer classique dans la module de read correction
 - CreateMDBG: cout << "Opti: getSuccessor, getPredecessor: on peut arreter la collect des que ya plus de 1 successor/predecessor pendant l'unitigage" << endl;
@@ -80,16 +68,6 @@ python3 ~/zeus/scripts/nanopore/eval_clipping.py asm/contigs_2.fasta.gz /pasteur
 /pasteur/appa/homes/gbenoit/zeus/tools/merging/metaMDBG_7/metaMDBG/build/bin/metaMDBG polish --polish-target ctg40713l_uncorrected.fasta --out-dir ./ctg40713l_polish/ --in-ont ctg40713l_reads.fastq --max-memory 17 --threads 32 -n 100 --metaMDBG
 
 /pasteur/appa/homes/gbenoit/zeus/tools/merging/metaMDBG/build/bin/metaMDBG polish --polish-target ctg5583c_uncorrected.fasta --out-dir ./ctg5583c_polish/ --in-ont ctg5583c_reads.fastq --max-memory 17 --threads 32 -n 100 --metaMDBG
-*/
-
-/*
-
-- A Evaluer:
-	- init contig length (on ne doit pas utiliser tout le premier read mais seulement la partir qui map sur le contig), mais attention quand on aligne le read suivant du coup (cas particulier)
-	- Contig de taille 0 dans le fichier de sortie (on les enleve actuellement mais il faudrait check d'ou il viennent a la base)
-	- cas particulier: petit contig dont le overlap path est de taille 1 (donc un read qui chevauche le petit contig), on a fait un cas particulier dans le convert path to sequence
-	- attention: gestion de l'erreur si minimap2 crash + evaluation peak memory
-
 */
 
 
@@ -598,6 +576,7 @@ public:
 	gzFile _usedReadFile;
 	gzFile _outputContigFilePartition;
 	gzFile _outputContigFileRepeat;
+	ofstream _file_contigHeaders;
 
 	/*
 	abpt = abpoa_init_para();
@@ -776,6 +755,7 @@ public:
 
 		const string& outputContigFilename_polished = _readPartitionDir + "/contigs_polished.fasta.gz";
 		gzFile outputContigFile_polished = gzopen(outputContigFilename_polished.c_str(),"wb");
+		_file_contigHeaders = ofstream(_tmpDir + "/contigHeaders.txt");
 
 		for(size_t i=0; i<_nbPartitions; i++){
 
@@ -788,6 +768,7 @@ public:
 
 		}
 
+		_file_contigHeaders.close();
 		gzclose(outputContigFile_polished);
 		
 		//exit(1);
@@ -4500,7 +4481,7 @@ public:
 		Logger::get().debug() << "\tMap reads to curated contigs";
 
 		const string& alignFilename = _readPartitionDir + "/align.paf.gz";
-		string command = "minimap2 -v 0 -m 500 -t " + to_string(_nbCores) + " -x " + _minimap2Preset_map + " " + contigFilename + " " + readFilename;
+		string command = "minimap2 -c -v 0 -m 500 -t " + to_string(_nbCores) + " -x " + _minimap2Preset_map + " " + contigFilename + " " + readFilename;
 		Utils::executeMinimap2(command, alignFilename);
 		//command += " | gzip -c - > " + alignFilename;
 		//cout << command << endl;
@@ -5474,6 +5455,7 @@ public:
 				
 				if(_useMetamdbgHeaderStyle && pass > 0){
 					
+					string originalHeader = header;
 					header = Utils::split(header, '_')[0]; //Remove curator subpath suffix
 
 					bool isCircular = false;
@@ -5497,6 +5479,8 @@ public:
 					//	header = h + " length=" + to_string(contigSequence.size()) + " coverage=" + to_string(_contigCoverages[contigIndex]) + " circular=no";
 					//}
 					header = Utils::createContigHeader(_outputContigIndex, contigSequence.size(), _contigCoverages[contigIndex], isCircular);
+					
+					_file_contigHeaders << originalHeader << "\t" << _outputContigIndex << endl;
 				}
 				
 
@@ -5750,199 +5734,7 @@ public:
 	}
 
 
-	
-	void loadUnitigIndex(){
-		const string& unitigFilename = _tmpDir + "/unitig_data.txt.init";
 
-
-		KminmerParserParallel parser(unitigFilename, _minimizerSize, 4, false, false, _nbCores);
-		parser.parse(IndexUnitigFunctor(*this));
-	}
-
-	unordered_map<KmerVec, u_int32_t> _kminmer_to_unitigIndex;
-
-	class IndexUnitigFunctor {
-
-		public:
-
-		ContigPolisher& _parent;
-
-		IndexUnitigFunctor(ContigPolisher& parent) : _parent(parent){
-
-		}
-
-		IndexUnitigFunctor(const IndexUnitigFunctor& copy) : _parent(copy._parent){
-			
-		}
-
-		~IndexUnitigFunctor(){
-		}
-
-		void operator () (const KminmerList& kminmerList) {
-
-			u_int64_t readIndex = kminmerList._readIndex;
-			const vector<MinimizerType>& readMinimizers = kminmerList._readMinimizers;
-			const vector<ReadKminmerComplete>& kminmersInfos = kminmerList._kminmersInfo;
-
-			#pragma omp critical(IndexUnitigFunctor)
-			{
-
-				for(size_t i=0; i<kminmersInfos.size(); i++){
-
-					const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
-					const KmerVec& vec = kminmerInfo._vec;
-
-					_parent._kminmer_to_unitigIndex[vec] = readIndex;
-
-
-				}
-			}
-		}
-	};
-	
-
-	unordered_map<u_int128_t, u_int32_t> _kminmerAbundances;
-
-	void loadKminmerAbundance(){
-
-
-		ifstream kminmerAbundanceFile(_tmpDir + "/kminmerData_abundance_init.txt");
-
-		while (true) {
-
-			u_int128_t vecHash;
-			u_int32_t abundance;
-
-			kminmerAbundanceFile.read((char*)&vecHash, sizeof(vecHash));
-
-			if(kminmerAbundanceFile.eof()) break;
-
-			kminmerAbundanceFile.read((char*)&abundance, sizeof(abundance));
-			
-			//return false;
-
-			//bool iseof = MDBG::readKminmerAbundance(vecHash, abundance, kminmerAbundanceFile);
-
-			//if(iseof) break;
-
-			if(abundance == 1) continue;
-			_kminmerAbundances[vecHash] = abundance;
-
-			//cout << "lala" << " " << abundance << endl;
-
-		}
-
-		kminmerAbundanceFile.close();
-	}
-	
-	u_int128_t hash128(const KmerVec& vec) const{
-		u_int128_t seed = vec._kmers.size();
-		for(auto& i : vec._kmers) {
-			seed ^= i + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-		}
-		return seed;
-	}
-
-	/*
-	unordered_map<u_int32_t, u_int32_t> _unitigIndex_to_abundance;
-
-	void loadUnitigAbundance(){
-
-
-		ifstream abundanceFile(_tmpDir + "/unitigGraph.nodes.refined_abundances.bin.init");
-
-		while (true) {
-
-			u_int32_t unitigName;
-			float abundance;
-
-			abundanceFile.read((char*)&unitigName, sizeof(unitigName));
-			
-			if(abundanceFile.eof()) break;
-
-			abundanceFile.read((char*)&abundance, sizeof(abundance));
-
-			//cout << unitigName << " " << abundance << endl;
-			_unitigIndex_to_abundance[unitigName*2] = abundance;
-		}
-
-
-		abundanceFile.close();
-
-	}
-
-
-
-
-	void loadContigData(){
-		const string& unitigFilename = _tmpDir + "/contig_data.txt";
-
-
-		KminmerParserParallel parser(unitigFilename, _minimizerSize, 4, false, false, _nbCores);
-		parser.parse(ContigDataFunctor(*this));
-
-		exit(1);
-	}
-
-	class ContigDataFunctor {
-
-		public:
-
-		ContigPolisher& _parent;
-
-		ContigDataFunctor(ContigPolisher& parent) : _parent(parent){
-
-		}
-
-		ContigDataFunctor(const ContigDataFunctor& copy) : _parent(copy._parent){
-			
-		}
-
-		~ContigDataFunctor(){
-		}
-
-		void operator () (const KminmerList& kminmerList) {
-
-			u_int64_t readIndex = kminmerList._readIndex;
-			const vector<MinimizerType>& readMinimizers = kminmerList._readMinimizers;
-			const vector<ReadKminmerComplete>& kminmersInfos = kminmerList._kminmersInfo;
-
-			if(readIndex != 40703) return;
-
-			for(size_t i=0; i<readMinimizers.size(); i++){
-				cout << i << " " << readMinimizers[i] << endl;
-			}
-
-			return;
-
-			#pragma omp critical(IndexUnitigFunctor)
-			{
-
-				cout << readIndex << " " << kminmersInfos.size() << endl;
-
-				for(size_t i=0; i<kminmersInfos.size(); i++){
-
-					const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
-					const KmerVec& vec = kminmerInfo._vec;
-
-					cout << i << " " << _parent._kminmer_to_unitigIndex[vec] << endl;
-					//cout << i << " " << _parent._kminmerAbundances.size() << " " << _parent._kminmerAbundances[hash128(vec)] << endl;
-					//getchar();
-					//_parent._kminmer_to_unitigIndex[vec] = readIndex;
-				}
-			}
-		}
-
-		u_int128_t hash128(const KmerVec& vec) const{
-			u_int128_t seed = vec._kmers.size();
-			for(auto& i : vec._kmers) {
-				seed ^= i + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-			}
-			return seed;
-		}
-
-	};
-	*/
 
 };	
 
