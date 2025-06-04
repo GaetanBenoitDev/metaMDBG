@@ -1,10 +1,27 @@
 
 /*
 
+- checkpoint system: small_contig pas safe pour le moment (besoin de le mettre dans un fichier a part pendant createMDBG)
+
+- dans peformCorrection y'a un std::unique_ptr<spoa::AlignmentEngine> alignmentEngine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kNW, 3, -5, -4); qui se balade, le mettre dans une variable?
+- on a aucun circular=yes dans les headers actellement: ça doit etre dans la deuxieme pass du polishing vu qu'on a deja transformer les headers
+- ptet qu'on a pas besoin de RemoverRepeat pour les circular contigs si on voit qu'il ne sont jamais contaminé
+
+- todo circ check:
+	- alignement sur le debut et la fin d'un contig
+	- pas d'alignement sur d'autre contigs
+	- on doit avoir pas mal de contig circulaire detruit vu qu'on enleve les repeats sur les bords des contigs dans le repeatremover sans checker si un read la bridge
+
+- spoa polishing:
+	- max hang ultra important
+	- pour bien detecter le maxHang en ont, faire un alignement minimap2align (on peut aligner une fenetre du contig et du read un peu plus grande que le mapping)
+	- attention le trimming des windows peut generer une courte sequence si on a selectionner une majorité de window incomplete par exemple, il faudrait faire evoluer le seuile de trimming tant que le consensus est trop court
+	- on pourrait aussi empecher des window trop courte d'etre utiliser pendant la correction
+
+- repeatremover: faire un choix sur son utilisation: regarder precisemment l'abondance des contig chimerique etc
+- subsample for repetitive minimizers: essayer de predire un peu cb de reads il faut parser en fonction de la taille du jeu d'entrée
 - flag isMetaMDBG, l'utiliser partout ou on créé des header metaMDBG (trimCOntig, COntigDerep)
 
-- enelever le bordel de _windowPositionOffset
-- contig header desactiver pendant le debuggage
 - quand on charche le successeur d'un read dans le graph, il est possible qu'on ne choississe pas le meilleur successeur (genre le read d'une autre strain), si quand on effecture un le minimap2 alignment, on se rend compte qu'il y a un petit overhang entre les deux reads (< 200), on pourrait essayer d'autrees successeurs
 
 - read contigStart/End, fuat-il rajouter la length non alignée, pour tirer les alignement par ordre du contig aussi
@@ -23,7 +40,6 @@
 - RepeatRemover: comment gerer l'endroit ou ont split les contig? (Actuellement on laisse un overlap mais il faudrait enlever l'overlap pour le fragment le plus petit), on peut aussi limité la taille des contigs a derepliquer (max 30000 par exemple, le but est d'enlever les erreurs)
 - isCircular checker: readMapping + rafinement des bord
 
-- maintenant qu'on dereplique bien, plus besoin d'enlever des contigs juste par leur taille (3000 ou 2500)
 */
 
 /*
@@ -304,7 +320,7 @@ public:
 	string _outputMappingFilename_contigsVsUsedReads;
 	int _maxMemoryGB;
 	double _qualityThreshold;
-	bool _isMetaMDBG;
+	bool _useMetamdbgHeaderStyle;
 
 	//gzFile _outputContigFile_polished;
 	gzFile _outputContigFile_trimmed;
@@ -425,7 +441,7 @@ public:
 		args::ValueFlag<int> arg_nbCores(groupInputOutput, "", "Number of cores", {ARG_NB_CORES2}, NB_CORES_DEFAULT_INT);
 
 		args::ValueFlag<int> arg_nbWindows(groupOther, "", "Maximum read coverage used for contig correction (increase for better correction)", {ARG_NB_WINDOWS}, 0);
-		args::Flag arg_isMetaMDBG(groupOther, "", "Do not use qualities during correction", {ARG_IS_METAMDBG}, args::Options::Hidden);
+		args::Flag arg_isMetaMDBG(groupOther, "", "Use metaMDBG style headers", {ARG_IS_METAMDBG}, args::Options::Hidden);
 		args::ValueFlag<int> arg_maxMemory(groupOther, "", "Maximum memory usage for read mapping", {ARG_MAX_MEMORY}, 8);
 
 		//args::ValueFlag<int> arg_minimizerSize(groupAssembly, "", "k-mer size", {ARG_MINIMIZER_LENGTH2}, 13);
@@ -476,9 +492,9 @@ public:
 		//	_useQual = false;
 		//}
 
-		_isMetaMDBG = false;
+		_useMetamdbgHeaderStyle = false;
 		if(arg_isMetaMDBG){
-			_isMetaMDBG = true;
+			_useMetamdbgHeaderStyle = true;
 		}
 
 		_circularize = false;
@@ -489,7 +505,7 @@ public:
 
 
 		_windowLength = 500;
-		_windowPositionOffset = 0;
+		//_windowPositionOffset = 0;
 		_windowLengthVariance = _windowLength*0.01;
 		_maxWindowCopies = args::get(arg_nbWindows);
 		_qualityThreshold = 10.0;
@@ -635,7 +651,7 @@ public:
 		}
 		*/
 
-		_outputContigIndex = 0;
+
 		int minimapBatchSize = 1;
 		//float peakMemory = getPeakMemory();
 		if(_maxMemoryGB < 8 || _maxMemoryGB > 1000000){
@@ -650,6 +666,7 @@ public:
 		if(minimapBatchSize > 100){
 			minimapBatchSize = 100;
 		}
+
 
 
 		//trimContigs(minimapBatchSize);
@@ -670,6 +687,7 @@ public:
 		//cout << "Return: " << error << endl;
 		
 		//mapReads();
+		
 		
 		Logger::get().debug() << "";
 		Logger::get().debug() << "Partitionning reads on the disk";
@@ -701,43 +719,60 @@ public:
 		//_outputContigFile = gzopen(_outputFilename_contigs.c_str(),"wb");
 		_usedReadFile = gzopen(_usedReadFilename.c_str(),"wb");
 
-		//_partitionNbReads[28] = 10000;
-		//processPartition(28);
+		//_partitionNbReads[30] = 10000;
+		//processPartition(30);
 		//exit(1);
+
+		
 
 		for(size_t i=0; i<_nbPartitions; i++){
 			_partitionNbReads[i] = 10000;
+			
+			//if(i != 30) continue;
+
 			processPartition(i);
 		}
+		
 
 		gzclose(_usedReadFile);
+		
 
 		//for(size_t i=0; i<_nbPartitions; i++){
 		//	_partitionNbReads[i] = 10000;
 			//detectWeakRepeats2(i);
 		//}
 
+
+
 		Logger::get().debug() << "";
 		Logger::get().debug() << "Polishing contigs (pass 1)";
-		_windowPositionOffset = 0;
+		_outputContigIndex = 0;
+		
+		//_nbPartitions = 50;
 
 		for(size_t i=0; i<_nbPartitions; i++){
 
-			
+			//if(i != 30) continue;
+
+			//_partitionNbReads[i] = 10000;
+
 			string inputContigFilename = _readPartitionDir + "/" + to_string(i) + "_contigsCurated.gz";
 			string outputContigFilename = _readPartitionDir + "/" + to_string(i) + "_contigsPolished.gz";
 			gzFile outputContigFile = gzopen(outputContigFilename.c_str(),"wb");
 
 			//_partitionNbReads[i] = 10000;
-			polishPartition(i, inputContigFilename, outputContigFile);
+			polishPartition(i, inputContigFilename, outputContigFile, 0);
 
 			gzclose(outputContigFile);
 		}
 
+		//cout << "done" << endl;
+
+
 
 		Logger::get().debug() << "";
 		Logger::get().debug() << "Polishing contigs (pass 2)";
-		_windowPositionOffset = 0; //_windowLength/2;
+		_outputContigIndex = 0;
 
 		const string& outputContigFilename_polished = _readPartitionDir + "/contigs_polished.fasta.gz";
 		gzFile outputContigFile_polished = gzopen(outputContigFilename_polished.c_str(),"wb");
@@ -745,9 +780,11 @@ public:
 		for(size_t i=0; i<_nbPartitions; i++){
 
 
+			//if(i != 30) continue;
+
 			string inputContigFilename = _readPartitionDir + "/" + to_string(i) + "_contigsPolished.gz";
 
-			polishPartition(i, inputContigFilename, outputContigFile_polished);
+			polishPartition(i, inputContigFilename, outputContigFile_polished, 1);
 
 		}
 
@@ -913,8 +950,11 @@ public:
 			if(contigSequenceTrimmed.size() < ContigPolisher::_minContigLength) return;
 
 			string header = read._header;
-			Utils::ContigHeader contigHeader = Utils::extractContigHeader(header);
-			header = Utils::createContigHeader(contigHeader._contigIndex, contigSequenceTrimmed.size(), contigHeader._coverage, contigHeader._isCircular);
+
+			if(_parent._useMetamdbgHeaderStyle){
+				Utils::ContigHeader contigHeader = Utils::extractContigHeader(header);
+				header = Utils::createContigHeader(contigHeader._contigIndex, contigSequenceTrimmed.size(), contigHeader._coverage, contigHeader._isCircular);
+			}
 
 			string headerFasta = ">" + header + '\n';
 			gzwrite(_parent._outputContigFile_trimmed, (const char*)&headerFasta[0], headerFasta.size());
@@ -929,7 +969,7 @@ public:
 
 		auto start = high_resolution_clock::now();
 
-		ContigDerep contigDerep(inputContigFilename, outputContigFilename, minimapBatchSize, _tmpDir, _readPartitionDir, 0.9, _minContigLength, _nbCores);
+		ContigDerep contigDerep(inputContigFilename, outputContigFilename, _useMetamdbgHeaderStyle, minimapBatchSize, _tmpDir, _readPartitionDir, 0.9, _minContigLength, _nbCores);
 		contigDerep.execute();
 		
 		Logger::get().debug() << "\tDone " << " (" << duration_cast<seconds>(high_resolution_clock::now() - start).count() << "s)";
@@ -1830,6 +1870,9 @@ public:
 
 	void convertOverlapPathToSequences(){
 
+		int nbCores = _nbCores;
+		if(_print_debug) nbCores = 1;
+
 		//vector<OverlapGraphPath> paths;
 		//vector<u_int32_t> contigIndexes;
 		for(const OverlapGraphPath& path : _contigOverlapPaths){
@@ -1847,7 +1890,7 @@ public:
 		size_t i = 0;
 
 
-		#pragma omp parallel num_threads(_nbCores)
+		#pragma omp parallel num_threads(nbCores)
 		{
 
 			ConvertOverlapPathToSequenceFunctor functorSub(*this, _print_debug);//(functor);
@@ -1947,6 +1990,9 @@ public:
 		void operator () (const OverlapGraphPath& overlapPath) {
 
 
+			if(_print_debug){
+				cout << endl << endl << endl << "Coverting: " << overlapPath._path.size() << endl;
+			}
 			string contigSeq = "";
 
 			if(overlapPath._path.size() == 0){
@@ -2239,7 +2285,7 @@ public:
 			const u_int32_t& contigLength = _contigSequences[it.first].size();
 
 			//if(_print_debug){
-			//	if(_contigHeaders[contigIndex] != "ctg53061l") continue;
+			//	if(_contigHeaders[contigIndex] != "ctg48340l") continue;
 			//}
 			
 			contigLengths.push_back({contigIndex, contigLength});
@@ -3610,6 +3656,51 @@ public:
 	}
 
 
+	int32_t getMaxhang(const AlignmentBounds& alignmentBounds){
+
+		int64_t queryLength = alignmentBounds._queryLength;
+		int64_t queryStart = alignmentBounds._queryStart;
+		int64_t queryEnd = alignmentBounds._queryEnd;
+		
+		int64_t targetLength = alignmentBounds._referenceLength;
+		int64_t targetStart = alignmentBounds._referenceStart;
+		int64_t targetEnd = alignmentBounds._referenceEnd;
+		bool isReversed = alignmentBounds._isReversed;
+
+
+		int64_t tl3 = 0;
+		int64_t tl5 = 0;
+		int64_t ext3 = 0;
+		int64_t ext5 = 0;
+
+        if(isReversed){
+            tl5 = targetLength - targetEnd;
+            tl3 = targetStart;
+		}
+        else{
+            tl5 = targetStart;
+            tl3 = targetLength - targetEnd;
+		}
+
+        if(queryStart < tl5){
+            ext5 = queryStart;
+		}
+        else{
+            ext5 = tl5;
+		}
+
+        if (queryLength - queryEnd < tl3){
+            ext3 = queryLength - queryEnd;
+		}
+        else{
+            ext3 = tl3;
+		}
+
+		//cout << "Ext5: " << ext5 << endl;
+		//cout << "Ext3: " << ext3 << endl;
+		return max(ext5, ext3);
+	}
+
 	
 	bool _loadAllContigs;
 
@@ -3639,11 +3730,7 @@ public:
 		//if(_currentPartition == 0) _logFile << "Loading contig in partition 0: " << contigIndex << endl;
 		_contigSequences[contigIndex] = read._seq;
 
-		size_t nbWindows = ceil(((double)read._seq.size()-_windowPositionOffset) / (double)_windowLength);
-		
-		if(_windowPositionOffset > 0){
-			if(read._seq.size() > _windowPositionOffset) nbWindows += 1;
-		}
+		size_t nbWindows = ceil(((double)read._seq.size()) / (double)_windowLength);
 
 		//cout << "loadContigs_read: Nb windows + 1 si offsrt polishing" << endl;
 		vector<vector<Window>> windows(nbWindows);
@@ -4389,7 +4476,7 @@ public:
 	};
 
 
-	void polishPartition(u_int32_t partition, const string& contigFilename, gzFile& outputContigFile){
+	void polishPartition(u_int32_t partition, const string& contigFilename, gzFile& outputContigFile, const int& pass){
 		_currentPartition = partition;
 		//if(_contigSequences.size() == 0) return;
 		
@@ -4439,7 +4526,7 @@ public:
 		//getchar();
 		
 		Logger::get().debug() << "\tPerform correction";
-		performCorrection(outputContigFile);
+		performCorrection(outputContigFile, pass);
 
 
 		Logger::get().debug() << "\tPartition " << partition << " done " << " (" << duration_cast<seconds>(high_resolution_clock::now() - start).count() << "s)";
@@ -4448,7 +4535,6 @@ public:
 
 	}
 
-	
 	class CollectWindowSequencesFunctor {
 
 		public:
@@ -4478,7 +4564,6 @@ public:
 			//const string& readName = Utils::shortenHeader(read._header);
 			u_int32_t readIndex = stoull(read._header);
 
-			//cout << readIndex << " " << (_alignments.find(readIndex) != _alignments.end()) << endl;
 			//if(_contigPolisher._currentPartition == 0) _logFile << readIndex << " " << (_alignments.find(readIndex) != _alignments.end()) << endl;
 			
 			//if(readIndex % 100000 == 0) _logFile << "\t" << readIndex << endl;
@@ -4490,10 +4575,7 @@ public:
 			//for(const Alignment& al : _alignments[readIndex]){
 			u_int32_t contigIndex = al._contigIndex;
 
-			//cout << "a " << readIndex << " " << contigIndex << " " << _contigSequences.size() << " " << (_contigSequences.find(contigIndex) != _contigSequences.end()) << endl;
-
 			if(_contigSequences.find(contigIndex) == _contigSequences.end()) return;
-
 
 			//_logFile << read._seq.size() << " " << read._qual.size() << " " << _contigSequences[contigIndex].size() << " " << al._readStart << " " << al._readEnd << " " << al._contigStart << " " << al._contigEnd << endl;
 			string readSeq = read._seq;
@@ -4509,6 +4591,27 @@ public:
 				std::reverse(qualSeq.begin(), qualSeq.end());
 			}
 			
+
+			AlignmentBounds bounds;
+			bounds._queryStart = al._readStart;
+			bounds._queryEnd = al._readEnd;
+			bounds._referenceStart = al._contigStart;
+			bounds._referenceEnd = al._contigEnd;
+			bounds._queryLength = readSeq.size();
+			bounds._referenceLength = _contigSequences[contigIndex].size();
+			bounds._isReversed = al._strand;
+
+			if(_contigPolisher.getMaxhang(bounds) > ContigPolisher::maxHang*2) return;
+
+			//u_int32_t readSizeMappable = _contigPolisher.getMappableLength(bounds); //A read size that do not consider alignment outside contig bounds (start and end of the contigs)
+			
+
+			//int64_t overhang = readSeq.size() - readSizeMappable;
+			//cout << overhang << endl;
+			//if(overhang > 10) return;
+
+			//cout << overhang << endl;
+
 
 			//_logFile << readSequence << endl;
 			//_logFile << contigSequence << endl;
@@ -4533,7 +4636,18 @@ public:
 
 			edlibFreeAlignResult(result);
 			
+			//if(al._contigEnd < 20000){
+				//cout << "-----" << endl;
+				//cout << al._contigStart << " " << al._contigEnd << "     " << al._readStart << " " << al._readEnd << " " << al._readLength << endl;
+				//cout << _contigPolisher.getMaxhang(bounds) << endl;
+				//u_int64_t nbMatches = getCigarNbMatches(al, cigar, readSequence, contigSequence);
+				//getchar();
+
+			//}
+
 			find_breaking_points_from_cigar(_windowLength, al, readSeq.size(), cigar, readSeq, qualSeq);
+
+
 			free(cigar);
 
 			//getchar();
@@ -4542,32 +4656,90 @@ public:
 
 		}
 
+		/*
+		u_int64_t getCigarNbMatches(const Alignment& al, char* cigar_, const string& readSequence, const string& contigSequence){
+			
+			u_int64_t nbMatches = 0;
+
+			//u_int64_t t_begin_ = al._contigStart;
+			//u_int64_t t_end_ = al._contigEnd;
+			//u_int64_t q_begin_ = al._readStart;
+			//u_int64_t q_end_ = al._readEnd;
+			bool strand_ = al._strand;
+			//u_int64_t q_length_ = readSequence.size();
+
+			int32_t q_ptr = -1; //(strand_ ? (q_length_ - q_end_) : q_begin_) - 1;
+			int32_t t_ptr = -1; //t_begin_ - 1;
+			
+
+			for (uint32_t i = 0, j = 0; i < strlen(cigar_); ++i) {
+
+
+				if (cigar_[i] == 'M' || cigar_[i] == '=' || cigar_[i] == 'X') {
+					
+					//cout << "M: " << atoi(&cigar_[j]) << endl;
+
+					uint32_t k = 0, num_bases = atoi(&cigar_[j]);
+					j = i + 1;
+					while (k < num_bases) {
+						++q_ptr;
+						++t_ptr;
+
+						//cout << q_ptr << " " << readSequence.size() << "    " << t_ptr << " " << contigSequence.size() << endl;
+						if(readSequence[q_ptr] == contigSequence[t_ptr]){
+							nbMatches += 1;
+						}
+
+						++k;
+					}
+				} else if (cigar_[i] == 'I') {
+					cout << "I: " << atoi(&cigar_[j]) << endl;
+					q_ptr += atoi(&cigar_[j]);
+					j = i + 1;
+				} else if (cigar_[i] == 'D' || cigar_[i] == 'N') {
+					cout << "D: " << atoi(&cigar_[j]) << endl;
+					//uint32_t k = 0, num_bases = atoi(&cigar_[j]);
+					t_ptr += atoi(&cigar_[j]);
+					j = i + 1;
+					//while (k < num_bases) {
+					//	++t_ptr;
+					//	++k;
+					//}
+				} else if (cigar_[i] == 'S' || cigar_[i] == 'H' || cigar_[i] == 'P') {
+					cout << "SSSS: " << atoi(&cigar_[j]) << endl;
+					j = i + 1;
+				}
+			}
+
+			//cout << contigSequence << endl;
+			//cout << readSequence << endl;
+			//cout << nbMatches << endl;
+			//getchar();
+
+			return nbMatches;
+		}
+		*/
+
 		void find_breaking_points_from_cigar(uint32_t window_length, const Alignment& al, u_int64_t readLength, char* cigar_, const string& readSequence, const string& qualSequence)
 		{
 			
-			//cout << "Alignment: " << al._contigStart << " " << al._contigEnd << endl;
-			vector<std::pair<int32_t, int32_t>> breaking_points_;
-			int32_t t_begin_ = al._contigStart;
-			int32_t t_end_ = al._contigEnd;
-			int32_t q_begin_ = al._readStart;
-			int32_t q_end_ = al._readEnd;
+			vector<std::pair<uint32_t, uint32_t>> breaking_points_;
+			u_int64_t t_begin_ = al._contigStart;
+			u_int64_t t_end_ = al._contigEnd;
+			u_int64_t q_begin_ = al._readStart;
+			u_int64_t q_end_ = al._readEnd;
 			bool strand_ = al._strand;
-			int32_t q_length_ = readLength;
+			u_int64_t q_length_ = readLength;
 
 			// find breaking points from cigar
 			std::vector<int32_t> window_ends;
-
-			for (int32_t i = -_contigPolisher._windowPositionOffset; i < t_end_; i += window_length) {
-				
+			for (uint32_t i = 0; i < t_end_; i += window_length) {
 				if (i > t_begin_) {
 					window_ends.emplace_back(i - 1);
-					//cout << "\tWindow end: " << (i-1) << endl;
 				}
 			}
 			window_ends.emplace_back(t_end_ - 1);
-			//cout << "\tWindow end: " << (t_end_ - 1) << endl;
 
-			//getchar();
 			uint32_t w = 0;
 			bool found_first_match = false;
 			std::pair<uint32_t, uint32_t> first_match = {0, 0}, last_match = {0, 0};
@@ -4629,10 +4801,6 @@ public:
 				
 			for (uint32_t j = 0; j < breaking_points_.size(); j += 2) {
 
-				//cout << "---" << endl;
-				//cout << "Break point: " << j << " " << breaking_points_[j].first << " " << breaking_points_[j + 1].first << endl;
-				//cout << "Break point: " << j << " " << breaking_points_[j].second << " " << breaking_points_[j + 1].second << endl;
-
 				if(breaking_points_[j].second >= readSequence.size()) return;
 				if(breaking_points_[j + 1].second >= readSequence.size()) return;
 
@@ -4657,12 +4825,9 @@ public:
 				
 
 				//uint64_t window_id = id_to_first_window_id[overlaps[i]->t_id()] +
-				uint64_t window_id = (breaking_points_[j].first+_contigPolisher._windowPositionOffset) / _windowLength;
-				int32_t window_start = window_id * _windowLength - _contigPolisher._windowPositionOffset;
-				window_start = max(0, window_start);
+				uint64_t window_id = breaking_points_[j].first / _windowLength;
+				uint32_t window_start = (breaking_points_[j].first / _windowLength) * _windowLength;
 
-				//cout << "Window id: " << window_id << endl;
-				//cout << "Window start: " << window_start << endl;
 				//const char* data = overlaps[i]->strand() ?
 				//	&(sequence->reverse_complement()[breaking_points[j].second]) :
 				//	&(sequence->data()[breaking_points[j].second]);
@@ -4736,14 +4901,8 @@ public:
 				}
 				*/
 
-                int32_t posStart = (breaking_points_[j].first) - window_start;
-				posStart = max(0, posStart);
-                int32_t posEnd =  (breaking_points_[j + 1].first) - window_start - 1;
-
-				//cout << (breaking_points_[j].first) << " " << window_start << " " << posStart << endl;
-				//cout << (breaking_points_[j + 1].first) << " " << window_start - 1 << " " << posEnd << endl;
-
-				//getchar();
+                u_int32_t posStart = breaking_points_[j].first - window_start;
+                u_int32_t posEnd =  breaking_points_[j + 1].first - window_start - 1;
 
 				string quality = "";
 				if(_contigPolisher._useQual && qualSequence.size() > 0){
@@ -4762,6 +4921,11 @@ public:
 				//if(sequence.size() < 490) continue;
 				indexWindow(al, window_id, posStart, posEnd, sequence, quality);
 
+				//if(window_id == 24){
+				//	cout << sequence << endl;
+				//	getchar();
+				//}
+
 				//_logFile << window_id << " " << posStart << " " << posEnd << endl;
 				//_logFile << sequence << endl;
 				//getchar();
@@ -4776,7 +4940,6 @@ public:
 				*/
 			}
 
-			//getchar();
 			/*
 			for(size_t i=0; i<breaking_points_.size()-1; i++){
 				u_int64_t contigWindowStart = breaking_points_[i].first;
@@ -4810,12 +4973,9 @@ public:
 			#pragma omp critical(indexWindow)
 			{
 				
-				//cout << windowIndex << " " << _contigWindowSequences[al._contigIndex].size() << " " << posStart << " " << posEnd << " " << windowSequence << endl;
-
 				//size_t contigWindowIndex = contigWindowStart / _windowLength;
 				vector<Window>& windows = _contigWindowSequences[al._contigIndex][windowIndex];
 				
-
 				/*
 				if(contigWindowIndex == 0){
 					//_logFile << contigWindowStart << endl;
@@ -4832,6 +4992,7 @@ public:
 
 
 					windows.push_back({new DnaBitset2(windowSequence), windowQualities, posStart, posEnd, al.score()});
+
 					/*
 					if(al._contigIndex == 1 && windowIndex == 2){
 						_logFile << "1111111111111111" << endl;
@@ -5005,7 +5166,8 @@ public:
 	unordered_map<u_int32_t, vector<CorrectedWindow>> _currentContigs;
 
 
-	void performCorrection(gzFile& outputContigFile){
+
+	void performCorrection(gzFile& outputContigFile, const int& pass){
 		
 		u_int64_t checksum = 0;
 
@@ -5029,6 +5191,7 @@ public:
 			bool isEOF = false;
 			size_t contigIndexLocal;
 			size_t windowIndexLocal;
+			std::unique_ptr<spoa::AlignmentEngine> alignmentEngine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kNW, 3, -5, -4);
 			
 
 			while(true){
@@ -5084,37 +5247,30 @@ public:
 
 				vector<Window>& sequences = _contigWindowSequences[contigIndexLocal][windowIndexLocal];
 
-				//cout << contigIndexLocal << " " << windowIndexLocal << " " << sequences.size() << endl;
+				//cout << windowIndexLocal << " " << sequences.size() << endl;
 				//u_int64_t nbCorrectedWindows = 0;
 				//vector<DnaBitset2*> correctedWindows(windows.size());
 			
-				std::unique_ptr<spoa::AlignmentEngine> alignmentEngine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kNW, 3, -5, -4);
 					
 				
-				int64_t wStart = (int32_t)windowIndexLocal * (int32_t) _windowLength - _windowPositionOffset;
-				int64_t wEnd = min((int64_t)_contigSequences[contigIndexLocal].size(), (int64_t)(wStart+_windowLength)) ;
-				wStart = max((int64_t)0, wStart);
-				//cout << "a" << " " << _contigSequences[contigIndexLocal].size() << " " << wStart << " " << wEnd-wStart << endl;
+				u_int64_t wStart = windowIndexLocal*_windowLength;
+				u_int64_t wEnd = min(_contigSequences[contigIndexLocal].size(), wStart+_windowLength);
 				string contigOriginalSequence = _contigSequences[contigIndexLocal].substr(wStart, wEnd-wStart);
-				//cout << "b" << endl;
-				//cout << contigOriginalSequence << endl;
+				bool isLastWindow = (windowIndexLocal == _contigWindowSequences[contigIndexLocal].size()-1);
 
 				if(sequences.size() < 2){
 
-					//cout << "c" << endl;
 					for(size_t i=0; i<sequences.size(); i++){ 
 						delete sequences[i]._sequence;
 					}
 
-					//cout << "d" << endl;
-					addCorrectedWindow(false, new DnaBitset2(contigOriginalSequence), contigIndexLocal, windowIndexLocal, outputContigFile);	
+					addCorrectedWindow(false, new DnaBitset2(contigOriginalSequence), contigIndexLocal, windowIndexLocal, outputContigFile, pass);	
 					//correctedWindows[w] = new DnaBitset2(contigOriginalSequence);
 					//_logFile << "No sequences for window" << endl;
 					continue;
 				}
 				
 
-				//cout << "e" << endl;
 
 				std::sort(sequences.begin(), sequences.end(), [&](const Window& lhs, const Window& rhs) {
 					return lhs._posStart < rhs._posStart; });
@@ -5128,7 +5284,6 @@ public:
 					backboneQuality += '!';
 				}
 
-				//cout << "f" << endl;
 				graph.AddAlignment(
 					spoa::Alignment(),
 					contigOriginalSequence.c_str(), contigOriginalSequence.size(),
@@ -5138,7 +5293,6 @@ public:
 				u_int32_t offset = 0.01 * contigOriginalSequence.size();
 
 
-				//cout << "g" << endl;
 				for(size_t i=0; i<sequences.size(); i++){ 
 
 					//size_t i = order[ii];
@@ -5146,8 +5300,10 @@ public:
 					//const DnaBitset2* dna = variant._sequence; //sequenceCopies[s._sequenceIndex];
 					char* dnaStr = window._sequence->to_string();
 
-					//cout << i << " " << string(dnaStr, strlen(dnaStr)) << " " << window._posStart << " " << window._posEnd << endl;
-						
+					//if(windowIndexLocal == 24){
+					//	cout << string(dnaStr) << endl;
+					//}
+
 					spoa::Alignment alignment;
 					if (window._posStart < offset && window._posEnd > contigOriginalSequence.size() - offset) {
 						alignment = alignmentEngine->Align(
@@ -5165,7 +5321,6 @@ public:
 						subgraph.UpdateAlignment(mapping, &alignment);
 					}
 					
-					//cout << "aa" << endl;
 					if (window._quality.size() == 0) {
 						graph.AddAlignment(
 							alignment,
@@ -5177,237 +5332,94 @@ public:
 							window._quality.c_str(), window._quality.size());
 					}
 					
-					//cout << "bb" << endl;
 					free(dnaStr);
 					delete window._sequence;
-					//cout << "cc" << endl;
 				}
 
-				//cout << "h" << endl;
 
-				std::vector<uint32_t> coverages;
+				vector<u_int32_t> coverages;
 				string correctedSequence = graph.GenerateConsensus(&coverages);
 
-				uint32_t average_coverage = (sequences.size()) / 2;
-
-				int32_t begin = 0, end = correctedSequence.size() - 1;
-				for (; begin < static_cast<int32_t>(correctedSequence.size()); ++begin) {
-					if (coverages[begin] >= average_coverage) {
-						break;
-					}
-				}
-				for (; end >= 0; --end) {
-					if (coverages[end] >= average_coverage) {
-						break;
-					}
-				}
-
-				if (begin >= end) {
-					//fprintf(stderr, "[racon::Window::generate_consensus] warning: "
-					//	"contig %lu might be chimeric in window %u!\n", id_, rank_);
-				} else {
-					correctedSequence = correctedSequence.substr(begin, end - begin + 1);
-				}
+				correctedSequence = trimConsensus(correctedSequence, coverages, sequences.size(), isLastWindow);
 
 				//for(char letter : correctedSequence){
 				//	checksum += letter;
 				//}
 
-				addCorrectedWindow(true, new DnaBitset2(correctedSequence), contigIndexLocal, windowIndexLocal, outputContigFile);
+				//ofstream file("/pasteur/appa/homes/gbenoit/appa/run/correction/test_deterministic/test_humanO1_4/loulou.fasta");
+				//file << ">lala" << endl;
+				//file << correctedSequence << endl;
+				//file.close();
+				//cout << windowIndexLocal << endl;
+				//getchar();
+
+				addCorrectedWindow(true, new DnaBitset2(correctedSequence), contigIndexLocal, windowIndexLocal, outputContigFile, pass);
 
 				//correctedWindows[w] = new DnaBitset2(correctedSequence);
 
 			}
 		}
 		
-		/*
-		for(auto& it : _contigWindowSequences){
+	}
 
-			const string& contigName = it.first;
+	string trimConsensus(const string& correctedSequence, const vector<u_int32_t>& coverages, const int& nbSequences, const bool& isLastWindow){
 
-			vector<vector<Window>>& windows = it.second;
-			u_int64_t nbCorrectedWindows = 0;
-			vector<DnaBitset2*> correctedWindows(windows.size());
-		
+		string trimmedSequence = "";
+		uint32_t average_coverage = nbSequences / 2;
 
-			#pragma omp parallel num_threads(_nbCores)
-			{
-
-				std::unique_ptr<spoa::AlignmentEngine> alignmentEngine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kNW, 3, -5, -4);
-				
-				#pragma omp for
-				for(size_t w=0; w<windows.size(); w++){
-
-					vector<Window>& sequences = windows[w];
-					
-					u_int64_t wStart = w*_windowLength;
-					u_int64_t wEnd = min(_contigSequences[contigName].size(), wStart+_windowLength);
-					string contigOriginalSequence = _contigSequences[contigName].substr(wStart, wEnd-wStart);
-
-					if(sequences.size() < 2){
-							
-						
-						correctedWindows[w] = new DnaBitset2(contigOriginalSequence);
-						//_logFile << "No sequences for window" << endl;
-						continue;
-					}
-					
-					#pragma omp atomic
-					nbCorrectedWindows += 1;
+		while(true){
 
 
-					std::sort(sequences.begin(), sequences.end(), [&](const Window& lhs, const Window& rhs) {
-						return lhs._posStart < rhs._posStart; });
-
-					//_logFile << sequences.size() << endl;
-					//_logFile << "1" << endl;
-					spoa::Graph graph{};
-
-					string backboneQuality = "";
-					for(size_t i=0; i<contigOriginalSequence.size(); i++){
-						backboneQuality += '!';
-					}
-
-					graph.AddAlignment(
-						spoa::Alignment(),
-						contigOriginalSequence.c_str(), contigOriginalSequence.size(),
-						backboneQuality.c_str(), backboneQuality.size()
-					);
-
-    				u_int32_t offset = 0.01 * contigOriginalSequence.size();
-
-
-					for(size_t i=0; i<sequences.size(); i++){ 
-
-						//size_t i = order[ii];
-						const Window& window = sequences[i];
-						//const DnaBitset2* dna = variant._sequence; //sequenceCopies[s._sequenceIndex];
-						char* dnaStr = window._sequence->to_string();
-
-							
-						spoa::Alignment alignment;
-						if (window._posStart < offset && window._posEnd > contigOriginalSequence.size() - offset) {
-							alignment = alignmentEngine->Align(
-								dnaStr, strlen(dnaStr),
-								graph);
-						} else {
-							std::vector<const spoa::Graph::Node*> mapping;
-							auto subgraph = graph.Subgraph(
-								window._posStart,
-								window._posEnd,
-								&mapping);
-							alignment = alignmentEngine->Align(
-								dnaStr, strlen(dnaStr),
-								subgraph);
-							subgraph.UpdateAlignment(mapping, &alignment);
-						}
-						
-						if (window._quality.size() == 0) {
-							graph.AddAlignment(
-								alignment,
-								dnaStr, strlen(dnaStr));
-						} else {
-							graph.AddAlignment(
-								alignment,
-								dnaStr, strlen(dnaStr),
-								window._quality.c_str(), window._quality.size());
-						}
-						
-						free(dnaStr);
-						delete window._sequence;
-					}
-
-
-    				std::vector<uint32_t> coverages;
-    				string correctedSequence = graph.GenerateConsensus(&coverages);
-
-					uint32_t average_coverage = (sequences.size()) / 2;
-
-					int32_t begin = 0, end = correctedSequence.size() - 1;
-					for (; begin < static_cast<int32_t>(correctedSequence.size()); ++begin) {
-						if (coverages[begin] >= average_coverage) {
-							break;
-						}
-					}
-					for (; end >= 0; --end) {
-						if (coverages[end] >= average_coverage) {
-							break;
-						}
-					}
-
-					if (begin >= end) {
-						//fprintf(stderr, "[racon::Window::generate_consensus] warning: "
-						//	"contig %lu might be chimeric in window %u!\n", id_, rank_);
-					} else {
-						correctedSequence = correctedSequence.substr(begin, end - begin + 1);
-					}
-
-					for(char letter : correctedSequence){
-						checksum += letter;
-					}
-
-					correctedWindows[w] = new DnaBitset2(correctedSequence);
+			int32_t begin = 0, end = correctedSequence.size() - 1;
+			for (; begin < static_cast<int32_t>(correctedSequence.size()); ++begin) {
+				if (coverages[begin] >= average_coverage) {
+					break;
+				}
+			}
+			for (; end >= 0; --end) {
+				if (coverages[end] >= average_coverage) {
+					break;
 				}
 			}
 
-			if(nbCorrectedWindows == 0) continue;
-
-
-			string contigSequence = "";
-			for(size_t w=0; w<correctedWindows.size(); w++){
-				if(correctedWindows[w] == nullptr) continue;
-				char* seq = correctedWindows[w]->to_string();
-				contigSequence += string(seq);
-				free(seq);
-				delete correctedWindows[w];
+			if (begin >= end) {
+				//fprintf(stderr, "[racon::Window::generate_consensus] warning: "
+				//	"contig %lu might be chimeric in window %u!\n", id_, rank_);
+			} else {
+				trimmedSequence = correctedSequence.substr(begin, end - begin + 1);
 			}
 
+			if(isLastWindow) break;
+			if(trimmedSequence.size() > _windowLength*0.8) break;
+			
+			average_coverage += 1;
 
-			string header = _contigHeaders[contigName];
-			if(_circularize){
-				
-				char lastChar = header[header.size()-1];
-				if(lastChar == 'c' || lastChar == 'l'){
-					header.pop_back();
-				}
-
-				if(_isContigCircular.find(contigName) == _isContigCircular.end()){
-					header += 'l';
-				}
-				else{
-					header += 'c';
-				}
-			}
-
-
-			header = ">" + header + '\n';// ">ctg" + to_string(contigIndex) + '\n';
-			//header += '\n';
-			gzwrite(_outputContigFile, (const char*)&header[0], header.size());
-			contigSequence +=  '\n';
-			gzwrite(_outputContigFile, (const char*)&contigSequence[0], contigSequence.size());
-			//_logFile << _contigHeaders[contigIndex] << " " << contigSequence.size() << endl;
+			if(average_coverage > nbSequences) return correctedSequence;
 		}
 
-		_logFile << "Checksum: " << checksum << endl;
-		*/
+
+		return trimmedSequence;
 	}
 
 
-	void addCorrectedWindow(bool success, DnaBitset2* seq, size_t contigIndexLocal, size_t windowIndexLocal, gzFile& outputContigFile){
+	void addCorrectedWindow(bool success, DnaBitset2* seq, size_t contigIndexLocal, size_t windowIndexLocal, gzFile& outputContigFile, const int& pass){
 
 		
 		#pragma omp critical(addCorrectedWindow)
 		{
+			
+			//cout << "Add corrected window: " << windowIndexLocal << " " << seq->m_len << endl;
+
 			_currentContigs[contigIndexLocal].push_back({windowIndexLocal, seq, success});
 
 			if(_currentContigs[contigIndexLocal].size() == _contigWindowSequences[contigIndexLocal].size()){
-				dumpCorrectedContig(contigIndexLocal, outputContigFile);
+				dumpCorrectedContig(contigIndexLocal, outputContigFile, pass);
 			}
 		}
 		
 	}
 
-	void dumpCorrectedContig(const u_int32_t& contigIndex, gzFile& outputContigFile){
+	void dumpCorrectedContig(const u_int32_t& contigIndex, gzFile& outputContigFile, const int& pass){
 
 
 		u_int64_t nbCorrectedWindows = 0;
@@ -5432,6 +5444,10 @@ public:
 				char* seq = correctedWindow._correctedSequence->to_string();
 				contigSequence += string(seq);
 				free(seq);
+
+				//cout << contigSequence << endl;
+				//cout << contigSequence.size() << endl;
+				//getchar();
 				//delete correctedWindows[w];
 			}
 
@@ -5456,12 +5472,10 @@ public:
 
 				string header = _contigHeaders[contigIndex];
 				
-				
-				
-				header = Utils::split(header, '_')[0]; //Remove curator subpath suffix
-
-				if(_isMetaMDBG){
+				if(_useMetamdbgHeaderStyle && pass > 0){
 					
+					header = Utils::split(header, '_')[0]; //Remove curator subpath suffix
+
 					bool isCircular = false;
 					//if(header.find("rc") != string::npos){
 					//	string h = header.substr(0, header.size()-2);

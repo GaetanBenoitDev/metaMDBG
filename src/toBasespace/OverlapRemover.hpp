@@ -17,11 +17,13 @@ public:
 
 	string _inputDir;
 	string _inputFilenameContig;
+	string _outputFilenameContig;
 	size_t _kminmerSize;
 	
-	OverlapRemover(const string& inputDir, const string& inputFilenameContig, size_t kminmerSize){
+	OverlapRemover(const string& inputDir, const string& inputFilenameContig, const string& outputFilenameContig, size_t kminmerSize){
 		_inputDir = inputDir;
 		_inputFilenameContig = inputFilenameContig;
+		_outputFilenameContig = outputFilenameContig;
 		_kminmerSize = kminmerSize-1;
 	}
 
@@ -160,7 +162,7 @@ public:
 		
 		removeOverlapsSelf();
 
-		ofstream outputFile(_inputFilenameContig + ".nooverlaps");
+		ofstream outputFile(_outputFilenameContig);
 		u_int64_t nbContigs = 0;
 
 		for(size_t i=0; i<_contigs.size(); i++){
@@ -176,8 +178,8 @@ public:
 		}
 		outputFile.close();
 
-		fs::remove(_inputFilenameContig);
-		fs::rename(_inputFilenameContig + ".nooverlaps", _inputFilenameContig);
+		//fs::remove(_inputFilenameContig);
+		//fs::rename(_inputFilenameContig + ".nooverlaps", _inputFilenameContig);
 
 		Logger::get().debug() << "Nb contigs: " << nbContigs;
 		//getchar();

@@ -15,9 +15,11 @@ public:
 
 	typedef phmap::parallel_flat_hash_map<u_int128_t, vector<ReadType>, phmap::priv::hash_default_hash<u_int128_t>, phmap::priv::hash_default_eq<u_int128_t>, std::allocator<std::pair<u_int128_t, vector<ReadType>>>, 4, std::mutex> KminmerPosMap;
 	typedef phmap::parallel_flat_hash_map<u_int128_t, u_int32_t, phmap::priv::hash_default_hash<u_int128_t>, phmap::priv::hash_default_eq<u_int128_t>, std::allocator<std::pair<u_int128_t, u_int32_t>>, 4, std::mutex> KminmerMap;
+	//typedef phmap::parallel_flat_hash_map<ReadType, u_int32_t, phmap::priv::hash_default_hash<ReadType>, phmap::priv::hash_default_eq<ReadType>, std::allocator<std::pair<ReadType, u_int32_t>>, 4, std::mutex> ReadLengthMap;
 
 	string _inputDir;
 	string _inputFilenameContig;
+	string _outputFilenameContig;
 	size_t _kminmerSize;
 	float _minimizerDensity;
 	int _nbCores;
@@ -27,6 +29,7 @@ public:
 	KminmerMap _kminmer_to_abundance;
 	KminmerPosMap _kminmer_to_readIndexes;
 	ofstream _outputFile;
+	unordered_map<ReadType, u_int32_t> _readIndex_to_readLength;
 
 	struct ReadAbundance{
 		u_int32_t _readLength;
@@ -35,9 +38,10 @@ public:
 
 	//unordered_map<u_int128_t, ReadAbundance> _kminmer_to_readAbundance;
 
-	RepeatRemover(const string& inputDir, const string& inputFilenameContig, size_t kminmerSize, float minimizerDensity, bool hasQuality, int nbCores){
+	RepeatRemover(const string& inputDir, const string& inputFilenameContig, const string& outputFilenameContig, size_t kminmerSize, float minimizerDensity, bool hasQuality, int nbCores){
 		_inputDir = inputDir;
 		_inputFilenameContig = inputFilenameContig;
+		_outputFilenameContig = outputFilenameContig;
 		_kminmerSize = 5; //kminmerSize;
 		_minimizerDensity = minimizerDensity;
 		_hasQuality = hasQuality;
@@ -63,7 +67,7 @@ public:
 		
 
 
-		_outputFile.open(_inputFilenameContig + ".norepeats");
+		_outputFile.open(_outputFilenameContig);
 
 
 		Logger::get().debug() << "Break unbridged repeats";
@@ -71,8 +75,8 @@ public:
 
 
 		_outputFile.close();
-		fs::remove(_inputFilenameContig);
-		fs::rename(_inputFilenameContig + ".norepeats", _inputFilenameContig);
+		//fs::remove(_inputFilenameContig);
+		//fs::rename(_inputFilenameContig + ".norepeats", _inputFilenameContig);
 
 		//KminmerParser parser(_inputFilenameContig, -1, _kminmerSizeRepeat, false, false);
 		//auto fp = std::bind(&OverlapRemover::detectWeakRepeats_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5);
@@ -313,6 +317,12 @@ public:
 
 			}
 			
+
+			#pragma omp critical(IndexReadsFunctor)
+			{
+				_parent._readIndex_to_readLength[readIndex] = kminmerList._kminmersInfo.size();
+			}
+
 			
 		}
 		
@@ -356,9 +366,11 @@ public:
 		u_int32_t _startPos;
 		u_int32_t _endPos;
 		u_int32_t _length;
-		float _coverage;
+		long double _coverage;
 		int32_t _finalContigIndex;
 		vector<ReadType> _readIndexes;
+		unordered_map<u_int32_t, u_int32_t> _nbBridgingReads;
+		u_int32_t _maxReadLength;
 	};
 
 	struct FragmentPath{
@@ -402,10 +414,15 @@ public:
 			const vector<ReadKminmerComplete>& kminmersInfos = kminmerList._kminmersInfo;
 			u_int8_t isCircular = kminmerList._isCircular;
 
-			//if(readIndex != 30261 && readIndex != 30260 && readIndex != 30262) return;
-			//if(readMinimizers.size() < 5000) return;
+			if(isCircular){
+				writeContig(readMinimizers, isCircular);
+				return;
+			}
 
-			//cout << readIndex << " " << readMinimizers.size() << " " << kminmersInfos.size() << endl;
+			//if(readIndex != 30261 && readIndex != 30260 && readIndex != 30262) return;
+			//if(readMinimizers.size() < 12000) return;
+
+			//cout << endl << endl << readIndex << " " << readMinimizers.size() << " " << kminmersInfos.size() << endl;
 
 			u_int32_t fragmentIndex = 0;
 			u_int32_t lastUnitigIndex = -1;
@@ -469,7 +486,7 @@ public:
 						n += 1;
 					}
 
-					float fragmentCoverage = 0;
+					long double fragmentCoverage = 0;
 					if(n > 0){
 						fragmentCoverage = sum / n;
 					}
@@ -547,17 +564,22 @@ public:
 			
 			for(size_t i=0; i<fragments.size(); i++){
 				const Fragment& fragment = fragments[i];
-				//cout << fragment._fragmentIndex << "\t" << fragment._startPos << "\t" << fragment._endPos << "\t" << fragment._length << "\t" << (int) fragment._coverage << "\t" << fragment._readIndexes.size() << endl; //<< "\t" << getCoverageInBounds(repeats, fragmentStartPos, fragmentEndPos) << endl;
+				//cout << fragment._fragmentIndex << "\t" << fragment._startPos << "\t" << fragment._endPos << "\t" << fragment._length << "\t" << (int) fragment._coverage << endl; //<< "\t" << fragment._readIndexes.size() << endl; //<< "\t" << getCoverageInBounds(repeats, fragmentStartPos, fragmentEndPos) << endl;
 			}
+
+			computeBridgingReads(fragments);
 
 			//getchar();
 			vector<FragmentPath> paths;
 
 			for(const Fragment& fragment : fragments){
-				if(fragment._length < 50) continue;
+				if(fragment._length * 1/_parent._minimizerDensity < 10000) continue;
+
+				//cout << "\tSource fragment: " << fragment._fragmentIndex << " " << fragment._startPos << " " << fragment._coverage << endl;
 
 				const FragmentPath& path = getCovPath(fragment, fragments);
 				paths.push_back(path);
+
 			}
 
 			std::sort(paths.begin(), paths.end(), [](const FragmentPath& a, const FragmentPath& b){
@@ -603,7 +625,7 @@ public:
 				isCircular = 0;
 			}
 
-			//cout << "Nb final contigs: " << nbContigsFinal << endl;
+			//cout << "\tNb final contigs: " << nbContigsFinal << endl;
 
 			int64_t startPos = 0;
 			currentContigIndex = fragments[0]._finalContigIndex;
@@ -626,7 +648,8 @@ public:
 						//startPos = 0;
 						//endPos = 0;
 
-						//cout << "Write contig: " <<  startPos << "\t" << endPos << "\t" << endPos-startPos << "\t"  << endl; 
+
+						//cout << "\tWrite contig: " <<  startPos << "\t" << endPos << "\t" << endPos-startPos << "\t" << fragments[i-1]._coverage << endl; 
 						//cout << "Write contig: " << endPos-startPos << "\t" << kminmersInfos.size() << endl; 
 
 						vector<MinimizerType>::const_iterator first = readMinimizers.begin() + startPos;
@@ -663,31 +686,122 @@ public:
 			}
 			
 			
+			//getchar();
 		}
 
+		//unordered_map<std::pair<u_int32_t, u_int32_t>, ReadType> _fragmentPair_to_nbBridgingReads;
 
-		
-		
-		FragmentPath getCovPath(const Fragment& sourceFragment, const vector<Fragment>& fragments){
+		void computeBridgingReads(vector<Fragment>& fragments){
 
-			u_int32_t sourceCoverage = sourceFragment._coverage;
-			float minRepeatCoverage = sourceCoverage * 2;
+			for(u_int32_t i=0; i<fragments.size(); i++){
+				
+				Fragment& fragment = fragments[i];
 
-			int64_t maxFragmentIndex = getCovPath_direction(sourceFragment, fragments, minRepeatCoverage, true);
-			int64_t minFragmentIndex = getCovPath_direction(sourceFragment, fragments, minRepeatCoverage, false);
+				//u_int32_t maxReadLength = 0;
+				fragment._maxReadLength = 0;
+
+				for(const ReadType& readIndex : fragment._readIndexes){
+
+					const u_int32_t& readLength = _parent._readIndex_to_readLength[readIndex];
+
+					if(readLength > fragment._maxReadLength){
+						fragment._maxReadLength = readLength;	
+					}
+				} 
+
+				//cout << fragment._fragmentIndex << ": " << fragment._maxReadLength << endl; 
+			}
+
+			for(u_int32_t i=0; i<fragments.size(); i++){
+
+				Fragment& fragment1 = fragments[i];
+
+				for(u_int32_t j=i+1; j<fragments.size(); j++){
+					
+					Fragment& fragment2 = fragments[j];
+
+					u_int32_t bridgeLength = fragment2._startPos - fragment1._endPos;
+					if(bridgeLength > fragment1._maxReadLength) break;
+
+					int nbBridgingReads = getNbBridgingReads(fragment1, fragment2);
+
+					fragment1._nbBridgingReads[j] = nbBridgingReads;
+					fragment2._nbBridgingReads[i] = nbBridgingReads;
+					
+					//cout << i << " -> " << j << " " << bridgeLength << " " << nbBridgingReads << endl;
+					//getchar();
+				}
+			}
 			
-			//cout << sourceFragment._fragmentIndex << ": " << minFragmentIndex << " " << maxFragmentIndex << endl;
+		}
+		
+		
+		FragmentPath getCovPath(const Fragment& sourceFragment, vector<Fragment>& fragments){
+
+			long double sourceCoverage = sourceFragment._coverage;
+			//float minRepeatCoverage = sourceCoverage * 2.5;
+
+			int64_t maxFragmentIndex = 0;
+			int64_t minFragmentIndex = 0;
+			long double currentSourceCoverage = sourceCoverage;
+
+			while(true){
+
+				
+				//cout << "\tCurrent cov: " << currentSourceCoverage << endl;
+
+				long double loopCov = currentSourceCoverage;
+
+				maxFragmentIndex = getCovPath_direction(sourceFragment, fragments, currentSourceCoverage, sourceCoverage, true);
+				minFragmentIndex = getCovPath_direction(sourceFragment, fragments, currentSourceCoverage, sourceCoverage, false);
+
+
+				if(currentSourceCoverage == loopCov) break;
+
+				//cout << "\tCheck: " << currentSourceCoverage << endl;
+				//getchar();
+				
+			}
+			//int64_t minFragmentIndex = 0;
+
+			//cout << "\t\t" << sourceFragment._fragmentIndex << ": " << minFragmentIndex << " " << maxFragmentIndex << endl;
 
 			FragmentPath path = {minFragmentIndex, maxFragmentIndex};
 
 			return path;
 		}
 
-		int64_t getCovPath_direction(const Fragment& sourceFragment, const vector<Fragment>& fragments, const float& minRepeatCoverage, const bool& useSuccessor){
+		int64_t getCovPath_direction(const Fragment& sourceFragment, vector<Fragment>& fragments, long double& sourceCoverage, const long double& sourceCoverageInitial, const bool& useSuccessor){
 
-			int64_t currentFragmentIndex =  sourceFragment._fragmentIndex;
+			vector<u_int32_t> specificFragmentIndexes;
+			specificFragmentIndexes.push_back(sourceFragment._fragmentIndex);
+			//int64_t currentFragmentIndex =  sourceFragment._fragmentIndex;
 			//int64_t maxI = sourceFragment._fragmentIndex + 1;
 
+			//int i =0;
+
+			while(true){
+
+				
+
+				const int64_t& nextFragmentIndex = getNextSpecificFragmentIndex(fragments, specificFragmentIndexes, sourceCoverage, useSuccessor);
+				
+				//cout << "\t\t" << i << " " << nextFragmentIndex << endl;
+				//i += 1;
+
+				if(nextFragmentIndex == -1) break;
+
+				if(fragments[nextFragmentIndex]._coverage > sourceCoverage && fragments[nextFragmentIndex]._coverage < sourceCoverageInitial*1.5f){
+					sourceCoverage = fragments[nextFragmentIndex]._coverage;
+					//cout << "\tCov changed: " << sourceCoverage << endl;
+					return -1;
+				}
+
+				specificFragmentIndexes.push_back(nextFragmentIndex);
+			}
+
+			return specificFragmentIndexes[specificFragmentIndexes.size()-1];
+			/*
 			while(true){
 
 				if(useSuccessor){
@@ -698,25 +812,112 @@ public:
 				}
 
 				int64_t nextFragmentIndex = getNextSpecificFragmentIndex(fragments, minRepeatCoverage, currentFragmentIndex, useSuccessor);
+				//cout << "\t\tRepeat: " << currentFragmentIndex << " " << nextFragmentIndex << endl;
 				if(nextFragmentIndex == -1) break;
 
-				int nbBridgingReads = getNbBridgingReads(fragments[currentFragmentIndex], fragments[nextFragmentIndex]);
-				//cout << "\tRepeat: " << currentFragmentIndex << " " << nextFragmentIndex << " " << nbBridgingReads << endl;
-				if(nbBridgingReads < 2) break;
+				//int nbBridgingReads = getNbBridgingReads(fragments[currentFragmentIndex], fragments[nextFragmentIndex]);
+				//if(nbBridgingReads < 2) break;
 
 				currentFragmentIndex = nextFragmentIndex;
 			}
 
 			return currentFragmentIndex;
+			*/
 		}
 
+		int64_t getNextSpecificFragmentIndex(vector<Fragment>& fragments, vector<u_int32_t>& specificFragmentIndexes, long double& sourceCoverage, const bool& useSuccessor){
+		
+			float minRepeatCoverage = sourceCoverage * 2;
+
+			//for(const u_int32_t& specificFragmentIndex : specificFragmentIndexes){
+			for(int64_t ii=specificFragmentIndexes.size()-1; ii >= 0; ii--){
+
+				const u_int32_t& specificFragmentIndex = specificFragmentIndexes[ii];
+
+
+				Fragment& sourceFragment = fragments[specificFragmentIndex];
+				const int64_t& latestSpecificIndex = specificFragmentIndexes[specificFragmentIndexes.size()-1];
+
+				if(useSuccessor){
+
+
+					for(int64_t i=latestSpecificIndex+1; i<fragments.size(); i++){
+						
+						const Fragment& fragment = fragments[i];
+
+						if(fragment._coverage >= minRepeatCoverage) continue; //Repeat fragment
+
+						const u_int32_t& nbBridingReads = sourceFragment._nbBridgingReads[fragment._fragmentIndex];
+						
+						if(nbBridingReads == 0) continue;
+
+						//if(bridgeLength * 1/_parent._minimizerDensity > 100000) continue;
+						//if(std::find(specificFragmentIndexes.begin(), specificFragmentIndexes.end(), fragment._fragmentIndex) != specificFragmentIndexes.end()) continue;
+						
+						//cout <<"\t\t\tFound bridge: " <<  sourceFragment._fragmentIndex << " -> " << i << " " << fragment._coverage << endl; 
+						return i;
+						//if(fragment._length <= 1) continue;
+						//if(fragment._coverage < minRepeatCoverage) return i;
+						//if(fragment._coverage < minRepeatCoverage){
+						//	int nbBridgingReads = getNbBridgingReads(fragments[sourceFragmentIndex], fragment);
+							//cout << "\tRepeat: " << currentFragmentIndex << " " << nextFragmentIndex << " " << nbBridgingReads << endl;
+						//	if(nbBridgingReads >= 1) return i;
+						//}
+
+
+					}
+
+				}
+				else{
+
+					for(int64_t i=latestSpecificIndex-1; i >= 0; i--){
+						
+						const Fragment& fragment = fragments[i];
+
+						if(fragment._coverage >= minRepeatCoverage) continue; //Repeat fragment
+
+						const u_int32_t& nbBridingReads = sourceFragment._nbBridgingReads[fragment._fragmentIndex];
+						
+						if(nbBridingReads == 0) continue;
+
+						//if(bridgeLength * 1/_parent._minimizerDensity > 100000) continue;
+						//if(std::find(specificFragmentIndexes.begin(), specificFragmentIndexes.end(), fragment._fragmentIndex) != specificFragmentIndexes.end()) continue;
+						
+						//cout <<"\t\t\tFound bridge: " <<  sourceFragment._fragmentIndex << " -> " << i << " " << fragment._coverage << endl; 
+						return i;
+						//if(fragment._length <= 1) continue;
+						//if(fragment._coverage < minRepeatCoverage) return i;
+						//if(fragment._coverage < minRepeatCoverage){
+						//	int nbBridgingReads = getNbBridgingReads(fragments[sourceFragmentIndex], fragment);
+							//cout << "\tRepeat: " << currentFragmentIndex << " " << nextFragmentIndex << " " << nbBridgingReads << endl;
+						//	if(nbBridgingReads >= 1) return i;
+						//}
+
+
+					}
+
+				}
+
+			}
+
+			return -1;
+		}
+		
+		/*
 		int64_t getNextSpecificFragmentIndex(const vector<Fragment>& fragments, const float& minRepeatCoverage, const int64_t& sourceFragmentIndex, const bool& useSuccessor){
 
 			if(useSuccessor){
 				for(int64_t i=sourceFragmentIndex+1; i<fragments.size(); i++){
 					const Fragment&  fragment = fragments[i];
 					//if(fragment._length <= 1) continue;
-					if(fragment._coverage < minRepeatCoverage) return i;
+					//if(fragment._coverage < minRepeatCoverage) return i;
+					if(fragment._coverage < minRepeatCoverage){
+						int nbBridgingReads = getNbBridgingReads(fragments[sourceFragmentIndex], fragment);
+						//cout << "\tRepeat: " << currentFragmentIndex << " " << nextFragmentIndex << " " << nbBridgingReads << endl;
+						if(nbBridgingReads >= 1) return i;
+					}
+
+
 				}
 
 			}
@@ -725,13 +926,19 @@ public:
 				for(int64_t i=sourceFragmentIndex-1; i >= 0; i--){
 					const Fragment&  fragment = fragments[i];
 					//if(fragment._length <= 1) continue;
-					if(fragment._coverage < minRepeatCoverage) return i;
+					//if(fragment._coverage < minRepeatCoverage) return i;
+					if(fragment._coverage < minRepeatCoverage){
+						int nbBridgingReads = getNbBridgingReads(fragments[sourceFragmentIndex], fragment);
+						//cout << "\tRepeat: " << currentFragmentIndex << " " << nextFragmentIndex << " " << nbBridgingReads << endl;
+						if(nbBridgingReads >= 1) return i;
+					}
 				}
 
 			}
 
 			return -1;
 		}
+		*/
 
 		u_int64_t getNbBridgingReads(const Fragment& specificFragment1, const Fragment& specificFragment2){
 

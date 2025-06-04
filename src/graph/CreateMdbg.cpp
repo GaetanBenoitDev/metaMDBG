@@ -218,8 +218,8 @@ void CreateMdbg::createMDBG (){
 		_bloomFilter = new BloomCacheCoherent<u_int64_t>(32000000000ull);
 	}
 
-	_filename_smallContigs = _outputDir + "/small_contigs.bin";
-	_fileSmallContigs = ofstream(_filename_smallContigs, std::ios_base::app);
+	_filename_smallContigs = _outputDir + "/small_contigs_pass.bin";
+	_fileSmallContigs = ofstream(_filename_smallContigs, std::ios_base::binary);
 	_nbSmallContigs = 0;
 	/*
 	double nbFP = 0;

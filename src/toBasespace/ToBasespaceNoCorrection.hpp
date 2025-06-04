@@ -11,7 +11,7 @@ class ToBasespaceNoCorrection : public Tool{
     
 public:
 
-	string _inputFilename;
+	//string _inputFilename;
 	string _inputFilenameContig;
 	//string _inputFilenameContig_fasta;
 	string _inputDir;
@@ -31,10 +31,10 @@ public:
     size_t _kminmerSizeLast;
     size_t _meanReadLength;
 
-	string _filename_outputContigs;
-	string _filename_kminmerSequences;
-	MDBG* _mdbg;
-	EncoderRLE _encoderRLE;
+	//string _filename_outputContigs;
+	//string _filename_kminmerSequences;
+	//MDBG* _mdbg;
+	//EncoderRLE _encoderRLE;
 
 
 	ToBasespaceNoCorrection(): Tool (){
@@ -47,8 +47,8 @@ public:
 		args::ArgumentParser parser("toBasespaceFast", ""); //"This is a test program.", "This goes after the options."
 		args::Positional<std::string> arg_outputDir(parser, "outputDir", "", args::Options::Required);
 		args::Positional<std::string> arg_inputContigFilename(parser, "inputContigFilename", "", args::Options::Required);
-		args::Positional<std::string> arg_outputContigFilename(parser, "outputContigFilename", "", args::Options::Required);
-		args::Positional<std::string> arg_inputReadFilename(parser, "inputReadFilename", "", args::Options::Required);
+		//args::Positional<std::string> arg_outputContigFilename(parser, "outputContigFilename", "", args::Options::Required);
+		//args::Positional<std::string> arg_inputReadFilename(parser, "inputReadFilename", "", args::Options::Required);
 		args::Flag arg_hasQuality(parser, "", "Is quality in read data", {"has-quality"});
 		//args::Positional<std::string> arg_contigs(parser, "contigs", "", args::Options::Required);
 		//args::PositionalList<std::string> arg_readFilenames(parser, "reads", "Input filename(s) (separated by space)", args::Options::Required);
@@ -81,8 +81,8 @@ public:
 
 		_inputDir = args::get(arg_outputDir);
 		_inputFilenameContig = args::get(arg_inputContigFilename);
-		_filename_outputContigs = args::get(arg_outputContigFilename);
-		_inputFilename = args::get(arg_inputReadFilename);
+		//_filename_outputContigs = args::get(arg_outputContigFilename);
+		//_inputFilename = args::get(arg_inputReadFilename);
 		_nbCores = args::get(arg_nbCores);
 
 		_hasQuality = false;
@@ -123,15 +123,20 @@ public:
 		
 
 
+		const string& contigFilenameNoOverlaps = _inputFilenameContig + ".nooverlaps";
+
 		{
+
 			//cout << "A remettre overlap remover" << endl;
-			OverlapRemover overlapRemover(_inputDir, _inputFilenameContig, _kminmerSize);
+			OverlapRemover overlapRemover(_inputDir, _inputFilenameContig, contigFilenameNoOverlaps, _kminmerSize);
 			overlapRemover.execute();
 		}
 		
+		const string& contigFilenameNoRepeats = _inputFilenameContig + ".norepeats";
+
 		{
-			//RepeatRemover repeatRemover(_inputDir, _inputFilenameContig, _kminmerSize, _minimizerDensity, _hasQuality, _nbCores);
-			//repeatRemover.execute();
+			RepeatRemover repeatRemover(_inputDir, contigFilenameNoOverlaps, contigFilenameNoRepeats, _kminmerSize, _minimizerDensity, _hasQuality, _nbCores);
+			repeatRemover.execute();
 		}
 		//closeLogFile();
 

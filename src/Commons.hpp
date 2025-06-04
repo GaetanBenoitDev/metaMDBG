@@ -1079,6 +1079,79 @@ class Utils{
 
 public:
 
+	static void concatenateFiles(const string& file1, const std::string& file2, const std::string& outputFile) {
+		
+		std::ofstream outDummy(outputFile);
+		outDummy.close();
+
+
+
+
+		std::ofstream out1(outputFile, std::ios_base::binary | std::ios_base::app);
+		std::ifstream in1(file1, std::ios_base::binary);
+
+		out1.seekp(0, std::ios_base::end);
+		out1 << in1.rdbuf();
+
+		out1.close();
+		in1.close();
+
+
+
+
+		std::ofstream out2(outputFile, std::ios_base::binary | std::ios_base::app);
+		std::ifstream in2(file2, std::ios_base::binary);
+
+		out2.seekp(0, std::ios_base::end);
+		out2 << in2.rdbuf();
+
+		out2.close();
+		in2.close();
+
+		/*
+		std::ofstream of_c(outputFile, std::ios_base::binary | std::ios_base::out);
+
+		//std::ofstream of_a(file1, std::ios_base::binary);
+		std::ifstream if_a(file1, std::ios_base::binary);
+		std::ifstream if_b(file2, std::ios_base::binary);
+
+		//of_a.seekp(0, std::ios_base::end);
+		of_c << if_b.rdbuf() << if_a.rdbuf();
+
+
+		of_c.close();
+		if_a.close();
+		if_b.close();
+		*/
+
+		/*	
+		cout << file1 << " + " << file2 << " -> " << outputFile << endl;
+		
+		std::ifstream if_a(file1, std::ios_base::binary | std::ios_base::in);
+		std::ifstream if_b(file2, std::ios_base::binary | std::ios_base::in);
+		std::ofstream of_c(outputFile, std::ios_base::binary | std::ios_base::out);
+
+		of_c << if_a.rdbuf() << if_b.rdbuf();
+
+		of_c.flush();
+		of_c.close();
+		
+		std::ifstream input1(file1, std::ios::binary);
+		std::ifstream input2(file2, std::ios::binary);
+		std::ofstream output(outputFile, std::ios::binary);
+
+		// Copy first file
+		//output << input1.rdbuf();
+
+		// Copy second file
+		//output << input2.rdbuf();
+
+		output << "lala" << endl;
+		output.close();
+		*/
+
+	}
+
 	static u_int32_t unitigIndexToReverseDirection(const u_int32_t& unitigIndex){
 		if(unitigIndex % 2 == 0){
 			return unitigIndex + 1;

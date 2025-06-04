@@ -21,14 +21,16 @@ public:
 	int _minimapBatchSize;
 	string _alignFilename;
 	u_int32_t _minContigLength;
+	bool _useMetamdbgHeaderStyle;
 
 	typedef pair<int64_t, int64_t> Overlap;
 	gzFile _outputContigFile;
 	unordered_map<string, Overlap> _contigName_to_alignmentBounds;
 
-	ContigDerep(const string& inputContigFilename, const string& outputContigFilename, const int& minimapBatchSize, const string& tmpDir, const string& tmpDirPolishing, const float& minIdentity, const u_int32_t& minContigLength, const int& nbCores){
+	ContigDerep(const string& inputContigFilename, const string& outputContigFilename, bool useMetamdbgHeaderStyle, const int& minimapBatchSize, const string& tmpDir, const string& tmpDirPolishing, const float& minIdentity, const u_int32_t& minContigLength, const int& nbCores){
 		_inputContigFilename = inputContigFilename;
 		_outputContigFilename = outputContigFilename;
+		_useMetamdbgHeaderStyle = useMetamdbgHeaderStyle;
 		_minimapBatchSize = minimapBatchSize;
 		_tmpDir = tmpDir;
 		_tmpDirPolishing = tmpDirPolishing;
@@ -397,8 +399,10 @@ public:
 
 	void writeContig(string header, const string& sequence){
 
-		Utils::ContigHeader contigHeader = Utils::extractContigHeader(header);
-		header = Utils::createContigHeader(contigHeader._contigIndex, sequence.size(), contigHeader._coverage, contigHeader._isCircular);
+		if(_useMetamdbgHeaderStyle){
+			Utils::ContigHeader contigHeader = Utils::extractContigHeader(header);
+			header = Utils::createContigHeader(contigHeader._contigIndex, sequence.size(), contigHeader._coverage, contigHeader._isCircular);
+		}
 
 		string headerFasta = ">" + header + '\n';
 		gzwrite(_outputContigFile, (const char*)&headerFasta[0], headerFasta.size());

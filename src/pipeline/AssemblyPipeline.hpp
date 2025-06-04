@@ -31,6 +31,8 @@ public:
 	string _inputFilenameComplete;
 	size_t _meanReadLength;
 	string _tmpDir;
+	string _checkpointDir;
+
 
 	//float _minReadQuality;
 	//u_int64_t _contigPolishing_nbReadFragments;
@@ -200,8 +202,15 @@ public:
 
 
 	    if(!fs::exists (_outputDir)) fs::create_directories(_outputDir); 
-	    if(!fs::exists (_tmpDir)) fs::create_directories(_tmpDir); 
+	    if(!fs::exists (_tmpDir)){
+			fs::create_directories(_tmpDir); 
+
+			ofstream fileSmallContigs(_tmpDir + "/small_contigs.bin");
+			fileSmallContigs.close();
+		} 
 	    if(!fs::exists (_tmpDir + "/filter")) fs::create_directories(_tmpDir + "/filter"); 
+		_checkpointDir = _tmpDir + "/checkpoints/";
+	    if(!fs::exists (_checkpointDir)) fs::create_directories(_checkpointDir); 
 		
 		
 		//string bannedDir = _tmpDir + "/bannedKminmers/";
@@ -414,13 +423,7 @@ public:
 		}
 		//createInputFile(false);
 
-		Logger::get().info() << "Converting reads to minimizers";
-
-		command = _filename_exe + " readSelection " + _tmpDir + " " + _tmpDir + "/read_data_init.txt" + " " + _inputFilename + " --threads " + to_string(_nbCores) + " --min-read-quality " + to_string(_params._minReadQuality);
-		if(_params._useHomopolymerCompression) command += " --homopolymer-compression";
-		if(_params._useReadCorrection) command += " --output-quality";
-		executeCommand(command);
-		
+		convertReadsToMinimizerSpace();
 
 
 
@@ -505,21 +508,11 @@ public:
 
 
 		if(_params._useReadCorrection){
-			Logger::get().info() << "Correcting reads";
-			writeParameters(_minimizerSize, _firstK, _params._minimizerDensityAssembly, _firstK, _firstK, _lastK, _params._minimizerDensityCorrection, _params._useHomopolymerCompression, _params._dataType);
-		
-			//if(_skipCorrection){
-			//	Logger::get().info() << "Correction skipped";
-			//}
-			//else{
-			command = _filename_exe + " readCorrection " + _tmpDir + " --min-identity " + to_string(_params._readCorrectionMinIdentity) + " --min-overlap-length " + to_string(_params._readCorrectionMinOverlapLength) + " --threads " + to_string(_nbCores);
-			executeCommand(command);
-			//}
+			correctReads();
 		}
 
 
-		ofstream fileSmallContigs(_tmpDir + "/small_contigs.bin");
-		fileSmallContigs.close();
+	
 		//ofstream fileJoints(_tmpDir + "/joint_data.txt");
 		//fileJoints.close();
 
@@ -606,6 +599,202 @@ public:
 
     }
 
+	void convertReadsToMinimizerSpace(){
+
+		const string& checkpointFilename = _checkpointDir + "/convertReadsToMinimizerSpace.checkpoint";
+		
+		Logger::get().info() << "Converting reads to minimizers";
+		
+		if(isCheckpoint(checkpointFilename)) return;
+
+		string command = _filename_exe + " readSelection " + _tmpDir + " " + _tmpDir + "/read_data_init.txt" + " " + _inputFilename + " --threads " + to_string(_nbCores) + " --min-read-quality " + to_string(_params._minReadQuality);
+		if(_params._useHomopolymerCompression) command += " --homopolymer-compression";
+		if(_params._useReadCorrection) command += " --output-quality";
+		executeCommand(command);
+		
+		createCheckpoint(checkpointFilename);
+	}
+
+	void correctReads(){
+
+		const string& checkpointFilename = _checkpointDir + "/correctReads.checkpoint";
+
+		Logger::get().info() << "Correcting reads";
+		
+		if(isCheckpoint(checkpointFilename)) return;
+
+		writeParameters(_minimizerSize, _firstK, _params._minimizerDensityAssembly, _firstK, _firstK, _lastK, _params._minimizerDensityCorrection, _params._useHomopolymerCompression, _params._dataType);
+	
+		//if(_skipCorrection){
+		//	Logger::get().info() << "Correction skipped";
+		//}
+		//else{
+		string command = _filename_exe + " readCorrection " + _tmpDir + " --min-identity " + to_string(_params._readCorrectionMinIdentity) + " --min-overlap-length " + to_string(_params._readCorrectionMinOverlapLength) + " --threads " + to_string(_nbCores);
+		executeCommand(command);
+		//}
+
+		createCheckpoint(checkpointFilename);
+	}
+
+	void createGraph(const size_t& k, const size_t& pass){
+
+
+		const string& checkpointFilename = _checkpointDir + "/k" + to_string(k) + "_createGraph.checkpoint";
+
+		if(isCheckpoint(checkpointFilename)) return;
+
+		string command = "";
+
+		if(pass == 0){
+			command = _filename_exe + " graph " + _tmpDir + " --threads " + to_string(_nbCores);
+			command += " --min-abundance " + to_string(_minKminmerAbundance);
+
+		}
+		else{
+			command = _filename_exe + " graph " + _tmpDir + " --threads " + to_string(_nbCores);	
+		}
+		if(pass == 0) command += " --firstpass ";
+		if(_params._useReadCorrection) command += " --corrected-read ";
+
+		executeCommand(command);
+
+		Utils::concatenateFiles(_tmpDir + "/small_contigs_pass.bin", _tmpDir + "/small_contigs.bin", _tmpDir + "/small_contigs_combined.bin");
+		//cout << "mu" << endl;
+		//getchar();
+		fs::rename(_tmpDir + "/small_contigs_combined.bin", _tmpDir + "/small_contigs.bin");
+		
+		//_tmpDir + "/small_contigs.bin"
+		createCheckpoint(checkpointFilename);
+	}
+
+	void generateContigs(const size_t& k, const size_t& pass){
+
+		const string& checkpointFilename = _checkpointDir + "/k" + to_string(k) + "_generateContigs.checkpoint";
+
+		if(isCheckpoint(checkpointFilename)) return;
+
+		string command = _filename_exe + " contig " + " " + _tmpDir + " --threads " + to_string(_nbCores);
+		//if(!_truthInputFilename.empty()) command += " --itruth " + _truthInputFilename;
+		//if(pass == 0) command += " --firstpass";
+		executeCommand(command);
+		
+		createCheckpoint(checkpointFilename);
+	}
+
+	void toMinspaceContigs(const size_t& k, const size_t& pass, const string& outputFilename){
+
+		const string& checkpointFilename = _checkpointDir + "/k" + to_string(k) + "_toMinspaceContigs.checkpoint";
+
+		if(isCheckpoint(checkpointFilename)) return;
+
+		string command = _filename_exe + " toMinspace " + " " + _tmpDir + " " + _tmpDir + "/contigs.nodepath " + outputFilename + " --threads " + to_string(_nbCores);
+		executeCommand(command);
+
+		createCheckpoint(checkpointFilename);
+	}
+
+	void toMinspaceAssemblyGraph(const size_t& k, const size_t& pass){
+
+		if(pass == 0) return;
+
+		const string& checkpointFilename = _checkpointDir + "/k" + to_string(k) + "_toMinspaceAssemblyGraph.checkpoint";
+
+		if(isCheckpoint(checkpointFilename)) return;
+
+		string command = _filename_exe + " toMinspace " + " " + _tmpDir + " " + _tmpDir + "/assembly_graph.gfa.unitigs.nodepath" + " " + _tmpDir + "/assembly_graph.gfa.unitigs --threads " + to_string(_nbCores);
+		executeCommand(command);
+
+		createCheckpoint(checkpointFilename);
+	}
+
+	void derepContigs(){
+
+		Logger::get().info() << "Removing overlaps and duplication";
+
+		const string& checkpointFilename = _checkpointDir + "/derepContigs.checkpoint";
+
+		if(isCheckpoint(checkpointFilename)) return;
+
+		//cout << "AssemblyPipeline: Disabled small contigs append" << endl;
+		string contigFilename = _tmpDir + "/contig_data_init_small.txt";
+		appendSmallContigs(contigFilename);
+		
+		//fs::copy(_tmpDir + "/contig_data.txt", _tmpDir + "/contig_data_backup.txt", fs::copy_options::overwrite_existing);
+
+		//string contigFilenameDummy = _tmpDir + "/dummy.fasta.gz ";
+		//string contigFilenameCompressed = _tmpDir + "/contigs_uncorrected.fasta.gz";
+
+		string command = _filename_exe + " toBasespaceFast " + " " + _tmpDir + " " + contigFilename + " --threads " + to_string(_nbCores);
+		if(_params._useReadCorrection){
+			command += " --has-quality";
+		}
+		executeCommand(command);
+
+		createCheckpoint(checkpointFilename);
+	}
+
+	void toBasespace(const string& outputFilename){
+
+		Logger::get().info() << "Constructing base-space contigs";
+
+		const string& checkpointFilename = _checkpointDir + "/toBasespace.checkpoint";
+
+		if(isCheckpoint(checkpointFilename)) return;
+
+		if(_params._dataType == DataType::HiFi){
+			string command = _filename_exe + " toBasespace_hifi " + " " + _tmpDir + " " + _tmpDir + "/contig_data_init_small.txt.norepeats " + " " + outputFilename + " " + _inputFilename  + " --threads " + to_string(_nbCores);
+			//if(_params._useHomopolymerCompression) command += " --homopolymer-compression";
+			executeCommand(command);
+		}
+		else if(_params._dataType == DataType::Nanopore){
+			string command = _filename_exe + " toBasespace_ont " + " " + _tmpDir + " " + _tmpDir + "/contig_data_init_small.txt.norepeats " + " " + outputFilename + " " + _inputFilename  + " --threads " + to_string(_nbCores);
+			if(!_params._useReadCorrection){
+				command += " --skip-correction";
+			}
+			//if(_params._useHomopolymerCompression) command += " --homopolymer-compression";
+			executeCommand(command);
+		} 
+
+		createCheckpoint(checkpointFilename);
+	}
+
+	void polishContigs(const string& inputContigFilename){
+
+		Logger::get().info() << "Polishing contigs";
+
+		const string& checkpointFilename = _checkpointDir + "/polishContigs.checkpoint";
+
+		if(isCheckpoint(checkpointFilename)) return;
+
+		string inputReadStr = "";
+		if(_params._dataType == DataType::HiFi){
+			inputReadStr = "--in-hifi";
+		}
+		else if(_params._dataType == DataType::Nanopore){
+			inputReadStr = "--in-ont";
+		}
+
+		int peakMemory = ceil(getPeakMemory());
+
+		string command = _filename_exe + " polish --polish-target " + inputContigFilename + " --out-dir " + _tmpDir + " " + " --threads " + to_string(_nbCores) + " -n " + to_string(_params._usedCoverageForContigPolishing) + " --metaMDBG --max-memory " + to_string(peakMemory) + " " + inputReadStr + " " + Commons::inputFileToFilenames(_tmpDir + "/input.txt"); //--circ
+		executeCommand(command);
+
+		Logger::get().info() << "Moving final contigs to destination";
+		fs::rename(_tmpDir + "/contigs.fasta.gz", _outputDir + "/contigs.fasta.gz");
+
+		createCheckpoint(checkpointFilename);
+	}
+
+	void createCheckpoint(const string& checkpointFilename){
+
+		ofstream file(checkpointFilename);
+		file.close();
+	}
+
+	bool isCheckpoint(const string& checkpointFilename){
+		return fs::exists(checkpointFilename);
+	}
+
 	/*
 	void execTest(){
 
@@ -655,6 +844,8 @@ public:
 	}
 	*/
 
+
+
 	void executePass(size_t k, size_t prevK, size_t pass){
 
 		bool isFinalPass = k == _lastK;
@@ -664,19 +855,7 @@ public:
 
 		string command = "";
 
-		if(pass == 0){
-			command = _filename_exe + " graph " + _tmpDir + " --threads " + to_string(_nbCores);
-			command += " --min-abundance " + to_string(_minKminmerAbundance);
-			//if(!_useInitialKminmerFilter){
-			//	command += " --nofilter ";
-			//}
-		}
-		else{
-			command = _filename_exe + " graph " + _tmpDir + " --threads " + to_string(_nbCores);	
-		}
-		if(pass == 0) command += " --firstpass ";
-		if(_params._useReadCorrection) command += " --corrected-read ";
-		executeCommand(command);
+		createGraph(k, pass);
 		//getchar();
 
 		//command = _filename_exe + " multik -o " + _tmpDir + " -t " + to_string(_nbCores);
@@ -700,17 +879,16 @@ public:
 		//if(k == 5 || k == 10 || k == 16 || k == 21 || k == 26 || k == 31){
 		if(isFinalPass){
 
-			
-			//Generate contigs
-			command = _filename_exe + " contig " + " " + _tmpDir + " " + " --threads " + to_string(_nbCores);
-			if(!_truthInputFilename.empty()) command += " --itruth " + _truthInputFilename;
-			//if(pass == 0) command += " --firstpass";
-			executeCommand(command);
+			generateContigs(k, pass);
+
+
+			toMinspaceContigs(k, pass, _tmpDir + "/contig_data_init.txt");
+			toMinspaceAssemblyGraph(k, pass);
 
 			//getchar();
 
-			command = _filename_exe + " toMinspace " + " " + _tmpDir + " " + _tmpDir + "/contigs.nodepath" + " " + _tmpDir + "/contig_data.txt --threads "+ to_string(_nbCores);
-			executeCommand(command);
+			//command = _filename_exe + " toMinspace " + " " + _tmpDir + " " + _tmpDir + "/contigs.nodepath" + " " + _tmpDir + "/contig_data.txt --threads "+ to_string(_nbCores);
+			//executeCommand(command);
 
 			
 
@@ -719,39 +897,11 @@ public:
 
 			//cerr << "Removing overlaps and duplication..." << endl;
 			//_logFile << "Removing overlaps and duplication..." << endl;
-			Logger::get().info() << "Removing overlaps and duplication";
-
-			//cout << "AssemblyPipeline: Disabled small contigs append" << endl;
-			appendSmallContigs();
 			
-			fs::copy(_tmpDir + "/contig_data.txt", _tmpDir + "/contig_data_backup.txt", fs::copy_options::overwrite_existing);
+			derepContigs();
 
-			string contigFilenameDummy = _tmpDir + "/dummy.fasta.gz ";
 			string contigFilenameCompressed = _tmpDir + "/contigs_uncorrected.fasta.gz";
-
-			string command = _filename_exe + " toBasespaceFast " + " " + _tmpDir + " " + _tmpDir + "/contig_data.txt " + " " + contigFilenameDummy + " " + _inputFilename + " --threads " + to_string(_nbCores);
-			if(_params._useReadCorrection){
-				command += " --has-quality";
-			}
-			executeCommand(command);
-
-
-
-			Logger::get().info() << "Constructing base-space contigs";
-
-			if(_params._dataType == DataType::HiFi){
-				command = _filename_exe + " toBasespace_hifi " + " " + _tmpDir + " " + _tmpDir + "/contig_data.txt " + " " + contigFilenameCompressed + " " + _inputFilename  + " --threads " + to_string(_nbCores);
-				//if(_params._useHomopolymerCompression) command += " --homopolymer-compression";
-				executeCommand(command);
-			}
-			else if(_params._dataType == DataType::Nanopore){
-				command = _filename_exe + " toBasespace_ont " + " " + _tmpDir + " " + _tmpDir + "/contig_data.txt " + " " + contigFilenameCompressed + " " + _inputFilename  + " --threads " + to_string(_nbCores);
-				if(!_params._useReadCorrection){
-					command += " --skip-correction";
-				}
-				//if(_params._useHomopolymerCompression) command += " --homopolymer-compression";
-				executeCommand(command);
-			} 
+			toBasespace(contigFilenameCompressed);
 
 
 			//command = _filename_exe + " derep " + contigFilenameCompressed + " " + contigFilenameDummy + " " + _tmpDir + " -t " + to_string(_nbCores) + " --nodump";
@@ -792,7 +942,7 @@ public:
 			//	maxMemory = 8;
 			//}
 
-			Logger::get().info() << "Mapping reads vs contigs";
+			//Logger::get().info() << "Mapping reads vs contigs";
 
 			string readPartitionDir = _tmpDir + "/_polish_readPartitions/";
 			if(!fs::exists(readPartitionDir)){
@@ -807,7 +957,6 @@ public:
 			//}
 
 			//int minimapBatchSize = 1;
-			int peakMemory = ceil(getPeakMemory());
 			//if(peakMemory < 8 || peakMemory > 1000000){
 			//	minimapBatchSize = 1;
 			//}
@@ -827,23 +976,7 @@ public:
 			//Utils::executeCommand(command, _tmpDir);
 
 
-			Logger::get().info() << "Polishing contigs";
-
-			string inputReadStr = "";
-			if(_params._dataType == DataType::HiFi){
-				inputReadStr = "--in-hifi";
-			}
-			else if(_params._dataType == DataType::Nanopore){
-				inputReadStr = "--in-ont";
-			}
-
-			command = _filename_exe + " polish --polish-target " + contigFilenameCompressed + " --out-dir " + _tmpDir + " " + " --threads " + to_string(_nbCores) + " -n " + to_string(_params._usedCoverageForContigPolishing) + " --metaMDBG --max-memory " + to_string(peakMemory) + " " + inputReadStr + " " + Commons::inputFileToFilenames(_tmpDir + "/input.txt"); //--circ
-			executeCommand(command);
-
-
-			
-			Logger::get().info() << "Moving final contigs to destination";
-			fs::rename(_tmpDir + "/contigs.fasta.gz", _outputDir + "/contigs.fasta.gz");
+			polishContigs(contigFilenameCompressed);
 			
 			//generatedContigs = true;
 
@@ -865,10 +998,8 @@ public:
 		}
 		else{
 
-			command = _filename_exe + " contig " + " " + _tmpDir + " --threads " + to_string(_nbCores);;
-			if(!_truthInputFilename.empty()) command += " --itruth " + _truthInputFilename;
-			//if(pass == 0) command += " --firstpass";
-			executeCommand(command);
+			generateContigs(k, pass);
+
 			
 			//cout << "done" << endl;
 			//getchar();
@@ -879,14 +1010,9 @@ public:
 			//	fs::copy(_tmpDir + "/unitig_data.txt", _tmpDir + "/unitig_data_prev.txt", copyOptions);
 			//}
 
-			command = _filename_exe + " toMinspace " + " " + _tmpDir + " " + _tmpDir + "/contigs.nodepath" + " " + _tmpDir + "/unitig_data.txt --threads " + to_string(_nbCores);
-			executeCommand(command);
+			toMinspaceContigs(k, pass, _tmpDir + "/unitig_data.txt");
 
-			if(!isFirstPass){
-				command = _filename_exe + " toMinspace " + " " + _tmpDir + " " + _tmpDir + "/assembly_graph.gfa.unitigs.nodepath" + " " + _tmpDir + "/assembly_graph.gfa.unitigs --threads " + to_string(_nbCores);
-				executeCommand(command);
-				//cout << "AssemblyPipeline: skip assembly graph toMinspace" << endl;
-			}
+			toMinspaceAssemblyGraph(k, pass);
 
 			
 			//if(pass == 0){
@@ -910,6 +1036,7 @@ public:
 		//getchar();
 	}
 
+	/*
 	unordered_set<u_int32_t> _duplicatedContigIndex;
 	ofstream _outputContigFileDerep;
 	gzFile _outputContigFile;
@@ -979,7 +1106,6 @@ public:
 
 	}
 
-
 	class ReadPartitionFunctor {
 
 		public:
@@ -1008,17 +1134,20 @@ public:
 		}
 	};
 
+	*/
 
 
 	ofstream _fileContigsAppend;
 	u_int64_t _nbSmallContigs;
 
-	void appendSmallContigs(){
+	void appendSmallContigs(const string& contigFilename){
 
 		_nbSmallContigs = 0;
 		Logger::get().debug() << "Append small contigs";
 
-		string contigFilename = _tmpDir + "/contig_data.txt";
+
+		fs::copy(_tmpDir + "/contig_data_init.txt", contigFilename, fs::copy_options::overwrite_existing);
+
 
 		_fileContigsAppend = ofstream(contigFilename, std::ios_base::app);
 
