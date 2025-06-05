@@ -27,6 +27,8 @@ public:
 	size_t _lastK;
 	u_int64_t _maxK;
 	bool _skipCorrection;
+	bool _generateAllAssemblyGraph;
+	int _nextGenGraphIteration;
 
 	string _inputFilenameComplete;
 	size_t _meanReadLength;
@@ -103,7 +105,8 @@ public:
 		args::ValueFlag<float> arg_densityAssembly(groupAssembly, "", "Fraction of total k-mers used for assembly", {ARG_MINIMIZER_DENSITY_ASSEMBLY}, 0.005f);
 		args::ValueFlag<int> arg_maxK(groupAssembly, "", "Stop assembly after k iterations", {ARG_MAXK}, 0);
 		args::ValueFlag<int> arg_minAbundance(groupAssembly, "", "Minimum abundance for k-min-mers (default = rescue mode)", {ARG_MIN_KMINMER_ABUNDANCE}, 0);
-		
+		args::Flag arg_generateAllAssemblyGraph(groupAssembly, "", "Generate assembly graph at each multi-k iteration (higher disk usage)", {ARG_GENERATE_ALL_ASSEMBLY_GRAPH});
+
 		args::ValueFlag<float> arg_minReadQuality(groupCorrection, "", "Minimum read average quality", {ARG_MIN_READ_QUALITY}, 0.0);
 		args::ValueFlag<float> arg_densityCorrection(groupCorrection, "", "Fraction of total k-mers used for correction", {ARG_MINIMIZER_DENSITY_CORRECTION}, 0.025f);
 		args::ValueFlag<float> arg_readCorrectionMinIdentity(groupCorrection, "", "Min read identity", {"min-read-identity"}, 0.96);
@@ -197,6 +200,11 @@ public:
 		_skipCorrection = false;
 		if(arg_skipCorrection){
 			_skipCorrection = true;
+		}
+
+		_generateAllAssemblyGraph = false;
+		if(arg_generateAllAssemblyGraph){
+			_generateAllAssemblyGraph = true;
 		}
 
 
@@ -412,6 +420,13 @@ public:
     void execute_pipeline(){
 		
 		_firstK = 4;
+
+		if(_generateAllAssemblyGraph){
+			_nextGenGraphIteration = _firstK + 1;
+		}
+		else{
+			_nextGenGraphIteration = 11;
+		}
 
 		string command = "";
 
@@ -674,11 +689,27 @@ public:
 		if(isCheckpoint(checkpointFilename)) return;
 
 		string command = _filename_exe + " contig " + " " + _tmpDir + " --threads " + to_string(_nbCores);
+
+		if(doesGenerateAssemblyGraph(k, pass)){
+			command += " --gen-graph ";
+		}
+
+		//--all-assembly-graph
 		//if(!_truthInputFilename.empty()) command += " --itruth " + _truthInputFilename;
 		//if(pass == 0) command += " --firstpass";
 		executeCommand(command);
 		
 		createCheckpoint(checkpointFilename);
+	}
+
+	bool doesGenerateAssemblyGraph(const size_t& k, const size_t& pass){
+
+		if(pass == 0) return false; //Do not generate graph for the first pass, it's too huge	
+		if(_generateAllAssemblyGraph) return true;
+
+		return k == _nextGenGraphIteration;
+		//return k % 11 == 0 || k == _lastK; //generate a few graph (every 11 iterations and the last graph)
+
 	}
 
 	void toMinspaceContigs(const size_t& k, const size_t& pass, const string& outputFilename){
@@ -695,7 +726,8 @@ public:
 
 	void toMinspaceAssemblyGraph(const size_t& k, const size_t& pass){
 
-		if(pass == 0) return;
+		//if(pass == 0) return;
+		if(!doesGenerateAssemblyGraph(k, pass)) return;
 
 		const string& checkpointFilename = _checkpointDir + "/k" + to_string(k) + "_toMinspaceAssemblyGraph.checkpoint";
 
@@ -1027,6 +1059,15 @@ public:
 			//if(pass > 0) exit(1);
 		}	
 			
+		if(k == _nextGenGraphIteration){
+			if(_generateAllAssemblyGraph){
+				_nextGenGraphIteration += 1;
+			}
+			else{
+				_nextGenGraphIteration += 10;
+			}
+		}
+
 		savePassData(k);
 		//cout << "done" << endl;
 

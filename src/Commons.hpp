@@ -324,6 +324,7 @@ const string ARG_MAXK = "max-k";
 //const char ARG_INPUT_FILENAME_ABUNDANCE2 = 'a';
 const string ARG_NB_CORES2 = "threads";
 const string ARG_MIN_KMINMER_ABUNDANCE = "min-abundance";
+const string ARG_GENERATE_ALL_ASSEMBLY_GRAPH = "all-assembly-graph";
 //const string ARG_CIRCULARIZE = "circ";
 //const int MIN_NB_MINIMIZER_REFERENCE = 4000;
 //const int MIN_NB_MINIMIZER_QUERY = 4000;

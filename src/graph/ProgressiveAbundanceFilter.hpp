@@ -1410,13 +1410,15 @@ public:
     bool _removeBubble;
     bool _isFirstPass;
     int _nbCores;
+    bool _genGraph;
 
-    ProgressiveAbundanceFilter(UnitigGraph2* unitigGraph2, const string& tmpDir, size_t kminmerSize, bool removeBubble, bool isFirstPass, int nbCores){
+    ProgressiveAbundanceFilter(UnitigGraph2* unitigGraph2, const string& tmpDir, size_t kminmerSize, bool removeBubble, bool isFirstPass, bool genGraph, int nbCores){
         _unitigGraph2 = unitigGraph2;
         _tmpDir = tmpDir;
         _kminmerSize = kminmerSize;
         _removeBubble = removeBubble;
         _isFirstPass = isFirstPass;
+        _genGraph = genGraph;
         _nbCores = nbCores;
     }
 
@@ -1606,7 +1608,7 @@ public:
 
                 cout << nbUnitigs << endl;
                 */
-                if(!_isFirstPass){
+                if(_genGraph){
                     _unitigGraph2->save(_tmpDir + "/assembly_graph.gfa");
                 }
                 //getchar();

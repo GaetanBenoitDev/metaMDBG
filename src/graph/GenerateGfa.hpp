@@ -201,6 +201,9 @@ public:
 
 			if (filename.find(pattern) == string::npos) continue;
 
+			//cout << path << endl;
+			if(!fs::exists(path + "/assembly_graph.gfa.unitigs")) continue;
+
 			//cout << path << " " << filename << endl;
 
 			filename.erase(0, pattern.size());

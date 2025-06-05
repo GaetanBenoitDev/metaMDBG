@@ -435,6 +435,13 @@ public:
 
 	void determineRepetitiveMinimizers(){
 
+		ofstream outputFile(_inputDir + "/repetitiveMinimizers.bin" );
+
+		if(_useHomopolymerCompression){ //Skip if hifi
+			outputFile.close();
+			return;
+		}
+
 		ReadParserParallel readParser(_inputFilename, false, false, _nbCores);
 		readParser._maxReads = 1000000;
 		readParser.parse(CountMinimizerFunctor(*this, _minimizerSize, _minimizerDensity));
@@ -482,12 +489,9 @@ public:
 		//const MinimizerRead& queryReadHighDensity = _parent._mReads[queryReadIndex];
 
 
-		ofstream outputFile(_inputDir + "/repetitiveMinimizers.bin" );
 		
-		if(!_useHomopolymerCompression){
-			for(const MinimizerType& minimizer : _isRepetitiveMinimizer){
-				outputFile.write((const char*)&minimizer, sizeof(minimizer));
-			}
+		for(const MinimizerType& minimizer : _isRepetitiveMinimizer){
+			outputFile.write((const char*)&minimizer, sizeof(minimizer));
 		}
 		
 		outputFile.close();

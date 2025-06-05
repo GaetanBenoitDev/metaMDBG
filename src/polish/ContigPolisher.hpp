@@ -1,6 +1,8 @@
 
 /*
 
+- Collecting repetitive minimizers: desactiver completement en mode hifi (le sumbsample)
+- avant de soumettre v2: supprimer le polishPartitionDir
 
 - preparer le benchmark qui integre:
 	- clipping

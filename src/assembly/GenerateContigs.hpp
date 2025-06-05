@@ -62,6 +62,7 @@ public:
 	gzFile _outputContigFile;
 	gzFile _outputContigFile_complete;
 	MDBG* _mdbg;
+	bool _genGraph;
 	//GraphSimplify* _graph;
 	//ToBasespaceOnTheFly _toBasespace;
 	//ContigFeature _contigFeature;
@@ -92,6 +93,7 @@ public:
 		args::ValueFlag<int> arg_nbCores(parser, "", "Number of cores", {ARG_NB_CORES2}, NB_CORES_DEFAULT_INT);
 		//args::Flag arg_isFinalAssembly(parser, "", "Is final multi-k pass", {ARG_FINAL});
 		args::Flag arg_firstPass(parser, "", "Is first pass of multi-k", {ARG_FIRST_PASS});
+		args::Flag arg_genGraph(parser, "", "Generate temporary file for genetarating assembly graphs", {"gen-graph"});
 		args::Flag arg_help(parser, "", "", {'h', "help"}, args::Options::Hidden);
 		//args::HelpFlag help(parser, "help", "Display this help menu", {'h'});
 		//args::CompletionFlag completion(parser, {"complete"});
@@ -123,10 +125,11 @@ public:
 
 		_nbCores = args::get(arg_nbCores);
 
-		//_isFinalAssembly = false;
-		//if(arg_isFinalAssembly){
-		//	_isFinalAssembly = true;
-		//}
+
+		_genGraph = false;
+		if(arg_genGraph){
+			_genGraph = true;
+		}
 
 		//_truthInputFilename = result[ARG_INPUT_FILENAME_TRUTH].as<string>();
 		//_inputFilename_unitigNt = result[ARG_INPUT_FILENAME_UNITIG_NT].as<string>();
@@ -374,7 +377,7 @@ public:
 
 		Logger::get().debug() << "Simplifying";
 
-        _progressiveAbundanceFilter = new ProgressiveAbundanceFilter(unitigGraph2, _inputDir, _kminmerSize, true, _kminmerSize==_kminmerSizeFirst, _nbCores);
+        _progressiveAbundanceFilter = new ProgressiveAbundanceFilter(unitigGraph2, _inputDir, _kminmerSize, true, _kminmerSize==_kminmerSizeFirst, _genGraph, _nbCores);
 		X dummy;
 
 		//delete _graph->_graphSuccessors;
