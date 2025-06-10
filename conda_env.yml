@@ -1,4 +1,4 @@
-name: metamdbg
+name: metamdbg1.2
 channels:
   - conda-forge
   - bioconda

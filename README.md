@@ -37,12 +37,12 @@ git clone https://github.com/GaetanBenoitDev/metaMDBG.git
 # Create metaMDBG conda environment
 cd metaMDBG
 conda env create -f conda_env.yml
-conda activate metamdbg
+conda activate metamdbg1.2
 conda env config vars set CPATH=${CONDA_PREFIX}/include:${CPATH}
 conda deactivate
 
 # Activate metaMDBG environment
-conda activate metamdbg
+conda activate metamdbg1.2
 
 # Compile the software
 mkdir build
