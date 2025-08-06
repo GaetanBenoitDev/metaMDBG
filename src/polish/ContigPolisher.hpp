@@ -73,6 +73,7 @@ python3 ~/zeus/scripts/nanopore/eval_clipping.py asm/contigs_2.fasta.gz /pasteur
 */
 
 
+
 #ifndef MDBG_METAG_CONTIGPOLISHER
 #define MDBG_METAG_CONTIGPOLISHER
 
@@ -5247,7 +5248,7 @@ public:
 					
 				
 				u_int64_t wStart = windowIndexLocal*_windowLength;
-				u_int64_t wEnd = min(_contigSequences[contigIndexLocal].size(), wStart+_windowLength);
+				u_int64_t wEnd = min(_contigSequences[contigIndexLocal].size(), (size_t)(wStart+_windowLength));
 				string contigOriginalSequence = _contigSequences[contigIndexLocal].substr(wStart, wEnd-wStart);
 				bool isLastWindow = (windowIndexLocal == _contigWindowSequences[contigIndexLocal].size()-1);
 
