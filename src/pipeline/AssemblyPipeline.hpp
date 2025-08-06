@@ -775,6 +775,9 @@ public:
 
 		if(_params._dataType == DataType::HiFi){
 			string command = _filename_exe + " toBasespace_hifi " + " " + _tmpDir + " " + _tmpDir + "/contig_data_init_small.txt.norepeats " + " " + outputFilename + " " + _inputFilename  + " --threads " + to_string(_nbCores);
+			//string command = _filename_exe + " toBasespace_ont " + " " + _tmpDir + " " + _tmpDir + "/contig_data_init_small.txt.norepeats " + " " + outputFilename + " " + _inputFilename  + " --threads " + to_string(_nbCores);
+			//command += " --homopolymer-compression ";
+			//command += " --skip-correction ";
 			//if(_params._useHomopolymerCompression) command += " --homopolymer-compression";
 			executeCommand(command);
 		}
@@ -1440,7 +1443,7 @@ public:
 
 		//cerr << "Checking dependencies: minimap2 ";
 		//_logFile << "Checking dependencies: minimap2 ";
-		string command = "minimap2 -x map-hifi " + filename + " " + filename + " -o " + outputFilename_mapping_minimap;
+		string command = "minimap2 -v 0 -x map-hifi " + filename + " " + filename + " -o " + outputFilename_mapping_minimap;
 		Utils::executeCommand(command, _tmpDir);
 
 		if(!fs::exists(outputFilename_mapping_minimap)){

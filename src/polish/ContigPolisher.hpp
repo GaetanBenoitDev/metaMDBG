@@ -711,7 +711,7 @@ public:
 			
 			//if(i != 30) continue;
 
-			processPartition(i);
+			//processPartition(i);
 		}
 		
 
@@ -737,7 +737,8 @@ public:
 
 			//_partitionNbReads[i] = 10000;
 
-			string inputContigFilename = _readPartitionDir + "/" + to_string(i) + "_contigsCurated.gz";
+			//string inputContigFilename = _readPartitionDir + "/" + to_string(i) + "_contigsCurated.gz";
+			string inputContigFilename = _readPartitionDir + "/" + to_string(i) + "_contigs.gz";
 			string outputContigFilename = _readPartitionDir + "/" + to_string(i) + "_contigsPolished.gz";
 			gzFile outputContigFile = gzopen(outputContigFilename.c_str(),"wb");
 
@@ -816,17 +817,26 @@ public:
 		derepContigs(outputContigFilename_polished, outputContigFilename_derep, minimapBatchSize);
 
 		Logger::get().debug() << "";
+		Logger::get().debug() << "Dereplicating contigs";
+		//const string& derepContigFilename1 = _tmpDir + "/contigs_derep_1.fasta.gz";
+		const string& outputContigFilename_derep_2 = _readPartitionDir + "/contigs_derep_2.fasta.gz";
+		derepContigs(outputContigFilename_derep, outputContigFilename_derep_2, minimapBatchSize);
+
+		Logger::get().debug() << "";
 		Logger::get().debug() << "Trimming contigs";
 		const string& outputContigFilename_trimmed = _readPartitionDir + "/contigs_trimmed.fasta.gz";
-		trimContigs(outputContigFilename_derep, outputContigFilename_trimmed, minimapBatchSize);
+		//trimContigs(outputContigFilename_derep, outputContigFilename_trimmed, minimapBatchSize);
 
-		cout << "A REMETTRE: delete tmp dir for polishing" << endl;
-		//fs::remove_all(_readPartitionDir);
 
 		Logger::get().debug() << "";
 		Logger::get().debug() << "Moving final contigs to destination";
-		fs::rename(outputContigFilename_trimmed, _outputContigFilename);
+		//fs::rename(outputContigFilename_trimmed, _outputContigFilename);
+		fs::rename(outputContigFilename_derep_2, _outputContigFilename);
 
+
+		cout << "A REMETTRE: delete tmp dir for polishing" << endl;
+		fs::remove_all(_readPartitionDir);
+		
 		Logger::get().debug() << "";
 		Logger::get().debug() << "Polished contigs: " << _outputContigFilename;
 		Logger::get().debug() << "done";
@@ -1409,7 +1419,7 @@ public:
 		
 
 		writeReadPartitions();
-		//writeContigPartitions();
+		writeContigPartitions();
 
 		_contigStats.clear();
 		_contigCoverages.clear();
@@ -4483,7 +4493,7 @@ public:
 		Logger::get().debug() << "\tMap reads to curated contigs";
 
 		const string& alignFilename = _readPartitionDir + "/align.paf.gz";
-		string command = "minimap2 -c -v 0 -m 500 -t " + to_string(_nbCores) + " -x " + _minimap2Preset_map + " " + contigFilename + " " + readFilename;
+		string command = "minimap2 -v 0 -m 500 -t " + to_string(_nbCores) + " -x " + _minimap2Preset_map + " " + contigFilename + " " + readFilename;
 		Utils::executeMinimap2(command, alignFilename);
 		//command += " | gzip -c - > " + alignFilename;
 		//cout << command << endl;
@@ -4584,7 +4594,7 @@ public:
 			bounds._referenceLength = _contigSequences[contigIndex].size();
 			bounds._isReversed = al._strand;
 
-			if(_contigPolisher.getMaxhang(bounds) > ContigPolisher::maxHang*2) return;
+			//if(_contigPolisher.getMaxhang(bounds) > ContigPolisher::maxHang*2) return;
 
 			//u_int32_t readSizeMappable = _contigPolisher.getMappableLength(bounds); //A read size that do not consider alignment outside contig bounds (start and end of the contigs)
 			
@@ -5445,6 +5455,10 @@ public:
 			else if(length < _minContigLength){
 				isValid = false;
 			}
+			else if(length < 7500 && _contigCoverages[contigIndex] < 4){
+				isValid = false;
+			}
+
 			//else if(length < 7500 && _contigCoverages[contigIndex] < 3){
 			//	isValid = false;
 			//}

@@ -827,7 +827,7 @@ public:
 
 		int64_t getNextSpecificFragmentIndex(vector<Fragment>& fragments, vector<u_int32_t>& specificFragmentIndexes, long double& sourceCoverage, const bool& useSuccessor){
 		
-			float minRepeatCoverage = sourceCoverage * 2;
+			float minRepeatCoverage = sourceCoverage * 2.15;
 
 			//for(const u_int32_t& specificFragmentIndex : specificFragmentIndexes){
 			for(int64_t ii=specificFragmentIndexes.size()-1; ii >= 0; ii--){

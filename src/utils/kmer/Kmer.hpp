@@ -628,7 +628,173 @@ public:
 
 
 
+class KmerModelDirect{
+public:
 
+    typedef std::pair<char,char> ConvertChar;
+    struct ConvertASCII    { static ConvertChar get (const char* buffer, size_t idx)  { return ConvertChar((buffer[idx]>>1) & 3, (buffer[idx]>>3) & 1); }};
+
+	
+	size_t  _kmerSize;
+	u_int64_t  _kmerMask;
+	u_int64_t _revcompTable[4];
+
+	typedef KmerCanonical Kmer;
+	//typedef Kmer<span>::KmerCanonical Kmer;
+
+	KmerModelDirect(size_t kmerSize){
+
+		_kmerSize = kmerSize;
+
+		u_int64_t un;
+		un = 1;
+		_kmerMask = (un << (_kmerSize*2)) - un;
+
+		size_t shift = 2*(_kmerSize-1);
+
+		/** The _revcompTable is a shortcut used while computing revcomp recursively. */
+		/** Important: don't forget the Type cast, otherwise the result in only on 32 bits. */
+		for (size_t i=0; i<4; i++)   {  u_int64_t tmp; tmp = comp_NT[i];  _revcompTable[i] = tmp << shift;  }
+	}
+
+	//template<class Convert>
+	int polynom (const char* seq, u_int64_t& kmer, size_t startIndex)  const
+	{
+		ConvertChar c;
+		int badIndex = -1;
+
+		kmer = 0;
+		for (size_t i=0; i<_kmerSize; ++i)
+		{
+			//cout << seq[i] << endl;
+			c = ConvertASCII::get(seq,i+startIndex);
+
+			kmer = (kmer<<2) + c.first;
+
+			if (c.second)  { badIndex = i; }
+		}
+
+		return badIndex;
+	}
+
+	inline static u_int64_t revcomp(const u_int64_t& x, size_t sizeKmer)
+    {
+        u_int64_t res = x;
+
+        unsigned char* kmerrev  = (unsigned char *) (&(res));
+        unsigned char* kmer     = (unsigned char *) (&(x));
+
+        for (size_t i=0; i<8; ++i)  {  kmerrev[8-1-i] = revcomp_4NT [kmer[i]];  }
+
+        return (res >> (2*( 32 - sizeKmer))) ;
+    }
+
+	u_int64_t reverse (const u_int64_t& kmer)  const  { return revcomp (kmer, this->_kmerSize); }
+	/*
+	std::string toString (u_int64_t val, size_t sizeKmer) const
+    {
+        char seq[sizeKmer+1];
+        char bin2NT[4] = {'A','C','T','G'};
+
+        for (size_t i=0; i<sizeKmer; i++)  {  seq[sizeKmer-i-1] = bin2NT [(*this)[i]];  }
+        seq[sizeKmer]='\0';
+        return seq;
+    }*/
+
+	bool iterate (const char* seq, size_t length, vector<u_int64_t>& tmpKmers, vector<u_int8_t>& tmpKmersDirection) const{
+
+		int32_t nbKmers = length - _kmerSize + 1;
+		if (nbKmers <= 0)  { return false; }
+
+		tmpKmers.resize(nbKmers);
+		tmpKmersDirection.resize(nbKmers);
+
+		Kmer result;
+		int indexBadChar = first(seq, result, 0);
+		//int indexBadChar = static_cast<const ModelCanonical*>(this)->template first<Convert> (seq, result, 0);
+
+		size_t idxComputed = 0;
+
+		/*
+		cout << result.value() << endl;
+
+		u_int64_t kmerVal = result.value();
+		Type un;
+		un.setVal(kmerVal);
+
+		cout << un.toString(_kmerSize) << endl;
+
+		Type deux;
+		deux.setVal(revcomp(kmerVal, _kmerSize));
+
+		cout << deux.toString(_kmerSize) << endl;
+
+		exit(1);
+		//this->notification<Callback> (result, idxComputed, callback);
+		*/
+
+		//int direction;
+		tmpKmers[idxComputed] = result.forward();
+		tmpKmersDirection[idxComputed] = 0;
+
+		if(!result.isValid()) tmpKmers[idxComputed] = -1; //Kmer with max value will be skipped as minimizers
+		idxComputed += 1;
+		
+		for (size_t idx=_kmerSize; idx<length; idx++)
+		{
+			ConvertChar c = ConvertASCII::get (seq, idx);
+
+			if (c.second)  { indexBadChar = _kmerSize-1; }
+			else           { indexBadChar--;     }
+
+			next(c.first, result, indexBadChar<0);
+			tmpKmers[idxComputed] = result.forward();
+			tmpKmersDirection[idxComputed] = 0;
+			if(!result.isValid()) tmpKmers[idxComputed] = -1; //Kmer with max value will be skipped as minimizers
+
+			//if(!result.isValid()) cout << "img" << endl;
+			//tmpKmers.push_back(result.value());
+			//cout << result.value() << endl;
+			//static_cast<const ModelCanonical*>(this)->template next<Convert> (c.first, result, indexBadChar<0);
+
+			//this->notification<Callback> (result, ++idxComputed, callback);
+			idxComputed += 1;
+		}
+
+		return true;
+	}
+
+	int first (const char* seq, Kmer& value, size_t startIndex)   const
+	{
+
+		int result = polynom(seq, value.table[0], startIndex);
+		value._isValid = result < 0;
+		value.table[1] = this->reverse (value.table[0]);
+		value.updateChoice();
+		return result;
+	}
+
+	void  next (char c, Kmer& value, bool isValid)   const
+	{
+		value.table[0] = ( (value.table[0] << 2) +  c                          ) & this->_kmerMask;
+		value.table[1] = ( (value.table[1] >> 2) +  this->_revcompTable[(int)c]) & this->_kmerMask;
+		value._isValid = isValid;
+
+		value.updateChoice();
+	}
+
+	/*
+	uint64_t getHash(const u_int64_t &k) const
+	{
+		return hash1(k, 0);
+	}
+
+	void getHash2(const u_int64_t &k) const
+	{
+		hash2(k, 1LL);
+	}*/
+
+};
 
 
 

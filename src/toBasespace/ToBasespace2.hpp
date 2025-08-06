@@ -68,7 +68,7 @@ public:
     size_t _minimizerSize;
     size_t _kminmerSize;
     size_t _kminmerSizeFirst;
-	//bool _useHomopolymerCompression;
+	bool _useHomopolymerCompression;
 	//bool _isFirstPass;
 	//bool _isOutputFasta;
 
@@ -164,7 +164,7 @@ public:
 		//args::ValueFlag<int> arg_l(parser, "", "Minimizer length", {ARG_MINIMIZER_LENGTH2}, 13);
 		//args::ValueFlag<float> arg_d(parser, "", "Minimizer density", {ARG_MINIMIZER_DENSITY2}, 0.005f);
 		//args::ValueFlag<std::string> arg_contigs(parser, "", "", {ARG_INPUT_FILENAME_CONTIG}, "");
-		//args::Flag arg_homopolymerCompression(parser, "", "Activate homopolymer compression", {ARG_HOMOPOLYMER_COMPRESSION});
+		args::Flag arg_homopolymerCompression(parser, "", "Activate homopolymer compression", {ARG_HOMOPOLYMER_COMPRESSION});
 		args::ValueFlag<int> arg_nbCores(parser, "", "Number of cores", {ARG_NB_CORES2}, NB_CORES_DEFAULT_INT);
 		//args::Flag arg_firstPass(parser, "", "Is first pass of multi-k", {ARG_FIRST_PASS});
 		//args::Flag arg_isFinalAssembly(parser, "", "Is final multi-k pass", {ARG_FINAL});
@@ -195,10 +195,10 @@ public:
 		_inputFilename = args::get(arg_inputReadFilename);
 		_nbCores = args::get(arg_nbCores);
 
-		//_useHomopolymerCompression = false;
-		//if(arg_homopolymerCompression){
-		//	_useHomopolymerCompression = true;
-		//}
+		_useHomopolymerCompression = false;
+		if(arg_homopolymerCompression){
+			_useHomopolymerCompression = true;
+		}
 
 		/*
 		cxxopts::Options options("ToBasespace", "");
@@ -486,10 +486,9 @@ public:
 			u_int32_t readIndex = kminmerList._readIndex;
 			if(readIndex % 100000 == 0) Logger::get().debug() << readIndex;
 
-
 			for(u_int32_t i=0; i<kminmerList._kminmersInfo.size(); i++){
 			
-				
+
 				const ReadKminmerComplete& kminmerInfo = kminmerList._kminmersInfo[i];
 
 				const KmerVec& vec = kminmerInfo._vec;
@@ -510,6 +509,7 @@ public:
 				}); // construct value_type in place when key not present
 
 			}
+
 			
 			
 		}
@@ -2182,7 +2182,7 @@ public:
 
 			string rleSequence;
 			vector<u_int64_t> rlePositions;
-			_encoderRLE.execute(read._seq.c_str(), read._seq.size(), rleSequence, rlePositions, false);
+			_encoderRLE.execute(read._seq.c_str(), read._seq.size(), rleSequence, rlePositions, _toBasespace._useHomopolymerCompression);
 
 			vector<MinimizerType> minimizers;
 			vector<u_int32_t> minimizers_pos;
@@ -2881,6 +2881,7 @@ public:
 				gzwrite(_toBasespace._basespaceContigFile, (const char*)&header[0], header.size());
 				contigSequence +=  '\n';
 				gzwrite(_toBasespace._basespaceContigFile, (const char*)&contigSequence[0], contigSequence.size());
+
 			}
 
 

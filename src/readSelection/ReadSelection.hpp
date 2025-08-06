@@ -69,6 +69,7 @@ public:
 		_nbBases = 0;
 		_nbSelectedMinimizers = 0;
 		_nbLowQualityReads = 0;
+		_nbLowComplexityReads = 0;
 
 		_qualityScoreToErrorRate.resize(256, 0);
 		for(size_t q=33; q<=127; q++){
@@ -78,6 +79,7 @@ public:
 		readSelection();
 
 		Logger::get().debug() << "Nb low quality reads: " << _nbLowQualityReads;
+		Logger::get().debug() << "Nb low complexity reads: " << _nbLowComplexityReads;
 		//closeLogFile();
 	}
 
@@ -562,6 +564,7 @@ public:
 	};
 
 	unordered_map<u_int32_t, u_int32_t> _lala;
+	u_int64_t _nbLowComplexityReads;
 
 	//void readSelection_read(){
 		
@@ -579,21 +582,25 @@ public:
 		float _minimizerDensity;
 		MinimizerParser* _minimizerParser;
 		EncoderRLE _encoderRLE;
+		KmerModelDirect* _kmerModelTrinucleotide;
 
 		ReadSelectionFunctor(ReadSelection& readSelection, size_t minimizerSize, float minimizerDensity) : _readSelection(readSelection){
 			_minimizerSize = minimizerSize;
 			_minimizerDensity = minimizerDensity;
 			_minimizerParser = new MinimizerParser(minimizerSize, minimizerDensity, _readSelection._isRepetitiveMinimizer);
+			_kmerModelTrinucleotide = new KmerModelDirect(3);
 		}
 
 		ReadSelectionFunctor(const ReadSelectionFunctor& copy) : _readSelection(copy._readSelection){
 			_minimizerSize = copy._minimizerSize;
 			_minimizerDensity = copy._minimizerDensity;
 			_minimizerParser = new MinimizerParser(_minimizerSize, _minimizerDensity, _readSelection._isRepetitiveMinimizer);
+			_kmerModelTrinucleotide = new KmerModelDirect(3);
 		}
 
 		~ReadSelectionFunctor(){
 			delete _minimizerParser;
+			delete _kmerModelTrinucleotide;
 		}
 		//1574237525
 
@@ -601,8 +608,14 @@ public:
 
 		void operator () (const Read& read) {
 
+
+
 			u_int64_t readIndex = read._index;
 			if(readIndex % 100000 == 0) Logger::get().debug() << readIndex;
+
+			//if(readIndex % 100000 == 0){
+			//	cout << readIndex << " " << _readSelection._nbLowComplexityReads << endl;
+			//}
 
 			//if(readIndex != 585611) return;
 			//if(readIndex < 4000) return;
@@ -813,6 +826,21 @@ public:
 			//cout << meanReadQuality << endl;
 			//cout << meanReadQuality << endl;
 			//getchar();
+			double sequenceComplexityScore = computeSequenceComplexity(seq, 64, 32);
+
+			//cout << readIndex << " " << sequenceComplexityScore << endl;
+
+			if(sequenceComplexityScore > 5){
+
+				#pragma omp atomic
+				_readSelection._nbLowComplexityReads += 1;
+				
+				minimizers.clear();
+				minimizerPos.clear();
+				minimizerDirections.clear();
+				//cout << seq << endl;
+				//getchar();
+			}
 
 			if(meanReadQuality < _readSelection._minReadQuality){
 
@@ -824,6 +852,7 @@ public:
 				minimizerDirections.clear();
 				//minimizerPos.push_back(rlePositions.size());
 			}
+
 
 			//cout << "\tplopB" << endl;
 			/*
@@ -1074,6 +1103,84 @@ public:
 			return qual.substr(startPos, endPos-startPos);
 		}
 
+		double computeSequenceComplexity(const string& seq, const u_int64_t& w, const u_int64_t& step){
+
+			double l = w-2; //The number of trinucletoide kmers in a window
+
+			//cout << "----" << endl;
+			//cout << "a" << endl;
+
+			vector<u_int64_t> kmers;
+			vector<u_int8_t> kmerDirections;
+			_kmerModelTrinucleotide->iterate(seq.c_str(), seq.size(), kmers, kmerDirections);
+
+			//cout << "b" << endl;
+			//cout << seq.size() << " " << kmers.size() << endl; 
+
+			double nbWindows = 0;
+			double windowScoreSum = 0;
+
+			for(size_t ii=0; ii<kmers.size(); ii += step){
+				
+				vector<double> kmerCounts(64, 0); //64 = 4^3 (number of possible trinucletoide kmers)
+				vector<double> sa(64, 0);
+
+				int nbKmers = 0;
+				for(size_t i=ii; i<kmers.size(); i++){
+					//cout << "\t" << i << " " << kmers[i] << endl;
+					kmerCounts[kmers[i]] += 1;
+					nbKmers += 1;
+					if(nbKmers == w) break;
+				}
+
+				//cout << "\t" << ii << " " << nbKmers << " " << w << endl;
+
+				if(nbKmers < w) continue; //ignore end of the read
+
+
+				for(size_t i=0; i<kmerCounts.size(); i++){
+					sa[i] = kmerCounts[i] * (kmerCounts[i]-1) / 2.0;
+				}
+
+				double score = 0;
+
+				for(size_t i=0; i<kmerCounts.size(); i++){
+					score += sa[i];
+				}
+
+				score /= (l-1);
+
+				
+				//cout << "\t" << seq.substr(ii, 64) << " " << score << endl;
+				//getchar();
+
+				nbWindows += 1;
+				windowScoreSum += score;
+			}
+
+
+			return windowScoreSum / nbWindows;
+		}
+		/*
+		double dust_cpp(const std::string &x) {
+		double l = x.size() - 2;
+		std::vector<std::string> aSplit = split_every_n_cpp(x, 3);
+		std::vector<double> aSplitCount = count_unique_strings(aSplit);
+		std::vector<double> Sa(aSplitCount.size());
+		for (std::size_t i = 0; i < Sa.size(); ++i) {
+			Sa[i] = aSplitCount[i] * (aSplitCount[i] - 1.0) / 2.0;
+		}
+		return std::accumulate(Sa.begin(), Sa.end(), 0.0) / (l - 1.0);
+		}
+		*/
+
+		/*
+		scores = vector(mode="numeric", length=length(object))
+		tfq = trinucleotideFrequency(object) # matrix mit nreads rows and 64 cols
+		rls = width(object)
+		scaling = ((rls - 2) * (rls - 2 - 1)) / ((rls - 2 - 1) * 2)
+		scores = rowSums(tfq * (tfq - 1)) * 100 / (2 * scaling * (rls - 2 - 1))
+		*/
 		/*
 		u_int8_t getMinQualityDebug(const string& seq, const string& qual, int startPos, int endPos){
 
