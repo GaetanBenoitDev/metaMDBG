@@ -3194,7 +3194,7 @@ public:
 					
 				
 				u_int64_t wStart = windowIndexLocal*_windowLength;
-				u_int64_t wEnd = min(_contigSequences[contigIndexLocal].size(), wStart+_windowLength);
+				u_int64_t wEnd = min(_contigSequences[contigIndexLocal].size(), (size_t)(wStart+_windowLength));
 				string contigOriginalSequence = _contigSequences[contigIndexLocal].substr(wStart, wEnd-wStart);
 				bool isLastWindow = (windowIndexLocal == _contigWindowSequences[contigIndexLocal].size()-1);
 
