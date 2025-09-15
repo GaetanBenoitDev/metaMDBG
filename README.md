@@ -120,13 +120,13 @@ Headers are composed of several fields seperated by space.
  
 ```sh
 # Set minimizer length to 16 and use only 0.2% of total k-mers for assembly.
-./metaMDBG asm --out-dir ./outputDir/ --in-ont reads.fastq.gz --kmer-size 16 --density-assembly 0.002
+metaMDBG asm --out-dir ./outputDir/ --in-ont reads.fastq.gz --kmer-size 16 --density-assembly 0.002
 
 # Stop assembly when reaching kth iteration.
-./metaMDBG asm --out-dir ./outputDir/ --in-ont reads.fastq.gz --max-k 11
+metaMDBG asm --out-dir ./outputDir/ --in-ont reads.fastq.gz --max-k 11
 
 # Filter out unique k-min-mers to improve performances (it's usefull to scale-up very large dataset but it might reduce assembly quality and completeness, by default metaMDBG try to rescue low-abundant genomic k-min-mers)
-./metaMDBG asm --out-dir ./outputDir/ --in-ont reads.fastq.gz --min-abundance 2
+metaMDBG asm --out-dir ./outputDir/ --in-ont reads.fastq.gz --min-abundance 2
 
 ```
 
