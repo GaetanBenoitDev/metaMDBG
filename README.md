@@ -143,7 +143,7 @@ metaMDBG asm --out-dir ./outputDir/ --in-ont reads.fastq.gz --density-correction
 
 # Resume an existing run (checkpoint system)
 # If an assembly run stops for any reason, simply resubmit the same command.
-metaMDBG will automatically skip completed steps and resume from the last checkpoint.
+# metaMDBG will automatically skip completed steps and resume from the last checkpoint.
 ```
 
 ## Generating an assembly graph
