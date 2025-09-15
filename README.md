@@ -122,12 +122,28 @@ Headers are composed of several fields seperated by space.
 # Set minimizer length to 16 and use only 0.2% of total k-mers for assembly.
 metaMDBG asm --out-dir ./outputDir/ --in-ont reads.fastq.gz --kmer-size 16 --density-assembly 0.002
 
-# Stop assembly when reaching kth iteration.
+# Stop assembly after reaching k-th iteration.
 metaMDBG asm --out-dir ./outputDir/ --in-ont reads.fastq.gz --max-k 11
 
-# Filter out unique k-min-mers to improve performances (it's usefull to scale-up very large dataset but it might reduce assembly quality and completeness, by default metaMDBG try to rescue low-abundant genomic k-min-mers)
+# Filter out unique k-min-mers to improve performances.
+# Useful for scaling to very large datasets, but may reduce assembly quality and completeness.
+# By default, metaMDBG attempts to rescue low-abundance genomic k-min-mers.
 metaMDBG asm --out-dir ./outputDir/ --in-ont reads.fastq.gz --min-abundance 2
 
+# Filter out reads with low average per-base quality (using phred score)
+metaMDBG asm --out-dir ./outputDir/ --in-ont reads.fastq.gz --min-read-quality 10
+
+# Skip correction step (for ONT data)
+metaMDBG asm --out-dir ./outputDir/ --in-ont reads.fastq.gz --skip-correction
+
+# Tune correction step (for ONT data).
+# In this example, we recruit similar reads used for correcting a target read with minimum read
+# overlap of 2000 bp and min identity of 97%, and we use 5% of k-mers for correction.
+metaMDBG asm --out-dir ./outputDir/ --in-ont reads.fastq.gz --density-correction 0.05 --min-read-identity 0.97 --min-read-overlap 2000
+
+# Resume an existing run (checkpoint system)
+# If an assembly run stops for any reason, simply resubmit the same command.
+metaMDBG will automatically skip completed steps and resume from the last checkpoint.
 ```
 
 ## Generating an assembly graph
