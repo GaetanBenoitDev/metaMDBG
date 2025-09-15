@@ -116,6 +116,11 @@ Headers are composed of several fields seperated by space.
 * **coverage**: an estimated read coverage for the contig
 * **circular**: whether the contig is circular or no
 
+## Resume an existing run (checkpoint system)
+
+If an assembly run stops for any reason, simply resubmit the same command.
+MetaMDBG will automatically skip completed steps and resume from the last checkpoint.
+
 ## Advanced usage
  
 ```sh
@@ -140,10 +145,6 @@ metaMDBG asm --out-dir ./outputDir/ --in-ont reads.fastq.gz --skip-correction
 # In this example, we recruit similar reads used for correcting a target read with minimum read
 # overlap of 2000 bp and min identity of 97%, and we use 5% of k-mers for correction.
 metaMDBG asm --out-dir ./outputDir/ --in-ont reads.fastq.gz --density-correction 0.05 --min-read-identity 0.97 --min-read-overlap 2000
-
-# Resume an existing run (checkpoint system)
-# If an assembly run stops for any reason, simply resubmit the same command.
-# metaMDBG will automatically skip completed steps and resume from the last checkpoint.
 ```
 
 ## Generating an assembly graph
