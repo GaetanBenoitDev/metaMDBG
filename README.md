@@ -1,6 +1,6 @@
 MetaMDBG is a fast and low-memory assembler for long and accurate metagenomics reads (e.g. PacBio HiFi, Nanopore r10.4). It is based on the [minimizer de-Brujin graph](https://github.com/ekimb/rust-mdbg) (MDBG), which have been reimplemetend specifically for metagenomics assembly. MetaMDBG combines an efficient multi-k approach in minimizer-space for dealing with uneven species coverages, and a novel abundance-based filtering method for simplifying strain complexity.
 
-The method nanoMDBG for assembling simplex Nanopore reads (R10.4+) is integrated in metaMDBG.
+The method [nanoMDBG](https://www.biorxiv.org/content/10.1101/2025.04.22.649928v1) for assembling simplex Nanopore reads (R10.4+) is integrated in metaMDBG.
 
 Developper: Gaëtan Benoit  
 Contact: gaetanbenoitdev at gmail dot com
