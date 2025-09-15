@@ -190,4 +190,4 @@ metaMDBG is freely available under the [MIT License](https://opensource.org/lice
 
 * Gaetan Benoit, Sebastien Raguideau, Robert James, Adam M. Phillippy, Rayan Chikhi and Christopher Quince [High-quality metagenome assembly from long accurate reads with metaMDBG](https://www.nature.com/articles/s41587-023-01983-6), Nature Biotechnology (2023).
 
-* Gaetan Benoit, Robert James, Sebastien Raguideau, Georgina Alabone, Tim Goodall, Rayan Chikhi and Christopher Quince [High-quality metagenome assembly from nanopore reads with nanoMDBG](https://www.biorxiv.org/content/10.1101/2025.04.22.649928v1), Bioarxiv (2025).
+* Gaetan Benoit, Robert James, Sebastien Raguideau, Georgina Alabone, Tim Goodall, Rayan Chikhi and Christopher Quince [High-quality metagenome assembly from nanopore reads with nanoMDBG](https://www.biorxiv.org/content/10.1101/2025.04.22.649928v1), Biorxiv (2025).
