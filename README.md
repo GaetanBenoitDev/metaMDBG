@@ -6,15 +6,11 @@ Developper: Gaëtan Benoit
 Contact: gaetanbenoitdev at gmail dot com
 
 > [!IMPORTANT]
-> 31/07/2024:
-> MetaMDBG is in version 1.0: it can now handle nanopore R10.4+ data. It is available on bioconda!
-> * Added minimizer-space correction step
-> * MetaMDBG parameters changed (options now use explicit names)
-> * Contig information format changed in final assemblty fasta file (see Readme - "Contig information") 
-> * Removed rescued circular step
-> * Removed dependencies to samtools and wfmash
-> * Fixed missing "time" dependencies in conda recipe
-> * Fixed bug in gfa command
+> 15/09/2025:
+> MetaMDBG version 1.2 is out:
+> * Improved assembly quality (clipping events, dereplication, polishing, etc)
+> * Improved memory performances
+> * Added checkpoint system
 
 
 ## Installation
