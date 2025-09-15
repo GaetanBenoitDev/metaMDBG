@@ -144,10 +144,6 @@ MetaMDBG will generate the assembly graph in the GFA format in assemblyDir (e.g.
 
 Note 1) Unitig sequences in the gfa file are not polished, they have the same error rate as in the original reads. Note 2) To generate the unitig sequences, a pass on the original reads that generated the assembly is required, if you have moved the original readsets, you will need to edit the file ./assemblyDir/tmp/input.txt with the new paths. Note 3) In nanopore mode, the read-path are not very accurate because of the high error rate, we recommend using actual aligner instead, such as graphAligner.
 
-## Low-memory contig polisher
-```sh
-```
-
 ## Results
 
 Assembly quality and performances on three HiFi PacBio metagenomics samples (using 16 cores).
