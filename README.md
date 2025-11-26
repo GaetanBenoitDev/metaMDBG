@@ -62,7 +62,8 @@ After successful installation, an executable named metaMDBG will appear in ./bui
 - cmake 3.10+
 - zlib
 - openmp
-- minimap2 2.24+
+- [minimap2 2.28+](https://github.com/lh3/minimap2)
+- [GNU time](https://www.gnu.org/software/time/)
   
 </p>
 	
