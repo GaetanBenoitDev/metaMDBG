@@ -173,7 +173,10 @@ Note 1) Unitig sequences in the gfa file are not polished, they have the same er
 
 ## Results
 
-Dataset accessions
+
+
+Alignment and binning were performed with minimap2 and SemiBin2. Completeness and contamination were measured with checkM2 (near-complete: ≥90% completeness and ≤5% contamination, Medium: ≥50% completeness and ≤5% contamination). Clipping events and zero-coverage regions were identified using the anvi-script-find-misassembly program from the Anvi’o platform. All assemblers were run with 32 cores. 
+
 
 | Sample | Accession | # bases (Gb) | N50 read length (kb) | Average quality score |  
 | --- | --- | --- | --- | --- | 
@@ -186,7 +189,6 @@ Dataset accessions
 | Anaerobic Digester (HiFi) | ERR10905743 | 67 | 10.2 | 40.6 | 
 | Sea Water (HiFi) | ERR9769281 | 22 | 8.2 | 35 | 
 
-Near-complete: ≥90% completeness and ≤5% contamination (assessed by checkM). Binning was performed with metabat2.
 
 ## License
 
