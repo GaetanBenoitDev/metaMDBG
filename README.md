@@ -176,7 +176,7 @@ Note 1) Unitig sequences in the gfa file are not polished, they have the same er
 Dataset accessions
 
 | Sample | Accession | # bases (Gb) | N50 read length (kb) | Average quality score |  
-| --- | --- | --- | --- | --- | --- | --- | 
+| --- | --- | --- | --- | --- | 
 | Human Gut 1 (ONT) | ERR15285694 | 50 | 7.8 | 23.2 | 
 | Human Gut 2 (ONT) | SRR29980972 | 77 | 27.2 | 17.3 | 
 | Oral (ONT) | DRR582205 | 24 | 15 | 21.7 | 
