@@ -883,9 +883,9 @@ public:
 							//cout << "small contig" << endl;
 							//getchar();
 
-							if(kminmersInfos.size() > 0){
+							//if(kminmersInfos.size() > 0){
 								_graph._nbSmallContigs += 1;
-							}
+							//}
 						}
 					
 					}

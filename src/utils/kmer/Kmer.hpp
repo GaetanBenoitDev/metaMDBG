@@ -20,6 +20,7 @@ using namespace std;
 
 typedef unsigned __int128 u_int128_t;
 typedef u_int64_t MinimizerType;
+typedef u_int128_t KmerVecHashType;
 
 
 

@@ -5,6 +5,7 @@
 
 #include "../Commons.hpp"
 #include "OverlapRemover.hpp"
+#include "OverlapRemover2.hpp"
 #include "RepeatRemover.hpp"
 
 class ToBasespaceNoCorrection : public Tool{
@@ -128,14 +129,18 @@ public:
 		{
 
 			//cout << "A remettre overlap remover" << endl;
-			OverlapRemover overlapRemover(_inputDir, _inputFilenameContig, contigFilenameNoOverlaps, _kminmerSize);
-			overlapRemover.execute();
+			//OverlapRemover overlapRemover(_inputDir, _inputFilenameContig, _inputFilenameContig+".original", _kminmerSize);
+			//overlapRemover.execute();
+
+			OverlapRemover2 overlapRemover2(_inputDir, _inputFilenameContig, contigFilenameNoOverlaps, _kminmerSizeFirst, _nbCores);
+			overlapRemover2.execute();
+
 		}
 		
 		const string& contigFilenameNoRepeats = _inputFilenameContig + ".norepeats";
 
 		{
-			RepeatRemover repeatRemover(_inputDir, contigFilenameNoOverlaps, contigFilenameNoRepeats, _kminmerSize, _minimizerDensity, _hasQuality, _nbCores);
+			RepeatRemover repeatRemover(_inputDir, contigFilenameNoOverlaps, contigFilenameNoRepeats, _kminmerSizeFirst+1, _minimizerDensity, _hasQuality, _nbCores);
 			repeatRemover.execute();
 		}
 		//closeLogFile();

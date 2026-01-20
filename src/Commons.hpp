@@ -116,6 +116,8 @@ ContigPolisher:
 //#include <sys/types.h>
 #include <sys/wait.h>
 #include <fcntl.h>
+#include <execution>
+#include <thread>
 
 namespace fs = std::filesystem;
 using namespace std::chrono;
@@ -140,6 +142,8 @@ typedef u_int32_t AbundanceType;
 #include "./utils/kseq.h"
 #include "./utils/DnaBitset.hpp"
 #include "./utils/BloomFilter.hpp"
+#include "./utils/minimap2/minimap.h"
+#include "./utils/minimap2/mmpriv.h"
 
 KSEQ_INIT(gzFile, gzread)
 
@@ -268,7 +272,7 @@ struct AlignmentResult{
 typedef u_int32_t ReadIndexType;
 
 
-const string METAMDBG_VERSION = "1.2";
+const string METAMDBG_VERSION = "1.3";
 const string ARG_HOMOPOLYMER_COMPRESSION = "homopolymer-compression";
 //const string ARG_INPUT_FILENAME = "i";
 //const string ARG_INPUT_FILENAME_TRUTH = "itruth";
@@ -329,7 +333,235 @@ const string ARG_GENERATE_ALL_ASSEMBLY_GRAPH = "all-assembly-graph";
 //const int MIN_NB_MINIMIZER_REFERENCE = 4000;
 //const int MIN_NB_MINIMIZER_QUERY = 4000;
 
+enum DataType{
+	HiFi,
+	Nanopore,
+};
+
 const vector<string> possibleInputArguments = {"--" + ARG_INPUT_HIFI, "--" + ARG_INPUT_NANOPORE};
+
+
+struct CigarElement{
+	u_int32_t _size;
+	char _type;
+};
+
+struct ReadMapping2{
+	ReadType _readIndex;
+	ReadType _contigIndex;
+	u_int32_t _readStart;
+	u_int32_t _readEnd;
+	u_int32_t _contigStart;
+	u_int32_t _contigEnd;
+	bool _isReversed;
+	//u_int32_t _readSize;
+	//u_int32_t _contigSize;
+	int32_t _matchScore;
+	u_int32_t _readStartReal;
+	u_int32_t _readEndReal;
+	u_int32_t _readLengthBp;
+	//int32_t _alignScore;
+
+	/*
+	bool isMaximalMapping(const int64_t maxOverhang) const{
+
+		const int64_t queryStart = _readStart;
+		const int64_t queryEnd = _readEnd;
+		const int64_t referenceStart = _contigStart;
+		const int64_t referenceEnd = _contigEnd;
+
+		//cout << queryStart << " " << queryEnd << "    " << maxOverhang << "     " << (queryEnd+maxOverhang) << " " << _readSize << endl;
+		//cout << (queryStart < maxOverhang) << " " << (queryEnd+maxOverhang > _readSize) << endl;
+		if (((queryStart < maxOverhang) || (referenceStart < maxOverhang)) && ((queryEnd+maxOverhang > _readSize) || (referenceEnd+maxOverhang > _contigSize))) return true;
+		return false;
+		
+	}
+	*/
+
+	void write(ofstream& outputFile){
+		outputFile.write((const char*)&_readIndex, sizeof(_readIndex));
+		outputFile.write((const char*)&_contigIndex, sizeof(_contigIndex));
+		outputFile.write((const char*)&_readStart, sizeof(_readStart));
+		outputFile.write((const char*)&_readEnd, sizeof(_readEnd));
+		outputFile.write((const char*)&_contigStart, sizeof(_contigStart));
+		outputFile.write((const char*)&_contigEnd, sizeof(_contigEnd));
+		outputFile.write((const char*)&_isReversed, sizeof(_isReversed));
+		//outputFile.write((const char*)&_readSize, sizeof(_readSize));
+		//outputFile.write((const char*)&_contigSize, sizeof(_contigSize));
+		outputFile.write((const char*)&_matchScore, sizeof(_matchScore));
+		outputFile.write((const char*)&_readStartReal, sizeof(_readStartReal));
+		outputFile.write((const char*)&_readEndReal, sizeof(_readEndReal));
+		outputFile.write((const char*)&_readLengthBp, sizeof(_readLengthBp));
+	}
+
+	bool read(ifstream& inputFile){
+
+		inputFile.read((char*)&_readIndex, sizeof(_readIndex));
+
+		if(inputFile.eof()) return true;
+
+		inputFile.read((char*)&_contigIndex, sizeof(_contigIndex));
+		inputFile.read((char*)&_readStart, sizeof(_readStart));
+		inputFile.read((char*)&_readEnd, sizeof(_readEnd));
+		inputFile.read((char*)&_contigStart, sizeof(_contigStart));
+		inputFile.read((char*)&_contigEnd, sizeof(_contigEnd));
+		inputFile.read((char*)&_isReversed, sizeof(_isReversed));
+		//inputFile.read((char*)&_readSize, sizeof(_readSize));
+		//inputFile.read((char*)&_contigSize, sizeof(_contigSize));
+		inputFile.read((char*)&_matchScore, sizeof(_matchScore));
+		inputFile.read((char*)&_readStartReal, sizeof(_readStartReal));
+		inputFile.read((char*)&_readEndReal, sizeof(_readEndReal));
+		inputFile.read((char*)&_readLengthBp, sizeof(_readLengthBp));
+	
+
+		return false;
+	}
+};
+
+
+struct Alignment{
+	u_int32_t _contigIndex;
+	u_int32_t _readIndex;
+	bool _strand;
+	u_int32_t _readStart;
+	u_int32_t _readEnd;
+	u_int32_t _contigStart;
+	u_int32_t _contigEnd;
+	float _identity;
+	u_int32_t _readLength;
+	u_int32_t _contigLength;
+	string _cigar;
+	//float _score;
+	//u_int64_t _length;
+	
+	u_int64_t length() const{
+		return std::max((u_int64_t)(_readEnd - _readStart), (u_int64_t)(_contigEnd - _contigStart));
+	}
+
+	float score() const{
+		return min((_readEnd - _readStart), (_contigEnd - _contigStart)) * _identity;
+	}
+
+	float alignLength() const{
+		return min(_readEnd - _readStart, _contigEnd - _contigStart);
+	}
+
+	void print() const{
+		cout << _readIndex << " " << _identity << " " << _contigStart << " " << _contigEnd << " " << _strand << endl;
+	}
+
+	void printAll() const{
+		cout << _readIndex << " " << _identity << "    " << _readStart << " " << _readEnd << "    " << _contigStart << " " << _contigEnd << " " << _strand << endl;
+	}
+
+
+	bool isMaximalMapping(const int64_t maxOverhang){
+
+		const int64_t queryStart = _readStart;
+		const int64_t queryEnd = _readEnd;
+		const int64_t referenceStart = _contigStart;
+		const int64_t referenceEnd = _contigEnd;
+
+		if (((queryStart < maxOverhang) || (referenceStart < maxOverhang)) && ((queryEnd+maxOverhang > _readLength) || (referenceEnd+maxOverhang > _contigLength))) return true;
+		return false;
+		
+	}
+
+};
+
+struct AlignmentBounds{
+
+	public:
+
+	int32_t _queryStart;
+	int32_t _queryEnd;
+	int32_t _referenceStart;
+	int32_t _referenceEnd;
+	int32_t _queryLength;
+	int32_t _referenceLength;
+	bool _isReversed;
+	int32_t _originalChainingAlignmentLength;
+	float _identity;
+	string _cigar;
+	int64_t _nbMatches;
+	vector<CigarElement> _cigarElements;
+
+	AlignmentBounds(){
+
+		_queryStart = -1;
+		_queryEnd = -1;
+		_referenceStart = -1;
+		_referenceEnd = -1;
+		_queryLength = -1;
+		_referenceLength = -1;
+		_isReversed = false;
+		_originalChainingAlignmentLength = 0;
+		_cigar = "";
+		_nbMatches = 0;
+	}
+
+	void printAll() const{
+		cout << _queryStart << "-" << _queryEnd << " " << _queryLength << "    " << _referenceStart << "-" << _referenceEnd << " " << _referenceLength << " " << _isReversed << " " << _identity << endl;
+	}
+
+	string toString() const{
+		return to_string(_queryStart) + "-" + to_string(_queryEnd) + " " + to_string(_queryLength) + "    " + to_string(_referenceStart) + "-" + to_string(_referenceEnd) + " " + to_string(_referenceLength) + " " + to_string(_isReversed);
+	}
+
+	int32_t getAlignLength() const{
+		return min(_queryEnd-_queryStart, _referenceEnd-_referenceStart);
+	}
+
+	int32_t overhang() const{
+		return _queryStart;
+	}
+
+
+	int32_t getMappableLength() const{
+
+		int64_t queryLength = _queryLength;
+		int64_t queryStart = _queryStart;
+		int64_t queryEnd = _queryEnd;
+		
+		int64_t targetLength = _referenceLength;
+		int64_t targetStart = _referenceStart;
+		int64_t targetEnd = _referenceEnd;
+		bool isReversed = _isReversed;
+
+		int64_t alignLength = max(queryEnd - queryStart, targetEnd - targetStart);
+
+		int64_t tl3 = 0;
+		int64_t tl5 = 0;
+		int64_t ext3 = 0;
+		int64_t ext5 = 0;
+
+        if(isReversed){
+            tl5 = targetLength - targetEnd;
+            tl3 = targetStart;
+		}
+        else{
+            tl5 = targetStart;
+            tl3 = targetLength - targetEnd;
+		}
+
+        if(queryStart < tl5){
+            ext5 = queryStart;
+		}
+        else{
+            ext5 = tl5;
+		}
+
+        if (queryLength - queryEnd < tl3){
+            ext3 = queryLength - queryEnd;
+		}
+        else{
+            ext3 = tl3;
+		}
+
+		return alignLength + ext5 + ext3;
+	}
+
+};
 
 struct UnitigData{
 	u_int32_t _index;
@@ -363,8 +595,8 @@ struct MinimizerRead{
 	vector<u_int32_t> _minimizersPos;
 	vector<u_int8_t> _qualities;
 	vector<u_int8_t> _readMinimizerDirections;
-	//float _meanReadQuality;
 	u_int32_t _readLength;
+	float _meanReadQuality;
 	//float _debugNbMatches;
 
 	void print() const{
@@ -373,6 +605,45 @@ struct MinimizerRead{
 		}
 	}
 
+
+	MinimizerRead toReverseComplement() const{
+
+		MinimizerRead read;
+		read._readIndex = _readIndex;
+		read._minimizers = _minimizers;
+		read._minimizersPos = _minimizersPos;
+		read._qualities = _qualities;
+		read._readMinimizerDirections = _readMinimizerDirections;
+		read._readLength = _readLength;
+		read._meanReadQuality = _meanReadQuality;
+
+		//read._snpmers = _snpmers;
+		//read._snpmersPos = _snpmersPos;
+		//read._snpmersDirections = _snpmersDirections;
+		//read._snpmersQualities = _snpmersQualities;
+
+		std::reverse(read._minimizers.begin(), read._minimizers.end());
+		std::reverse(read._qualities.begin(), read._qualities.end());
+		std::reverse(read._readMinimizerDirections.begin(), read._readMinimizerDirections.end());
+		std::reverse(read._minimizersPos.begin(), read._minimizersPos.end());
+
+		//std::reverse(read._snpmers.begin(), read._snpmers.end());
+		//std::reverse(read._snpmersQualities.begin(), read._snpmersQualities.end());
+		//std::reverse(read._snpmersDirections.begin(), read._snpmersDirections.end());
+		//std::reverse(read._snpmersPos.begin(), read._snpmersPos.end());
+
+		for(size_t i=0; i<read._readMinimizerDirections.size(); i++){
+			read._readMinimizerDirections[i] = !read._readMinimizerDirections[i];
+			read._minimizersPos[i] = read._readLength - read._minimizersPos[i];
+		}
+
+		//for(size_t i=0; i<read._snpmersDirections.size(); i++){
+		//	read._snpmersDirections[i] = !read._snpmersDirections[i];
+		//	read._snpmersPos[i] = read._readLength - read._snpmersPos[i];
+		//}
+
+		return read;
+	}
 
 	/*
 	void compare(const MinimizerRead& otherRead){
@@ -929,6 +1200,68 @@ class Commons{
 public:
 
 
+	static int64_t getCigarNbMatches(const char* cigar_, const string& readSequence, const string& contigSequence){
+		
+		int64_t nbMatches = 0;
+
+		//u_int64_t t_begin_ = al._contigStart;
+		//u_int64_t t_end_ = al._contigEnd;
+		//u_int64_t q_begin_ = al._readStart;
+		//u_int64_t q_end_ = al._readEnd;
+		//bool strand_ = al._strand;
+		//u_int64_t q_length_ = readSequence.size();
+
+		int32_t q_ptr = -1; //(strand_ ? (q_length_ - q_end_) : q_begin_) - 1;
+		int32_t t_ptr = -1; //t_begin_ - 1;
+		
+
+		for (uint32_t i = 0, j = 0; i < strlen(cigar_); ++i) {
+
+
+			if (cigar_[i] == 'M' || cigar_[i] == '=' || cigar_[i] == 'X') {
+				
+				//cout << "M: " << atoi(&cigar_[j]) << endl;
+
+				uint32_t k = 0, num_bases = atoi(&cigar_[j]);
+				j = i + 1;
+				while (k < num_bases) {
+					++q_ptr;
+					++t_ptr;
+
+					//cout << q_ptr << " " << readSequence.size() << "    " << t_ptr << " " << contigSequence.size() << endl;
+					if(readSequence[q_ptr] == contigSequence[t_ptr]){
+						nbMatches += 1;
+					}
+
+					++k;
+				}
+			} else if (cigar_[i] == 'I') {
+				//cout << "I: " << atoi(&cigar_[j]) << endl;
+				q_ptr += atoi(&cigar_[j]);
+				j = i + 1;
+			} else if (cigar_[i] == 'D' || cigar_[i] == 'N') {
+				//cout << "D: " << atoi(&cigar_[j]) << endl;
+				//uint32_t k = 0, num_bases = atoi(&cigar_[j]);
+				t_ptr += atoi(&cigar_[j]);
+				j = i + 1;
+				//while (k < num_bases) {
+				//	++t_ptr;
+				//	++k;
+				//}
+			} else if (cigar_[i] == 'S' || cigar_[i] == 'H' || cigar_[i] == 'P') {
+				//cout << "SSSS: " << atoi(&cigar_[j]) << endl;
+				j = i + 1;
+			}
+		}
+
+		//cout << contigSequence << endl;
+		//cout << readSequence << endl;
+		//cout << nbMatches << endl;
+		//getchar();
+
+		return nbMatches;
+	}
+	
 	static void checkRequiredArgs(const auto& parser, const auto& arg_outputDir, const auto& arg_readFilenames_hifi, const auto& arg_readFilenames_nanopore){
 
 		if(!arg_outputDir){
@@ -1536,7 +1869,7 @@ public:
 		Utils::applyDensityThreshold(minimizerDensity, highDensityRead._minimizers, highDensityRead._minimizersPos, highDensityRead._readMinimizerDirections, highDensityRead._qualities, minimizersFiltered, minimizerPosFiltered, minimizerDirectionsFiltered, minimizerQualitiesFiltered);
 		
 
-		MinimizerRead lowDensityRead = {highDensityRead._readIndex, minimizersFiltered, minimizerPosFiltered, minimizerQualitiesFiltered, minimizerDirectionsFiltered, highDensityRead._readLength};
+		MinimizerRead lowDensityRead = {highDensityRead._readIndex, minimizersFiltered, minimizerPosFiltered, minimizerQualitiesFiltered, minimizerDirectionsFiltered, highDensityRead._readLength, highDensityRead._meanReadQuality};
 		
 		//if(highDensityRead._minimizers.size() != lowDensityRead._minimizers.size()) exit(1);
 		//cout << lowDensityRead._minimizers.size() << endl;
@@ -5163,6 +5496,8 @@ public:
 	int _nbCores;
 	bool _hasQuality;
 	float _densityThreshold;
+	bool _hasContigIndex;
+	size_t _maxChunkSize;
 	//AlignmentFile* _alignmentFile;
 
 	unordered_set<u_int64_t> _isReadProcessed;
@@ -5184,6 +5519,8 @@ public:
 		_hasQuality = hasQuality;
 		_nbCores = nbCores;
 		_densityThreshold = -1;
+		_hasContigIndex = false;
+		_maxChunkSize = 1000;
 		//_alignmentFile = nullptr;
 	}
 
@@ -5198,14 +5535,16 @@ public:
 
 
 
-	template<typename Functor, typename FunctorChunk=FunctorChuckDummy>
-	void parse(const Functor& functor, const FunctorChunk& functorChunk=FunctorChuckDummy()){
+
+
+
+	template<typename Functor>
+	void parse(const Functor& functor){
 	//void parse(const std::function<void(vector<u_int64_t>, vector<KmerVec>, vector<ReadKminmer>, u_int64_t)>& fun){
 
 		ifstream file_readData(_inputFilename);
 
 		u_int64_t readIndex = -1;
-		u_int64_t nbReadsChunk = 0;
 
 		#pragma omp parallel num_threads(_nbCores)
 		{
@@ -5236,13 +5575,7 @@ public:
 
 					if(!isEOF){
 
-						if(nbReadsChunk >= 1000){
-							functorChunk();
-							nbReadsChunk = 0;
-						}
-
 						readIndex += 1;
-						nbReadsChunk += 1;
 
 						kminmerList = {readIndex};
 
@@ -5259,6 +5592,7 @@ public:
 						if(_hasQuality) file_readData.read((char*)&minimizerQualities[0], size*sizeof(u_int8_t));
 						if(_hasQuality) file_readData.read((char*)&meanReadQuality, sizeof(meanReadQuality));
 						if(_hasQuality) file_readData.read((char*)&readLength, sizeof(readLength));
+
 					}
 
 				}
@@ -5354,12 +5688,6 @@ public:
 		file_readData.close();
 
 
-		if(nbReadsChunk > 0){
-			functorChunk();
-			nbReadsChunk = 0;
-		}
-
-
 	}
 
 	template<typename Functor>
@@ -5385,6 +5713,7 @@ public:
 			//vector<AlignmentResult2> alignments;
 			float meanReadQuality;
 			u_int32_t readLength;
+			u_int32_t contigIndex;
 			//KminmerList kminmer;
 
 			while(true){
@@ -5419,6 +5748,10 @@ public:
 						if(_hasQuality) file_readData.read((char*)&meanReadQuality, sizeof(meanReadQuality));
 						if(_hasQuality) file_readData.read((char*)&readLength, sizeof(readLength));
 
+						if(_hasContigIndex){
+							file_readData.read((char*)&contigIndex, sizeof(contigIndex));
+							kminmerList._readIndex = contigIndex;
+						}
 
 						//if(_alignmentFile != nullptr){
 						//	_alignmentFile->readNext(alignments, readIndex);
@@ -5500,6 +5833,171 @@ public:
 
 	}
 
+	template<typename Functor, typename FunctorChunk=FunctorChuckDummy>
+	void parseChunk(const Functor& functor, const FunctorChunk& functorChunk=FunctorChuckDummy()){
+	//void parse(const std::function<void(vector<u_int64_t>, vector<KmerVec>, vector<ReadKminmer>, u_int64_t)>& fun){
+
+		ifstream file_readData(_inputFilename);
+
+		u_int64_t readIndex = -1;
+		u_int64_t chunkSize = 0;
+
+		#pragma omp parallel num_threads(_nbCores)
+		{
+
+			bool isEOF = false;
+			Functor functorSub(functor);
+			vector<MinimizerType> minimizers;
+			vector<u_int32_t> minimizerPos; 
+			vector<u_int8_t> minimizerDirections; 
+			vector<u_int8_t> minimizerQualities; 
+			u_int32_t size;
+			KminmerList kminmerList;
+			u_int8_t isCircular;
+			float meanReadQuality;
+			u_int32_t readLength;
+			//KminmerList kminmer;
+
+			while(true){
+				
+
+				#pragma omp critical(KminmerParserParallel_parseChunk)
+				{
+
+					
+					file_readData.read((char*)&size, sizeof(size));
+
+					if(file_readData.eof()) isEOF = true;
+
+					if(!isEOF){
+
+						if(chunkSize >= _maxChunkSize){
+							functorChunk();
+							chunkSize = 0;
+						}
+
+						readIndex += 1;
+
+						kminmerList = {readIndex};
+
+						minimizers.resize(size);
+						minimizerPos.resize(size);
+						minimizerQualities.resize(size);
+						minimizerDirections.resize(size);
+						
+						file_readData.read((char*)&isCircular, sizeof(isCircular));
+
+						file_readData.read((char*)&minimizers[0], size*sizeof(MinimizerType));
+						if(_hasQuality) file_readData.read((char*)&minimizerPos[0], size*sizeof(u_int32_t));
+						if(_hasQuality) file_readData.read((char*)&minimizerDirections[0], size*sizeof(u_int8_t));
+						if(_hasQuality) file_readData.read((char*)&minimizerQualities[0], size*sizeof(u_int8_t));
+						if(_hasQuality) file_readData.read((char*)&meanReadQuality, sizeof(meanReadQuality));
+						if(_hasQuality) file_readData.read((char*)&readLength, sizeof(readLength));
+
+						chunkSize += minimizers.size();
+					}
+
+				}
+
+				
+
+				//if(_isReadProcessed.size() > 0 && _isReadProcessed.find(readIndex) != _isReadProcessed.end()){
+				//	readIndex += 1;
+				//	continue;
+				//}
+
+				//cout << "----" << endl;
+
+				if(isEOF) break;
+
+				/*
+				vector<u_int64_t> minimizersPos; 
+				if(size > 0){
+					u_int64_t pos = minimizersPosOffsets[0];
+					minimizersPos.push_back(pos);
+					for(size_t i=1; i<minimizersPosOffsets.size(); i++){
+						pos += minimizersPosOffsets[i];
+						minimizersPos.push_back(pos);
+						//cout << minimizersPosOffsets[i] << " " << pos << endl;
+					}
+				}
+				*/
+
+				if(_densityThreshold != -1){
+
+					vector<MinimizerType> minimizersFiltered;
+					vector<u_int32_t> minimizerPosFiltered; 
+					vector<u_int8_t> minimizerDirectionsFiltered; 
+					vector<u_int8_t> minimizerQualitiesFiltered; 
+
+					Utils::applyDensityThreshold(_densityThreshold, minimizers, minimizerPos, minimizerDirections, minimizerQualities, minimizersFiltered, minimizerPosFiltered, minimizerDirectionsFiltered, minimizerQualitiesFiltered);
+					
+					minimizers = minimizersFiltered;
+					minimizerPos = minimizerPosFiltered;
+					minimizerDirections = minimizerDirectionsFiltered; 
+					minimizerQualities = minimizerQualitiesFiltered; 
+
+					
+					/*
+					MinimizerType maxHashValue = -1;
+					MinimizerType minimizerBound = _densityThreshold * maxHashValue;
+
+
+					for(size_t i=0; i<kminmerList._readMinimizers.size(); i++){
+						u_int64_t m = kminmerList._readMinimizers[i];
+						if(m > minimizerBound) continue;
+
+						minimizersFiltered.push_back(minimizers[i]);
+						minimizerPosFiltered.push_back(minimizerPos[i]);
+						minimizerDirectionsFiltered.push_back(minimizerDirections[i]);
+						minimizerQualitiesFiltered.push_back(minimizerQualities[i]);
+
+					}
+
+					u_int32_t readLength = minimizerPos[minimizerPos.size()-1];
+					minimizers = minimizersFiltered;
+					minimizerPos = minimizerPosFiltered;
+					minimizerPos.push_back(readLength);
+					minimizerDirections = minimizerDirectionsFiltered; 
+					minimizerQualities = minimizerQualitiesFiltered; 
+					*/
+
+				}
+
+
+				//vector<KmerVec> kminmers; 
+				//vector<ReadKminmer> kminmersInfo;
+				vector<u_int64_t> rlePositions;
+				vector<ReadKminmerComplete> kminmersInfo;
+				//MDBG::getKminmers(_l, _k, minimizers, minimizersPos, kminmers, kminmersInfo, rlePositions, 0, false);
+				MDBG::getKminmers_complete(_k, minimizers, minimizerPos, kminmersInfo, readIndex, minimizerQualities);
+				
+				
+				//fun(minimizers, kminmers, kminmersInfo, readIndex);
+				kminmerList._readMinimizers = minimizers;
+				kminmerList._minimizerPos = minimizerPos;
+				kminmerList._readMinimizerDirections = minimizerDirections;
+				kminmerList._readQualities = minimizerQualities;
+				//kminmerList._kminmers = kminmers;
+				kminmerList._kminmersInfo = kminmersInfo;
+				kminmerList._isCircular = isCircular;
+				kminmerList._meanReadQuality = meanReadQuality;
+				kminmerList._readLength = readLength;
+				functorSub(kminmerList);
+			}
+		}
+
+		file_readData.close();
+
+
+		if(chunkSize > 0){
+			functorChunk();
+			chunkSize = 0;
+		}
+
+
+	}
+	
 	/*
 	template<typename Functor>
 	void parse(const Functor& functor){

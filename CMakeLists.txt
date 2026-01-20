@@ -14,6 +14,7 @@ endif()
 #set(CMAKE_CXX_FLAGS "-Wall -w") #-g 
 set(CMAKE_CXX_FLAGS "-Wall -w -g -Wno-c++11-narrowing -D_LIBCPP_DISABLE_AVAILABILITY")
 
+
 #set(CMAKE_CXX_FLAGS_DEBUG "-g -Ofast")
 #set(CMAKE_CXX_FLAGS_RELEASE "-Ofast")
 set(CMAKE_CXX_FLAGS_DEBUG "-O3")

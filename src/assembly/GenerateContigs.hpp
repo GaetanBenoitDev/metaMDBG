@@ -649,6 +649,9 @@ public:
 
 		outputFile.close();
 
+		fs::copy(_inputDir + "/kminmerData_abundance.txt", _inputDir + "/kminmerData_abundance_prev.txt", fs::copy_options::overwrite_existing);
+		fs::copy(_inputDir + "/unitigGraph.nodes.bin", _inputDir + "/unitigGraph_prev.nodes.bin", fs::copy_options::overwrite_existing);
+		
 		//if(_kminmerSize == 4){
 			//cout << "GenerateContigs: copy initial unitig abundance" << endl;
 			

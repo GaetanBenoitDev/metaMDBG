@@ -211,6 +211,7 @@ void CreateMdbg::execute (){
 void CreateMdbg::createMDBG (){
 
 	
+	_savingSmallContigs = false;
 
 	_kminmerFile.open(_outputDir + "/kminmerData_min.txt");
 
@@ -218,7 +219,7 @@ void CreateMdbg::createMDBG (){
 		_bloomFilter = new BloomCacheCoherent<u_int64_t>(32000000000ull);
 	}
 
-	_filename_smallContigs = _outputDir + "/small_contigs_pass.bin";
+	_filename_smallContigs = _outputDir + "/smallContigs/smallContigs_k" + to_string(_kminmerSize) + ".bin";
 	_fileSmallContigs = ofstream(_filename_smallContigs, std::ios_base::binary);
 	_nbSmallContigs = 0;
 	/*
@@ -430,7 +431,7 @@ void CreateMdbg::createMDBG (){
 	
 	_fileSmallContigs.close();
 
-	Logger::get().debug() << "Nb small contigs written: " << _nbSmallContigs;
+	Logger::get().debug() << "Nb small contigs written:\t" << _kminmerSize << "\t" << _nbSmallContigs;
 
 
 	Logger::get().debug() << "Dump kminmer abundances";
@@ -2520,7 +2521,7 @@ void CreateMdbg::loadRefinedAbundances(){
 	u_int64_t sumAbundanceOriginal = 0;
 
 
-	ifstream kminmerAbundanceFile(_outputDir + "/kminmerData_abundance.txt");
+	ifstream kminmerAbundanceFile(_outputDir + "/kminmerData_abundance_prev.txt");
 	//u_int64_t checksum = 0;
 
 	while (true) {
@@ -2573,7 +2574,7 @@ void CreateMdbg::loadRefinedAbundances(){
 
 
 
-	ifstream nodeFile(_outputDir + "/unitigGraph.nodes.bin");
+	ifstream nodeFile(_outputDir + "/unitigGraph_prev.nodes.bin");
 
 	while(true){
 

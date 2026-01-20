@@ -42,7 +42,7 @@ public:
 		_inputDir = inputDir;
 		_inputFilenameContig = inputFilenameContig;
 		_outputFilenameContig = outputFilenameContig;
-		_kminmerSize = 5; //kminmerSize;
+		_kminmerSize = kminmerSize;
 		_minimizerDensity = minimizerDensity;
 		_hasQuality = hasQuality;
 		_nbCores = nbCores;
@@ -51,14 +51,12 @@ public:
 
 	void execute(){
 
-		Logger::get().debug() << "Indexing initial unitigs";
-		loadUnitigIndex();
+		_outputFile.open(_outputFilenameContig);
 
-		Logger::get().debug() << "Indexing kminmer abundance";
-		loadKminmerAbundance();
+		processContigs();
+		
+		_outputFile.close();
 
-		Logger::get().debug() << "Indexing reads";
-		indexReads();
 
 		//cout << "Sorting read index" << endl;
 		//for(auto& it : _kminmer_to_readIndexes){
@@ -67,14 +65,12 @@ public:
 		
 
 
-		_outputFile.open(_outputFilenameContig);
 
 
-		Logger::get().debug() << "Break unbridged repeats";
-		breakUnbridgedRepeats();
+		//Logger::get().debug() << "Break unbridged repeats";
+		//breakUnbridgedRepeats();
 
 
-		_outputFile.close();
 		//fs::remove(_inputFilenameContig);
 		//fs::rename(_inputFilenameContig + ".norepeats", _inputFilenameContig);
 
@@ -89,97 +85,151 @@ public:
 		//cout << "Done" << endl;
 	}
 	
-
-	void loadUnitigIndex(){
-
-		//const string& unitigFilename = _inputDir + "/unitig_data.txt.init";
-		const string& unitigFilename = _inputDir + "/unitig_data.txt.init.k5";
+	u_int64_t _nbContigs;
 
 
-		KminmerParserParallel parser(unitigFilename, -1, _kminmerSize, false, false, _nbCores);
-		parser.parse(IndexUnitigFunctor(*this));
+	void processContigs(){
+
+		_nbContigs = 0;
+
+		//u_int64_t maxBps = 1000000000;
+		//u_int64_t maxBps = 3000000000;
+		u_int64_t maxNbMinimizers = 15000000; //maxBps / (1/_minimizerDensity);
+		//cout << "Max nb minimizers: " << maxNbMinimizers << endl;
+
+		KminmerParserParallel parser(_inputFilenameContig, -1, _kminmerSize, false, false, 1);
+		parser._maxChunkSize = maxNbMinimizers;
+		parser.parseChunk(ContigFunctor(*this), ChunkFunctor(*this));
+
+		//cout << "Nb contigs: " << _nbContigs << endl;
 	}
 
+	vector<KminmerList> _contigs;
 
-	class IndexUnitigFunctor {
+
+	class ContigFunctor {
 
 		public:
 
 		RepeatRemover& _parent;
 
-		IndexUnitigFunctor(RepeatRemover& parent) : _parent(parent){
-
+		ContigFunctor(RepeatRemover& parent) : _parent(parent){
 		}
 
-		IndexUnitigFunctor(const IndexUnitigFunctor& copy) : _parent(copy._parent){
-			
+		ContigFunctor(const ContigFunctor& copy) : _parent(copy._parent){
 		}
 
-		~IndexUnitigFunctor(){
+		~ContigFunctor(){
 		}
 
 		void operator () (const KminmerList& kminmerList) {
-
-			u_int64_t readIndex = kminmerList._readIndex;
-			const vector<MinimizerType>& readMinimizers = kminmerList._readMinimizers;
-			const vector<ReadKminmerComplete>& kminmersInfos = kminmerList._kminmersInfo;
-
-
-
-			for(size_t i=0; i<kminmersInfos.size(); i++){
-
-				const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
-				const KmerVec& vec = kminmerInfo._vec;
-				u_int128_t vecHash = vec.hash128();
-
-				_parent._kminmer_to_unitigIndex.lazy_emplace_l(vecHash, 
-				[this](KminmerMap::value_type& v) { // key exist
-				},           
-				[&vecHash, &readIndex](const KminmerMap::constructor& ctor) { // key inserted
-					
-					ctor(vecHash, readIndex); 
-
-				}); // construct value_type in place when key not present
-				
-			}
-
-
-			/*
-			#pragma omp critical(IndexUnitigFunctor)
-			{
-
-				for(size_t i=0; i<kminmersInfos.size(); i++){
-
-					const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
-					const KmerVec& vec = kminmerInfo._vec;
-
-					_parent._kminmer_to_unitigIndex[vec] = readIndex;
-
-
-				}
-			}
-			*/
+			//cout << "Load contig: " << kminmerList._readIndex << endl;
+			_parent._contigs.push_back(kminmerList);
 		}
 	};
-	
 
-	void indexReads(){
+	class ChunkFunctor {
 
-		//cout << "todo: pour ont utiliser read_data_corrected" << endl;
+		public:
 
-		Logger::get().debug() << "Indexing reads 1";
-		KminmerParserParallel parser1(_inputFilenameContig, -1, _kminmerSize, false, false, _nbCores);
-		//parser._densityThreshold = _minimizerDensity;
-		parser1.parse(IndexContigKminmerFunctor(*this));
+		RepeatRemover& _parent;
+
+		ChunkFunctor(RepeatRemover& parent) : _parent(parent){
+		}
+
+		ChunkFunctor(const ChunkFunctor& copy) : _parent(copy._parent){
+		}
+
+		~ChunkFunctor(){
+		}
+
+		void operator () () const {
+			_parent.processChunk();
+			_parent._contigs.clear();
+		}
+
+	};
+
+	void processChunk(){
+		//cout << "Process chunk: " << _contigs.size() << endl;
+
+		//_nbContigs += _contigs.size();
+
+		_kminmer_to_unitigIndex.clear();
+		_kminmer_to_abundance.clear();
+		_kminmer_to_readIndexes.clear();
+		_readIndex_to_readLength.clear();
 		
-		Logger::get().debug() << "Indexing reads 2";
-		KminmerParserParallel parser2(_inputDir + "/read_data_init.txt", -1, _kminmerSize, false, _hasQuality, _nbCores);
-		parser2._densityThreshold = _minimizerDensity;
-		parser2.parse(IndexReadsFunctor(*this));
+		Logger::get().debug() << "\tLoad contigs";
+		processChunkParallell(IndexContigKminmerFunctor(*this));
 
+		Logger::get().debug() << "\tIndexing initial unitigs";
+		loadUnitigIndex();
 
+		Logger::get().debug() << "\tIndexing kminmer abundance";
+		loadKminmerAbundance();
+
+		Logger::get().debug() << "\tIndexing reads";
+		indexReads();
+
+		Logger::get().debug() << "\tBreak unbridged repeats";
+		processChunkParallell(BreakUnbridgedRepeatsFunctor(*this));
+
+		//cout << _kminmer_to_unitigIndex.size() << endl;
+		//cout << _kminmer_to_abundance.size() << endl;
+		//cout << _kminmer_to_readIndexes.size() << endl;
+		//cout << _readIndex_to_readLength.size() << endl;
+		//cout << _nbContigs << endl;
+		//getchar();
 	}
 
+
+	template<typename Functor>
+	void processChunkParallell(const Functor& functor){
+
+		//vector<ReadType> readIndexes;
+		//for(size_t i=0; i<_contigs.size(); i++){
+		//	readIndexes.push_back(i);
+		//}
+
+		//cout << "single core here" << endl;
+		u_int64_t i = 0;
+
+		#pragma omp parallel num_threads(_nbCores) //_nbCores
+		{
+
+			Functor functorSub(functor);
+
+			KminmerList contig;
+			//ReadType readIndex;
+			//ReadWorker& read;
+			bool isDone = false;
+
+
+			while(true){
+
+				
+				#pragma omp critical(processWorkerParallell)
+				{
+
+					if(i >= _contigs.size()){
+						isDone = true;
+					}
+					else{
+						contig = _contigs[i];
+						i += 1;
+					}
+				}
+
+				if(isDone) break;
+
+				functorSub(contig);
+
+			}
+
+			
+		}
+	}
 
 
 	class IndexContigKminmerFunctor {
@@ -225,6 +275,111 @@ public:
 		}
 		
 	};
+
+	void loadUnitigIndex(){
+
+		//const string& unitigFilename = _inputDir + "/unitig_data.txt.init";
+		const string& unitigFilename = _inputDir + "/unitig_data.txt.init.k" + to_string(_kminmerSize);
+
+		KminmerParserParallel parser(unitigFilename, -1, _kminmerSize, false, false, _nbCores);
+		parser.parse(IndexUnitigFunctor(*this));
+	}
+
+
+	class IndexUnitigFunctor {
+
+		public:
+
+		RepeatRemover& _parent;
+
+		IndexUnitigFunctor(RepeatRemover& parent) : _parent(parent){
+
+		}
+
+		IndexUnitigFunctor(const IndexUnitigFunctor& copy) : _parent(copy._parent){
+			
+		}
+
+		~IndexUnitigFunctor(){
+		}
+
+		void operator () (const KminmerList& kminmerList) {
+
+			u_int64_t readIndex = kminmerList._readIndex;
+
+			const vector<MinimizerType>& readMinimizers = kminmerList._readMinimizers;
+			const vector<ReadKminmerComplete>& kminmersInfos = kminmerList._kminmersInfo;
+
+
+
+			for(size_t i=0; i<kminmersInfos.size(); i++){
+
+				const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
+				const KmerVec& vec = kminmerInfo._vec;
+				u_int128_t vecHash = vec.hash128();
+
+				if(_parent._kminmer_to_readIndexes.find(vecHash) == _parent._kminmer_to_readIndexes.end()) continue;
+
+				_parent._kminmer_to_unitigIndex.lazy_emplace_l(vecHash, 
+				[this](KminmerMap::value_type& v) { // key exist
+				},           
+				[&vecHash, &readIndex](const KminmerMap::constructor& ctor) { // key inserted
+					
+					ctor(vecHash, readIndex); 
+
+				}); // construct value_type in place when key not present
+				
+			}
+
+
+			/*
+			#pragma omp critical(IndexUnitigFunctor)
+			{
+
+				for(size_t i=0; i<kminmersInfos.size(); i++){
+
+					const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
+					const KmerVec& vec = kminmerInfo._vec;
+
+					_parent._kminmer_to_unitigIndex[vec] = readIndex;
+
+
+				}
+			}
+			*/
+		}
+	};
+	
+	//void loadContigs(){
+
+	//}
+	
+	void indexReads(){
+
+		//cout << "todo: pour ont utiliser read_data_corrected" << endl;
+
+		//Logger::get().debug() << "Indexing reads 1";
+		//KminmerParserParallel parser1(_inputFilenameContig, -1, _kminmerSize, false, false, _nbCores);
+		//parser._densityThreshold = _minimizerDensity;
+		//parser1.parse(IndexContigKminmerFunctor(*this));
+		
+		//if(_hasQuality){
+		//	KminmerParserParallel parser2(_inputDir + "/read_data_corrected.txt", -1, _kminmerSize, false, false, _nbCores);
+		//	parser2._densityThreshold = _minimizerDensity;
+		//	parser2.parse(IndexReadsFunctor(*this));
+		//}
+		//else{
+			KminmerParserParallel parser2(_inputDir + "/read_data_init.txt", -1, _kminmerSize, false, _hasQuality, _nbCores);
+			parser2._densityThreshold = _minimizerDensity;
+			parser2.parse(IndexReadsFunctor(*this));
+		//}
+		//Logger::get().debug() << "Indexing reads 2";
+
+
+	}
+
+
+
 
 	class IndexReadsFunctor {
 
@@ -331,7 +486,7 @@ public:
 
 	void loadKminmerAbundance(){
 
-		ifstream kminmerAbundanceFile(_inputDir + "/kminmerData_abundance_init_k5.txt");
+		ifstream kminmerAbundanceFile(_inputDir + "/kminmerData_abundance_init_k" + to_string(_kminmerSize) + ".txt");
 		//ifstream kminmerAbundanceFile(_inputDir + "/kminmerData_abundance_init.txt");
 
 		while (true) {
@@ -352,6 +507,8 @@ public:
 			//if(iseof) break;
 
 			if(abundance <= 1) continue;
+			if(_kminmer_to_readIndexes.find(vecHash) == _kminmer_to_readIndexes.end()) continue;
+
 			_kminmer_to_abundance[vecHash] = abundance;
 
 			//cout << "lala" << " " << abundance << endl;
@@ -382,13 +539,6 @@ public:
 		}
 	};
 
-
-	void breakUnbridgedRepeats(){
-
-		//cout << "single core" << endl;
-		KminmerParserParallel parser(_inputFilenameContig, -1, _kminmerSize, false, false, _nbCores);
-		parser.parse(BreakUnbridgedRepeatsFunctor(*this));
-	}
 
 
 
@@ -455,6 +605,9 @@ public:
 				const u_int32_t& unitigIndex = _parent._kminmer_to_unitigIndex[vecHash];
 
 
+				//if(readIndex == 36203){
+				//	cout << i << " " << unitigIndex << endl;
+				//}
 
 				//cout << i << " " << unitigIndex << " " << _parent._kminmer_to_abundance[vecHash] << " " << i*200 << endl;
 				//getchar();
@@ -551,6 +704,7 @@ public:
 					const KmerVec& vec = kminmersInfos[i]._vec;
 					const u_int128_t& vecHash = vec.hash128();
 
+					if(_parent._kminmer_to_unitigIndex.find(vecHash) == _parent._kminmer_to_unitigIndex.end()) continue;
 					if(_parent._kminmer_to_readIndexes.find(vecHash) == _parent._kminmer_to_readIndexes.end()) continue;
 
 					for(const ReadType& readIndex : _parent._kminmer_to_readIndexes[vecHash]){
@@ -561,13 +715,18 @@ public:
 				}
 
 			}
-			
-			for(size_t i=0; i<fragments.size(); i++){
-				const Fragment& fragment = fragments[i];
-				//cout << fragment._fragmentIndex << "\t" << fragment._startPos << "\t" << fragment._endPos << "\t" << fragment._length << "\t" << (int) fragment._coverage << endl; //<< "\t" << fragment._readIndexes.size() << endl; //<< "\t" << getCoverageInBounds(repeats, fragmentStartPos, fragmentEndPos) << endl;
-			}
+		
+			computeBridgingReads(readIndex, fragments);
 
-			computeBridgingReads(fragments);
+			/*
+			if(readIndex == 36203){
+				for(size_t i=0; i<fragments.size(); i++){
+					const Fragment& fragment = fragments[i];
+					cout << fragment._fragmentIndex << "\t" << fragment._startPos << "\t" << fragment._endPos << "\t" << fragment._length << "\t" << (int) fragment._coverage << "\t" << fragment._readIndexes.size() << "\t" << fragment._nbBridgingReads.size() << endl; //<< "\t" << fragment._readIndexes.size() << endl; //<< "\t" << getCoverageInBounds(repeats, fragmentStartPos, fragmentEndPos) << endl;
+				
+				}
+			}
+			*/
 
 			//getchar();
 			vector<FragmentPath> paths;
@@ -606,8 +765,14 @@ public:
 			Fragment finalDummyFragment = {fragments.size(), 0, 0, 0, 0, -2};
 			fragments.push_back(finalDummyFragment);
 
-
-
+			/*
+			if(readIndex == 36203){
+				for(size_t i=0; i<fragments.size(); i++){
+					const Fragment& fragment = fragments[i];
+					cout << fragment._fragmentIndex << "\t" << fragment._startPos << "\t" << fragment._endPos << "\t" << fragment._length << "\t" << (int) fragment._coverage << "\t" << fragment._readIndexes.size() << "\t" << fragment._nbBridgingReads.size() << "\t" << fragment._finalContigIndex << endl; //<< "\t" << fragment._readIndexes.size() << endl; //<< "\t" << getCoverageInBounds(repeats, fragmentStartPos, fragmentEndPos) << endl;
+				}
+			}
+			*/
 
 			int32_t nbContigsFinal = 0;
 
@@ -623,6 +788,7 @@ public:
 
 			if(nbContigsFinal > 1){
 				isCircular = 0;
+				//cout << "Split: " << readIndex << endl;
 			}
 
 			//cout << "\tNb final contigs: " << nbContigsFinal << endl;
@@ -691,7 +857,7 @@ public:
 
 		//unordered_map<std::pair<u_int32_t, u_int32_t>, ReadType> _fragmentPair_to_nbBridgingReads;
 
-		void computeBridgingReads(vector<Fragment>& fragments){
+		void computeBridgingReads(const u_int32_t readIndex, vector<Fragment>& fragments){
 
 			for(u_int32_t i=0; i<fragments.size(); i++){
 				
@@ -827,7 +993,7 @@ public:
 
 		int64_t getNextSpecificFragmentIndex(vector<Fragment>& fragments, vector<u_int32_t>& specificFragmentIndexes, long double& sourceCoverage, const bool& useSuccessor){
 		
-			float minRepeatCoverage = sourceCoverage * 2.15;
+			float minRepeatCoverage = sourceCoverage * 2.0;
 
 			//for(const u_int32_t& specificFragmentIndex : specificFragmentIndexes){
 			for(int64_t ii=specificFragmentIndexes.size()-1; ii >= 0; ii--){
@@ -846,7 +1012,8 @@ public:
 						const Fragment& fragment = fragments[i];
 
 						if(fragment._coverage >= minRepeatCoverage) continue; //Repeat fragment
-
+						if(sourceFragment._fragmentIndex+1 == fragment._fragmentIndex) return i; //Just two successive fragments without a repeat in between
+						
 						const u_int32_t& nbBridingReads = sourceFragment._nbBridgingReads[fragment._fragmentIndex];
 						
 						if(nbBridingReads == 0) continue;
@@ -875,6 +1042,7 @@ public:
 						const Fragment& fragment = fragments[i];
 
 						if(fragment._coverage >= minRepeatCoverage) continue; //Repeat fragment
+						if(sourceFragment._fragmentIndex == fragment._fragmentIndex+1) return i; //Just two successive fragments without a repeat in between
 
 						const u_int32_t& nbBridingReads = sourceFragment._nbBridgingReads[fragment._fragmentIndex];
 						
@@ -953,6 +1121,7 @@ public:
 					nbShared += 1;
 					i += 1;
 					j += 1;
+					
 				}
 				else if(specificFragment1._readIndexes[i] < specificFragment2._readIndexes[j]){
 					i += 1;
@@ -971,6 +1140,8 @@ public:
 	
 			#pragma omp critical(writeContig)
 			{
+
+				_parent._nbContigs += 1;
 
 				u_int32_t contigSize = minimizers.size();
 				_parent._outputFile.write((const char*)&contigSize, sizeof(contigSize));

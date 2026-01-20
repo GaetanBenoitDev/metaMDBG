@@ -5,7 +5,7 @@
 
 
 
-#include "polish/ContigPolisher.hpp" //!
+//#include "polish/ContigPolisher.hpp" //!
 
 #include "readSelection/ReadCorrection.hpp"
 
@@ -27,7 +27,7 @@
 //#include "assembly/Assembly2.hpp"
 //#include "assembly/Assembly3.hpp"
 #include "assembly/GenerateContigs.hpp"
-#include "toBasespace/ToBasespace.hpp"
+//#include "toBasespace/ToBasespace.hpp"
 #include "toBasespace/ToBasespace2.hpp"
 //#include "toBasespace/ToBasespace3.hpp"
 #include "toBasespace/ToBasespaceNoCorrection.hpp"
@@ -46,6 +46,7 @@
 //#include "assembly/Circulizer2.hpp"
 //#include "contigFeatures/KmerHicLinker.hpp"
 #include "graph/GenerateGfa.hpp"
+#include "toBasespace/DerepSmallContigs.hpp"
 
 //#include "toBasespace/Dereplicater.hpp"
 //#include "polish/PurgeGraph.hpp"
@@ -63,7 +64,7 @@ void displayHelp(string programName){
 	cout << endl;
 	cout << " command:" << endl;
 	cout << " \tasm:    perform read assembly" << endl;
-	cout << " \tpolish: polish contigs" << endl;
+	//cout << " \tpolish: polish contigs" << endl;
 	//cout << " \tderep    : purge strain duplication" << endl;
 	cout << " \tgfa:    generate an assembly graph (.gfa). Require a finished metaMDBG run" << endl;
 	//cout << "\treadSelection      : transform readset into its minimizer reprentation" << endl;
@@ -75,6 +76,8 @@ void displayHelp(string programName){
 
 int main (int argc, char* argv[])
 {
+
+
     try
     {
     	if(argc < 2){
@@ -177,15 +180,18 @@ int main (int argc, char* argv[])
     		//else if(programName == "circ"){
             //    Circulizer2().run (argc, args);
     		//}
-    		else if(programName == "toBasespace_hifi"){
-                ToBasespace().run (argc, args);
+    		else if(programName == "derepSmall"){
+                DerepSmallContigs().run (argc, args);
     		}
-    		else if(programName == "toBasespace_ont"){
+    		//else if(programName == "toBasespace_hifi"){
+            //    ToBasespace().run (argc, args);
+    		//}
+    		else if(programName == "toBasespace"){
                 ToBasespace2().run (argc, args);
     		}
-    		else if(programName == "polish"){
-                ContigPolisher().run (argc, args); //!
-    		}
+    		//else if(programName == "polish"){
+            //    ContigPolisher().run (argc, args); //!
+    		//}
     		//else if(programName == "derepgraph"){
                 //PurgeGraph().run (argc, args);
     		//}

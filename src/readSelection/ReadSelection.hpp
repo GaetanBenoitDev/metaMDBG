@@ -34,6 +34,9 @@ public:
 	u_int64_t _nbBases;
 	u_int64_t _nbSelectedMinimizers;
 
+	long double _readQualitySum;
+	long double _readQualityN;
+
     struct ReadWriter{
         u_int64_t _readIndex;
 		u_int32_t _readLength;
@@ -70,6 +73,8 @@ public:
 		_nbSelectedMinimizers = 0;
 		_nbLowQualityReads = 0;
 		_nbLowComplexityReads = 0;
+		_readQualitySum = 0;
+		_readQualityN = 0;
 
 		_qualityScoreToErrorRate.resize(256, 0);
 		for(size_t q=33; q<=127; q++){
@@ -313,12 +318,14 @@ public:
 		//cout << n50 << " " << l50 << endl;
 		
 		float minimizerDensity = (long double)_nbSelectedMinimizers / (long double)_nbKmers;
+		float averageQuality = _readQualitySum / _readQualityN;
 
 		//u_int32_t median = Utils::compute_median(_allReadSizes);
 		_file_readStats.write((const char*)&nbReads, sizeof(nbReads));
 		_file_readStats.write((const char*)&n50, sizeof(n50));
 		_file_readStats.write((const char*)&minimizerDensity, sizeof(minimizerDensity));
 		_file_readStats.write((const char*)&_nbBases, sizeof(_nbBases));
+		_file_readStats.write((const char*)&averageQuality, sizeof(averageQuality));
 
 		_file_readStats.close();
 		
@@ -449,7 +456,7 @@ public:
 		readParser.parse(CountMinimizerFunctor(*this, _minimizerSize, _minimizerDensity));
 
 
-		float fractionRepititiveMinimizersToFilterOut = 0.0001;
+		float fractionRepititiveMinimizersToFilterOut = 0.00001;
 		vector<pair<MinimizerType, u_int32_t>> minimizer_to_abunbance_vec;
 
 		for(const auto& it : _minimizer_to_abundance){
@@ -472,8 +479,8 @@ public:
 
 		Logger::get().debug() << "Nb minimizers: " << minimizer_to_abunbance_vec.size();
 
-		Logger::get().debug() << "Top 1000 repetitive minimizers:";
-		for(size_t i=0; i<1000 && i < minimizer_to_abunbance_vec.size(); i++){
+		Logger::get().debug() << "Top 100 repetitive minimizers:";
+		for(size_t i=0; i<100 && i < minimizer_to_abunbance_vec.size(); i++){
 			Logger::get().debug() << "\t" << i << "\t" << minimizer_to_abunbance_vec[i].first << "\t" << minimizer_to_abunbance_vec[i].second;
 		}
 
@@ -852,7 +859,11 @@ public:
 				minimizerDirections.clear();
 				//minimizerPos.push_back(rlePositions.size());
 			}
+			else{
 
+				_readSelection._readQualitySum += meanReadQuality;
+				_readSelection._readQualityN += 1;
+			}
 
 			//cout << "\tplopB" << endl;
 			/*

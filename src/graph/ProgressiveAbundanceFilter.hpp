@@ -1659,6 +1659,11 @@ public:
         static u_int64_t maxTipLength = 50000;
         static u_int64_t maxBubbleLength = 50000;
 
+        u_int64_t maxLengthKminmer = _unitigGraph2->_kminmerLength*2.25;
+
+        maxTipLength = max(maxTipLength, maxLengthKminmer);
+        maxBubbleLength = max(maxBubbleLength, maxLengthKminmer);
+
 
         while(true){
 

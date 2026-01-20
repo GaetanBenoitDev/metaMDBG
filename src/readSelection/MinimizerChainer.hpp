@@ -30,6 +30,8 @@ struct AlignmentResult2{
 	u_int32_t _referenceEnd;
 	u_int32_t _queryStart;
 	u_int32_t _queryEnd;
+	int64_t _queryLength;
+	int64_t _referenceLength;
 
 	AlignmentResult2(){
 
@@ -49,7 +51,22 @@ struct AlignmentResult2{
 		_referenceEnd = 0;
 		_queryStart = 0;
 		_queryEnd = 0;
+		_queryLength = 0;
+		_referenceLength = 0;
 	}
+
+	bool isMaximalMapping(const int64_t maxOverhang){
+
+		const int64_t queryStart = _queryStart;
+		const int64_t queryEnd = _queryEnd;
+		const int64_t referenceStart = _referenceStart;
+		const int64_t referenceEnd = _referenceEnd;
+
+		if (((queryStart < maxOverhang) || (referenceStart < maxOverhang)) && ((queryEnd+maxOverhang > _queryLength) || (referenceEnd+maxOverhang > _referenceLength))) return true;
+		return false;
+		
+	}
+
 };
 
 struct Anchor{
@@ -74,6 +91,8 @@ struct Chain{
 	vector<size_t> _anchorInterval;
 };
 
+
+
 class MinimizerChainer {
     
 public:
@@ -90,8 +109,7 @@ public:
 		_minimizerSize = minimizerSize;
 	}
 
-
-	AlignmentResult2 computeChainingAlignment(vector<Anchor>& anchors, const MinimizerRead& referenceRead, const MinimizerRead& queryRead, MinimizerAligner* minimizerAligner, const int64_t& maxChainingBand){
+	AlignmentResult2 computeChainingAlignment(vector<Anchor>& anchors, const MinimizerRead& referenceRead, const MinimizerRead& queryRead, const int64_t& maxChainingBand){
 		
 		//size_t nbAnchors = _anchorIndex;
 		//cout << "nb anchors: " << nbAnchors << endl;
@@ -360,7 +378,9 @@ public:
 				queryGapIndexSize = nextAnchor._queryPositionIndex - currentAnchor._queryPositionIndex - 1;
 			}
 
+			
 			//if(printChaining) cout << "\t" << referenceGapIndexSize << " " << queryGapIndexSize << endl;
+			
 			int nbMissmatches = min(referenceGapIndexSize, queryGapIndexSize);
 			int nbInsertions = 0;
 			int nbDeletions = 0;
@@ -372,6 +392,7 @@ public:
 				nbInsertions = queryGapIndexSize - nbMissmatches;
 			}
 			
+
 			//if(printChaining) cout << "\t" << nbMissmatches << " " << nbInsertions << " " << nbDeletions << endl;
 
 
@@ -395,6 +416,89 @@ public:
 			if(alignStart == -1) alignStart = currentAnchor._referencePosition;
 			alignEnd = nextAnchor._referencePosition;
 
+			//int64_t nbGapsReference = nbMissmatches + nbDeletions;
+			//int64_t nbGapsQuery = nbMissmatches + nbInsertions;
+
+			alignmentResult._nbMissmatches += nbMissmatches;
+			nbMissmatchesMiddle += nbMissmatches;
+			alignmentResult._nbDeletions += nbDeletions;
+			alignmentResult._nbInsertions += nbInsertions;
+
+			for(size_t i=0; i<nbMissmatches; i++){
+				if(printChaining)cout << "\tMissmatch reference: " << referenceRead._minimizers[currentAnchor._referencePositionIndex+i+1] << endl;// << " " << queryRead._minimizers[currentAnchor._queryPositionIndex+i+1] << endl;
+				//cigar += "M";
+				alignmentResult._alignments.push_back({referencePosition, (u_int32_t)-1});
+				referencePosition += 1;
+			}
+
+			for(size_t i=0; i<nbDeletions; i++){
+				if(printChaining) cout << "\tDeletion : " << referenceRead._minimizers[currentAnchor._referencePositionIndex+i+1] << endl;
+				//cigar += "D";
+				alignmentResult._alignments.push_back({referencePosition, (u_int32_t)-1});
+				referencePosition += 1;
+			}
+
+			/*
+			for(size_t i=0; i<nbGapsReference; i++){
+				if(printChaining) cout << "\tDeletion: " << referenceRead._minimizers[currentAnchor._referencePositionIndex+i+1] << endl;
+				//cigar += "D";
+				alignmentResult._alignments.push_back({referencePosition, (u_int32_t)-1});
+				//referencePosition += 1;
+			}
+			*/
+
+			/*
+			for(size_t i=0; i<nbGapsQuery; i++){
+				if(printChaining){
+					if(isQueryReversed){
+						cout << "\tInsertion: " << endl;//<< queryRead._minimizers[queryRead._minimizers.size()-currentAnchor._queryPositionIndex-i-1] << endl;
+					}
+					else{
+						cout << "\tInsertion: " << endl; //<< queryRead._minimizers[currentAnchor._queryPositionIndex+i+1] << endl;
+					}
+				}
+				alignmentResult._alignments.push_back({(u_int32_t)-1, queryPosition});
+				if(isQueryReversed){
+					queryPosition -= 1;
+				}
+				else{
+					queryPosition += 1;
+				}
+				//cigar += "I";
+			}
+			*/
+
+			for(size_t i=0; i<nbMissmatches; i++){
+				if(printChaining)cout << "\tMissmatch query: " << endl;// << " " << queryRead._minimizers[currentAnchor._queryPositionIndex+i+1] << endl;
+				//cigar += "M";
+				alignmentResult._alignments.push_back({(u_int32_t)-1, queryPosition});
+				if(isQueryReversed){
+					queryPosition -= 1;
+				}
+				else{
+					queryPosition += 1;
+				}
+			}
+
+			for(size_t i=0; i<nbInsertions; i++){
+				if(printChaining){
+					if(isQueryReversed){
+						cout << "\tInsertion: " << endl;//<< queryRead._minimizers[queryRead._minimizers.size()-currentAnchor._queryPositionIndex-i-1] << endl;
+					}
+					else{
+						cout << "\tInsertion: " << endl; //<< queryRead._minimizers[currentAnchor._queryPositionIndex+i+1] << endl;
+					}
+				}
+				alignmentResult._alignments.push_back({(u_int32_t)-1, queryPosition});
+				if(isQueryReversed){
+					queryPosition -= 1;
+				}
+				else{
+					queryPosition += 1;
+				}
+			}
+
+			/*
 			for(size_t i=0; i<nbDeletions; i++){
 				if(printChaining) cout << "\tDeletion : " << referenceRead._minimizers[currentAnchor._referencePositionIndex+i+1] << endl;
 				//cigar += "D";
@@ -435,7 +539,7 @@ public:
 				alignmentResult._nbMissmatches += 1;
 				nbMissmatchesMiddle += 1;
 			}
-
+			*/
 		}
 
 		alignmentResult._alignments.push_back({referencePosition, queryPosition});
@@ -536,7 +640,9 @@ public:
 
 		//string cigarCompressed = compressCigar(cigar);
 
-
+		alignmentResult._queryLength = queryLength;
+		alignmentResult._referenceLength = referenceLength;
+		
 		alignmentResult._referenceReadIndex = referenceRead._readIndex;
 		alignmentResult._queryReadIndex = queryRead._readIndex;
 		//alignmentResult._cigarReferenceStart = cigarReferenceStart;
@@ -588,6 +694,8 @@ public:
 			//alignmentResult._cigar.clear(); //return null alignment
 		}
 		*/
+
+		normalizeAlignment(alignmentResult._alignments, referenceRead._minimizers, queryRead._minimizers);
 
 		return alignmentResult;
 	}
@@ -897,6 +1005,107 @@ public:
 
 		return y;
 	}
+
+
+
+	void normalizeAlignment(vector<pair<u_int32_t, u_int32_t>>& alignment, const vector<MinimizerType>& referenceMinimizers, const vector<MinimizerType>& queryMinimizers){
+
+
+		//while(true){
+
+		//	bool isModification = false;
+
+		for(size_t i=0; i<alignment.size(); i++){
+
+			//bool isMod = false;
+
+			const auto& it = alignment[i];
+			u_int32_t referencePosition = it.first;
+			u_int32_t queryPosition = it.second;
+
+			//cout << endl;
+			//cout << referencePosition << " " << referenceMinimizers.size() << endl;
+			//cout << queryPosition << " " << queryMinimizers.size() << endl;
+			//cout << endl;
+
+			if(referencePosition == -1){ //insertion
+				//cout << "I: " << "-1" << "\t" << queryPosition << "\t" << queryMinimizers[queryPosition] << endl;
+
+				int64_t j = getNextMatchInReference(i, alignment);
+				if(j == -1) continue;
+
+				int64_t refPos = alignment[j].first;
+
+				if(referenceMinimizers[refPos] == queryMinimizers[queryPosition]){
+					//isModification = true;
+					alignment[i].first = refPos;
+					alignment[j].first = -1;
+				}
+
+				if(alignment[j].first == -1 && alignment[j].second == -1){
+					alignment.erase(alignment.begin()+j);
+				}
+
+				//printAlignment(alignment, referenceMinimizers, queryMinimizers);
+			}
+			else if(queryPosition == -1){ //deletion
+
+				int64_t j = getNextMatchInQuery(i, alignment);
+				if(j == -1) continue;
+
+				int64_t queryPos = alignment[j].second;
+
+				if(referenceMinimizers[referencePosition] == queryMinimizers[queryPos]){
+					//isModification = true;
+					alignment[i].second = queryPos;
+					alignment[j].second = -1;
+				}
+
+				if(alignment[j].first == -1 && alignment[j].second == -1){
+					alignment.erase(alignment.begin()+j);
+				}
+
+				//printAlignment(alignment, referenceMinimizers, queryMinimizers);
+
+				//cout << "D: " << referencePosition << "\t" << "-1" << "\t" << referenceMinimizers[referencePosition] << endl;
+			}
+			else if(referenceMinimizers[referencePosition] == queryMinimizers[queryPosition]){ //Match
+				//cout << "M: " << referencePosition << "\t" << queryPosition << "\t" << referenceMinimizers[referencePosition] << "\t" << queryMinimizers[queryPosition] << endl;
+			}
+			else { //missmatch
+				//cout << "X: " << referencePosition << "\t" << queryPosition << "\t" << referenceMinimizers[referencePosition] << "\t" << queryMinimizers[queryPosition] << endl;
+			}
+
+
+			//cout << "hum" << endl;
+			//getchar();
+
+			//if(isModification) break;
+		}	
+
+		//	if(!isModification) break;
+		//}
+
+
+
+	}
+
+	int64_t getNextMatchInReference(size_t i, const vector<pair<u_int32_t, u_int32_t>>& alignment){
+		for(size_t j=i; j<alignment.size(); j++){
+			if(alignment[j].first != -1) return j;
+		}
+
+		return -1;
+	}
+
+	int64_t getNextMatchInQuery(size_t i, const vector<pair<u_int32_t, u_int32_t>>& alignment){
+		for(size_t j=i; j<alignment.size(); j++){
+			if(alignment[j].second != -1) return j;
+		}
+
+		return -1;
+	}
+
 
 };
 

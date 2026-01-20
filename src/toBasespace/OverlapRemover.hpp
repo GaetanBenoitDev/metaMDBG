@@ -63,6 +63,7 @@ public:
 		vector<MinimizerType> _minimizers;
 		vector<u_int32_t> _kminmers;
 		u_int8_t isCircular;
+		u_int32_t _contigIndexOrigin;
 	};
 
 	static bool ContigComparator_ByLength(const Contig &a, const Contig &b){
@@ -146,7 +147,10 @@ public:
 				vector<ReadKminmer> kminmersInfo;
 				MDBG::getKminmers(-1, _kminmerSize, contigsTmp[i]._minimizers, minimizersPos, kminmers, kminmersInfo, rlePositions, 0, false);
 
+				u_int32_t contigIndexOrigin = contigsTmp[i]._contigIndexOrigin;
 				indexContigs_read(contigsTmp[i]._minimizers, kminmers, kminmersInfo, contigsTmp[i].isCircular, contigIndex);
+				_contigs[_contigs.size()-1]._contigIndexOrigin = contigIndexOrigin;
+
 				contigIndex += 1;
 
 				for(u_int64_t m : contigsTmp[i]._minimizers){
@@ -160,7 +164,7 @@ public:
 			//getchar();
 		}
 		
-		removeOverlapsSelf();
+		//removeOverlapsSelf();
 
 		ofstream outputFile(_outputFilenameContig);
 		u_int64_t nbContigs = 0;
@@ -173,6 +177,12 @@ public:
 			outputFile.write((const char*)&_contigs[i].isCircular, sizeof(_contigs[i].isCircular));
 			outputFile.write((const char*)&_contigs[i]._minimizers[0], contigSize*sizeof(MinimizerType));
 
+			if(_contigs[i]._contigIndexOrigin == 92635){
+				cout << _contigs[i]._contigIndexOrigin << "\t" << _contigs[i]._minimizers.size() << endl;
+				for(size_t j=0; j<_contigs[i]._minimizers.size(); j++){
+					cout << j << "\t" << _contigs[i]._minimizers[j] << endl;
+				}
+			}
 			//_logFile << contigSize << endl;
 			nbContigs += 1;
 		}
@@ -233,9 +243,22 @@ public:
 			KmerVec vec = vecs[i];
 
 			if(_kminmerToIndex.find(vec) == _kminmerToIndex.end()){
+
+				if(_kminmerID == 261954){
+					cout << readIndex << "\t\t" << vec._kmers[0] << "\t" << vec._kmers[1] << "\t" << vec._kmers[2] << endl;
+				}
+
 				_kminmerToIndex[vec] = _kminmerID;
 				_kminmerID += 1;
 			}
+			else{
+				if(_kminmerToIndex[vec] == 261954){
+					cout << readIndex << "\t\t" << vec._kmers[0] << "\t" << vec._kmers[1] << "\t" << vec._kmers[2] << endl;
+				}
+
+			}
+
+
 		}
 	}
 
@@ -267,10 +290,14 @@ public:
 			}
 
 			nodepath.push_back(kminmerID);
+
+			if(readIndex == 107201){
+				cout << kminmerID << endl;
+			}
 			
 		}
 		
-		_contigs.push_back({readIndex, readMinimizers, nodepath, isCircular});
+		_contigs.push_back({readIndex, readMinimizers, nodepath, isCircular, readIndex});
 	}
 
 
@@ -345,11 +372,18 @@ public:
 
 			//size_t contigSize = contig._minimizers.size();
 			u_int64_t overlapSizeLeft = computeOverlapSize_left(contig);
+			u_int64_t overlapSizeLeftOrigin = overlapSizeLeft;
 			//_logFile << "done -----" << endl;
 
 			
 			u_int64_t overlapSizeRight = computeOverlapSize_right(contig);
+			u_int64_t overlapSizeRightOrigin = overlapSizeRight;
 			//_logFile << overlapSizeLeft << " " << overlapSizeRight << endl;
+
+			if(contig._contigIndexOrigin == 92635){
+				cout << contig._contigIndexOrigin << "\t" << contig._minimizers.size() << "\t" << overlapSizeLeft << "\t" << overlapSizeRight << endl;
+			}
+
 
 			if(contig._minimizers.size() > 1000) continue;
 			//u_int64_t overlapTotalMin = 0;
@@ -426,12 +460,12 @@ public:
 
 				if(overlapSizeLeft > 0){
 					//overlapSizeLeft += (_kminmerSize-1);
-					contig._kminmers.erase(contig._kminmers.begin(), contig._kminmers.begin() + overlapSizeLeft);
+					contig._kminmers.erase(contig._kminmers.begin(), contig._kminmers.begin() + overlapSizeLeftOrigin);
 					contig._minimizers.erase(contig._minimizers.begin(), contig._minimizers.begin() + overlapSizeLeft);
 				}
 				if(overlapSizeRight > 0){
 					//overlapSizeRight += (_kminmerSize-1);
-					contig._kminmers.resize(contig._kminmers.size()-overlapSizeRight);
+					contig._kminmers.resize(contig._kminmers.size()-overlapSizeRightOrigin);
 					//_logFile << contig._minimizers.size() << endl;
 					contig._minimizers.resize(contig._minimizers.size()-overlapSizeRight);
 					//_logFile << contig._minimizers.size() << endl;
@@ -566,8 +600,16 @@ public:
 				else{
 					nextContigIndex.push_back(mIndex);
 				}
+
+				if(contig._contigIndexOrigin == 92635){
+					cout << "lul: " << p << " " << contig._kminmers[p] << " " << mIndex._contigIndex << endl;
+				}
+
 			}
 
+			if(contig._contigIndexOrigin == 92635){
+				cout << p << " " << contig._kminmers[p] << endl;
+			}
 			//_logFile << "pos: " << p << endl;
 
 			
@@ -609,10 +651,33 @@ public:
 
 				}
 
+
+
 				currentContigIndex = sharedContigIndexValid;
 			}
 
 			if(currentContigIndex.size() == 0) break;
+
+			if(contig._contigIndexOrigin == 92635){
+				
+				cout << endl;
+				cout << overlapSize << endl;
+				for(size_t i=0; i<contig._minimizers.size(); i++){
+					cout << i << "\t" << contig._minimizers[i] << endl;
+				}
+				
+				cout << endl;
+				for(auto it : currentContigIndex){
+					cout << "\t" << it._contigIndex << "\t" << _contigs[it._contigIndex]._contigIndexOrigin << endl;
+					for(size_t i=0; i<_contigs[it._contigIndex]._minimizers.size(); i++){
+						cout << i << "\t" << _contigs[it._contigIndex]._minimizers[i] << endl;
+					}
+				}
+
+				
+			}
+
+
 			overlapSize += 1;
 		}
 

@@ -41,6 +41,7 @@ public:
 	//u_int64_t _strainPurging_minContigLength;
 	//double _strainPurging_minIdentity;
 	string _usedInputArgument;
+	string _userSubmittedCommand;
 
 	enum DataType{
 		HiFi,
@@ -84,6 +85,12 @@ public:
 	}
 
 	void parseArgs(int argc, char* argv[]){
+
+		_userSubmittedCommand = "";
+		for (int i = 0; i < argc; ++i) {
+			if (i > 0) _userSubmittedCommand += " ";
+			_userSubmittedCommand += argv[i];
+		}
 
 		//cout << argc << " " <<  string(*argv) << endl;
 		//getchar();
@@ -213,12 +220,13 @@ public:
 	    if(!fs::exists (_tmpDir)){
 			fs::create_directories(_tmpDir); 
 
-			ofstream fileSmallContigs(_tmpDir + "/small_contigs.bin");
-			fileSmallContigs.close();
+			//ofstream fileSmallContigs(_tmpDir + "/small_contigs.bin");
+			//fileSmallContigs.close();
 		} 
 	    if(!fs::exists (_tmpDir + "/filter")) fs::create_directories(_tmpDir + "/filter"); 
 		_checkpointDir = _tmpDir + "/checkpoints/";
 	    if(!fs::exists (_checkpointDir)) fs::create_directories(_checkpointDir); 
+	    if(!fs::exists (_tmpDir + "/smallContigs")) fs::create_directories(_tmpDir + "/smallContigs"); 
 		
 		
 		//string bannedDir = _tmpDir + "/bannedKminmers/";
@@ -316,6 +324,10 @@ public:
 
 		Logger::get().info() << "";
 		Logger::get().info() << "MetaMDBG " << METAMDBG_VERSION;
+		Logger::get().debug() << "Used command:";
+		Logger::get().debug() << _userSubmittedCommand;
+
+		_userSubmittedCommand.clear();
 
 		checkDependencies();
 
@@ -406,8 +418,8 @@ public:
 		fs::remove(_tmpDir + "/unitigGraph.edges.predecessors.bin");
 		fs::remove(_tmpDir + "/unitigGraph.edges.successors.bin");
 		fs::remove(_tmpDir + "/unitigGraph.nodes.bin");
-		fs::remove(_tmpDir + "/small_contigs.bin");
-		fs::remove(_tmpDir + "/perf.txt");
+		//fs::remove(_tmpDir + "/small_contigs.bin");
+		//fs::remove(_tmpDir + "/perf.txt");
 		fs::remove(_tmpDir + "/time.txt");
 		//fs::remove(_tmpDir + "/data.txt");
 		//fs::remove(_tmpDir + "/contig_data_backup.txt");
@@ -459,10 +471,12 @@ public:
 		u_int32_t n50ReadLength;
 		float actualDensity;
 		u_int64_t nbBases;
+		float averageQuality;
 		file_readStats.read((char*)&nbReads, sizeof(nbReads));
 		file_readStats.read((char*)&n50ReadLength, sizeof(n50ReadLength));
 		file_readStats.read((char*)&actualDensity, sizeof(actualDensity));
 		file_readStats.read((char*)&nbBases, sizeof(nbBases));
+		file_readStats.read((char*)&averageQuality, sizeof(averageQuality));
 
 		file_readStats.close();
 
@@ -479,7 +493,7 @@ public:
 			_lastK = _maxK; //max((u_int64_t)0, _maxK);
 		}
 
-		_lastK = max(_lastK, _firstK+1);
+		_lastK = max(_lastK, _firstK+2);
 
 		//_lastK = 5;
 		/*
@@ -511,6 +525,7 @@ public:
 		Logger::get().info() << "";
 		Logger::get().info() << "Total read bps:  " << nbBases;
 		Logger::get().info() << "N50 read length: " << n50ReadLength;
+		Logger::get().info() << "Average quality: " << averageQuality;
 		Logger::get().info() << "Start k:         " << _firstK;
 		Logger::get().info() << "End k:           " << _lastK;
 		Logger::get().info() << "";
@@ -673,10 +688,10 @@ public:
 
 		executeCommand(command);
 
-		Utils::concatenateFiles(_tmpDir + "/small_contigs_pass.bin", _tmpDir + "/small_contigs.bin", _tmpDir + "/small_contigs_combined.bin");
+		//Utils::concatenateFiles(_tmpDir + "/small_contigs_pass.bin", _tmpDir + "/small_contigs.bin", _tmpDir + "/small_contigs_combined.bin");
 		//cout << "mu" << endl;
 		//getchar();
-		fs::rename(_tmpDir + "/small_contigs_combined.bin", _tmpDir + "/small_contigs.bin");
+		//fs::rename(_tmpDir + "/small_contigs_combined.bin", _tmpDir + "/small_contigs.bin");
 		
 		//_tmpDir + "/small_contigs.bin"
 		createCheckpoint(checkpointFilename);
@@ -739,6 +754,21 @@ public:
 		createCheckpoint(checkpointFilename);
 	}
 
+
+	void derepSmallContigs(){
+
+		Logger::get().info() << "Derep small contigs";
+
+		const string& checkpointFilename = _checkpointDir + "/derepSmallContigs.checkpoint";
+
+		if(isCheckpoint(checkpointFilename)) return;
+
+		string command = _filename_exe + " derepSmall " + _tmpDir + " --threads " + to_string(_nbCores) + " --first-k " + to_string(_firstK) + " --last-k " + to_string(_lastK);
+		executeCommand(command);
+
+		createCheckpoint(checkpointFilename);
+	}
+
 	void derepContigs(){
 
 		Logger::get().info() << "Removing overlaps and duplication";
@@ -747,9 +777,10 @@ public:
 
 		if(isCheckpoint(checkpointFilename)) return;
 
+
 		//cout << "AssemblyPipeline: Disabled small contigs append" << endl;
 		string contigFilename = _tmpDir + "/contig_data_init_small.txt";
-		appendSmallContigs(contigFilename);
+		//appendSmallContigs(contigFilename);
 		
 		//fs::copy(_tmpDir + "/contig_data.txt", _tmpDir + "/contig_data_backup.txt", fs::copy_options::overwrite_existing);
 
@@ -765,7 +796,7 @@ public:
 		createCheckpoint(checkpointFilename);
 	}
 
-	void toBasespace(const string& outputFilename){
+	void toBasespace(){
 
 		Logger::get().info() << "Constructing base-space contigs";
 
@@ -773,6 +804,19 @@ public:
 
 		if(isCheckpoint(checkpointFilename)) return;
 
+		int peakMemory = ceil(getPeakMemory());
+
+		string command = _filename_exe + " toBasespace " + " " + _tmpDir + " --threads " + to_string(_nbCores) + " --max-memory " + to_string(peakMemory);
+		if(!_params._useReadCorrection){
+			command += " --skip-correction";
+		}
+
+		executeCommand(command);
+
+		Logger::get().info() << "Moving final contigs to destination";
+		fs::rename(_tmpDir + "/contigs.fasta.gz", _outputDir + "/contigs.fasta.gz");
+
+		/*
 		if(_params._dataType == DataType::HiFi){
 			string command = _filename_exe + " toBasespace_hifi " + " " + _tmpDir + " " + _tmpDir + "/contig_data_init_small.txt.norepeats " + " " + outputFilename + " " + _inputFilename  + " --threads " + to_string(_nbCores);
 			//string command = _filename_exe + " toBasespace_ont " + " " + _tmpDir + " " + _tmpDir + "/contig_data_init_small.txt.norepeats " + " " + outputFilename + " " + _inputFilename  + " --threads " + to_string(_nbCores);
@@ -789,36 +833,11 @@ public:
 			//if(_params._useHomopolymerCompression) command += " --homopolymer-compression";
 			executeCommand(command);
 		} 
+		*/
 
 		createCheckpoint(checkpointFilename);
 	}
 
-	void polishContigs(const string& inputContigFilename){
-
-		Logger::get().info() << "Polishing contigs";
-
-		const string& checkpointFilename = _checkpointDir + "/polishContigs.checkpoint";
-
-		if(isCheckpoint(checkpointFilename)) return;
-
-		string inputReadStr = "";
-		if(_params._dataType == DataType::HiFi){
-			inputReadStr = "--in-hifi";
-		}
-		else if(_params._dataType == DataType::Nanopore){
-			inputReadStr = "--in-ont";
-		}
-
-		int peakMemory = ceil(getPeakMemory());
-
-		string command = _filename_exe + " polish --polish-target " + inputContigFilename + " --out-dir " + _tmpDir + " " + " --threads " + to_string(_nbCores) + " -n " + to_string(_params._usedCoverageForContigPolishing) + " --metaMDBG --max-memory " + to_string(peakMemory) + " " + inputReadStr + " " + Commons::inputFileToFilenames(_tmpDir + "/input.txt"); //--circ
-		executeCommand(command);
-
-		Logger::get().info() << "Moving final contigs to destination";
-		fs::rename(_tmpDir + "/contigs.fasta.gz", _outputDir + "/contigs.fasta.gz");
-
-		createCheckpoint(checkpointFilename);
-	}
 
 	void createCheckpoint(const string& checkpointFilename){
 
@@ -932,11 +951,13 @@ public:
 
 			//cerr << "Removing overlaps and duplication..." << endl;
 			//_logFile << "Removing overlaps and duplication..." << endl;
-			
+			derepSmallContigs();
+			//exit(1);
+
 			derepContigs();
 
-			string contigFilenameCompressed = _tmpDir + "/contigs_uncorrected.fasta.gz";
-			toBasespace(contigFilenameCompressed);
+			//string contigFilenameCompressed = _tmpDir + "/contigs_uncorrected.fasta.gz";
+			toBasespace();
 
 
 			//command = _filename_exe + " derep " + contigFilenameCompressed + " " + contigFilenameDummy + " " + _tmpDir + " -t " + to_string(_nbCores) + " --nodump";
@@ -979,10 +1000,10 @@ public:
 
 			//Logger::get().info() << "Mapping reads vs contigs";
 
-			string readPartitionDir = _tmpDir + "/_polish_readPartitions/";
-			if(!fs::exists(readPartitionDir)){
-				fs::create_directories(readPartitionDir);
-			}
+			//string readPartitionDir = _tmpDir + "/_polish_readPartitions/";
+			//if(!fs::exists(readPartitionDir)){
+			//	fs::create_directories(readPartitionDir);
+			//}
 
 			//string readFilenames = "";
 			//ReadParser readParser(_inputFilename_reads, false, false, _logFile);
@@ -1011,7 +1032,7 @@ public:
 			//Utils::executeCommand(command, _tmpDir);
 
 
-			polishContigs(contigFilenameCompressed);
+			//polishContigs(contigFilenameCompressed);
 			
 			//generatedContigs = true;
 
@@ -1180,7 +1201,7 @@ public:
 
 	*/
 
-
+	/*
 	ofstream _fileContigsAppend;
 	u_int64_t _nbSmallContigs;
 
@@ -1215,6 +1236,7 @@ public:
 
 		_nbSmallContigs += 1;
 	}
+	*/
 
 	void savePassData(u_int64_t k){
 
@@ -1225,7 +1247,8 @@ public:
 		const string& dir = _tmpDir + "/pass_k" + to_string(k);
 
 		if(fs::exists(dir)){
-			fs::remove_all(dir);
+			//fs::remove_all(dir);
+			return;
 		}
 
 		fs::create_directories(dir);
@@ -1370,8 +1393,36 @@ public:
 		//getchar();
 	}
 
+
+
 	void checkDependencies(){
 
+
+		Logger::get().info() << "";
+		Logger::get().info() << "Checking dependencies: GNU time";
+
+		if(!checkDependencies_time()){
+			Logger::get().info() << "\n" << "Dependency is missing: GNU time";
+			exit(1);
+		}
+		else{
+			Logger::get().info() << "ok";
+		}
+
+
+		Logger::get().info() << "";
+		Logger::get().info() << "Checking dependencies: minimap2";
+
+		if(!checkDependencies_minimap2()){
+			Logger::get().info() << "\n" << "Dependency is missing: minimap2 2.28+";
+			exit(1);
+		}
+		else{
+			Logger::get().info() << "ok";
+		}
+
+		fs::remove(_tmpDir + "/testDependencies.txt");
+		/*
 		string read = "";
 		for(size_t i=0; i<10000; i++){
 			read += "A";
@@ -1395,7 +1446,7 @@ public:
 		file << read << endl;
 		
 		file.close();
-
+		*/
 
 		/*
 		//cerr << "Checking dependencies: bgzip (wfmash package) ";
@@ -1438,6 +1489,7 @@ public:
 		}
 		*/
 
+		/*
 		Logger::get().info() << "";
 		Logger::get().info() << "Checking dependencies: minimap2";
 
@@ -1447,7 +1499,7 @@ public:
 		Utils::executeCommand(command, _tmpDir);
 
 		if(!fs::exists(outputFilename_mapping_minimap)){
-			Logger::get().info() << "\n" << "Dependency is missing: minimap2.24+";
+			Logger::get().info() << "\n" << "Dependency is missing: minimap2.28+";
 			exit(1);
 		}
 		else{
@@ -1460,6 +1512,57 @@ public:
 		//if(fs::exists(filenameBzip)) fs::remove(filenameBzip);
 		//if(fs::exists(filenameBzip + ".fai")) fs::remove(filenameBzip + ".fai");
 		if(fs::exists(outputFilename_mapping_minimap)) fs::remove(outputFilename_mapping_minimap);
+		*/
+	}
+
+	bool checkDependencies_time(){
+
+
+		string timeOuputFilename = _tmpDir + "/testDependencies.txt";
+		string timeCommand = "minimap2 --help > " + timeOuputFilename + " 2>&1";
+		system(timeCommand.c_str());
+
+		if(!fs::exists(timeOuputFilename)) return false;
+
+		bool exist = false;
+		std::ifstream file(timeOuputFilename);
+
+		std::string line;
+		while (std::getline(file, line)) {
+			if (line.find("Usage:") != std::string::npos){
+				exist = true;
+				break;
+			}
+		}
+
+		file.close();
+
+		return exist;
+
+	}
+
+	bool checkDependencies_minimap2(){
+
+
+		string timeOuputFilename = _tmpDir + "/testDependencies.txt";
+		string timeCommand = "\\time --help > " + timeOuputFilename;
+		system(timeCommand.c_str());
+
+		bool exist = false;
+		std::ifstream file(timeOuputFilename);
+
+		std::string line;
+		while (std::getline(file, line)) {
+			if (line.find("Usage:") != std::string::npos){
+				exist = true;
+				break;
+			}
+		}
+		
+
+		file.close();
+
+		return exist;
 
 	}
 
