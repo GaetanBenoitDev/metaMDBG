@@ -100,8 +100,8 @@ metaMDBG asm --out-dir ./outputDir/ --in-ont reads_A.fastq.gz reads_B.fastq.gz r
 MetaMDBG will generate polished contigs in outputDir ("contigs.fasta.gz").
   
 ## Contig information
-Contig information, such as whether it is circular or not, are contained in contig headers in the resulting assembly file.
-Examples:
+Contig information are contained in contig headers in the resulting fasta assembly file.
+Example:
 
 ```sh
 >ctg112 length=7013 coverage=6 circular=yes
