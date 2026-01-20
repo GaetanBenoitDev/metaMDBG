@@ -173,13 +173,18 @@ Note 1) Unitig sequences in the gfa file are not polished, they have the same er
 
 ## Results
 
-Assembly quality and performances on three HiFi PacBio metagenomics samples (using 16 cores).
+Dataset accessions
 
-| Sample | Accession | # bases (Gb) | Wall clock time (h) | Peak memory (GB) | >1Mb near-complete circular contigs | Near-complete MAGs | 
+| Sample | Accession | # bases (Gb) | N50 read length (kb) | Average quality score |  
 | --- | --- | --- | --- | --- | --- | --- | 
-| Human Gut | SRR15275213 | 18.5 | 7 | 6 | 34 | 70 | 
-| Anaerobic Digester | ERR10905742 | 64.7  | 13 | 7 | 62 | 130 | 
-| Sheep rumen | SRR14289618 | 206.4 | 108 | 22 | 266 | 447 | 
+| Human Gut 1 (ONT) | ERR15285694 | 50 | 7.8 | 23.2 | 
+| Human Gut 2 (ONT) | SRR29980972 | 77 | 27.2 | 17.3 | 
+| Oral (ONT) | DRR582205 | 24 | 15 | 21.7 | 
+| Soil Microflora (ONT) | ERR11523665 | 103 | 5.4 | 17.1 | 
+| Human Gut 1 (HiFi) | ERR15289675 | 50 | 8.9 | 34 | 
+| Human Gut 2 (HiFi) | SRR15275213 | 18.5 | 11.4 | 45 | 
+| Anaerobic Digester (HiFi) | ERR10905743 | 67 | 10.2 | 40.6 | 
+| Sea Water (HiFi) | ERR9769281 | 22 | 8.2 | 35 | 
 
 Near-complete: ≥90% completeness and ≤5% contamination (assessed by checkM). Binning was performed with metabat2.
 
