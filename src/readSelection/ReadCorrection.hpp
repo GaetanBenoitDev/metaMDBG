@@ -1902,9 +1902,9 @@ public:
 
 		partitionFile.close();
 
-		cout << "Red correction: fs::remove tmp files a remettre" << endl;
-		//fs::remove(_inputDir + "/readAlignmentsLowDensity.bin");
-		//fs::remove(_inputDir + "/readPartition.bin");
+		//cout << "Red correction: fs::remove tmp files a remettre" << endl;
+		fs::remove(_inputDir + "/readAlignmentsLowDensity.bin");
+		fs::remove(_inputDir + "/readPartition.bin");
 		
 
 		//unordered_set<ReadType> correctedReadsReal;

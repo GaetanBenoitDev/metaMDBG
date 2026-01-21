@@ -508,8 +508,8 @@ public:
 		//fs::rename(outputContigFilename_derep, _outputContigFilename);
 
 
-		cout << "A REMETTRE: delete tmp dir for polishing" << endl;
-		//fs::remove_all(_readPartitionDir);
+		//cout << "A REMETTRE: delete tmp dir for polishing" << endl;
+		fs::remove_all(_readPartitionDir);
 
 	}
 

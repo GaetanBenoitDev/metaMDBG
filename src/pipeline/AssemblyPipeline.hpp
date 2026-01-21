@@ -331,20 +331,20 @@ public:
 
 		checkDependencies();
 
-		Logger::get().info() << "";
+		Logger::get().debug() << "";
 		//Logger::get().debug() << "Input: " << _inputFilename;
-		Logger::get().info() << "Output dir:              " << _outputDir;
-		Logger::get().info() << "Minimizer length:        " << _minimizerSize;
-		Logger::get().info() << "Min k-min-mer abundance: " << _minKminmerAbundance;
-		Logger::get().info() << "Density correction:      " << _params._minimizerDensityCorrection;
-		Logger::get().info() << "Density assembly:        " << _params._minimizerDensityAssembly;
-		Logger::get().info() << "Min read quality:        " << _params._minReadQuality;
-		Logger::get().info() << "Min read overlap length: " << _params._readCorrectionMinOverlapLength;
-		Logger::get().info() << "Min read identity:       " << _params._readCorrectionMinIdentity;
-		Logger::get().info() << "Contig Derep threshold:  " << _params._contigDereplicationIdentityThreshold;
-		Logger::get().info() << "Homopolymer compression: " << _params._useHomopolymerCompression;
-		Logger::get().info() << "Read correction:         " << _params._useReadCorrection;
-		Logger::get().info() << "";
+		Logger::get().debug() << "Output dir:              " << _outputDir;
+		Logger::get().debug() << "Minimizer length:        " << _minimizerSize;
+		Logger::get().debug() << "Min k-min-mer abundance: " << _minKminmerAbundance;
+		Logger::get().debug() << "Density correction:      " << _params._minimizerDensityCorrection;
+		Logger::get().debug() << "Density assembly:        " << _params._minimizerDensityAssembly;
+		Logger::get().debug() << "Min read quality:        " << _params._minReadQuality;
+		Logger::get().debug() << "Min read overlap length: " << _params._readCorrectionMinOverlapLength;
+		Logger::get().debug() << "Min read identity:       " << _params._readCorrectionMinIdentity;
+		Logger::get().debug() << "Contig Derep threshold:  " << _params._contigDereplicationIdentityThreshold;
+		Logger::get().debug() << "Homopolymer compression: " << _params._useHomopolymerCompression;
+		Logger::get().debug() << "Read correction:         " << _params._useReadCorrection;
+		Logger::get().debug() << "";
 		
 		auto start = high_resolution_clock::now();
 
@@ -368,6 +368,8 @@ public:
 
 		cleanTmpFolder();
 		
+		//print_readStats();
+
 		Logger::get().info() << "";
 		Logger::get().info() << "\tRun time:                   " << Utils::formatTimeToHumanReadable(duration_cast<seconds>(stop - start)); //<< " (hh:mm:ss)";
 		Logger::get().info() << "\tPeak memory:                " << maxMemory << " GB";
@@ -465,25 +467,14 @@ public:
 
 
 
-		ifstream file_readStats(_tmpDir + "/read_stats.txt");
-	
-		u_int64_t nbReads;
-		u_int32_t n50ReadLength;
-		float actualDensity;
-		u_int64_t nbBases;
-		float averageQuality;
-		file_readStats.read((char*)&nbReads, sizeof(nbReads));
-		file_readStats.read((char*)&n50ReadLength, sizeof(n50ReadLength));
-		file_readStats.read((char*)&actualDensity, sizeof(actualDensity));
-		file_readStats.read((char*)&nbBases, sizeof(nbBases));
-		file_readStats.read((char*)&averageQuality, sizeof(averageQuality));
-
-		file_readStats.close();
+		ReadStats readStats;
+		readStats.load(_tmpDir + "/read_stats.txt");
+		
 
 
 		//u_int64_t meanReadLength = computeMeanReadLength(_inputFilename);
-		_lastK = n50ReadLength*_params._minimizerDensityAssembly*2.0f; //1.2f; //2.0f; //*0.95
-		_meanReadLength = n50ReadLength;
+		_lastK = readStats._n50ReadLength*_params._minimizerDensityAssembly*2.0f; //1.2f; //2.0f; //*0.95
+		_meanReadLength = readStats._n50ReadLength;
 		//_lastK = 10;
 
 		if(_maxK > 0){
@@ -522,13 +513,10 @@ public:
 		_logFile << "Max k: " << _lastK << endl;
 		_logFile << endl;
 		*/
-		Logger::get().info() << "";
-		Logger::get().info() << "Total read bps:  " << nbBases;
-		Logger::get().info() << "N50 read length: " << n50ReadLength;
-		Logger::get().info() << "Average quality: " << averageQuality;
-		Logger::get().info() << "Start k:         " << _firstK;
-		Logger::get().info() << "End k:           " << _lastK;
-		Logger::get().info() << "";
+		print_readStats();
+		Logger::get().debug() << "Start k:         " << _firstK;
+		Logger::get().debug() << "End k:           " << _lastK;
+		Logger::get().debug() << "";
 
 		//if(params._dataType == DataType::HiFi){
 		//	params._readCorrectionMinOverlapLength = n50ReadLength*0.8;
@@ -629,10 +617,47 @@ public:
 
     }
 
+	struct ReadStats{
+
+		u_int64_t _nbReads;
+		u_int32_t _n50ReadLength;
+		float _actualDensity;
+		u_int64_t _nbBases;
+		float _averageQuality;
+
+		void load(const string& filename){
+			ifstream file_readStats(filename);
+		
+
+			file_readStats.read((char*)&_nbReads, sizeof(_nbReads));
+			file_readStats.read((char*)&_n50ReadLength, sizeof(_n50ReadLength));
+			file_readStats.read((char*)&_actualDensity, sizeof(_actualDensity));
+			file_readStats.read((char*)&_nbBases, sizeof(_nbBases));
+			file_readStats.read((char*)&_averageQuality, sizeof(_averageQuality));
+
+			file_readStats.close();
+		}
+	};
+
+
+	void print_readStats(){
+
+		ReadStats readStats;
+		readStats.load(_tmpDir + "/read_stats.txt");
+
+		Logger::get().info() << "";
+		Logger::get().info() << "Total read bp:   " << readStats._nbBases;
+		Logger::get().info() << "N50 read length: " << readStats._n50ReadLength;
+		Logger::get().info() << "Average quality: " << readStats._averageQuality;
+		Logger::get().info() << "";
+
+	}
+
 	void convertReadsToMinimizerSpace(){
 
 		const string& checkpointFilename = _checkpointDir + "/convertReadsToMinimizerSpace.checkpoint";
 		
+		Logger::get().info() << "";
 		Logger::get().info() << "Converting reads to minimizers";
 		
 		if(isCheckpoint(checkpointFilename)) return;
@@ -813,7 +838,7 @@ public:
 
 		executeCommand(command);
 
-		Logger::get().info() << "Moving final contigs to destination";
+		//Logger::get().info() << "Moving final contigs to destination";
 		fs::rename(_tmpDir + "/contigs.fasta.gz", _outputDir + "/contigs.fasta.gz");
 
 		/*
