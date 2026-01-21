@@ -100,8 +100,8 @@ metaMDBG asm --out-dir ./outputDir/ --in-ont reads_A.fastq.gz reads_B.fastq.gz r
 MetaMDBG will generate polished contigs in outputDir ("contigs.fasta.gz").
   
 ## Contig information
-Contig information, such as whether it is circular or not, are contained in contig headers in the resulting assembly file.
-Examples:
+Contig information are contained in contig headers in the resulting fasta assembly file.
+Example:
 
 ```sh
 >ctg112 length=7013 coverage=6 circular=yes
@@ -173,15 +173,22 @@ Note 1) Unitig sequences in the gfa file are not polished, they have the same er
 
 ## Results
 
-Assembly quality and performances on three HiFi PacBio metagenomics samples (using 16 cores).
 
-| Sample | Accession | # bases (Gb) | Wall clock time (h) | Peak memory (GB) | >1Mb near-complete circular contigs | Near-complete MAGs | 
-| --- | --- | --- | --- | --- | --- | --- | 
-| Human Gut | SRR15275213 | 18.5 | 7 | 6 | 34 | 70 | 
-| Anaerobic Digester | ERR10905742 | 64.7  | 13 | 7 | 62 | 130 | 
-| Sheep rumen | SRR14289618 | 206.4 | 108 | 22 | 266 | 447 | 
 
-Near-complete: ≥90% completeness and ≤5% contamination (assessed by checkM). Binning was performed with metabat2.
+Alignment and binning were performed with minimap2 and SemiBin2. Completeness and contamination were measured with checkM2 (near-complete: ≥90% completeness and ≤5% contamination, Medium: ≥50% completeness and ≤5% contamination). Clipping events and zero-coverage regions were identified using the anvi-script-find-misassembly program from the Anvi’o platform. All assemblers were run with 32 cores. 
+
+
+| Sample | Accession | # bases (Gb) | N50 read length (kb) | Average quality score |  
+| --- | --- | --- | --- | --- | 
+| Human Gut 1 (ONT) | ERR15285694 | 50 | 7.8 | 23.2 | 
+| Human Gut 2 (ONT) | SRR29980972 | 77 | 27.2 | 17.3 | 
+| Oral (ONT) | DRR582205 | 24 | 15 | 21.7 | 
+| Soil Microflora (ONT) | ERR11523665 | 103 | 5.4 | 17.1 | 
+| Human Gut 1 (HiFi) | ERR15289675 | 50 | 8.9 | 34 | 
+| Human Gut 2 (HiFi) | SRR15275213 | 18.5 | 11.4 | 45 | 
+| Anaerobic Digester (HiFi) | ERR10905743 | 67 | 10.2 | 40.6 | 
+| Sea Water (HiFi) | ERR9769281 | 22 | 8.2 | 35 | 
+
 
 ## License
 
