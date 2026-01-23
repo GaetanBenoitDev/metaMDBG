@@ -138,7 +138,8 @@ public:
 			}
 			
 			Logger::get().info();
-			Logger::get().info() << "Assembly graph: " << _finalFilename;
+			Logger::get().info() << "Assembly graph (no sequences): " << _finalFilenameNoSeq;
+			Logger::get().info() << "Assembly graph:                " << _finalFilename;
 			if(_generateContigPath) Logger::get().info() << "Contig path: " << _contigPathFilename;
 			if(_generateReadPath) Logger::get().info() << "Read path: " << _readPathFilename;
 			Logger::get().info() << "Done!";
@@ -303,14 +304,16 @@ public:
 	void createUnitigSequences(){
 		string readFilename = _tmpDir + "/input.txt";
 
-		string toBasespaceType = "";
-		if(_dataType == 0){ //Hifi
-			toBasespaceType = "toBasespace_hifi";
+		string command = "";
+
+		if(_dataType == DataType::HiFi){
+			command = _filename_exe + " toBasespaceGfa " + _tmpDir + " " + _passDir + "/assembly_graph.gfa.unitigs " + " " + _unitigFilename + " " + readFilename  + " --threads " + to_string(_nbCores) + " --homopolymer-compression --skip-correction";
 		}
-		else if(_dataType == 1){ //nanopore
-			toBasespaceType = "toBasespace_ont";
+		else if(_dataType == DataType::Nanopore){
+			command = _filename_exe + " toBasespaceGfa " + _tmpDir + " " + _passDir + "/assembly_graph.gfa.unitigs " + " " + _unitigFilename + " " + readFilename  + " --threads " + to_string(_nbCores);
 		}
-		string command = _filename_exe + " " + toBasespaceType + " " + " " + _tmpDir + " " + _passDir + "/assembly_graph.gfa.unitigs " + " " + _unitigFilename + " " + readFilename  + " --threads " + to_string(_nbCores);
+
+		
 		Utils::executeCommand(command, _tmpDir);
 	}
 

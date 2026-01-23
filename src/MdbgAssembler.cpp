@@ -29,6 +29,7 @@
 #include "assembly/GenerateContigs.hpp"
 //#include "toBasespace/ToBasespace.hpp"
 #include "toBasespace/ToBasespace2.hpp"
+#include "toBasespace/ToBasespaceGfa.hpp"
 //#include "toBasespace/ToBasespace3.hpp"
 #include "toBasespace/ToBasespaceNoCorrection.hpp"
 #include "pipeline/AssemblyPipeline.hpp"
@@ -183,9 +184,9 @@ int main (int argc, char* argv[])
     		else if(programName == "derepSmall"){
                 DerepSmallContigs().run (argc, args);
     		}
-    		//else if(programName == "toBasespace_hifi"){
-            //    ToBasespace().run (argc, args);
-    		//}
+    		else if(programName == "toBasespaceGfa"){
+                ToBasespaceGfa().run (argc, args);
+    		}
     		else if(programName == "toBasespace"){
                 ToBasespace2().run (argc, args);
     		}
