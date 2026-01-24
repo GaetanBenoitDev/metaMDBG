@@ -173,7 +173,7 @@ Note 1) Unitig sequences in the gfa file are not polished, they have the same er
 
 ## Results
 
-[<img src="https://github.com/GaetanBenoitDev/metaMDBG/blob/main/results/fig_metaMDBG_1.3.jpg" width="50%" />](https://github.com/GaetanBenoitDev/metaMDBG/blob/main/results/fig_metaMDBG_1.3.jpg)
+[<img src="https://github.com/GaetanBenoitDev/metaMDBG/blob/main/results/fig_metaMDBG_1.3.jpg" width="65%" />](https://github.com/GaetanBenoitDev/metaMDBG/blob/main/results/fig_metaMDBG_1.3.jpg)
 
 Alignment and binning were performed with minimap2 and SemiBin2. Completeness and contamination were measured with checkM2 (near-complete: ≥90% completeness and ≤5% contamination, Medium: ≥50% completeness and ≤5% contamination). Clipping events and zero-coverage regions were identified using the anvi-script-find-misassembly program from the Anvi’o platform. All assemblers were run with 32 cores. 
 
