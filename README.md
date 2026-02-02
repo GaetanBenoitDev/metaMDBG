@@ -5,12 +5,15 @@ The method [nanoMDBG](https://www.biorxiv.org/content/10.1101/2025.04.22.649928v
 Developper: Gaëtan Benoit  
 Contact: gaetanbenoitdev at gmail dot com
 
-> [!IMPORTANT]
-> 15/09/2025:
-> MetaMDBG version 1.2 is out:
-> * Improved assembly quality (clipping events, dereplication, polishing, etc)
-> * Improved memory performances
-> * Added checkpoint system
+## News
+Feb 2026:
+MetaMDBG v1.3 is out!
+* Fixed clipping events
+* Fixed zero-coverage regions
+* Fixed chimeric contigs
+* Improved performances
+  
+Check out the new results below.
 
 
 ## Installation
