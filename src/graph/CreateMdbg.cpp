@@ -292,10 +292,12 @@ void CreateMdbg::createMDBG (){
 
 	if(_isFirstPass){
 		
+		bool hasQuality = true;
 		//usePos = false;
 		inputFilename_min = _outputDir + "/read_data_init.txt";
 		if(_useCorrectedRead){
 			inputFilename_min = _outputDir + "/read_data_corrected.txt";
+			hasQuality = false;
 		}
 
 		Logger::get().debug() << "Filling bloom filter";
@@ -306,7 +308,7 @@ void CreateMdbg::createMDBG (){
 		//getchar();
 		
 		Logger::get().debug() << "Building mdbg";
-		KminmerParserParallel parser2(inputFilename_min, _minimizerSize, _kminmerSize, false, false, _nbCores);
+		KminmerParserParallel parser2(inputFilename_min, _minimizerSize, _kminmerSize, false, hasQuality, _nbCores);
 		parser2.parse(IndexKminmerFunctor(*this, false));
 		Logger::get().debug() << "Indexed: " << _mdbgNodesLight.size();
 		//auto fp = std::bind(&CreateMdbg::createMDBG_collectKminmers_minspace_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
@@ -319,7 +321,7 @@ void CreateMdbg::createMDBG (){
 				
 			if(_minAbundance <= 1){
 				//cout << "!! Bloom filter disabled!!!!!" << endl;
-				KminmerParserParallel parser2(inputFilename_min, _minimizerSize, _kminmerSize, false, false, _nbCores);
+				KminmerParserParallel parser2(inputFilename_min, _minimizerSize, _kminmerSize, false, hasQuality, _nbCores);
 				parser2.parse(FilterKminmerFunctor(*this));
 				Logger::get().debug() << "Indexed: " << _mdbgNodesLightUnique.size();
 
@@ -368,10 +370,12 @@ void CreateMdbg::createMDBG (){
 	if(!_isFirstPass){
 		
 
+		bool hasQuality = true;
 		//const string& filename_uncorrectedReads = _outputDir + "/read_uncorrected.txt";
 		const string& filename_contigs = _outputDir + "/unitig_data.txt";
 		string filename_uncorrectedReads = _outputDir + "/read_data_init.txt";
 		if(_useCorrectedRead){
+			hasQuality = false;
 			filename_uncorrectedReads = _outputDir + "/read_data_corrected.txt";
 		}
 
@@ -384,7 +388,7 @@ void CreateMdbg::createMDBG (){
 
 		Logger::get().debug() << "Building mdbg";
 		
-		KminmerParserParallel parser2(filename_uncorrectedReads, _minimizerSize, _kminmerSize, false, false, _nbCores);
+		KminmerParserParallel parser2(filename_uncorrectedReads, _minimizerSize, _kminmerSize, false, hasQuality, _nbCores);
 		//parser2.parse(FilterKminmerFunctor2(*this));
 		parser2.parse(IndexKminmerFunctor(*this, false));
 

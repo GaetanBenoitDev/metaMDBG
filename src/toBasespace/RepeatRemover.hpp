@@ -369,7 +369,7 @@ public:
 		//	parser2.parse(IndexReadsFunctor(*this));
 		//}
 		//else{
-			KminmerParserParallel parser2(_inputDir + "/read_data_init.txt", -1, _kminmerSize, false, _hasQuality, _nbCores);
+			KminmerParserParallel parser2(_inputDir + "/read_data_init.txt", -1, _kminmerSize, false, true, _nbCores);
 			parser2._densityThreshold = _minimizerDensity;
 			parser2.parse(IndexReadsFunctor(*this));
 		//}

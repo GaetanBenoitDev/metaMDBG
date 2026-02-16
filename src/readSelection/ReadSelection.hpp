@@ -175,10 +175,12 @@ public:
 			_useHomopolymerCompression = true;
 		}
 
-		_outputQuality = false;
-		if(arg_outputQuality){
-			_outputQuality = true;
-		}
+		//_outputQuality = false;
+		//if(arg_outputQuality){
+		//	_outputQuality = true;
+		//}
+
+		_outputQuality = true;
 
 		string filename_parameters = _inputDir + "/parameters.gz";
 		gzFile file_parameters = gzopen(filename_parameters.c_str(),"rb");

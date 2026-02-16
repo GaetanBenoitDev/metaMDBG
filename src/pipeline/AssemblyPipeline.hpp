@@ -1540,7 +1540,33 @@ public:
 		*/
 	}
 
+
 	bool checkDependencies_time(){
+
+
+		string timeOuputFilename = _tmpDir + "/testDependencies.txt";
+		string timeCommand = "\\time --help > " + timeOuputFilename;
+		system(timeCommand.c_str());
+
+		bool exist = false;
+		std::ifstream file(timeOuputFilename);
+
+		std::string line;
+		while (std::getline(file, line)) {
+			if (line.find("Usage:") != std::string::npos){
+				exist = true;
+				break;
+			}
+		}
+		
+
+		file.close();
+
+		return exist;
+
+	}
+	
+	bool checkDependencies_minimap2(){
 
 
 		string timeOuputFilename = _tmpDir + "/testDependencies.txt";
@@ -1566,30 +1592,6 @@ public:
 
 	}
 
-	bool checkDependencies_minimap2(){
-
-
-		string timeOuputFilename = _tmpDir + "/testDependencies.txt";
-		string timeCommand = "\\time --help > " + timeOuputFilename;
-		system(timeCommand.c_str());
-
-		bool exist = false;
-		std::ifstream file(timeOuputFilename);
-
-		std::string line;
-		while (std::getline(file, line)) {
-			if (line.find("Usage:") != std::string::npos){
-				exist = true;
-				break;
-			}
-		}
-		
-
-		file.close();
-
-		return exist;
-
-	}
 
 
 	ContigStats _contigStats;

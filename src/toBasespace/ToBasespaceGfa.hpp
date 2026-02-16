@@ -567,7 +567,7 @@ public:
 		//}
 
 		if(_skipCorrection){
-			KminmerParserParallel parser(_inputDir + "/read_data_init.txt", _minimizerSize, _kminmerSize, false, false, _nbCores);
+			KminmerParserParallel parser(_inputDir + "/read_data_init.txt", _minimizerSize, _kminmerSize, false, true, _nbCores);
 			parser.parseSequences(AlignReadFunctor(*this));
 		}
 		else{

@@ -757,14 +757,14 @@ public:
 		//}
 
 		if(_skipCorrection){
-			KminmerParserParallel parser(_inputDir + "/read_data_init.txt", _minimizerSize, _kminmerSize, false, false, _nbCores);
+			KminmerParserParallel parser(_inputDir + "/read_data_init.txt", _minimizerSize, _kminmerSize, false, true, _nbCores);
 			//parser._densityThreshold = _minimizerDensity_assembly;
 			parser.parseSequences(AlignReadFunctor(*this));
 			//KminmerParserParallel parser(_inputDir + "/read_data_init.txt", _minimizerSize, _kminmerSize, false, false, _nbCores);
 			//parser.parseSequences(AlignReadFunctor(*this));
 		}
 		else if(_dataType == DataType::HiFi){
-			KminmerParserParallel parser(_inputDir + "/read_data_init.txt", _minimizerSize, _kminmerSize, false, false, _nbCores);
+			KminmerParserParallel parser(_inputDir + "/read_data_init.txt", _minimizerSize, _kminmerSize, false, true, _nbCores);
 			//parser._densityThreshold = _minimizerDensity_assembly;
 			parser.parseSequences(AlignReadFunctor(*this));
 		}
