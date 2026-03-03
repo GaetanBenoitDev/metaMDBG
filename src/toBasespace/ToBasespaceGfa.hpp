@@ -2855,8 +2855,13 @@ public:
 			}
 
 			if(contigSequence.size() == 0){
+				//cout << "lul" << endl;
 				//Logger::get().debug() << "Empty contig " << kminmerList._kminmersInfo.size();
 				//return;
+				string header = ">ctg" + to_string(readIndex) + "l\n";
+				gzwrite(_toBasespace._basespaceContigFile, (const char*)&header[0], header.size());
+				contigSequence = "A\n";
+				gzwrite(_toBasespace._basespaceContigFile, (const char*)&contigSequence[0], contigSequence.size());
 			}
 			else{
 				//cout << "lala:" << ((u_int32_t) isCircular) << endl;
