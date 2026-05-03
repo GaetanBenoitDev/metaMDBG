@@ -1,0 +1,56 @@
+#################
+# Build options #
+#################
+
+option('cereal',
+  type : 'boolean',
+  value : false,
+  description : 'Enable serialization through cereal')
+
+option('avx2',
+  type : 'boolean',
+  value : false,
+  description : 'Build with -mavx2')
+
+option('sse41',
+  type : 'boolean',
+  value : false,
+  description : 'Build with -msse4.1')
+
+option('simde',
+  type : 'boolean',
+  value : false,
+  description : 'Build with SIMDe')
+
+option('simde_nonvec',
+  type : 'boolean',
+  value : false,
+  description : 'Use SIMDe for nonvectorized code')
+
+option('simde_openmp',
+  type : 'boolean',
+  value : false,
+  description : 'Use SIMDe support for OpenMP SIMD')
+
+option('dispatch',
+  type : 'boolean',
+  value : false,
+  description : 'Use SIMDe to generate x86 dispatch')
+
+##############
+# Executable #
+##############
+
+option('exe',
+  type : 'boolean',
+  value : true,
+  description : 'Build spoa executable')
+
+#########
+# Tests #
+#########
+
+option('tests',
+  type : 'boolean',
+  value : true,
+  description : 'Enable dependencies required for testing')

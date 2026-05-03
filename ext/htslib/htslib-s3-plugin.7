@@ -1,0 +1,215 @@
+.TH htslib-s3-plugin 7 "18 March 2026" "htslib-1.23.1" "Bioinformatics tools"
+.SH NAME
+htslib-s3-plugin \- htslib AWS S3 plugin
+.\"
+.\" Copyright (C) 2021-2022 Genome Research Ltd.
+.\"
+.\" Author: Andrew Whitwham <aw7@sanger.ac.uk>
+.\"
+.\" Permission is hereby granted, free of charge, to any person obtaining a
+.\" copy of this software and associated documentation files (the "Software"),
+.\" to deal in the Software without restriction, including without limitation
+.\" the rights to use, copy, modify, merge, publish, distribute, sublicense,
+.\" and/or sell copies of the Software, and to permit persons to whom the
+.\" Software is furnished to do so, subject to the following conditions:
+.\"
+.\" The above copyright notice and this permission notice shall be included in
+.\" all copies or substantial portions of the Software.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+.\" IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+.\" FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+.\" THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+.\" LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+.\" FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+.\" DEALINGS IN THE SOFTWARE.
+.\"
+.
+.\" For code blocks and examples (cf groff's Ultrix-specific man macros)
+.de EX
+
+.  in +\\$1
+.  nf
+.  ft CR
+..
+.de EE
+.  ft
+.  fi
+.  in
+
+..
+
+.SH DESCRIPTION
+The S3 plugin allows htslib file functions to communicate with servers that use
+the AWS S3 protocol.  Files are identified by their bucket and object key in a
+URL format e.g.
+
+.B s3://mybucket/path/to/file
+
+With \fIpath/to/file\fR being the object key.
+
+Necessary security information can be provided in as part of the URL, in
+environment variables or from configuration files.
+
+The full URL format is:
+
+.B s3[+SCHEME]://[ID[:SECRET[:TOKEN]]@]BUCKET/PATH
+
+The elements are:
+.TP
+.I SCHEME
+The protocol used.  Defaults to \fIhttps\fR.
+.TP
+.I ID
+The user AWS access key.
+.TP
+.I SECRET
+The secret key for use with the access key.
+.TP
+.I TOKEN
+Token used for temporary security credentials.
+.TP
+.I BUCKET
+AWS S3 bucket.
+.TP
+.I PATH
+Path to the object under the bucket.
+.LP
+
+The environment variables below will be used if the user ID is not set.
+.TP
+.B AWS_ACCESS_KEY_ID
+The user AWS access key.
+.TP
+.B AWS_SECRET_ACCESS_KEY
+The secret key for use with the access key.
+.TP
+.B AWS_DEFAULT_REGION
+The region to use. Defaults to
+.IR us-east-1 .
+.TP
+.B AWS_SESSION_TOKEN
+Token used for temporary security credentials.
+.TP
+.B AWS_DEFAULT_PROFILE
+The profile to use in \fIcredentials\fR, \fIconfig\fR or \fIs3cfg\fR files.
+Defaults to
+.IR default .
+.TP
+.B AWS_PROFILE
+Same as above.
+.TP
+.B AWS_SHARED_CREDENTIALS_FILE
+Location of the credentials file.  Defaults to
+.IR ~/.aws/credentials .
+.TP
+.B HTS_S3_S3CFG
+Location of the s3cfg file.  Defaults to
+.IR ~/.s3cfg .
+.TP
+.B HTS_S3_HOST
+Sets the host.  Defaults to
+.IR s3.amazonaws.com .
+.TP
+.B HTS_S3_V2
+If set use signature v2 rather the default v4.  This will limit the plugin to
+reading only.
+.TP
+.B HTS_S3_PART_SIZE
+Sets the upload part size in Mb, the minimum being 5Mb.
+By default the part size starts at 5Mb and expands at regular intervals to
+accommodate bigger files (up to 2.5 Tbytes with the current rate).
+Using this setting disables the automatic part size expansion.
+.TP
+.B HTS_S3_ADDRESS_STYLE
+Sets the URL style.  Options are auto (default), virtual or path.  
+.LP
+In the absence of an ID from the previous two methods the credential/config
+files will be used.  The default file locations are either
+\fI~/.aws/credentials\fR or \fI~/.s3cfg\fR (in that order).
+
+Entries used in aws style credentials file are aws_access_key_id, 
+aws_secret_access_key, aws_session_token, region, addressing_style and
+expiry_time (unofficial, see SHORT-LIVED CREDENTIALS below).
+Only the first two are usually needed.
+
+Entries used in s3cmd style config files are access_key, secret_key,
+access_token, host_base, bucket_location and host_bucket. Again only the first
+two are usually needed. The host_bucket option is only used to set a path-style
+URL, see below.
+
+.SH SHORT-LIVED CREDENTIALS
+
+Some cloud identity and access management (IAM) systems can make short-lived
+credentials that allow access to resources.
+These credentials will expire after a time and need to be renewed to
+give continued access.
+To enable this, the S3 plugin allows an \fIexpiry_time\fR entry to be set in the
+\fI.aws/credentials\fR file.
+The value for this entry should be the time when the token expires,
+following the format in RFC3339 section 5.6, which takes the form:
+
+   2012-04-29T05:20:48Z
+
+That is, year - month - day, the letter "T", hour : minute : second.
+The time can be followed by the letter "Z", indicating the UTC timezone,
+or an offset from UTC which is a "+" or "-" sign followed by two digits for
+the hours offset, ":", and two digits for the minutes.
+
+The S3 plugin will attempt to re-read the credentials file up to 1 minute
+before the given expiry time, which means the file needs to be updated with
+new credentials before then.
+As the exact way of doing this can vary between services and IAM providers,
+the S3 plugin expects this to be done by an external user-supplied process.
+This may be achieved by running a program that replaces the file as new
+credentials become available.
+The following script shows how it might be done for AWS instance credentials:
+.EX 2
+#!/bin/sh
+instance='http://169.254.169.254'
+tok_url="$instance/latest/api/token"
+ttl_hdr='X-aws-ec2-metadata-token-ttl-seconds: 10'
+creds_url="$instance/latest/meta-data/iam/security-credentials"
+key1='aws_access_key_id = \(rs(.AccessKeyId)\(rsn'
+key2='aws_secret_access_key = \(rs(.SecretAccessKey)\(rsn'
+key3='aws_session_token = \(rs(.Token)\(rsn'
+key4='expiry_time = \(rs(.Expiration)\(rsn'
+while true; do
+    token=`curl -X PUT -H "$ttl_hdr" "$tok_url"`
+    tok_hdr="X-aws-ec2-metadata-token: $token"
+    role=`curl -H "$tok_hdr" "$creds_url/"`
+    expires='now'
+    ( curl -H "$tok_hdr" "$creds_url/$role" \(rs
+      | jq -r "\(rs"${key1}${key2}${key3}${key4}\(rs"" > credentials.new ) \(rs
+      && mv -f credentials.new credentials \(rs
+      && expires=`grep expiry_time credentials | cut -d ' ' -f 3-`
+    if test $? -ne 0 ; then break ; fi
+    expiry=`date -d "$expires - 3 minutes" '+%s'`
+    now=`date '+%s'`
+    test "$expiry" -gt "$now" && sleep $((($expiry - $now) / 2))
+    sleep 30
+done
+.EE
+
+Note that the \fIexpiry_time\fR key is currently only supported for the
+\fI.aws/credentials\fR file (or the file referred to in the
+.B AWS_SHARED_CREDENTIALS_FILE
+environment variable).
+
+.SH NOTES
+In most cases this plugin transforms the given URL into a virtual host-style
+format e.g. \fIhttps://bucket.host/path/to/file\fR.  A path-style format is used
+where the URL is not DNS compliant or the bucket name contains a dot e.g.
+\fIhttps://host/bu.cket/path/to/file\fR.
+
+Path-style can be forced by setting one either HTS_S3_ADDRESS_STYLE,
+addressing_style or host_bucket.  The first two can be set to \fBpath\fR while
+host_bucket must \fBnot\fR include the \fB%(bucket).s\fR string.
+
+.SH "SEE ALSO"
+.IR htsfile (1)
+.IR samtools (1)
+.PP
+RFC 3339: <https://www.rfc-editor.org/rfc/rfc3339#section-5.6>
+.PP
+htslib website: <http://www.htslib.org/>

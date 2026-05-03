@@ -1,0 +1,5 @@
+[wrap-git]
+directory = biosoup
+
+url = https://github.com/rvaser/biosoup
+revision = 0.11.0

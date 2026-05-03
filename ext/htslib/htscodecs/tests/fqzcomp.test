@@ -1,0 +1,31 @@
+#!/bin/sh
+out=test.out
+if test ! -d $out
+then
+    mkdir $out
+fi
+
+for f in `ls -1 $srcdir/dat/q* $srcdir/htscodecs-corpus/dat/q* 2>/dev/null`
+do
+    comp=${f%/*/*}/dat/fqzcomp/${f##*/}
+    cut -f 1 $f > $out/fqz
+    for s in 0 1 2 3
+    do
+        if [ ! -e "$comp.$o" ]
+        then
+            continue
+        fi
+        printf 'Testing fqzcomp_qual -r -s %s on %s\t' $s "$f"
+
+        # Round trip
+        ./fqzcomp_qual -r -s $s $out/fqz > $out/fqz.comp 2>>$out/fqz.stderr || exit 1
+        wc -c < $out/fqz.comp
+        ./fqzcomp_qual -r -d $out/fqz.comp > $out/fqz.uncomp  2>>$out/fqz.stderr || exit 1
+        cmp $out/fqz $out/fqz.uncomp || exit 1
+
+        # Precompressed data
+        ./fqzcomp_qual -r -d $comp.$s > $out/fqz.uncomp  2>>$out/fqz.stderr || exit 1
+        cmp $out/fqz $out/fqz.uncomp || exit 1
+    done
+    echo
+done

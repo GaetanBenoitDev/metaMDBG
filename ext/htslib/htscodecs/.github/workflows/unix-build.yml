@@ -1,0 +1,42 @@
+# Various unix builds
+name: unix CI
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    # MacOS.  We validate compilation of x86_64 and arm64, but only
+    # test arm64.  This will also be using clang by default
+    - name: macOS specific
+      if: runner.os == 'macOS'
+      run: |
+        brew install autoconf automake libtool
+        autoreconf -i
+        ./configure CFLAGS="-g -O3 -Wall -Werror -arch arm64 -arch x86_64"
+
+    # A slower build and test with address and undefined behaviour sanitizers
+    - name: Ubuntu-latest using gcc with sanitizers
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-suggests --no-install-recommends libbz2-dev
+        autoreconf -i
+        ./configure CC="gcc -fsanitize=address,undefined"
+
+    - name: Compile
+      run: |
+        make -j6
+
+    - name: Check
+      run: |
+        make check || (cat tests/test-suite.log; false)
+

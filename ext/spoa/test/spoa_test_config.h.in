@@ -1,0 +1,14 @@
+// Copyright (c) 2023 Robert Vaser
+
+#ifndef SPOA_TEST_CONFIG_H_
+#define SPOA_TEST_CONFIG_H_
+
+namespace spoa {
+namespace test {
+
+constexpr char SPOA_TEST_DATA[] = "@SPOA_TEST_DATA@";
+
+}  // namespace test
+}  // namespace spoa
+
+#endif  // SPOA_TEST_CONFIG_H_

@@ -1,0 +1,31 @@
+#!/bin/sh
+out=test.out
+if test ! -d $out
+then
+    mkdir $out
+fi
+
+for f in `ls -1 $srcdir/dat/q* $srcdir/htscodecs-corpus/dat/q* 2>/dev/null`
+do
+    comp=${f%/*/*}/dat/r4x8/${f##*/}
+    cut -f 1 < $f | tr -d '\012' > $out/r4x8-nl
+    for o in 0 1
+    do
+        if [ ! -e "$comp.$o" ]
+        then
+            continue
+        fi
+
+        printf 'Testing rans4x8 -r -o%s on %s\t' $o "$f"
+
+        # Round trip
+        ./rans4x8 -r -o$o $out/r4x8-nl $out/r4x8.comp 2>>$out/r4x8.stderr || exit 1
+        wc -c < $out/r4x8.comp
+        ./rans4x8 -r -d $out/r4x8.comp $out/r4x8.uncomp  2>>$out/r4x8.stderr || exit 1
+        cmp $out/r4x8-nl $out/r4x8.uncomp || exit 1
+
+        # Precompressed data
+        ./rans4x8 -r -d $comp.$o $out/r4x8.uncomp  2>>$out/r4x8.stderr || exit 1
+        cmp $out/r4x8-nl $out/r4x8.uncomp || exit 1
+    done
+done

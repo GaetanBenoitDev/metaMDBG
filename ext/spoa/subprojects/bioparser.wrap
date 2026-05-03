@@ -1,0 +1,5 @@
+[wrap-git]
+directory = bioparser
+
+url = https://github.com/rvaser/bioparser
+revision = 3.1.0
