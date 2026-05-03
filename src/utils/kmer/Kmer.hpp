@@ -8,6 +8,7 @@
 #include <string>
 #include <cmath>
 #include <unordered_set>
+#include "../BloomFilter.hpp"
 
 //#include "hasher.hpp"
 //#include "enumerator.hpp"
@@ -19,8 +20,10 @@
 using namespace std;
 
 typedef unsigned __int128 u_int128_t;
-typedef u_int64_t MinimizerType;
+typedef u_int32_t MinimizerType;
+typedef u_int64_t SnpmerType;
 typedef u_int128_t KmerVecHashType;
+typedef u_int64_t MinimizerPairType;
 
 
 
@@ -618,6 +621,72 @@ public:
 		hash2(k, 1LL);
 	}*/
 
+	static u_int8_t  getIthNucleotide(u_int64_t val, size_t idx){  
+        return (val >> (2*(idx % 32))) & 3; 
+	}
+
+	static u_int64_t getSnpmerNoMiddle(const u_int64_t kmer, const int kmerSize, const int kmerSizeSide){
+
+		int nbBitsUnused = 64 - kmerSize*2;
+		int nbBitsBorder = kmerSizeSide*2;
+		int topBits = nbBitsUnused +  nbBitsBorder;
+				
+		uint64_t upper = (~0ULL) << (64 - topBits);   // get the left side of the snpmer
+		uint64_t upperShifted = (kmer & upper) >> 2; //Shift the left side of the snpmer to the right (overwrite the middle base)
+
+		uint64_t lower = kmer & ((1ULL << nbBitsBorder) - 1); // get the right side of the snpmer
+
+
+
+		uint64_t result  = upperShifted | lower; //Merge left and right (without the middle nt then)
+
+		return result;
+
+	}
+
+	static u_int64_t getSnpmerWithMiddle(const u_int64_t kmer, const int middleBase, const int kmerSize, const int kmerSizeSide){
+
+		int nbBitsUnused = 64 - (kmerSize-1)*2;
+		int nbBitsBorder = kmerSizeSide*2;
+		int topBits = nbBitsUnused +  nbBitsBorder;
+				
+		uint64_t upper = (~0ULL) << (64 - topBits);   // get the left side of the snpmer
+		uint64_t upperShifted = (kmer & upper) << 2; //Shift the left side of the snpmer to the right (overwrite the middle base)
+
+		uint64_t lower = kmer & ((1ULL << nbBitsBorder) - 1); // get the right side of the snpmer
+
+
+
+		uint64_t result  = upperShifted | lower; //Merge left and right (without the middle nt then)
+		setBaseAtPosition(result, kmerSizeSide, middleBase);
+
+		return result;
+
+	}
+
+	static void setBaseAtPosition(u_int64_t& kmer, int pos, char nt){
+		//kmer_type trois; trois.setVal(3);
+		u_int64_t trois = 3;
+		u_int64_t reset_mask =  ~(trois << (pos*2));
+		//kmer_type kmer_nt; kmer_nt.setVal(nt);
+		u_int64_t kmer_nt = nt;
+		u_int64_t set_mask =  kmer_nt << (pos*2);
+		kmer = (kmer & reset_mask )  | set_mask;
+	}
+
+	inline static u_int64_t oahash64 (u_int64_t elem)
+    {
+        u_int64_t code = elem;
+        code = code ^ (code >> 14); //supp
+        code = (~code) + (code << 18);
+        code = code ^ (code >> 31);
+        code = code * 21;
+        code = code ^ (code >> 11);
+        code = code + (code << 6);
+        code = code ^ (code >> 22);
+		
+        return code;
+    }
 };
 
 
@@ -1285,7 +1354,7 @@ public:
 		_kmerModel = new KmerModel(_minimizerSize);
 		_seed = 42;
 		_hash_otpt = new u_int64_t[2];
-		MinimizerType maxHashValue = -1;
+		u_int64_t maxHashValue = -1;
 		_minimizerBound = minimizerDensity * maxHashValue;
 
 		//u_int32_t maxHashValue_int32 = -1;
@@ -1347,8 +1416,10 @@ public:
 
 			u_int64_t kmerValue = kmers[pos];
 			//MinimizerType minimizer = revhash(kmerValue);
-			MurmurHash3_x64_128 ((const char*)&kmerValue, sizeof(kmerValue), _seed, _hash_otpt);
-			MinimizerType minimizer = _hash_otpt[0];
+			//MurmurHash3_x64_128 ((const char*)&kmerValue, sizeof(kmerValue), _seed, _hash_otpt);
+			//MinimizerType minimizer = _hash_otpt[0];
+			u_int64_t kmerHash = MurmurHash3_x64_128 ((const char*)&kmerValue, sizeof(kmerValue), 42);
+			//u_int64_t kmerHash = XXH3_64bits ((const char*)&kmerValue, sizeof(kmerValue));
 
 			//u_int64_t kmerValue = kmers[pos];
 			//MinimizerType hash = 0;
@@ -1360,12 +1431,14 @@ public:
 
 			//if(minimizerCounts[minimizer] > 1000) cout << minimizer << endl;
 			//double kmerHashed_norm = ((double) minimizer) / maxHashValue;
-			if(minimizer < _minimizerBound){//_minimizerDensity){
+			if(kmerHash < _minimizerBound){//_minimizerDensity){
 			//if(minimizer_32bit < _minimizerBound_int32){//_minimizerDensity){
 
-				if(_isRepetitiveMinimizers.size() > 0 && _isRepetitiveMinimizers.find(minimizer) != _isRepetitiveMinimizers.end()) continue;
+				if(_isRepetitiveMinimizers.size() > 0 && _isRepetitiveMinimizers.find(kmerValue) != _isRepetitiveMinimizers.end()) continue;
 
-				minimizers.push_back(minimizer);
+				//u_int32_t kmerValue32 = kmerValue;
+				//if(kmerValue32 != kmerValue) cout << "derp" << endl;
+				minimizers.push_back(kmerValue);
 				minimizersPos.push_back(pos);
 				minimizersDirection.push_back(kmerDirections[pos]);
 
@@ -1378,6 +1451,54 @@ public:
 			}
 			
 			//pos += 1;
+		}
+
+	}
+
+
+	void parseSnpmers(const string& seq, const vector<u_int64_t>& rlePositions, const string& quals, vector<SnpmerType>& snpmers, vector<u_int32_t>& minimizersPos, vector<u_int8_t>& minimizersDirection, const auto& isSnpmer){
+
+		int snpmerPositionMiddle = (_minimizerSize-1)/2;
+
+		snpmers.clear();
+		minimizersPos.clear();
+		minimizersDirection.clear();
+
+
+		vector<SnpmerType> kmers;
+		vector<u_int8_t> kmerDirections;
+		_kmerModel->iterate(seq.c_str(), seq.size(), kmers, kmerDirections);
+
+		if(kmers.size() == 0) return;
+
+		//for(u_int64_t pos=0; pos<kmers.size(); pos++){
+		for(u_int64_t pos=_trimBps; pos<kmers.size()-_trimBps; pos++){
+
+			const SnpmerType kmer = kmers[pos];
+
+			u_int32_t rlePos = rlePositions[pos+snpmerPositionMiddle];
+
+			//pos + snpmerPositionMiddle
+			if(quals[rlePos]-33 < 23) continue;
+
+			//u_int32_t minQuality = -1;
+			//for(size_t j=pos; j<pos+_minimizerSize; j++){
+			//	if(quals[j] < minQuality){
+			//		minQuality = quals[j];
+			//	}
+			//}
+			
+			//if(minQuality - 33 < 10) continue;
+
+
+			//if(isSnpmer.size() > 0 && isSnpmer.find(kmer) != isSnpmer.end()){
+			//if(isSnpmer->contains(kmer)){
+			if(isSnpmer.find(kmer) != isSnpmer.end()){
+				snpmers.push_back(kmer);
+				minimizersPos.push_back(pos);
+				minimizersDirection.push_back(kmerDirections[pos]);
+
+			}
 		}
 
 	}
@@ -1836,96 +1957,6 @@ public:
 
 
 
-
-
-class MinimizerParser128{
-
-public:
-
-	u_int16_t _minimizerSize;
-	KmerModel128* _kmerModel;
-	u_int32_t _seed;
-	u_int128_t _hash_otpt;
-	double _minimizerBound;
-
-	MinimizerParser128(u_int16_t minimizerSize, double minimizerDensity){
-		_minimizerSize = minimizerSize;
-		_kmerModel = new KmerModel128(_minimizerSize);
-		_seed = 42;
-		//_hash_otpt = new u_int64_t[2];
-		u_int128_t maxHashValue = -1;
-		_minimizerBound = minimizerDensity * maxHashValue;
-	}
-
-	~MinimizerParser128(){
-		//delete[] _hash_otpt;
-	}
-
-	void parse(const string& seq, vector<u_int128_t>& minimizers, vector<u_int64_t>& minimizersPos){
-
-		minimizers.clear();
-		minimizersPos.clear();
-
-		//0 0
-		//100000 3278692
-		//200000 6550207
-		//300000 9827077
-
-		vector<u_int128_t> kmers;
-		_kmerModel->iterate(seq.c_str(), seq.size(), kmers);
-
-		if(kmers.size() == 0) return;
-
-		for(u_int64_t pos=1; pos<kmers.size()-1; pos++){
-
-			//cout << _kmerModel->toString(kmers[pos]) << endl;
-			//cout << itKmer->value().getVal() << endl;
-			//cout << itKmer->value() << endl;
-			//cout << pos << " " << (rleSequence.size()-_minimizerSize) << endl;
-
-			/*
-			if(pos == 0){
-				//cout << "lala1" << endl;
-				//pos += 1;
-				continue;
-			}
-			else if(pos == kmers.size()-1; //seq.size()-_minimizerSize){
-				//cout << "lala2" << endl;
-				continue;
-			}*/
-
-			//if(!itKmer->value().isValid()) continue;
-			//kmer_type kmerMin = min(itKmer->value(), revcomp(itKmer->value(), _kmerSize));
-			//if(lala < 100 ) cout << model.toString(itKmer->value()) << endl;
-			//lala += 1;
-			u_int128_t kmerValue = kmers[pos];
-			MurmurHash3_x64_128 ((const char*)&kmerValue, sizeof(kmerValue), _seed, &_hash_otpt);
-			u_int128_t minimizer = _hash_otpt;
-
-
-
-			//if(minimizerCounts[minimizer] > 1000) cout << minimizer << endl;
-			//double kmerHashed_norm = ((double) minimizer) / maxHashValue;
-			if(minimizer < _minimizerBound){//_minimizerDensity){
-
-
-				minimizers.push_back(minimizer);
-				minimizersPos.push_back(pos);
-
-				
-				//minimizerCounts[minimizer] += 1;
-				//nbMinimizers += 1;
-				//"reprise: systeme de functor pour les reads et kmers?"
-				
-
-			}
-			
-			//pos += 1;
-		}
-
-	}
-
-};
 
 
 #endif

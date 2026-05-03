@@ -7,827 +7,1320 @@
 
 
 class ReadMapper{
-    
-public:
+
+	public:
+
+	string _inputDir;
+	string _alignmentFilename;
+	size_t _totalNbReads;
+	u_int64_t _maxChainingBand;
+	u_int64_t _usedCoverageForCorrection;
+	u_int64_t _nbMinimizersPerChunk;
+	int _nbCores;
+
+	size_t _kminmerSize;
+	ofstream _alignmentFile;
+	u_int64_t _nbReads;
+	u_int64_t _alignmentCheckSum;
+	int _nbPartitions;
+	vector<BGZF*> _partitionFiles;
+	string _partitionDir;
+
+
+	struct MinimizerPosition2{
+		MinimizerPairType _minimizerPair;
+		ReadType _readIndex;
+		u_int32_t _position;
+		u_int32_t _positionIndex;
+		bool _isReversed;
+
+		friend bool operator<(const MinimizerPosition2 &a, const MinimizerPosition2 &b){
+			return a._minimizerPair < b._minimizerPair;
+		}
+	};
+
+	vector<MinimizerPosition2> _allMinimizerPositions;
+	ankerl::unordered_dense::map<MinimizerPairType, pair<u_int64_t, u_int64_t>> _minimizerLookupTable;
+	ofstream _debugFile;
+	u_int64_t _nbReadsProcessed;
+	u_int64_t _nbReadsInChunk;
+	//phmap::flat_hash_map<MinimizerPairType, pair<u_int64_t, u_int64_t>> _minimizerLookupTable;
+
+	struct Anchor2{
+
+		ReadType _readIndex;
+		int64_t _referencePosition;
+		u_int32_t _referencePositionIndex;
+		int64_t _queryPosition;
+		u_int32_t _queryPositionIndex;
+		bool _isReversed;
+		//int32_t _referencePositionIndex;
+		//int32_t _queryPositionIndex;
+
+		Anchor2(const ReadType readIndex, const int64_t referencePosition, const int64_t referencePositionIndex, const int64_t queryPosition, const u_int32_t queryPositionIndex, const bool isReversed){
+			_readIndex = readIndex;
+			_referencePosition = referencePosition;
+			_referencePositionIndex = referencePositionIndex;
+			_queryPosition = queryPosition;
+			_queryPositionIndex = queryPositionIndex;
+			_isReversed = isReversed;
+			//_referencePositionIndex = referencePositionIndex;
+			//_queryPositionIndex = queryPositionIndex;
+		}
+	};
 
 	struct AlignmentScore{
 		ReadType _queryReadIndex;
-		float _score;
-		float _identity;
+		int32_t _score;
+		//u_int32_t queryStart;
+		//u_int32_t queryEnd;
+		//bool _isQueryReversed;
 	};
 
-	struct MinimizerPairPosition{
+	struct AlignmentScoreMatches{
+		ReadType _queryReadIndex;
+		//int32_t _score;
+		u_int32_t _nbMatches;
+		vector<unsigned char> _compressedMatchPositions;
+		//u_int32_t queryStart;
+		//u_int32_t queryEnd;
+		//bool _isQueryReversed;
+	};
+
+	struct AlignmentScoreComparator {
+		bool operator()(AlignmentScore const& a, AlignmentScore const& b){
+			if(a._score == b._score){
+				return a._queryReadIndex < b._queryReadIndex;
+			}
+			return a._score > b._score;
+		}
+	};
+
+	typedef priority_queue<AlignmentScore, vector<AlignmentScore> , AlignmentScoreComparator> AlignmentScoreQueue;
+
+
+	struct Chain2{
+		float _chainingScore;
+		//vector<size_t> _anchorInterval;
+		vector<u_int32_t> _queryAnchorPositions;
+		vector<u_int32_t> _referenceAnchorPositions;
+		int64_t _nbMatches;
+		int64_t _nbDifferencesQuery;
+		int64_t _nbDifferencesReference;
+		int64_t _queryStart;
+		int64_t _queryEnd;
+		int64_t _referenceStart;
+		int64_t _referenceEnd;
+		bool _isQueryReversed;
+	};
+
+	struct AlignmentResult{
 		ReadType _readIndex;
-		u_int16_t _positionIndex;
+		float _score;
+		Chain2 _chain;
 	};
 
-	struct MinimizerPosition{
-		int32_t _position;
-		int32_t _positionIndex;
-		bool _isReversed;
+	struct QueryAlignmentResult{
+		ReadType _queryReadIndex;
+		u_int32_t _start;
+		u_int32_t _end;
+		float _score;
 	};
 
-	typedef phmap::parallel_flat_hash_map<KmerVec, vector<MinimizerPairPosition>, phmap::priv::hash_default_hash<KmerVec>, phmap::priv::hash_default_eq<KmerVec>, std::allocator<std::pair<KmerVec, vector<MinimizerPairPosition>>>, 4, std::mutex> KminmerPosMap;
-	typedef unordered_map<MinimizerType, vector<MinimizerPosition>> ReadMinimizerPositionMap;
-
-	class ReadWorker{
-
-
-		public:
-
-
-		MinimizerRead _referenceRead;
-		//vector<ReadType> _mappedReads;
-		unordered_map<MinimizerType, vector<AlignmentScore>> _minimizer_to_alignmentResultsNew;
-
-
-		ReadWorker(){
-		}
-
-		ReadWorker(const MinimizerRead& referenceRead){
-			_referenceRead = referenceRead;
-			for(const MinimizerType& minimizer : referenceRead._minimizers){
-				_minimizer_to_alignmentResultsNew[minimizer] = {};
-			}
-		}
-
-		void addMappedRead(const MinimizerRead& queryRead, const AlignmentResult2& alignment){
-			#pragma omp critical(ReadWorkerAddMappedRead)
-			{
-
-
-				float score = alignment._nbMatches - alignment._nbMissmatches - alignment._nbInsertions - alignment._nbDeletions;
-				
-				for(MinimizerType minimizer : queryRead._minimizers){
-					if(_minimizer_to_alignmentResultsNew.find(minimizer) == _minimizer_to_alignmentResultsNew.end()) continue;
-
-					_minimizer_to_alignmentResultsNew[minimizer].push_back({alignment._queryReadIndex, score, alignment._identity});
-				}
-					
-
-			}
-		}
-
-		
+	struct AlignmentMatches{
+		ReadType _readIndex;
+		u_int16_t _nbMatches;
+		vector<unsigned char> _compressedMatchPositions;
 	};
 
-	unordered_map<ReadType, ReadWorker> _readWorkers;
 
+	//ankerl::unordered_dense::map<ReadType, ReferenceRead> _referenceReads;
 
-	string _readFilename;
-	size_t _minimizerSize;
-	size_t _kminmerSize;
-	int _nbCores;
-	float _minimizerDensity_assembly;
-	float _minimizerDensity_correction;
-
-	KminmerPosMap _kminmer_to_readIndex;
-	u_int64_t _alignmentCheckSum;
-	string _alignmentFilename;
-	ofstream _alignmentFile;
-	u_int64_t _maxChainingBand_lowDensity;
-
-	ReadMapper(const string& readFilename, const string& alignmentFilename, size_t minimizerSize, float minimizerDensity_assembly, float minimizerDensity_correction, int nbCores){
-
-		_readFilename = readFilename;
+	ReadMapper(const string& inputDir, const string& alignmentFilename, const size_t totalNbReads, const u_int64_t maxChainingBand, const u_int64_t usedCoverageForCorrection, const u_int64_t nbMinimizersPerChunk, const u_int64_t nbBases, const int nbCores){
+		_inputDir = inputDir;
 		_alignmentFilename = alignmentFilename;
-		_minimizerSize = minimizerSize;
-		_kminmerSize = 2;
-		_minimizerDensity_assembly = minimizerDensity_assembly;
-		_minimizerDensity_correction = minimizerDensity_correction;
+		_totalNbReads = totalNbReads;
+		_maxChainingBand = maxChainingBand;
+		_usedCoverageForCorrection = usedCoverageForCorrection;
+		_nbMinimizersPerChunk = nbMinimizersPerChunk;
 		_nbCores = nbCores;
 
-		_nextAlignmentReadIndexWriter = 0;
-		_alignmentCheckSum = 0;
-		_maxChainingBand_lowDensity = (u_int64_t) 2500 * _minimizerDensity_assembly;
+		_nbPartitions = nbBases / 20000000000ull;
+		_nbPartitions = max(_nbPartitions, _nbCores);
+		_nbPartitions = max(_nbPartitions, 1) ;//, 200);
+		_nbPartitions = min(_nbPartitions, 5000);
+
+		Logger::get().debug() << "\tNb alignment partitions: " << _nbPartitions << "\n";
+
+		_partitionDir = inputDir + "/alignments_tmp/";
+		if(!fs::exists(_partitionDir)){
+			fs::create_directories(_partitionDir); 
+		}
 	}
+	
 
 	void execute(){
 
+		//_debugFile = ofstream(_inputDir + "/lala_2.txt");
 
 
-		cout << "Indexing genomic kminmers" << endl;
-		indexGenomicKminmers();
+		auto start = high_resolution_clock::now();
 
-		cout << "lol" << endl;
+
+
+		_nbReads = 0;
+		_kminmerSize = 2;
+		_alignmentCheckSum = 0;
+		//_firstReadIndexInChunk = -1;
+		_nbReadsInChunk = 0;
+		_nbReadsProcessed = 0;
+
+
+		_partitionFiles.resize(_nbPartitions);
+
+		for(size_t i=0; i<_partitionFiles.size(); i++){
+			_partitionFiles[i] = bgzf_open(getPartitionFilename(i).c_str(), "w1");  
+		}
+
+		//u_int64_t maxReads = 1000;
+		//u_int64_t maxBps = 1000000000;
+		//u_int64_t maxBps = 3000000000;
+		//u_int64_t maxNbMinimizers = 15000000; //maxBps / (1/_minimizerDensity);
+		//cout << "Max nb minimizers: " << maxNbMinimizers << endl;
+
+		KminmerParserParallel parser(_inputDir + "/read_data_init.txt", 0, _kminmerSize, false, true, 1);
+		parser._maxChunkSize = _nbMinimizersPerChunk;
+		parser.parseChunk(ReadFunctor(*this), ChunkFunctor(*this));
+
+		//cout << "Nb contigs: " << _nbContigs << endl;
+
+		for(BGZF* outputFile : _partitionFiles){
+			bgzf_close(outputFile);
+		}
+
+
 		_alignmentFile = ofstream(_alignmentFilename);
 
-		MinimizerReadParserParallel parser(_readFilename, _kminmerSize, false, true, 5000000, _nbCores);
-		parser._densityThreshold = _minimizerDensity_assembly;
-		parser.execute(ProcessReadChunkFunctor(*this));
+		mergeAlignmentPartitions();
 
 		_alignmentFile.close();
+		_debugFile.close();
 
-		cout << "Alignment check sum: " << _alignmentCheckSum << endl;
+		//cout << "\tAlignment checksum: " << _alignmentCheckSum << endl;
+		Logger::get().debug() << "Nb reads processed: " << _nbReadsProcessed;
+		Logger::get().debug() << "Alignment checksum: " << _alignmentCheckSum;
+		Logger::get().debug() << "Done: " << duration_cast<seconds>(high_resolution_clock::now() - start).count() << "s " << (peakrss() / 1024.0 / 1024.0 / 1024.0) << " GB";
+
+		if(!DEBUG) fs::remove_all(_partitionDir);
+		
 	}
 
+	void mergeAlignmentPartitions(){
 
-	BloomCacheCoherent<u_int64_t>* _isKminmerVisited;
-	BloomCacheCoherent<u_int64_t>* _isKminmerGenomic;
+		Logger::get().debug() << "\tMerging alignment partitions";
 
-	void indexGenomicKminmers(){
-                                                               
-		_isKminmerVisited = new BloomCacheCoherent<u_int64_t>(64000000000ull);
-		_isKminmerGenomic = new BloomCacheCoherent<u_int64_t>(64000000000ull);
-
-		KminmerParserParallel parser(_readFilename, _minimizerSize, _kminmerSize, false, true, 1);
-		parser._densityThreshold = _minimizerDensity_assembly;
-		parser.parseSequences(IndexGenomicMinimizersFunctor(*this));
-
-		delete _isKminmerVisited;
+		for(size_t i=0; i<_nbPartitions; i++){
+			mergeAlignmentPartition(i);
+		}
 
 	}
 
+	void mergeAlignmentPartition(const int partition){
 
-	class IndexGenomicMinimizersFunctor {
+		Logger::get().debug() << "\t\tMerging alignment partition: " << partition;
 
-		public:
+		const string partitionFilename = getPartitionFilename(partition);
 
-		ReadMapper& _parent;
+		const string partitionFilenameDecompressed = partitionFilename + ".decomp";
+		Utils::bgzip_decompress(partitionFilename, partitionFilenameDecompressed, _nbCores);
 
-		IndexGenomicMinimizersFunctor(ReadMapper& parent) : _parent(parent){
-		}
+		ifstream partitionFile(partitionFilenameDecompressed);
 
-		IndexGenomicMinimizersFunctor(const IndexGenomicMinimizersFunctor& copy) : _parent(copy._parent){
-		}
-
-		~IndexGenomicMinimizersFunctor(){
-		}
+		
+		ankerl::unordered_dense::map<ReadType, vector<AlignmentScoreMatches>> referenceReadIndex_to_alignments;
+		//ankerl::unordered_dense::map<ReadType, vector<AlignmentScore>> referenceReadIndex_to_size;
 
 
-		void operator () (const KminmerList& kminmerList) {
+		while(true){
 
-			u_int32_t readIndex = kminmerList._readIndex;
-			if(readIndex % 100000 == 0) cout << "\t\tIndexing genomic kminmers: " << readIndex << endl;
+			ReadType referenceReadIndex;
+			//u_int32_t referenceReadSize;
+			u_int32_t nbAlignments;
+			vector<AlignmentScoreMatches> alignments;
 
-			MinimizerRead read = {kminmerList._readIndex, kminmerList._readMinimizers, kminmerList._minimizerPos, kminmerList._readQualities, kminmerList._readMinimizerDirections, kminmerList._meanReadQuality, kminmerList._readLength};
-			MinimizerRead readLowDensity = Utils::getLowDensityMinimizerRead(read, _parent._minimizerDensity_assembly);
+			partitionFile.read((char*)&referenceReadIndex, sizeof(referenceReadIndex));
 			
-			if(Utils::isReadTooShort(readLowDensity)) return;
 
-			vector<ReadKminmerComplete> kminmersInfos;
-			MDBG::getKminmers_complete(_parent._kminmerSize, kminmerList._readMinimizers, kminmerList._minimizerPos, kminmersInfos, kminmerList._readIndex, kminmerList._readQualities);
-		
+			if(partitionFile.eof()) break;
 
-			for(size_t i=0; i<kminmersInfos.size(); i++){
-
-				const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
-				const KmerVec& vec = kminmerInfo._vec;
-				u_int64_t vec_hash = vec.h();
-
-				if(!_parent._isKminmerVisited->contains(vec_hash)){
-					_parent._isKminmerVisited->insert(vec_hash);
-					continue;
-				}
-
-				_parent._isKminmerGenomic->insert(vec_hash);
-
-			}	
-
+			//partitionFile.read((char*)&referenceReadSize, sizeof(referenceReadSize));
+			partitionFile.read((char*)&nbAlignments, sizeof(nbAlignments));
 			
-		}
 
-	};
-	
+			for(size_t i=0; i<nbAlignments; i++){
 
-	class ProcessReadChunkFunctor {
+				ReadType queryReadIndex;
+				//int32_t score;
+				u_int16_t nbMatches;
+				u_int16_t compressedSize;
+				vector<unsigned char> compressedPositionMatches;
 
-		public:
+				partitionFile.read((char*)&queryReadIndex, sizeof(queryReadIndex));
+				//partitionFile.read((char*)&score, sizeof(score));
 
-		ReadMapper& _parent;
+				partitionFile.read((char*)&nbMatches, sizeof(nbMatches));
+				partitionFile.read((char*)&compressedSize, sizeof(compressedSize));
+				compressedPositionMatches.resize(compressedSize);
+				partitionFile.read((char*)&compressedPositionMatches[0], compressedPositionMatches.size());
 
-		ProcessReadChunkFunctor(ReadMapper& parent) : _parent(parent){
-		}
-
-		ProcessReadChunkFunctor(const ProcessReadChunkFunctor& copy) : _parent(copy._parent){
-		}
-
-		~ProcessReadChunkFunctor(){
-		}
-
-
-		void operator () (vector<MinimizerRead>& reads) const {
-			cout << "Loaded read chunk: " << reads.size() << endl;
-
-			_parent.processChunk(reads);
-			_parent.clearChunk();
-			//_parent._totalReadProcessed += _parent._reads.size();
-			//_parent._reads.clear();
-
-			//_parent.mapReadChunk();
-
-			//_parent._kminmer_to_readIndex.clear();
-			//_parent._refReads.clear();
-		}
-	};
-
-	void processChunk(vector<MinimizerRead>& reads){
-
-		//_queryReadIndex_to_referenceReadIndexes.clear();
-		_readWorkers.clear();
-		for(const MinimizerRead& read : reads){
-			_readWorkers[read._readIndex] = ReadWorker(read);
-		}
-
-		cout << "Read worker size: " << _readWorkers.size() << endl;
-
-		reads.clear();
-		_kminmer_to_readIndex.clear();
-
-		cout << "\tIndexing reads" << endl;
-		processWorkerParallell(IndexReadsFunctor(*this), _readWorkers);
-
-		
-
-		cout << "\tMapping reads" << endl;
-		mapReads();
-
-		cout << "\tSelecting best alignments" << endl;
-		selectBestAlignments();
-	}
-
-	void clearChunk(){
-
-		/*
-		ReadWorker& readWorker = _readWorkers[86];
-		while(!readWorker._bestReadIndexes.empty()){
-
-			const ReadWorker::ReadScore& readScore = readWorker._bestReadIndexes.top();
-			cout << readScore._readIndex << " " << readScore._score << endl;
-
-			readWorker._bestReadIndexes.pop();
-		}
-
-		getchar();
-		*/
-
-		//delete _bloomFilter;
-		_kminmer_to_readIndex.clear();
-		_readWorkers.clear();
-		//_queryReadIndex_to_referenceReadIndexes.clear();
-	}
-
-
-	ReadType _readIndex;
-	vector<MinimizerType> _minimizers;
-	vector<u_int32_t> _minimizersPos;
-	vector<u_int8_t> _qualities;
-	vector<u_int8_t> _readMinimizerDirections;
-	float _debugNbMatches;
-
-
-
-	class IndexReadsFunctor {
-
-		public:
-
-		ReadMapper& _parent;
-
-		IndexReadsFunctor(ReadMapper& parent) : _parent(parent){
-		}
-
-		IndexReadsFunctor(const IndexReadsFunctor& copy) : _parent(copy._parent){
-		}
-
-		~IndexReadsFunctor(){
-		}
-
-
-		void operator () (const ReadType referenceReadIndex, ReadWorker& readWorker) {
-
-			u_int32_t readIndex = referenceReadIndex;
-			if(readIndex % 100000 == 0) cout << "\t\tIndexing read: " << readIndex << endl;
-
-
-			vector<ReadKminmerComplete> kminmersInfos;
-			MDBG::getKminmers_complete(_parent._kminmerSize, readWorker._referenceRead._minimizers, readWorker._referenceRead._minimizersPos, kminmersInfos, readWorker._referenceRead._readIndex, readWorker._referenceRead._qualities);
-		
-
-			for(size_t i=0; i<kminmersInfos.size(); i++){
-
-				u_int16_t positionIndex = i;
-
-				const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
-				const KmerVec& vec = kminmerInfo._vec;
-				
-				if(!_parent._isKminmerGenomic->contains(vec.h())) continue;
-
-				_parent._kminmer_to_readIndex.lazy_emplace_l(vec,
-				[&readIndex, &positionIndex](KminmerPosMap::value_type& v) { // key exist
-					v.second.push_back({readIndex, positionIndex});
-					//v.second[0] += 1; //Increment kminmer count
-					//if(std::find(v.second.begin(), v.second.end(), readIndex) == v.second.end()){
-					//	v.second.push_back(readIndex);
-					//}
-				},           
-				[&vec, &readIndex, &positionIndex](const KminmerPosMap::constructor& ctor) { // key inserted
-					
-					//vector<u_int32_t> readIndexes = {2}; //inital count of this kminmer
-					vector<MinimizerPairPosition> readIndexes = {{readIndex, positionIndex}}; //inital count of this kminmer
-
-					ctor(vec, readIndexes); 
-
-				}); // construct value_type in place when key not present
+				alignments.push_back({queryReadIndex, nbMatches, compressedPositionMatches});
 			}
-		
+
+
+
+			/*
+			partitionFile.read((char*)&alignments[0], alignments.size() * sizeof(AlignmentScore));
+
+			//cout << referenceReadIndex << endl;
+			//for(const AlignmentScore& alignment : alignments){
+			//	cout << "\t" << alignment._queryReadIndex << endl;
+			//}
+			*/
+
+			if(referenceReadIndex_to_alignments.find(referenceReadIndex) == referenceReadIndex_to_alignments.end()){
+				referenceReadIndex_to_alignments[referenceReadIndex] = {};
+				//cout << "init: " << referenceReadIndex << " " << referenceReadSize << " " << referenceReadIndex_to_queue[referenceReadIndex].size() << endl;
+			}
+
+			vector<AlignmentScoreMatches>& referenceAlignments = referenceReadIndex_to_alignments[referenceReadIndex];
+
+			referenceAlignments.insert(referenceAlignments.end(), alignments.begin(), alignments.end());
+
+
+
 			
+
+        }
+
+		partitionFile.close();
+		fs::remove(partitionFilenameDecompressed);
+
+
+		vector<ReadType> referenceReadIndexes;
+		for(const auto& it : referenceReadIndex_to_alignments){
+			referenceReadIndexes.push_back(it.first);
 		}
-	};
 
+		std::sort(referenceReadIndexes.begin(), referenceReadIndexes.end());
 
+		#pragma omp parallel for num_threads(_nbCores)
+		for(size_t i=0; i<referenceReadIndexes.size(); i++){
 
-	template<typename Functor>
-	void processReadParallell(const Functor& functor, const vector<MinimizerRead>& reads){
+			const ReadType& referenceReadIndex = referenceReadIndexes[i];
+			const vector<AlignmentScoreMatches>& alignments = referenceReadIndex_to_alignments[referenceReadIndex];
 
-		u_int64_t i = 0;
+			//cout << referenceReadIndex << " " << alignments.size() << endl;
+			vector<AlignmentScoreQueue> alignmentQueues;
 
-		#pragma omp parallel num_threads(_nbCores)
-		{
+			for(const AlignmentScoreMatches& alignment : alignments){
+				mergeAlignmentScore(referenceReadIndex, alignment, alignmentQueues);
+			}
 
-			Functor functorSub(functor);
+			ankerl::unordered_dense::map<ReadType, AlignmentScore> selectedAlignments;
+			//unordered_set<ReadType> selectedQueryReadIndex;
+			vector<AlignmentResult2> bestAlignmentsLowDensity;
+			
+			for(AlignmentScoreQueue& queue : alignmentQueues){
 
-			MinimizerRead read;
-			bool isDone = false;
-
-
-			while(true){
-
-				
-				#pragma omp critical(indexRefReads)
-				{
-
-					if(i >= reads.size()){
-						isDone = true;
-					}
-					else{
-						read = reads[i];
-						i += 1;
-					}
+				int i =0;
+				while(queue.size() > 0){
+					const AlignmentScore& alignmentScore = queue.top();
+					selectedAlignments[alignmentScore._queryReadIndex] = alignmentScore;
+					//selectedQueryReadIndex.insert(alignmentScore._queryReadIndex);
+					queue.pop();
+					i += 1;
 				}
-
-				if(isDone) break;
-
-				functorSub(read);
 
 			}
 
-			
-		}
+			vector<AlignmentScore> selectedAlignmentsVec;
 
-
-	}
-
-	template<typename Functor>
-	void processWorkerParallell(const Functor& functor, unordered_map<ReadType, ReadWorker>& readWorkers){
-
-		vector<ReadType> readIndexes;
-		for(const auto& it : readWorkers){
-			readIndexes.push_back(it.first);
-		}
-		std::sort(readIndexes.begin(), readIndexes.end());
-
-		u_int64_t i = 0;
-
-		#pragma omp parallel num_threads(_nbCores)
-		{
-
-			Functor functorSub(functor);
-
-			ReadType readIndex;
-			//ReadWorker& read;
-			bool isDone = false;
-
-
-			while(true){
-
-				
-				#pragma omp critical(processWorkerParallell)
-				{
-
-					if(i >= readWorkers.size()){
-						isDone = true;
-					}
-					else{
-						readIndex = readIndexes[i];
-						i += 1;
-					}
-				}
-
-				if(isDone) break;
-
-				functorSub(readIndex, readWorkers[readIndex]);
-
+			for(const auto& it : selectedAlignments){
+				selectedAlignmentsVec.push_back(it.second);
 			}
 
-			
+
+			std::sort(selectedAlignmentsVec.begin(), selectedAlignmentsVec.end(), [](const AlignmentScore& a, const AlignmentScore& b){
+				return a._queryReadIndex < b._queryReadIndex;
+			});
+
+
+			writeAlignments(referenceReadIndex, selectedAlignmentsVec);
 		}
+
+
+		Logger::get().debug() << "\t\tDone: " << (peakrss() / 1024.0 / 1024.0 / 1024.0) << " GB";
 	}
 
+	void mergeAlignmentScore(const ReadType& referenceReadIndex, const AlignmentScoreMatches& currentAlignmentScore, vector<AlignmentScoreQueue>& alignmentQueues){
+		
 
-	bool _print_debug;
+		vector<u_int32_t> queryMatchPositions(currentAlignmentScore._nbMatches, 0);
+		p4nd1dec32((unsigned char*) currentAlignmentScore._compressedMatchPositions.data(), queryMatchPositions.size(), queryMatchPositions.data());
 
-	void mapReads(){
+		
 
-		_print_debug = false;
 
-		int nbCores = _nbCores;
+		//cout << "score: " << currentAlignmentScore._score << endl;
 
-		//if(_print_debug){
-		//	nbCores = 1; cout << "align 1 cores" << endl;
+		int32_t score = 0;
+		for(size_t i=0; i<((long)queryMatchPositions.size())-1; i++){
+			score += 1;
+			int32_t nbErrors = queryMatchPositions[i+1] - queryMatchPositions[i] - 1;
+			score -= nbErrors;
+		}
+		score += 1;
+
+		const AlignmentScore currentAlignmentScore2 = {currentAlignmentScore._queryReadIndex, score};
+		//cout << "\tnew score: " << score << endl;
+
+		//if(score != currentAlignmentScore._score) getchar();
+
+		//if(referenceReadIndex == 0){
+		//	cout << queryRead._readIndex << "\t" << chain._nbMatches << endl;
 		//}
 
-		KminmerParserParallel parser(_readFilename, _minimizerSize, _kminmerSize, false, true, nbCores);
-		parser._densityThreshold = _minimizerDensity_assembly;
-		parser.parseSequences(MapReadsFunctor(*this));
+		//float score = chain._nbMatches - chain._nbDifferencesQuery;// - chain._nbDifferencesReference;
+		//const AlignmentScore currentAlignmentScore = {referenceReadIndex, score, chain._queryStart, chain._queryEnd, chain._isQueryReversed};
+
+		//if(queryRead._readIndex == 79 && referenceReadIndex == 92){
+		//	cout << "lala: " << chain._nbMatches << " " << chain._nbDifferencesQuery << " " << score << endl;
+		//}
+
+		//if(referenceReadIndex == 0 && queryRead._readIndex == 157){
+		//	cout << "lala: " << chain._nbMatches << " " << chain._nbDifferencesQuery << endl;
+		//}
+
+
+		//cout << chain._nbMatches << " " << chain._nbDifferencesQuery << endl;
+		//cout << queryRead._readIndex << "\t" << referenceReadIndex << "\t" << chain._nbMatches << "\t" << (int32_t)score << endl;
+
+
+		for(const u_int32_t& positionIndex : queryMatchPositions){
+		
+			while(positionIndex >= alignmentQueues.size()){
+				alignmentQueues.push_back(AlignmentScoreQueue());
+			}
+			//cout << "\t" << i << "\t" << alignmentQueues.size() << endl;
+			//const u_int32_t referencePosition = it.first;
+			//if(referencePosition == -1) continue;
+			//for(MinimizerType minimizer : queryRead._minimizers){
+			//if(minimizer_to_alignmentScoreQueue.find(minimizer) == minimizer_to_alignmentScoreQueue.end()) continue;
+
+			AlignmentScoreQueue& queue = alignmentQueues[positionIndex];
+
+			if(queue.size() < _usedCoverageForCorrection){
+				//if(referenceReadIndex == 5) cout << "Push:\ta\t" << i << "\t" << currentAlignmentScore._queryReadIndex << "\t" << currentAlignmentScore._score << endl;
+				queue.push(currentAlignmentScore2);
+				continue;
+			}
+
+			const AlignmentScore& worseAlignmentScore = queue.top();
+
+			if(currentAlignmentScore2._score < worseAlignmentScore._score) continue;
+
+			if(currentAlignmentScore2._score == worseAlignmentScore._score){
+				if(currentAlignmentScore2._queryReadIndex > worseAlignmentScore._queryReadIndex) continue;
+			}
+			
+			queue.pop();
+			queue.push(currentAlignmentScore2);
+			//if(referenceReadIndex == 5) cout << "Pop:\tb\t" << i << "\t" << worseAlignmentScore._queryReadIndex << endl;
+			//if(referenceReadIndex == 5) cout << "Push:\tb\t" << i << "\t" << currentAlignmentScore._queryReadIndex << "\t" << currentAlignmentScore._score << endl;
+		}
+		
+
 	}
 
 
-	class MapReadsFunctor {
+	string getPartitionFilename(int partition){
+		return _partitionDir + "/part_" + to_string(partition) + ".bin.gz";
+	}
+
+	class ReadFunctor {
 
 		public:
 
 		ReadMapper& _parent;
-		MinimizerAligner* _minimizerAligner;
-		MinimizerChainer* _minimizerChainer;
-		
-		
-		MapReadsFunctor(ReadMapper& parent) : _parent(parent){
-			_minimizerAligner = nullptr;
-			_minimizerChainer = nullptr;
+
+		ReadFunctor(ReadMapper& parent) : _parent(parent){
 		}
 
-		MapReadsFunctor(const MapReadsFunctor& copy) : _parent(copy._parent){
-			_minimizerAligner = new MinimizerAligner(3, -1, -1, -1);
-			_minimizerChainer = new MinimizerChainer(_parent._minimizerSize);
+		ReadFunctor(const ReadFunctor& copy) : _parent(copy._parent){
 		}
 
-		~MapReadsFunctor(){
-			if(_minimizerAligner != nullptr) delete _minimizerAligner;
-			if(_minimizerChainer != nullptr) delete _minimizerChainer;
+		~ReadFunctor(){
+		}
+
+		void operator () (const KminmerList& kminmerList) {
+
+			ReadType readIndex = kminmerList._readIndex;
+			if(readIndex % 100000 == 0) Logger::get().debug() << "\tLoad minimizers: " << readIndex;
+
+			//bool isTooShort = Utils::isReadTooShort(kminmerList._readMinimizers.size());
+
+			//cout << readIndex << " " << kminmerList._readMinimizers.size() << " " << kminmerList._kminmersInfo.size() << " " << _parent._allMinimizerPositions.size() << endl;
+
+			//if(!isTooShort){
+				for(u_int32_t i=0; i<kminmerList._kminmersInfo.size(); i++){
+				
+					
+					//cout << "------- " << i << endl;
+
+					//_logFile << readIndex << " " << i << endl;
+					const ReadKminmerComplete& kminmerInfo = kminmerList._kminmersInfo[i];
+
+					const KmerVec& vec = kminmerInfo._vec;
+
+					//for(u_int32_t i=0; i<kminmerList._readMinimizers.size(); i++){
+					
+					//const MinimizerType minimizer = kminmerList._readMinimizers[i];
+					//u_int32_t minimizerPosition = kminmerList._minimizerPos[i];
+					//bool isReversed = kminmerList._readMinimizerDirections[i];
+
+					const MinimizerPairType minimizerPair = vec.packPair();
+
+					//const MinimizerPairType minimizerPair = vec.hash128();
+					bool isReversed = kminmerInfo._isReversed;
+					u_int32_t minimizerPosition = (kminmerList._minimizerPos[i] + kminmerList._minimizerPos[i+1]) / 2;
+
+					_parent._allMinimizerPositions.push_back({minimizerPair, readIndex, minimizerPosition, i, isReversed});
+					//_parent._allMinimizerPositions.push_back({minimizerPair, readIndex, minimizerPosition, isReversed});
+				}
+			//}
+
+			_parent._nbReadsProcessed += 1;
+			_parent._nbReadsInChunk += 1;
+
+		}
+	};
+
+	class ChunkFunctor {
+
+		public:
+
+		ReadMapper& _parent;
+
+		ChunkFunctor(ReadMapper& parent) : _parent(parent){
+		}
+
+		ChunkFunctor(const ChunkFunctor& copy) : _parent(copy._parent){
+		}
+
+		~ChunkFunctor(){
+		}
+
+		void operator () () const {
+
+
+			auto start = high_resolution_clock::now();
+
+			Logger::get().debug() << "\tProcessing chunk: " << _parent._nbReadsInChunk << " reads " << (peakrss() / 1024.0 / 1024.0 / 1024.0) << " GB";
+			//Logger::get().debug() << "\tDone: " << (peakrss() / 1024.0 / 1024.0 / 1024.0);
+
+			_parent.processChunk();
+
+
+			//Logger::get().debug() << "\tAlignment checksum: " << _parent._alignmentCheckSum;
+			Logger::get().debug() << "\tDone: " << duration_cast<seconds>(high_resolution_clock::now() - start).count() << "s " << (peakrss() / 1024.0 / 1024.0 / 1024.0) << " GB\n";
+			//cout << "\tDone: " << duration_cast<seconds>(high_resolution_clock::now() - start).count() << "s " << (peakrss() / 1024.0 / 1024.0 / 1024.0) << endl;
+			//phmap::flat_hash_map<MinimizerPairType, pair<u_int64_t, u_int64_t>>().swap(_parent._minimizerLookupTable);
+			ankerl::unordered_dense::map<MinimizerPairType, pair<u_int64_t, u_int64_t>>().swap(_parent._minimizerLookupTable);
+			vector<MinimizerPosition2>().swap(_parent._allMinimizerPositions);
+			//ankerl::unordered_dense::map<ReadType, ReferenceRead>().swap(_parent._referenceReads);
+			_parent._nbReadsInChunk = 0;
+
+		}
+
+	};
+
+
+	//vector<KminmerList> _contigs;
+
+	void processChunk(){
+
+		//Logger::get().debug() << "Load minimizers";
+		//loadReadMinimizers();
+		//Logger::get().debug() << "\tDone: " << (peakrss() / 1024.0 / 1024.0 / 1024.0);
+		
+		Logger::get().debug() << "\t\tNb minimizers: " << _allMinimizerPositions.size();
+
+		Logger::get().debug() << "\t\tSorting minimizers";
+		Commons::sortParallel(_allMinimizerPositions, _allMinimizerPositions.size(), _nbCores);
+		//sortReadMinimizers();
+		Logger::get().debug() << "\t\tDone: " << (peakrss() / 1024.0 / 1024.0 / 1024.0) << " GB";
+		
+		Logger::get().debug() << "\t\tCreating minimizer lookup table";
+		createLookupTable();
+		Logger::get().debug() << "\t\tDone: " << (peakrss() / 1024.0 / 1024.0 / 1024.0) << " GB";
+
+		//_file_readData = ofstream(_inputDir + "/read_data_corrected.txt");
+
+		Logger::get().debug() << "\t\tPerform low density alignments";
+		alignReadsLowDensity();
+		
+	}
+
+
+	void createLookupTable(){
+		u_int64_t index = -1;
+		MinimizerPairType minimizer = -1;
+		MinimizerPairType lastInsertedMinimizer = -1;
+
+		for(size_t i=0; i<_allMinimizerPositions.size(); i++){
+
+			if(minimizer != _allMinimizerPositions[i]._minimizerPair){
+
+				if(index != -1){
+
+					u_int64_t startIndex = index;
+					u_int64_t endIndex = i-1;
+
+					//if(startIndex != endIndex){
+						_minimizerLookupTable[minimizer] = {startIndex, endIndex};
+					//}
+
+					lastInsertedMinimizer = minimizer;
+					//cout << "Found chunk: " << startIndex << " -> " << endIndex << endl;
+				}
+
+				minimizer = _allMinimizerPositions[i]._minimizerPair;
+				index = i;
+			}
+		}
+
+		if(lastInsertedMinimizer != minimizer){
+			u_int64_t startIndex = index;
+			u_int64_t endIndex = _allMinimizerPositions.size()-1;
+
+			//if(startIndex != endIndex){
+				_minimizerLookupTable[minimizer] = {startIndex, endIndex};
+			//}
+			//cout << "Found chunk last: " << startIndex << " -> " << endIndex << endl;
+		}
+
+		/*
+		u_int64_t nbPositions = 0;
+
+		for(const auto& it : _minimizerLookupTable){
+			for(size_t i=it.second.first; i <= it.second.second; i++){
+				nbPositions += 1;
+			}
+		}
+
+		cout << "Lookup table check: " << _allMinimizerPositions.size() << " " << nbPositions << endl;
+		if(nbPositions != _allMinimizerPositions.size()){
+			cout << "Lookup table issue" << endl;
+			getchar();
+		}
+		*/
+	}
+
+
+
+
+	void alignReadsLowDensity(){
+
+
+		//cout << "single core here" << endl;
+		KminmerParserParallel parser(_inputDir + "/read_data_init.txt", 0, _kminmerSize, false, true, _nbCores);
+		//parser._densityThreshold = _minimizerDensity_assembly;
+		parser.parse(AlignReadsLowDensityFunctor(*this));
+
+	}
+
+
+	class AlignReadsLowDensityFunctor {
+
+		public:
+
+		ReadMapper& _parent;
+		//MinimizerAligner* _minimizerAligner;
+		//MinimizerChainer* _minimizerChainer;
+		
+		
+		AlignReadsLowDensityFunctor(ReadMapper& parent) : _parent(parent){
+			//_minimizerAligner = nullptr;
+			//_minimizerChainer = nullptr;
+		}
+
+		AlignReadsLowDensityFunctor(const AlignReadsLowDensityFunctor& copy) : _parent(copy._parent){
+			//_minimizerAligner = new MinimizerAligner(3, -1, -1, -1);
+			//_minimizerChainer = new MinimizerChainer(_parent._minimizerSize);
+		}
+
+		~AlignReadsLowDensityFunctor(){
+			//if(_minimizerAligner != nullptr) delete _minimizerAligner;
+			//if(_minimizerChainer != nullptr) delete _minimizerChainer;
 		}
 
 
 		void operator () (const KminmerList& kminmerList) {
 
-			if(kminmerList._readIndex % 10000 == 0) cout << "Aligning reads (low density): " << kminmerList._readIndex << endl;
+			//cout << "Align: " << kminmerList._readIndex << endl;
 
-			MinimizerRead queryRead = {kminmerList._readIndex, kminmerList._readMinimizers, kminmerList._minimizerPos, kminmerList._readQualities, kminmerList._readMinimizerDirections, kminmerList._meanReadQuality, kminmerList._readLength};
-			MinimizerRead queryReadLowDensity = Utils::getLowDensityMinimizerRead(queryRead, _parent._minimizerDensity_assembly);
+
+			if(kminmerList._readIndex % 100000 == 0)  Logger::get().debug() << "\t\tAligning reads: " << Utils::getProgress(kminmerList._readIndex, _parent._totalNbReads);
+
+			MinimizerRead read = {kminmerList._readIndex, kminmerList._readMinimizers, kminmerList._minimizerPos, kminmerList._readQualities, kminmerList._readMinimizerDirections, kminmerList._readLength};
+			//MinimizerRead readLowDensity = Utils::getLowDensityMinimizerRead(referenceRead, _parent._minimizerDensity_assembly);
 			
 			//if(readLowDensity._minimizers.size() < _parent._minReadLength){
-			if(Utils::isReadTooShort(queryReadLowDensity)){
+			if(Utils::isReadTooShort(read)){
 				//_parent.writeRead(referenceRead._readIndex, referenceRead._minimizers, referenceRead._qualities);
-				//_parent.writeAlignments(referenceRead._readIndex, {});
+				//_parent.writeAlignments(read._readIndex, {});
 				return;
 			}
 
-			ReadMinimizerPositionMap queryReadMinimizerPositionMap;
-			//unordered_set<MinimizerType> minimizerSet;
-			//unordered_map<MinimizerType, u_int8_t> readMinimizer_to_direction;
 
+
+
+
+			ReadType readIndex = read._readIndex;
+
+			//if(readIndex % 10000 == 0) Logger::get().debug() << readIndex;
+			//cout << readIndex << endl;
+
+			vector<MinimizerType> readMinimizers = read._minimizers;
+
+			vector<Anchor2> anchors;
+
+			for(u_int32_t i=0; i<kminmerList._kminmersInfo.size(); i++){
 			
+				
+				//cout << "------- " << i << endl;
 
-			for(u_int32_t i=0; i<queryRead._minimizers.size(); i++){
+				//_logFile << readIndex << " " << i << endl;
+				const ReadKminmerComplete& kminmerInfo = kminmerList._kminmersInfo[i];
 
-				MinimizerType minimizer = queryRead._minimizers[i];
-				u_int32_t position = queryRead._minimizersPos[i];
-				bool isReversed = queryRead._readMinimizerDirections[i];
-
-				MinimizerPosition minmizerPosition = {position, i, isReversed};
-				queryReadMinimizerPositionMap[minimizer].push_back(minmizerPosition);
-			}
-
-
-			vector<ReadKminmerComplete> kminmersInfos;
-			MDBG::getKminmers_complete(_parent._kminmerSize, queryRead._minimizers, queryRead._minimizersPos, kminmersInfos, queryRead._readIndex, queryRead._qualities);
-
-			
-			unordered_set<KmerVec> uniqueReferenceKminmers;
-			for(size_t i=0; i<kminmersInfos.size(); i++){
-
-				const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
 				const KmerVec& vec = kminmerInfo._vec;
-				uniqueReferenceKminmers.insert(vec);
-			}
-			
 
-			//vector<AlignmentResult2> alignments;
+				//for(u_int32_t i=0; i<kminmerList._readMinimizers.size(); i++){
+				
+				//const MinimizerType minimizer = kminmerList._readMinimizers[i];
+				//u_int32_t minimizerPosition = kminmerList._minimizerPos[i];
+				//bool isReversed = kminmerList._readMinimizerDirections[i];
 
-			unordered_map<ReadType, ReadMatchBound> referenceReadIndex_to_anchors2;
-			//unordered_map<ReadType, std::pair<u_int16_t, u_int16_t>> queryReadIndex_to_anchorBounds;
+				//const MinimizerPairType minimizerPair = vec.hash128();
+				const MinimizerPairType minimizerPair = vec.packPair();
+				bool queryIsReversed = kminmerInfo._isReversed;
+				u_int32_t queryPosition = (kminmerList._minimizerPos[i] + kminmerList._minimizerPos[i+1]) / 2;
 
-			for(const KmerVec& vec : uniqueReferenceKminmers){
-
-
-				if(_parent._kminmer_to_readIndex.find(vec) == _parent._kminmer_to_readIndex.end()) continue;
-
-				for(const MinimizerPairPosition& referenceReadPosition : _parent._kminmer_to_readIndex[vec]){
-					if(queryRead._readIndex == referenceReadPosition._readIndex) continue;
+			//for(u_int32_t i=0; i<read._minimizers.size(); i++){
 
 
-					if(referenceReadIndex_to_anchors2.find(referenceReadPosition._readIndex) == referenceReadIndex_to_anchors2.end()){
-						referenceReadIndex_to_anchors2[referenceReadPosition._readIndex] = ReadMatchBound();
-					}
+				//const MinimizerType minimizer = read._minimizers[i];
+				//const u_int32_t queryPosition = read._minimizersPos[i];
+				//const bool queryIsReversed = read._readMinimizerDirections[i];
 
-					ReadMatchBound& bound = referenceReadIndex_to_anchors2[referenceReadPosition._readIndex];
-					
-					if(referenceReadPosition._positionIndex < bound._minIndex){
-						bound._minIndex = referenceReadPosition._positionIndex;
-					}
-					if(referenceReadPosition._positionIndex > bound._maxIndex){
-						bound._maxIndex = referenceReadPosition._positionIndex;
-					}
+				if(_parent._minimizerLookupTable.find(minimizerPair) == _parent._minimizerLookupTable.end()) continue;
 
-					bound._nbMatches += 1;
+				const auto& range = _parent._minimizerLookupTable[minimizerPair];
 
+				for(size_t j=range.first; j<=range.second; j++){
+					const MinimizerPosition2& mPos = _parent._allMinimizerPositions[j];
+
+					if(kminmerList._readIndex == mPos._readIndex) continue; //query == reference
+
+					//Anchor2(const ReadType readIndex, const int64_t referencePosition, const int64_t queryPosition, const bool isReversed){
+					//anchors.push_back({referenceMinimizerPosition._position, queryPosition, referenceMinimizerPosition._isReversed != queryIsReversed, referenceMinimizerPosition._positionIndex, i});
+					//anchors.push_back({mPos._readIndex, mPos._position, queryPosition, i, mPos._isReversed != queryIsReversed});
+					anchors.push_back({mPos._readIndex, mPos._position, mPos._positionIndex, queryPosition, i, mPos._isReversed != queryIsReversed});
+					//_loul += 1;
+
+					//if(mPos._position == 2600) print = true;
 				}
-
 			}
 
-			
-			
-			for(const auto& it : referenceReadIndex_to_anchors2){
+			std::sort(anchors.begin(), anchors.end(), [](const Anchor2& a, const Anchor2& b){
+				if(a._readIndex == b._readIndex){
 
-				ReadType referenceReadIndex = it.first;
-
-				const ReadMatchBound& readMatchBound = it.second;
-
-				if(readMatchBound._nbMatches < 1) continue;
-
-				const MinimizerRead& referenceRead = _parent._readWorkers[referenceReadIndex]._referenceRead;// = _parent._mReads[queryReadIndex];
-
-				//cout << referenceRead._minimizers.size() << " " << queryRead._minimizers.size() << endl;
-				int64_t startQueryPositionIndex = getStartQueryPositionIndex(referenceRead, readMatchBound._minIndex, 5000, queryReadMinimizerPositionMap);
-				int64_t endQueryPositionIndex = getEndQueryPositionIndex(referenceRead, readMatchBound._maxIndex, 5000, queryReadMinimizerPositionMap);
-				
-				//startQueryPositionIndex = 0;
-				//endQueryPositionIndex = queryRead._minimizers.size()-1;
-
-				
-				vector<Anchor> anchors;
-
-				//cout << startQueryPositionIndex << " " << endQueryPositionIndex << endl;
-				for(size_t i=startQueryPositionIndex; i<=endQueryPositionIndex; i++){
-
-					MinimizerType referenceMinimizer = referenceRead._minimizers[i];
-
-					if(queryReadMinimizerPositionMap.find(referenceMinimizer) == queryReadMinimizerPositionMap.end()) continue;
-
-					u_int32_t referencePosition = referenceRead._minimizersPos[i];
-					bool referenceIsReversed = referenceRead._readMinimizerDirections[i];
-
-					const vector<MinimizerPosition>& queryMinimizerPositions = queryReadMinimizerPositionMap[referenceMinimizer];
-					
-					for(const MinimizerPosition& queryMinimizerPosition : queryMinimizerPositions){
-						anchors.push_back({referencePosition, queryMinimizerPosition._position, queryMinimizerPosition._isReversed != referenceIsReversed, i, queryMinimizerPosition._positionIndex});
+					if(a._referencePosition == b._referencePosition){
+						return a._queryPosition < b._queryPosition;
 					}
-
-
-
+					return a._referencePosition < b._referencePosition;
 				}
-
-
-
-				//cout << "Anchors: " << anchors.size() << endl;
-
-
-
-				AlignmentResult2 chainingAlignment = _minimizerChainer->computeChainingAlignment(anchors, referenceRead, queryRead, _minimizerAligner, _parent._maxChainingBand_lowDensity);
 				
-				//cout << referenceRead._readIndex << " " << queryRead._readIndex << " " << chainingAlignment._overHangStart << " " << chainingAlignment._overHangEnd << " " << chainingAlignment._nbMatches << " " << chainingAlignment._nbMissmatches << endl;
-				//getchar();
-				//AlignmentResult2 chainingAlignment = _parent.computeAlignment(anchors, referenceRead, queryRead, _minimizerAligner);
-				
-				//cout << mashDistance << " " << chainingAlignment._divergence << endl;
-				//if(chainingAlignment._nbMatches - chainingAlignment._nbMissmatches - chainingAlignment._nbInsertions - chainingAlignment._nbDeletions < 0) continue;
-				//if(chainingAlignment._nbMatches - chainingAlignment._nbMissmatches < 5) continue;
-				//if(chainingAlignment._nbMatches < 1000*_minimizerDensity_correction) continue;
-				if(chainingAlignment._overHangStart > 5000) continue;
-				if(chainingAlignment._overHangEnd > 5000) continue;
-				if(chainingAlignment._nbMatches - chainingAlignment._nbMissmatches < 0) continue;
-				//if(chainingAlignment._divergence > 0.04) continue;
+				return a._readIndex < b._readIndex;
 
-				if(chainingAlignment._alignments.empty()) continue;
+			});
 
-				//alignments.push_back(chainingAlignment);
-				
-				_parent._readWorkers[referenceReadIndex].addMappedRead(queryRead, chainingAlignment);
-			}
-			
 			/*
-			if(_eval_correction){
-				
-				if(_simulatedReadMetadata[read._readIndex]._identity < 98) return read;
-				if(_simulatedReadMetadata[read._readIndex]._isReversed) return read;
-				
-				cout << endl << "Read: " <<  read._readIndex << " " << read._minimizers.size() << " " << _mReads[read._readIndex]._meanReadQuality << endl;
-				std::sort(alignments.begin(), alignments.end(), [](const AlignmentResult2& a, const AlignmentResult2& b){
-					return a.getScore() > b.getScore();
-				});
+			if(print){
+				cout << "Read: " << readIndex << endl;
+				//unordered_set<u_int32_t> contigIndexes;
 
-				cout << "Truth info:" << endl;
-				const SimulatedReadMetadata& refMetadata = _simulatedReadMetadata[read._readIndex];
-				cout << refMetadata.toString() << endl;
 
-				cout << "Alignment info:" << endl;
-				for(size_t i=0; i<alignments.size() && i < 50; i++){
-					const AlignmentResult2& alignment = alignments[i];
-					const SimulatedReadMetadata& metadata = _simulatedReadMetadata[alignment._queryReadIndex];
-					cout << "\t" << i << ":\t" << metadata.toString() << "\t" << alignment._nbMatches << "\t" << alignment._nbMissmatches << "\t" << alignment._nbInsertions << "\t" << alignment._nbDeletions << "\t" << metadata.distanceFrom(refMetadata) << "\t" << alignment._divergence << "\t" << alignment.getSimilarity()<< endl;
+				for(size_t i=0; i<anchors.size(); i++){
+					const Anchor& anchor = anchors[i];
+					cout << i << "\t" << anchor._referenceIndex << "\t" << anchor._referencePosition << "\t" << anchor._queryPosition << "\t" << read._minimizersPos[anchor._queryPosition] << endl;
+					//contigIndexes.insert(anchor._referenceIndex);
 				}
-
-				getchar();
-				
-				//if(refMetadata._identity > 98.8) getchar();
-				
-				
-
 			}
 			*/
+
+			vector<AlignmentMatches> alignmentMatches;
+			vector<AlignmentScoreQueue> alignmentQueues(read._minimizers.size());
+
+			u_int32_t nbChainings = 0;
+			u_int32_t referenceIndex = -1;
+			vector<Anchor2> subAnchors;
+
+			for(size_t i=0; i<anchors.size(); i++){
+
+				if(referenceIndex != anchors[i]._readIndex){
+
+					if(referenceIndex != -1){
+						processAnchors(subAnchors, read, referenceIndex, alignmentQueues, alignmentMatches);
+						subAnchors.clear();
+						nbChainings += 1;
+					}
+
+					referenceIndex = anchors[i]._readIndex;
+				}
+
+				subAnchors.push_back(anchors[i]);
+
+
+			}
+
+			if(subAnchors.size() > 0){
+				processAnchors(subAnchors, read, referenceIndex, alignmentQueues, alignmentMatches);
+				nbChainings += 1;
+			}
+
+
+
+			
+			ankerl::unordered_dense::map<ReadType, AlignmentScoreMatches> selectedAlignments;
+			//unordered_set<ReadType> selectedQueryReadIndex;
+			//vector<AlignmentResult2> bestAlignmentsLowDensity;
+			
+			for(AlignmentScoreQueue& queue : alignmentQueues){
+
+				int i =0;
+				while(queue.size() > 0){
+					const AlignmentScore& alignmentScore = queue.top();
+					selectedAlignments[alignmentScore._queryReadIndex] = {alignmentScore._queryReadIndex, 0, {}};
+					//selectedQueryReadIndex.insert(alignmentScore._queryReadIndex);
+					queue.pop();
+					i += 1;
+				}
+
+			}
+
+			for(const AlignmentMatches& matches : alignmentMatches){
+				if(selectedAlignments.find(matches._readIndex) == selectedAlignments.end()) continue;
+
+				selectedAlignments[matches._readIndex]._nbMatches = matches._nbMatches;
+				selectedAlignments[matches._readIndex]._compressedMatchPositions = matches._compressedMatchPositions;
+			}
+
+			vector<AlignmentScoreMatches> selectedAlignmentsVec;
+
+			for(const auto& it : selectedAlignments){
+				selectedAlignmentsVec.push_back(it.second);
+			}
+
+
+			std::sort(selectedAlignmentsVec.begin(), selectedAlignmentsVec.end(), [](const AlignmentScoreMatches& a, const AlignmentScoreMatches& b){
+				return a._queryReadIndex < b._queryReadIndex;
+			});
+
+
+			_parent.writeAlignmentsPartition(read._readIndex, read._minimizers.size(), selectedAlignmentsVec);
+
+
+			
+		}
+
+		
+		void processAnchors(const vector<Anchor2>& anchors, const MinimizerRead& queryRead, const u_int32_t referenceReadIndex, vector<AlignmentScoreQueue>& alignmentQueues, vector<AlignmentMatches>& alignmentMatches){
+			
+			if(anchors.size() < 3) return;
+
+			//cout << "perform align" << endl;
 			/*
-			//cout << referenceRead._readIndex << " " << alignments.size() << endl;
-			//if(alignments.size() == 0){
-			//	_parent.writeAlignments(referenceRead._readIndex, {});
-			//	return;
+			if(contigIndex == 4735 && queryRead._readIndex == 576){
+				cout << endl;
+				for(size_t i=0; i<anchors.size(); i++){
+					const Anchor2& anchor = anchors[i];
+					cout << i << "\t" << anchor._readIndex << "\t" << anchor._referencePosition << "\t" << anchor._queryPosition << "\t" << anchor._queryPositionIndex << endl;
+
+				}
+			}
+			*/
+			
+			
+
+			Chain2 chain = chainAnchors(anchors, queryRead, _parent._maxChainingBand, referenceReadIndex);
+
+			/*
+			//bool print = queryRead._readIndex == 2479658;
+			//if(print){
+			cout << endl;
+			for(size_t i=0; i<chain._anchorInterval.size(); i++){
+				cout << chain._anchorInterval[i] << endl;
+			}
 			//}
-			//cout << alignments.size() << endl;
-			//cout << "copy here" << endl;
-			vector<AlignmentResult2> bestAlignmentsLowDensity = _parent.selectBestAlignments(referenceRead, alignments, referenceReadMinimizerPositionMap, _parent._usedCoverageLowDensity);
-			
-			//const MinimizerRead& correctedRead = performPoaCorrection4(referenceRead, bestAlignmentsLowDensity, referenceReadMinimizerPositionMap);
-			
-			//_parent.writeRead(correctedRead._readIndex, correctedRead._minimizers, correctedRead._qualities);
-
-			vector<ReadType> alignedQueryReads;
-			for(const AlignmentResult2& alignment : bestAlignmentsLowDensity){
-				alignedQueryReads.push_back(alignment._queryReadIndex);
-			}
-
-			//cout << referenceRead._readIndex << " " << alignedQueryReads.size() << endl;
-
-			_parent.writeAlignments(referenceRead._readIndex, alignedQueryReads);
-		
 			*/
-			//cout << "todo: select best reads, writealignment" << endl;
-		
 
+			if(chain._chainingScore == 0) return;
+
+			//cout << chain._chainingScore << " " << chain._queryAnchorPositions.size() << endl;
+			addAlignmentScore(chain, queryRead, referenceReadIndex, alignmentQueues, alignmentMatches);
+			//writeAlignment(chain, queryRead, contigIndex, isReversed);
+			//getchar();
 		}
 
-		int64_t getStartQueryPositionIndex(const MinimizerRead& queryRead, int64_t startIndex, int64_t maxGapLength, ReadMinimizerPositionMap& referenceReadMinimizerPositionMap){
-			
-			//maxGapLength *= 2;
-			int64_t lastMacthingIndex = startIndex;
-			int64_t i = startIndex;
-			int64_t currentGapLength = 0;
-			int64_t prevPosition = queryRead._minimizersPos[i];
-			i -= 1;
 
-			while(true){
-				if(i < 0) break;
-				if(currentGapLength > maxGapLength) break;
+		Chain2 chainAnchors(const vector<Anchor2>& anchors, const MinimizerRead& queryRead, const int64_t& maxChainingBand, const ReadType referenceReadIndex) {
 
-				const MinimizerType currentMinimizer = queryRead._minimizers[i];
+			bool print = false;//referenceReadIndex == 4735 && queryRead._readIndex == 576;
+			//size_t nbAnchors = _anchorIndex;
+			vector<Chain> chainIntervals;
 
-				if(referenceReadMinimizerPositionMap.find(currentMinimizer) == referenceReadMinimizerPositionMap.end()){
-					currentGapLength += (prevPosition-queryRead._minimizersPos[i]);
+			//cout << "---- " << points.size() << endl;
+			float w = 20;//_minimizerSize;// 20;// _minimizerSize; //_minimizerSize*5; //_parent._minimizerSize;
+			vector<float> scores(anchors.size(), 0);
+			vector<size_t> parents(anchors.size(), 0);
+
+			//if(nbAnchors > _scores.size()){
+			//	_scores.resize(nbAnchors);
+			//	_parents.resize(nbAnchors);
+			//}
+
+			//for(size_t i=0; i<nbAnchors; i++){
+			//	_scores[i] = 0;
+			//	_parents[i] = 0;
+			//}
+
+			//for (var i in global_list_of_point) {
+			for (size_t i=0; i<anchors.size(); i++) {
+
+				//if(_parent._print_debug) cout << "\t--- " << i << endl;
+				
+				//cout << i << " " << points.size() << endl;
+				//size_t j = i;
+				//var j = parseInt(i)
+
+				float bestScore = 0;
+				size_t bestPrevIndex = i;
+
+				//cout << "a" << endl;
+				argmaxPosition(anchors, scores, i, w, bestScore, bestPrevIndex, maxChainingBand, false);
+
+				
+				if(bestPrevIndex != i) {
+					scores[i] = bestScore;
+					parents[i] = bestPrevIndex;
+					//cout << "Add chain part: " << i << " " << bestPrevIndex << endl;
+					//chain_part.union(i, best_prev_index);
 				}
 				else{
-					currentGapLength = 0;
-					lastMacthingIndex = i;
+					scores[i] = w;
+					parents[i] = -1;
 				}
-
-
-				prevPosition = queryRead._minimizersPos[i];
-				i -= 1;
-			}
-
-			return lastMacthingIndex;
-		}
-
-		int64_t getEndQueryPositionIndex(const MinimizerRead& queryRead, int64_t startIndex, int64_t maxGapLength, ReadMinimizerPositionMap& referenceReadMinimizerPositionMap){
-			
-			int64_t lastMacthingIndex = startIndex;
-			int64_t i = startIndex;
-			int64_t currentGapLength = 0;
-			int64_t prevPosition = queryRead._minimizersPos[i];
-			i += 1;
-
-			while(true){
-				if(i >= queryRead._minimizers.size()) break;
-				if(currentGapLength > maxGapLength) break;
-
-				const MinimizerType currentMinimizer = queryRead._minimizers[i];
-
-				if(referenceReadMinimizerPositionMap.find(currentMinimizer) == referenceReadMinimizerPositionMap.end()){
-					currentGapLength += (queryRead._minimizersPos[i]-prevPosition);
+				/*
+				if(bestScore < w){
+					scores[i] = w;
+					parents[i] = -1;
 				}
 				else{
-					currentGapLength = 0;
-					lastMacthingIndex = i;
+					scores[i] = bestScore;
+					parents[i] = bestPrevIndex;
 				}
+				*/
 
-
-				prevPosition = queryRead._minimizersPos[i];
-				i += 1;
 			}
 
-			return lastMacthingIndex;
+
+			//for(size_t i=0; i<scores.size(); i++) {
+			//	cout << i << "\t" << scores[i] << "\t" << parents[i] << endl;
+			//}
+
+			//if(_print_debug){
+			//	cout << endl;
+			//	for(size_t i=0; i<scores.size(); i++) {
+			//		cout << "\tlala: " << i << " " << scores[i] << " " << getRoot(i, parents) << endl;
+			//		F.push_back({i, scores[i], getRoot(i, parents)});
+			//	}
+			//}
+			
+			float maxScore = 0;
+			size_t bestIndex = -1;
+
+			for(size_t i=0; i<anchors.size(); i++) {
+				if(scores[i] > maxScore){
+					maxScore = scores[i];
+					bestIndex = i;
+				}
+				//cout << "\tlala: " << i << " " << scores[i] << " " << getRoot(i, parents) << endl;
+				//F.push_back({i, scores[i], getRoot(i, parents)});
+			}
+
+			if(print){
+				cout << "\tParents:" << endl;
+				for(size_t i=0; i<anchors.size(); i++){
+					cout << "\t\t" << i << "\t" << anchors[i]._isReversed << "\t" << parents[i] << "\t" << scores[i] << endl;
+				}
+			}
+
+			//cout << bestIndex << endl;
+
+			vector<size_t> interval;
+
+			size_t nullVal = -1;
+			size_t index = bestIndex;
+			while (index != nullVal) {
+				interval.push_back(index);
+				index = parents[index];
+				//num_anchors += 1;
+			}
+
+			//cout << bestIndex << " " << index << endl;
+			if(print){
+				cout << "\tBest interval:" << endl;
+				for(size_t i=0; i<interval.size(); i++){
+					cout << "\t\t" << interval[i] << endl;
+				}
+			}
+
+			std::reverse(interval.begin(), interval.end());
+			chainIntervals.push_back({maxScore, interval});
+			//std::sort(F.begin(), F.end(), [](const Point2& a, const Point2& b){
+			//	if(a._score == b._score){
+			//		return a._fromIndex > b._fromIndex;
+			//	}
+			//	return a._score > b._score;
+			//});
+
+
+
+			Chain2 chain;
+			chain._chainingScore = 0;
+
+			if(interval.size() < 3) return chain;
+
+			std::reverse(interval.begin(), interval.end());
+
+			for(size_t i=0; i<interval.size(); i++){
+				chain._queryAnchorPositions.push_back(anchors[interval[i]]._queryPositionIndex);
+			}
+
+			chain._chainingScore = maxScore;
+			//chain._anchorInterval = interval;
+			chain._nbMatches = interval.size();
+
+			const Anchor2& firstAnchor = anchors[interval[0]];
+			const Anchor2& lastAnchor = anchors[interval[interval.size()-1]];
+
+			bool isQueryReversed = firstAnchor._queryPositionIndex > lastAnchor._queryPositionIndex;
+
+			if(isQueryReversed){
+				chain._nbDifferencesQuery = (firstAnchor._queryPositionIndex - lastAnchor._queryPositionIndex + 1) - chain._nbMatches;
+				chain._queryStart = lastAnchor._queryPositionIndex;
+				chain._queryEnd = firstAnchor._queryPositionIndex;
+				std::reverse(chain._queryAnchorPositions.begin(), chain._queryAnchorPositions.end());
+			}
+			else{
+				chain._nbDifferencesQuery = (lastAnchor._queryPositionIndex - firstAnchor._queryPositionIndex + 1) - chain._nbMatches;
+				chain._queryStart = firstAnchor._queryPositionIndex;
+				chain._queryEnd = lastAnchor._queryPositionIndex;
+			}
+			//chain._nbDifferencesReference = 0;
+
+			//cout << firstAnchor._referencePositionIndex << " " << lastAnchor._referencePositionIndex << endl;
+			chain._nbDifferencesReference = (firstAnchor._referencePositionIndex - lastAnchor._referencePositionIndex + 1) - chain._nbMatches;
+			chain._referenceStart = firstAnchor._referencePosition;
+			chain._referenceEnd = lastAnchor._referencePosition;
+			chain._isQueryReversed = isQueryReversed;
+			//cout << contigIndex << "\t" <<firstAnchor._queryPositionIndex << "\t" << lastAnchor._queryPositionIndex << "\t" << chain._nbMatches << "\t" << chain._nbDifferencesQuery << endl;
+			
+
+
+			/*
+			chain._nbMatches = 0;
+			chain._nbDifferencesQuery = 0;
+
+			for(size_t i=0; i<interval.size()-1; i++){
+
+				const Anchor2& currentAnchor = anchors[interval[i]];
+				const Anchor2& nextAnchor = anchors[interval[i+1]];
+
+				//int referenceGapIndexSize = nextAnchor._referencePositionIndex - currentAnchor._referencePositionIndex - 1;
+				int queryGapIndexSize = 0;//
+				
+				if(isQueryReversed){
+					queryGapIndexSize = currentAnchor._queryPositionIndex - nextAnchor._queryPositionIndex - 1;
+				}
+				else{
+					queryGapIndexSize = nextAnchor._queryPositionIndex - currentAnchor._queryPositionIndex - 1;
+				}
+
+				if(print) cout << i << "\t" << interval[i] << "\t" << queryGapIndexSize << endl;
+
+				chain._nbDifferencesQuery += queryGapIndexSize;
+
+				chain._nbMatches += 1;
+			}
+
+			chain._nbMatches += 1;
+			*/
+
+
+			if(print){
+				cout << chain._queryStart << " " << chain._queryEnd << " " << chain._nbMatches << " " << chain._nbDifferencesQuery << " " << chain._nbDifferencesReference << endl;
+			}
+
+			return chain; 
 		}
-	
-		
+
+		int getChainMissmatches(const size_t& bestIndex, const vector<size_t>& parents, const vector<Anchor2>& anchors){
+
+			vector<size_t> interval;
+
+			size_t nullVal = -1;
+			size_t index = bestIndex;
+			while (index != nullVal) {
+				interval.push_back(index);
+				index = parents[index];
+				//num_anchors += 1;
+			}
+
+			std::reverse(interval.begin(), interval.end());
+			//chainIntervals.push_back({maxScore, interval});
+
+
+			//if(interval.size() < 3) return chain;
+
+			std::reverse(interval.begin(), interval.end());
+
+			const Anchor2& firstAnchor = anchors[interval[0]];
+			const Anchor2& lastAnchor = anchors[interval[interval.size()-1]];
+
+			bool isQueryReversed = firstAnchor._queryPositionIndex > lastAnchor._queryPositionIndex;
+
+
+
+			if(isQueryReversed){
+				//chain._nbDifferencesReference = (firstAnchor._referencePositionIndex - lastAnchor._referencePositionIndex + 1) - chain._nbMatches;
+				return (firstAnchor._queryPositionIndex - lastAnchor._queryPositionIndex + 1);
+			}
+			else{
+				//chain._nbDifferencesReference= (lastAnchor._referencePositionIndex - firstAnchor._referencePositionIndex + 1) - chain._nbMatches;
+				return (lastAnchor._queryPositionIndex - firstAnchor._queryPositionIndex + 1);
+			}
+
+
+		}
+
+		//size_t _maxChainingBand;
+
+		void argmaxPosition(const vector<Anchor2>& anchors, vector<float>& scores, size_t i, float w, float& bestScore, size_t& bestPrevIndex, const int64_t& maxChainingBand, const bool print) {
+			
+			//cout << "---" << i << endl;
+			bestScore = 0;
+			bestPrevIndex = i;
+
+			//cout << "\tglurp" << endl;
+			//size_t bestJ = 0;
+			//float v = 0;
+			const Anchor2& xi = anchors[i];
+			//console.log("\t", xi);
+			for (int64_t j = i-1; j >= 0; j--) {
+			//for (int64_t k =0; k < i; k++) {
+
+				//cout << "\t\t" << j << endl;
+
+				//cout << "\t\t" << i << " " << k << " " << i-k << " " << maxBand << endl;
+				if(i-j > maxChainingBand) break;
+				const Anchor2& xj = anchors[j];
+
+
+				//if(xi._queryPosition - xj._queryPosition > 2500) continue;
+				if(xi._isReversed != xj._isReversed) continue;
+				if(xi._referencePosition == xj._referencePosition || xi._queryPosition == xj._queryPosition) continue;
+				//cout << "\t" << i << " " << k << " " << xi._isReversed << " " << xj._isReversed << " " << xi._referencePosition << "-" << xi._queryPosition << " " << xj._referencePosition << "-" << xj._queryPosition << endl;
+
+
+
+
+				int32_t d_q;// = abs(xi._queryPosition - xj._queryPosition);
+				if(xi._isReversed){
+					d_q = xj._queryPosition - xi._queryPosition;
+				}
+				else{
+					d_q = xi._queryPosition - xj._queryPosition;
+				}
+				int32_t d_r = xi._referencePosition - xj._referencePosition;
+
+				//cout << "\t" << xi._referencePosition << " " << xj._referencePosition << " " << d_r << endl;
+				//if(d_r > 40) continue;
+				//if(d_q > 40) continue;
+
+				//if(xi._isReversed) {
+				//	d_r = aprpf64 - acrpf64;
+				//} else {
+				//	d_r = ;
+				//}
+				//if(_parent._print_debug) cout << "\t\t" << j << "\t" << d_q << "\t" << d_r << "\t" << abs(d_r - d_q) << "\t" << referenceRead._minimizers[xi._referencePositionIndex] << "\t" << referenceRead._minimizers[xj._referencePositionIndex] << endl;
+				//cout << "\t" << d_r << " " << d_q << endl;
+
+				//if d_q > D_MAX_LIN_LENGTH || d_r > D_MAX_LIN_LENGTH {
+				if(d_q > 5000 || d_r > 5000) {
+					continue;
+				}
+
+				if(d_r <= 0) {
+					continue;
+				}
+
+				int32_t gap = abs(d_r - d_q);
+				//cout << "\t" << xi._referencePosition << "\t" << xj._referencePosition << "\t" << gap << endl;
+
+				if(gap > 100) {
+					continue;
+				}
+				
+				if(xi._isReversed){
+					if(xi._queryPosition > xj._queryPosition) continue;
+				}
+				else{
+					if(xi._queryPosition < xj._queryPosition) continue;
+				}
+				
+				//cout << w << " " << min(smallerDistance(xi,xj,xi._isReversed),w) << " " << gamma(xi,xj,w,a,b) << endl;
+				//float anchor_score = min(smallerDistance(xi,xj,xi._isReversed),w) - gamma(xi,xj,w,a,b,xi._isReversed); //w - gap;
+				float anchor_score = w - gap;
+
+				float new_score = scores[j] + anchor_score;
+				if (new_score > bestScore) {
+					bestScore = new_score;
+					bestPrevIndex = j;
+					//if(_parent._print_debug) cout << "\t\tBest score:\t" << bestScore << "\t" << anchor_score << "\t" << j << "\t" << referenceRead._minimizers[xj._referencePositionIndex] << endl;
+				}
+
+				//map_params.anchor_score - gap
+
+
+				//if (xi._referencePosition-xj._referencePosition < maxGapLength && xi._queryPosition-xj._queryPosition < maxGapLength && xi._queryPosition > xj._queryPosition) {
+				//float newv = F[j] + 20 - gap;//+ 20 - gapLenth(xi,xj);//F[k] + min(smallerDistance(xi,xj),w) - gamma(xi,xj,w,a,b);
+				//if (v < newv) {
+				//	v = newv;
+				//	bestJ = j;
+				//}
+				//}
+			}
+			//cout << "\tBest: " << bestPrevIndex << " " << bestScore << endl;
+			//cout << "\tglurpppp" << endl;
+			//jReturn = bestJ;
+			//vReturn = v;
+			
+		}
+
+
+		void addAlignmentScore(Chain2& chain, const MinimizerRead& queryRead, const ReadType referenceReadIndex, vector<AlignmentScoreQueue>& alignmentQueues, vector<AlignmentMatches>& alignmentMatches){
+
+			//if(referenceReadIndex == 0){
+			//	cout << queryRead._readIndex << "\t" << chain._nbMatches << endl;
+			//}
+
+			//cout << chain._nbMatches << " " << chain._nbDifferencesQuery << " " << chain._nbDifferencesReference << endl;
+			bool isAlignmentAdded = false;
+			int32_t score = chain._nbMatches - chain._nbDifferencesQuery; // - chain._nbDifferencesReference;// - chain._nbDifferencesReference;
+
+			//if(score <= 0) return; 
+
+			const AlignmentScore currentAlignmentScore = {referenceReadIndex, score};
+
+			//if(queryRead._readIndex == 79 && referenceReadIndex == 92){
+			//	cout << "lala: " << chain._nbMatches << " " << chain._nbDifferencesQuery << " " << score << endl;
+			//}
+
+			//if(referenceReadIndex == 0 && queryRead._readIndex == 157){
+			//	cout << "lala: " << chain._nbMatches << " " << chain._nbDifferencesQuery << endl;
+			//}
+
+
+			//cout << chain._nbMatches << " " << chain._nbDifferencesQuery << endl;
+			//cout << queryRead._readIndex << "\t" << referenceReadIndex << "\t" << chain._nbMatches << "\t" << (int32_t)score << endl;
+
+			for(const u_int32_t& positionIndex : chain._queryAnchorPositions){
+				
+				//const u_int32_t referencePosition = it.first;
+				//if(referencePosition == -1) continue;
+				//for(MinimizerType minimizer : queryRead._minimizers){
+				//if(minimizer_to_alignmentScoreQueue.find(minimizer) == minimizer_to_alignmentScoreQueue.end()) continue;
+
+				AlignmentScoreQueue& queue = alignmentQueues[positionIndex];
+
+				if(queue.size() < _parent._usedCoverageForCorrection){
+
+					if(!isAlignmentAdded){
+
+
+						//#pragma omp critical
+						//{
+						//	cout << referenceReadIndex << "\t" << compressMatches(chain._queryAnchorPositions).size() << endl;
+						//}
+
+						isAlignmentAdded = true;
+						alignmentMatches.push_back({referenceReadIndex, (u_int16_t)chain._queryAnchorPositions.size(), compressMatches(chain._queryAnchorPositions)});
+					}
+
+					//if(queryRead._readIndex == 5) cout << "Push:\ta\t" << positionIndex << "\t" << currentAlignmentScore._queryReadIndex << "\t" << currentAlignmentScore._score << endl;
+					queue.push(currentAlignmentScore);
+					continue;
+				}
+
+				const AlignmentScore& worseAlignmentScore = queue.top();
+
+				if(currentAlignmentScore._score < worseAlignmentScore._score) continue;
+
+				if(currentAlignmentScore._score == worseAlignmentScore._score){
+					if(currentAlignmentScore._queryReadIndex > worseAlignmentScore._queryReadIndex) continue;
+				}
+				
+				queue.pop();
+				queue.push(currentAlignmentScore);
+
+				if(!isAlignmentAdded){
+					isAlignmentAdded = true;
+					alignmentMatches.push_back({referenceReadIndex, (u_int16_t)chain._queryAnchorPositions.size(), compressMatches(chain._queryAnchorPositions)});
+
+					//#pragma omp critical
+					//{
+					//	cout << referenceReadIndex << "\t" << compressMatches(chain._queryAnchorPositions).size() << endl;
+					//}
+				}
+
+				//if(queryRead._readIndex == 5) cout << "Pop:\tb\t" << positionIndex << "\t" << worseAlignmentScore._queryReadIndex << endl;
+				//if(queryRead._readIndex == 5) cout << "Push:\tb\t" << positionIndex << "\t" << currentAlignmentScore._queryReadIndex << "\t" << currentAlignmentScore._score << endl;
+			}
+				
+
+		}
+
+		vector<unsigned char> compressMatches(vector<u_int32_t>& matchPositions){
+			vector<unsigned char> buffer(matchPositions.size()*32, 0);
+			u_int32_t compressed_vector_size = p4nd1enc32(matchPositions.data(), matchPositions.size() , buffer.data());
+			buffer.resize(compressed_vector_size);
+			return buffer;
+		}
+
 	};
 
-
-	void selectBestAlignments(){
-
-		for(auto& it : _readWorkers){
-
-			const ReadType& referenceReadIndex = it.first;
-			ReadWorker& readWorker = it.second;
-
-		}
-
-	}
-
-
-
-
-	/*
-	vector<AlignmentResult2> selectBestAlignments(const MinimizerRead& referenceRead, const vector<AlignmentResult2>& alignments, ReadMapper::ReadMinimizerPositionMap& referenceReadMinimizerPositionMap, const size_t maxCoverage){
-		
-
-		vector<AlignmentResult2> selectedAlignments;
-		
-		
-
-
-		unordered_set<ReadType> selectedReads;
-
-		for(const auto& it : minimizer_to_alignmentResultsNew){
-			u_int64_t minimizer = it.first;
-			const vector<AlignmentScore>& alignmentResults = it.second;
-
-			const vector<AlignmentScore>& bestAlignmentResults  = getBestAlignments(alignmentResults, maxCoverage);
-
-			for(const AlignmentScore& alignmentResult : bestAlignmentResults){
-				//if(alignmentResult.divergence() > 0.02) continue;
-				//cout << alignmentResult._readIndex << " " << alignmentResult.score() << " " << readIndex_to_matchScore[alignmentResult._readIndex] << endl;
-				selectedReads.insert(alignmentResult._queryReadIndex);
-			}
-
-			//cout << "check" << endl;
-		}
-
-
-
-		for(const AlignmentResult2& alignment : alignments){
-
-			if(selectedReads.find(alignment._queryReadIndex) == selectedReads.end()) continue;
-
-			selectedAlignments.push_back(alignment);
-
-		}
-
-		//cout << "lala: " << selectedReads.size() << endl;
-		return selectedAlignments;
-
-	}
-	
-
-	
-
-	vector<AlignmentScore> getBestAlignments(vector<AlignmentScore> alignmentResults, int n){
-
-		vector<AlignmentScore> bestAlignments;
-
-		std::sort(alignmentResults.begin(), alignmentResults.end(), [](const AlignmentScore& a, const AlignmentScore& b){
-			if(a._score == b._score){
-				if(a._identity == b._identity){
-					return a._queryReadIndex > b._queryReadIndex;
-				}
-				return a._identity > b._identity;
-			}
-			return a._score > b._score;
-		});
-
-		for(int i=0; i<n && i<alignmentResults.size(); i++){
-
-			bool isHere = false;
-			for(const AlignmentScore& al : bestAlignments){
-				if(al._queryReadIndex == alignmentResults[i]._queryReadIndex){ //The same alignment can be present several time if a minimizer is repeated in a read
-					isHere = true;
-					break;
-				}
-			}
-
-			if(isHere) continue;
-
-			bestAlignments.push_back(alignmentResults[i]);
-		}
-
-		return bestAlignments;
-	}
-	*/
 
     struct AlignmentWriter{
         ReadType _referenceReadIndex;
@@ -840,61 +1333,97 @@ public:
         }
     };
 
-	priority_queue<AlignmentWriter, vector<AlignmentWriter> , AlignmentWriter_Comparator> _alignmentWriterQueue;
-	ReadType _nextAlignmentReadIndexWriter;
+	//priority_queue<AlignmentWriter, vector<AlignmentWriter> , AlignmentWriter_Comparator> _alignmentWriterQueue;
+	//ReadType _nextAlignmentReadIndexWriter;
 
-	void writeAlignments(ReadType referenceReadIndex, const vector<ReadType>& alignedQueryReads){
+	void writeAlignmentsPartition(const ReadType referenceReadIndex, const u_int32_t referenceReadSize, const vector<AlignmentScoreMatches>& alignments){
+		
+		if(alignments.size() == 0) return;
+		
+		int partition = referenceReadIndex % _nbPartitions;
+		BGZF* partitionFile = _partitionFiles[partition];
 
-		#pragma omp critical
+		#pragma omp critical(writeAlignments)
 		{
 			
-			_alignmentWriterQueue.push({referenceReadIndex, alignedQueryReads});
+			const u_int32_t nbAlignedReads = alignments.size();
 
-			while(!_alignmentWriterQueue.empty()){
+			//vector<ReadType> alignedQueryReads;
 
+			//for(const AlignmentScore& alignment : alignments){
+				//_alignmentCheckSum += referenceReadIndex * nbAlignedReads * alignment._queryReadIndex;
+				//alignedQueryReads.push_back(alignment._queryReadIndex);
+			//}
 
-				const AlignmentWriter& readWriter = _alignmentWriterQueue.top();
+			bgzf_write(partitionFile, (const char*)&referenceReadIndex, sizeof(referenceReadIndex));
+			//partitionFile.write((const char*)&referenceReadSize, sizeof(referenceReadSize));
+			bgzf_write(partitionFile, (const char*)&nbAlignedReads, sizeof(nbAlignedReads));
 
-				if(readWriter._referenceReadIndex == _nextAlignmentReadIndexWriter){
+			for(const AlignmentScoreMatches& al : alignments){
 
+				bgzf_write(partitionFile, (const char*)&al._queryReadIndex, sizeof(al._queryReadIndex));
+				//bgzf_write(partitionFile, (const char*)&al._score, sizeof(al._score));
 
-					const ReadType referenceReadIndexCurrent = readWriter._referenceReadIndex;
-					const vector<ReadType> alignedQueryReadsCurrent = readWriter._alignedQueryReads;
-					const u_int16_t nbAlignedReads = alignedQueryReadsCurrent.size();
+				u_int16_t nbMatches = al._nbMatches;
+				bgzf_write(partitionFile, (const char*)&nbMatches, sizeof(nbMatches));
 
-					if(nbAlignedReads > 0){
+				u_int16_t compressedSize = al._compressedMatchPositions.size();
+				bgzf_write(partitionFile, (const char*)&compressedSize, sizeof(compressedSize));
 
-						for(ReadType queryReadIndex : alignedQueryReadsCurrent){
-							_alignmentCheckSum += referenceReadIndexCurrent * nbAlignedReads * queryReadIndex;
-						}
+				bgzf_write(partitionFile, (const char*)&al._compressedMatchPositions[0], compressedSize);
 
-						_alignmentFile.write((const char*)&referenceReadIndexCurrent, sizeof(referenceReadIndexCurrent));
-						_alignmentFile.write((const char*)&nbAlignedReads, sizeof(nbAlignedReads));
-						_alignmentFile.write((const char*)&alignedQueryReadsCurrent[0], nbAlignedReads*sizeof(ReadType));
-						
-
-						if(readWriter._referenceReadIndex % 10000 == 0){
-							cout << readWriter._referenceReadIndex << " " << _alignmentCheckSum << endl;
-							//if(readWriter._referenceReadIndex > 1000) getchar();
-						}
-						
-					}
-
-
-					
-					_alignmentWriterQueue.pop();
-					_nextAlignmentReadIndexWriter += 1;
-				}
-				else{
-					break;
-				}
 			}
 			
+
+			//if(referenceReadIndex % 10000 == 0){
+			//	Logger::get().debug() << "\tAlignment checksum: " << referenceReadIndex << " " << _alignmentCheckSum;
+				//if(readWriter._referenceReadIndex > 1000) getchar();
+			//}
+
+
+
 		}
+
 
 	}
 
 
+	void writeAlignments(const ReadType referenceReadIndex, const vector<AlignmentScore>& alignments){
+		
+		if(alignments.size() == 0) return;
+
+		#pragma omp critical(writeAlignments)
+		{
+			
+			const u_int32_t nbAlignedReads = alignments.size();
+
+			vector<ReadType> alignedQueryReads;
+
+			for(const AlignmentScore& alignment : alignments){
+				_alignmentCheckSum += referenceReadIndex * nbAlignedReads * alignment._queryReadIndex;
+				alignedQueryReads.push_back(alignment._queryReadIndex);
+			}
+
+
+			_alignmentFile.write((const char*)&referenceReadIndex, sizeof(referenceReadIndex));
+			_alignmentFile.write((const char*)&nbAlignedReads, sizeof(nbAlignedReads));
+			_alignmentFile.write((const char*)&alignedQueryReads[0], nbAlignedReads*sizeof(ReadType));
+			
+
+			//if(referenceReadIndex % 10000 == 0){
+			//	Logger::get().debug() << "\tAlignment checksum: " << referenceReadIndex << " " << _alignmentCheckSum;
+				//if(readWriter._referenceReadIndex > 1000) getchar();
+			//}
+
+			//_debugFile << referenceReadIndex << endl;
+			//for(const AlignmentScore& alignment : alignments){
+			//	_debugFile << "\t" << alignment._queryReadIndex << endl;
+			//}
+
+		}
+
+
+	}
 
 };
 

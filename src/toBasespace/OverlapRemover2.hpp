@@ -8,10 +8,56 @@
 #include "../Commons.hpp"
 
 
-class OverlapRemover2 {
+class OverlapRemover2 : public Tool{
   
 
 public:
+
+
+	string _inputFilenameContig;
+	string _outputFilenameContig;
+	string _inputDir;
+	int _nbCores;
+
+	Parameters _params;
+	ofstream _outputFile;
+	vector<u_int32_t> _contigSizes;
+	u_int64_t _checksum;
+
+	/*
+	float _minimizerDensity;
+    size_t _minimizerSize;
+    size_t _kminmerSize;
+	size_t _kminmerSizeFirst;
+
+	float _minimizerSpacingMean;
+	float _kminmerLengthMean;
+	float _kminmerOverlapMean;
+    size_t _kminmerSizePrev;
+    size_t _kminmerSizeLast;
+    size_t _meanReadLength;
+
+	//string _filename_outputContigs;
+	//string _filename_kminmerSequences;
+	//MDBG* _mdbg;
+	//EncoderRLE _encoderRLE;
+
+	//ContigSizeMap _contigLengths;
+
+	
+	//u_int64_t _nbDuplicatedContigs;
+	//u_int64_t _nbContigs;
+	//unordered_set<u_int32_t> _isContigDuplicated;
+
+	//struct ContigData{
+	//	u_int32_t _size;
+	//	u_int32_t _overlapLeft;
+	//	u_int32_t _overlapRight;
+	//};
+
+	//vector<ContigData> _contigOverlaps;
+
+	*/
 
 
 	struct ContigMinimizerPosition{
@@ -34,29 +80,10 @@ public:
 	//typedef phmap::parallel_flat_hash_map<u_int32_t, u_int32_t, phmap::priv::hash_default_hash<u_int32_t>, phmap::priv::hash_default_eq<u_int32_t>, std::allocator<std::pair<u_int32_t, u_int32_t>>, 10, std::mutex> ContigSizeMap;
 
 
+
 	KminmerPosMap _minimizerIndexer;
-	//ContigSizeMap _contigLengths;
 
-	string _inputDir;
-	string _inputFilenameContig;
-	string _outputFilenameContig;
-	size_t _kminmerSize;
-	int _nbCores;
-	
-	ofstream _outputFile;
-	//u_int64_t _nbDuplicatedContigs;
-	//u_int64_t _nbContigs;
-	//unordered_set<u_int32_t> _isContigDuplicated;
-
-	//struct ContigData{
-	//	u_int32_t _size;
-	//	u_int32_t _overlapLeft;
-	//	u_int32_t _overlapRight;
-	//};
-
-	//vector<ContigData> _contigOverlaps;
-	vector<u_int32_t> _contigSizes;
-
+	/*
 	OverlapRemover2(const string& inputDir, const string& inputFilenameContig, const string& outputFilenameContig, size_t kminmerSize, const int nbCores){
 		_inputDir = inputDir;
 		_inputFilenameContig = inputFilenameContig;
@@ -64,10 +91,81 @@ public:
 		_kminmerSize = kminmerSize-1;
 		_nbCores = nbCores;
 	}
-
+	*/
 	
 
+
+	OverlapRemover2(): Tool (){
+
+
+	}
+
+	void parseArgs(int argc, char* argv[]){
+
+		args::ArgumentParser parser("removeOverlaps", "");
+		args::Positional<std::string> arg_outputDir(parser, "outputDir", "", args::Options::Required);
+		//args::Positional<std::string> arg_inputContigFilename(parser, "inputContigFilename", "", args::Options::Required);
+		args::ValueFlag<int> arg_nbCores(parser, "", "Number of cores", {ARG_NB_CORES2}, NB_CORES_DEFAULT_INT);
+		args::Flag arg_help(parser, "", "", {'h', "help"}, args::Options::Hidden);
+
+		try
+		{
+			parser.ParseCLI(argc, argv);
+		}
+		catch (const std::exception& e)
+		{
+			cerr << parser;
+			cerr << e.what() << endl;
+			exit(0);
+		}
+
+		if(arg_help){
+			cerr << parser;
+			exit(0);
+		}
+
+		_inputDir = args::get(arg_outputDir);
+		_nbCores = args::get(arg_nbCores);
+		
+		_inputFilenameContig = _inputDir + "/contig_data_init_small.txt";
+		_outputFilenameContig = _inputDir + "/contig_data_init_small.txt.nooverlaps";
+		/*
+		string filename_parameters = _inputDir + "/parameters.gz";
+		gzFile file_parameters = gzopen(filename_parameters.c_str(),"rb");
+		gzread(file_parameters, (char*)&_minimizerSize, sizeof(_minimizerSize));
+		gzread(file_parameters, (char*)&_kminmerSize, sizeof(_kminmerSize));
+		gzread(file_parameters, (char*)&_minimizerDensity, sizeof(_minimizerDensity));
+		gzread(file_parameters, (char*)&_kminmerSizeFirst, sizeof(_kminmerSizeFirst));
+		gzread(file_parameters, (char*)&_minimizerSpacingMean, sizeof(_minimizerSpacingMean));
+		gzread(file_parameters, (char*)&_kminmerLengthMean, sizeof(_kminmerLengthMean));
+		gzread(file_parameters, (char*)&_kminmerOverlapMean, sizeof(_kminmerOverlapMean));
+		gzread(file_parameters, (char*)&_kminmerSizePrev, sizeof(_kminmerSizePrev));
+		gzread(file_parameters, (char*)&_kminmerSizeLast, sizeof(_kminmerSizeLast));
+		gzread(file_parameters, (char*)&_meanReadLength, sizeof(_meanReadLength));
+		gzclose(file_parameters);
+		*/
+
+		_params.load(_inputDir + "/parameters.gz");
+		_params._kminmerSize = _params._kminmerSizeFirst-1;
+
+		openLogFile(_inputDir);
+
+		/*
+		Logger::get().debug() << "";
+		Logger::get().debug() << "Input dir: " << _inputDir;
+		//_logFile << "Output filename: " << _outputFilename << endl;
+		Logger::get().debug() << "Minimizer length: " << _minimizerSize;
+		Logger::get().debug() << "Kminmer length: " << _kminmerSize;
+		Logger::get().debug() << "Density: " << _minimizerDensity;
+		Logger::get().debug() << "";
+		*/
+	}
+
+
 	void execute(){
+
+		_nextReadIndexWriter = 0;
+		_checksum = 0;
 
 		//cout << "todo: remove overlap self, attention circular" << endl;
 		//_nbContigs = 0;
@@ -90,6 +188,7 @@ public:
 		//writeContigs();
 
 		//cout << "Nb duplicated contigs: " << _nbDuplicatedContigs << endl;
+		cout << "OverlapRemover checksum: " << _checksum << endl;
 	}
 	
 	void countContigs(){
@@ -126,7 +225,7 @@ public:
 
 	void indexContigs(){
 
-		KminmerParserParallel parser(_inputFilenameContig, 0, _kminmerSize, false, false, _nbCores);
+		KminmerParserParallel parser(_inputFilenameContig, 0, _params._kminmerSize, false, false, _nbCores);
 		parser.parse(IndexContigsFunctor(*this));
 	}
 
@@ -209,7 +308,7 @@ public:
 		_outputFile.open(_outputFilenameContig);
 
 		//cout << "single core here" << endl;
-		KminmerParserParallel parser(_inputFilenameContig, 0, _kminmerSize, false, false, _nbCores);
+		KminmerParserParallel parser(_inputFilenameContig, 0, _params._kminmerSize, false, false, _nbCores);
 		parser.parseSequences(MapContigsFunctor(*this));
 		
 		_outputFile.close();
@@ -250,22 +349,31 @@ public:
 
 				u_int32_t overlapLeft = 0;
 				if(contigOverlap.first > 0){
-					overlapLeft = contigOverlap.first + _parent._kminmerSize - 1;
+					overlapLeft = contigOverlap.first + _parent._params._kminmerSize - 1;
 				}
 
 				u_int32_t overlapRight = 0;
 				if(contigOverlap.second > 0){
-					overlapRight = contigOverlap.second + _parent._kminmerSize - 1;
+					overlapRight = contigOverlap.second + _parent._params._kminmerSize - 1;
 				}
 
 				int64_t indexEnd = ((int64_t)minimizers.size()) - ((int64_t)overlapRight);
 
-				if(overlapLeft + overlapRight >= minimizers.size()) return;
-				if(overlapLeft >= indexEnd) return;
+				if(overlapLeft + overlapRight >= minimizers.size()){
+					writeContig(kminmerList._readIndex, {}, false);
+					return;
+				}
+				if(overlapLeft >= indexEnd){
+					writeContig(kminmerList._readIndex, {}, false);
+					return;
+				}
 				
 				vector<MinimizerType> newMinimizers(minimizers.begin() + overlapLeft, minimizers.begin() + indexEnd);
 
-				if(newMinimizers.size() <= _parent._kminmerSize+1) return;
+				if(newMinimizers.size() <= _parent._params._kminmerSize+1){
+					writeContig(kminmerList._readIndex, {}, false);
+					return;
+				}
 
 				minimizers = newMinimizers;
 
@@ -280,7 +388,7 @@ public:
 			}
 
 			//cout << "Write: " << minimizers.size() << endl;
-			writeContig(minimizers, kminmerList._isCircular);
+			writeContig(kminmerList._readIndex, minimizers, kminmerList._isCircular);
 
 		}
 
@@ -301,7 +409,7 @@ public:
 			vector<u_int32_t> minimizerPos(minimizers.size(), 0);
 			vector<u_int8_t> minimizerQualities(minimizers.size(), 0);
 			//MDBG::getKminmers(_l, _k, minimizers, minimizersPos, kminmers, kminmersInfo, rlePositions, 0, false);
-			MDBG::getKminmers_complete(_parent._kminmerSize, minimizers, minimizerPos, kminmersInfo, referenceContigIndex, minimizerQualities);
+			MDBG::getKminmers_complete(_parent._params._kminmerSize, minimizers, minimizerPos, kminmersInfo, referenceContigIndex, minimizerQualities);
 
 
 			//for(size_t i=0; i<kminmerList._readMinimizers.size(); i++){
@@ -506,7 +614,7 @@ public:
 
 				const Anchor& xi = anchors[i];
 				//cout << "aaa " << xi._referencePositionIndex << endl;
-				if(xi._referencePositionIndex != referenceSize-1-_parent._kminmerSize+1) break;
+				if(xi._referencePositionIndex != referenceSize-1-_parent._params._kminmerSize+1) break;
 
 
 				int64_t currentReferenceIndex = xi._referencePositionIndex;
@@ -546,17 +654,29 @@ public:
 			return maxOverlapFinal;
 		}
 
-		void writeContig(vector<MinimizerType> minimizers, const u_int8_t isCircular){
+		void writeContig(const u_int32_t readIndex, vector<MinimizerType> minimizers, const u_int8_t isCircular){
 
+			
 			removeOverlapsSelf(minimizers);
 
+			_parent.writeRead(readIndex, minimizers, isCircular);
+			/*
 			#pragma omp critical(writeContig)
 			{
 				u_int32_t contigSize = minimizers.size();
 				_parent._outputFile.write((const char*)&contigSize, sizeof(contigSize));
 				_parent._outputFile.write((const char*)&isCircular, sizeof(isCircular));
 				_parent._outputFile.write((const char*)&minimizers[0], contigSize*sizeof(MinimizerType));
+
+
+				for(size_t i=0; i<minimizers.size(); i++){
+					_parent._checksum += minimizers.size() * readIndex * minimizers[i];
+				}
+
+
 			}
+			*/
+			
 
 		}
 
@@ -933,6 +1053,57 @@ public:
 		}
 	};
 	*/
+
+    struct ReadWriter{
+        u_int64_t _readIndex;
+		vector<MinimizerType> _contigSequence;
+		bool _isCircular;
+    };
+
+    struct ReadWriter_Comparator {
+        bool operator()(ReadWriter const& p1, ReadWriter const& p2){
+            return p1._readIndex > p2._readIndex;
+        }
+    };
+
+	priority_queue<ReadWriter, vector<ReadWriter> , ReadWriter_Comparator> _readWriterQueue;
+	u_int64_t _nextReadIndexWriter;
+
+	void writeRead(u_int64_t readIndex, const vector<MinimizerType>& contigSequence, u_int8_t isCircular){
+
+		#pragma omp critical(writeRead)
+		{
+			_readWriterQueue.push({readIndex, contigSequence, isCircular});
+
+			while(!_readWriterQueue.empty()){
+
+				const ReadWriter& readWriter = _readWriterQueue.top();
+
+				if(readWriter._readIndex == _nextReadIndexWriter){
+
+					if(readWriter._contigSequence.size() > 0){
+						u_int32_t contigSize = readWriter._contigSequence.size();
+						_outputFile.write((const char*)&contigSize, sizeof(contigSize));
+						_outputFile.write((const char*)&readWriter._isCircular, sizeof(readWriter._isCircular));
+						_outputFile.write((const char*)&readWriter._contigSequence[0], contigSize*sizeof(MinimizerType));
+
+						for(size_t i=0; i<readWriter._contigSequence.size(); i++){
+							_checksum += readWriter._contigSequence.size() * readWriter._readIndex * readWriter._contigSequence[i];
+						}
+
+					}
+
+					_readWriterQueue.pop();
+					_nextReadIndexWriter += 1;
+				}
+				else{
+					break;
+				}
+			}
+		}
+
+	}
+	
 
 };	
 

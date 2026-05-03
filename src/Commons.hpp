@@ -1,90 +1,13 @@
 
 
-/*
-
-- segfault dans final n50
-- COntigPolisher: autoriser plus de mémoire, en fonction du maximum utilisé jusqu'a là
-- essayer d'enlever les contigs avec une faible abondance calculer par semibon2, et refaire le binning
-- dans la table finale, enlever directement les single contig complete des complete MAGs
-
-- humanGut: subsampler par pas de 10G x 5
-
-- build: penser a enlever le first graph (dans pipeline et cleaning)
-
-- dorado correct: besoin de bgzip (on aurait du tout comrpesser en bgzip directement)
-- meilleur progress dans correction (genere trop de ligne la)
-
-- option: --high-quality-correction ?
-
-- maxMappedRead: trouver un truc malin
-	- une fois qu'on a atteint une certaine quantité de mapping, on doit pouvoir jauger si un nouvel alignment va apporter qqch, en gros check s'il peut theoriquement augmenter le score d'alignment ou si c'est juste impossible en fonction du nb de matche etc
-
-- "high density chaining: faire un petit index de minimizer pour eviter de tout query? pour les read chargé"
-
-- chaining:
-	- trouver la bonne valeur pour la banding
-
-- truc fait a tester:
-	- estimate_alignmentCOverage (juste decommenté)
-
-
-*/
-
-
-/*
-
-- papier: refaire une simulation plus grosse avec une dizaine de ecoli.
-
-
-- isRepeatSide: tester > _kminmerSize*2 au lieu de 50k length
-- last superbubble in circular component not removed (cycle including source)
-
-- unitig graph:
-	- memory a optimiser (le graphSUccessor et graphSImplify peuvent etre detruit une fois que le unitg graph est construit)
-	
-
-- truc desactivé:
-	- GraphSimplify: auto currentAbundance 
-
-
-- contig polisher: plus de window pour les espece plus abondante ? (fraction du contig coverage)
-- OverlapRemover : ligne 595: tester d'enlever le +1 de if(contig._minimizers.size() <= _kminmerSize+1){
-- determinstic node a un imapct sur la qualité des resultats sur donées simulé, voir si c'est le cas sur AD
-
-- Dans les première phase du multi, ne pas ollapse les bubbles si leur source et sink sont très abondante (on ne mergera donc pas deux organismes, et il ne devrait pas break vu que c'est abondante)
-- polisher circ detection incomplete (il faudrait ajouter la partie manquante au backbone)
-- polisher circ detection: update pour gerer les petit contig sur lequel des read entier pourrait mapper sur toute leur longeur
-
-- check whitin contig contamination
-
-- tout ce qui est écrit dans le cerr doit aussi etre ecrit dans les logs sinon c'est illisible
-
-Paralelisation:
-	- OverlapRemover: " parallelisation ligne 475 for(long i=0; i<_contigs.size(); i++){ en lisant sequenciellement avec une result queue comme dans readSelection"
-		- prototype dans backup mais fonctionne pas :/
-
-ContigPolisher:
-	- read mal mapper sur les bord des contig circulaire (double mapping)
-
-- ajouter une progress bar global
-
----------------------------------- FIXED
-
-- [Fixed] CreateGraph: determinstic sutff always enabled, remove for speed gain
-
-- [Fixed temporaire] pb avec le abundance filter: les repeat se font output en premier et peuvent créé des faux unitig circulaires
-	- on pourrait empecher les petit unitig d'etre circulaire dans les premiere passes, sinon il faut reussir a savoir si se sont des repeats
-
-- multi-k: en fait le +1 est nécessaire que au debut probablement, on pourrait faire un plus grand pas dans les grande valeur de k
-	- update:on trouve moins de component circulaire 
-
-*/
-
-
 #ifndef MDBG_METAG_COMMONS
 #define MDBG_METAG_COMMONS
 
+//#define FIX_PALINDROME
+
+
 //#include <gatb/gatb_core.hpp>
+//#include "utils/xxhash.h"
 #include "utils/MurmurHash3.h"
 #include <zlib.h>
 #include <string>
@@ -108,6 +31,7 @@ ContigPolisher:
 #include "utils/kmer/Kmer.hpp"
 #include <omp.h>
 #include <queue>
+#include <stack>
 #include "utils/PafParser.hpp"
 #include "readSelection/MinimizerAligner.hpp"
 #include "utils/Logger.h"
@@ -116,8 +40,15 @@ ContigPolisher:
 //#include <sys/types.h>
 #include <sys/wait.h>
 #include <fcntl.h>
-#include <execution>
+//#include <execution>
 #include <thread>
+//#include "utils/htslib/bgzf.h"
+//#include "utils/htslib/kseq.h"
+#include "../ext/TurboPFor-Integer-Compression/include/ic.h"
+//#include "utils/sparsepp/spp.h"
+
+#include "../ext/htslib/htslib/bgzf.h"
+#include "../ext/htslib/htslib/kseq.h"
 
 namespace fs = std::filesystem;
 using namespace std::chrono;
@@ -139,15 +70,24 @@ typedef u_int32_t AbundanceType;
 #include <functional>
 #include <memory>
 //#include "./utils/ntHashIterator.hpp"
-#include "./utils/kseq.h"
+//#include "./utils/kseq.h"
 #include "./utils/DnaBitset.hpp"
 #include "./utils/BloomFilter.hpp"
-#include "./utils/minimap2/minimap.h"
-#include "./utils/minimap2/mmpriv.h"
+#include "../ext/minimap2/minimap.h"
+#include "../ext/minimap2/mmpriv.h"
+#include "utils/BooPHF.h"
+#include "utils/edlib.h"
+#include "../ext/spoa/include/spoa/spoa.hpp"
 
 KSEQ_INIT(gzFile, gzread)
 
 using namespace std;
+
+
+struct KminmerAbundance{
+	u_int128_t _vecHash;
+	AbundanceType _abundance;
+};
 
 struct Read{
 	u_int64_t _index;
@@ -188,25 +128,42 @@ struct ReadMatchBound{
 };
 
 
-struct KminmerSequenceVariant{
-	u_int16_t _editDistance;
-	DnaBitset* _sequence;
+
+struct BinaryRead{
+	DnaBitset2 _sequence;
+	string _quality;
 };
 
-struct KminmerSequenceVariant_Comparator {
-	bool operator()(KminmerSequenceVariant const& p1, KminmerSequenceVariant const& p2)
-	{
-		return p1._editDistance < p2._editDistance;
-	}
+typedef phmap::parallel_flat_hash_map<ReadType, BinaryRead, phmap::priv::hash_default_hash<ReadType>, phmap::priv::hash_default_eq<ReadType>, std::allocator<std::pair<ReadType, vector<BinaryRead>>>, 4, std::mutex> BinaryReadMap;
+	
+struct BinaryRead4{
+	string _sequence;
+	string _quality;
 };
 
-typedef priority_queue<KminmerSequenceVariant, vector<KminmerSequenceVariant>, KminmerSequenceVariant_Comparator> VariantQueue;
+typedef phmap::parallel_flat_hash_map<ReadType, BinaryRead4, phmap::priv::hash_default_hash<ReadType>, phmap::priv::hash_default_eq<ReadType>, std::allocator<std::pair<ReadType, vector<BinaryRead4>>>, 10, std::mutex> BinaryReadMap4;
+	
 
-struct ReadSequence{
-	u_int64_t _readIndex;
-	DnaBitset* _sequence;
-	VariantQueue _variants;
-};
+
+//struct KminmerSequenceVariant{
+//	u_int16_t _editDistance;
+//	DnaBitset* _sequence;
+//};
+
+//struct KminmerSequenceVariant_Comparator {
+//	bool operator()(KminmerSequenceVariant const& p1, KminmerSequenceVariant const& p2)
+//	{
+//		return p1._editDistance < p2._editDistance;
+//	}
+//};
+
+//typedef priority_queue<KminmerSequenceVariant, vector<KminmerSequenceVariant>, KminmerSequenceVariant_Comparator> VariantQueue;
+
+//struct ReadSequence{
+//	u_int64_t _readIndex;
+//	DnaBitset* _sequence;
+//	VariantQueue _variants;
+//};
 
 /*
 struct AlignmentResult{
@@ -269,10 +226,12 @@ struct AlignmentResult{
 //typedef typename Kmer<>::Count Count;
 //typedef Kmer<>::ModelMinimizer<ModelCanonical> ModelMinimizer;
 
-typedef u_int32_t ReadIndexType;
+//typedef u_int32_t ReadIndexType;
 
 
-const string METAMDBG_VERSION = "1.3";
+const string METAMDBG_VERSION = "1.4";
+const bool DEBUG = false;
+
 const string ARG_HOMOPOLYMER_COMPRESSION = "homopolymer-compression";
 //const string ARG_INPUT_FILENAME = "i";
 //const string ARG_INPUT_FILENAME_TRUTH = "itruth";
@@ -301,6 +260,8 @@ const char ARG_MIN_IDENTITY = 'i';
 //const char ARG_LINEAR_LENGTH = 'l';
 const char ARG_NB_WINDOWS = 'n';
 const string ARG_MIN_READ_QUALITY = "min-read-quality";
+const string ARG_MIN_CONTIG_LENGTH = "min-contig-length";
+const string ARG_MIN_CONTIG_COVERAGE = "min-contig-coverage";
 const string ARG_MAX_MEMORY = "max-memory";
 //const string ARG_HOMOPOLYMER_COMPRESSION = "hpc";		
 //const string ARG_CORRECTION = "correction";	
@@ -329,11 +290,13 @@ const string ARG_MAXK = "max-k";
 const string ARG_NB_CORES2 = "threads";
 const string ARG_MIN_KMINMER_ABUNDANCE = "min-abundance";
 const string ARG_GENERATE_ALL_ASSEMBLY_GRAPH = "all-assembly-graph";
+const string ARG_MAX_BUBBLE_LENGTH = "max-bubble-length";
+const string ARG_MAX_TIP_LENGTH = "max-tip-length";
 //const string ARG_CIRCULARIZE = "circ";
 //const int MIN_NB_MINIMIZER_REFERENCE = 4000;
 //const int MIN_NB_MINIMIZER_QUERY = 4000;
 
-enum DataType{
+enum SequencingPlatformType{
 	HiFi,
 	Nanopore,
 };
@@ -586,6 +549,8 @@ struct ReadKminmer{
 	u_int32_t _seq_length_end;
 };
 
+
+/*
 struct MinimizerRead{
 
 	public:
@@ -645,51 +610,8 @@ struct MinimizerRead{
 		return read;
 	}
 
-	/*
-	void compare(const MinimizerRead& otherRead){
-		if(_readIndex != otherRead._readIndex){
-			cout << "pb 1" << endl;
-			exit(1);
-		}
-		if(_minimizers.size() != otherRead._minimizers.size()){
-			cout << "pb 2" << endl;
-			exit(1);
-		}
-		if(_minimizersPos.size() != otherRead._minimizersPos.size()){
-			cout << "pb 3" << endl;
-			exit(1);
-		}
-		if(_qualities.size() != otherRead._qualities.size()){
-			cout << "pb 4" << endl;
-			exit(1);
-		}
-		if(_readMinimizerDirections.size() != otherRead._readMinimizerDirections.size()){
-			cout << "pb 5" << endl;
-			exit(1);
-		}
-		for(size_t i=0; i<_minimizers.size(); i++){
-			if(_minimizers[i] != otherRead._minimizers[i]){
-				cout << "pb 6" << endl;
-				exit(1);
-			}
-			if(_minimizersPos[i] != otherRead._minimizersPos[i]){
-				cout << otherRead._readIndex << endl;
-				cout << i << "\t" << _minimizersPos[i] << "\t" << otherRead._minimizersPos[i] << endl;
-				cout << "pb 7" << endl;
-				exit(1);
-			}
-			if(_qualities[i] != otherRead._qualities[i]){
-				cout << "pb 8" << endl;
-				exit(1);
-			}
-			if(_readMinimizerDirections[i] != otherRead._readMinimizerDirections[i]){
-				cout << "pb 9" << endl;
-				exit(1);
-			}
-		}
-	}
-	*/
 };
+*/
 
 /*
 struct MinimizerReadBinary{
@@ -829,6 +751,103 @@ struct KmerVec{
 		return _kmers == other._kmers;
 	}
 
+	friend bool operator<(const KmerVec &a, const KmerVec &b){
+
+		
+		for(size_t i=0; i<a._kmers.size(); i++){
+			if(a._kmers[i] == b._kmers[i]){
+				continue;
+			}
+			else if(a._kmers[i] < b._kmers[i]){
+				return true;
+			}
+			else{
+				return false;
+			}
+		}
+
+		return false;
+		
+
+		//return a.hash128() < b.hash128();
+	}
+	
+	KmerVec() {
+	}
+
+	KmerVec(const KmerVec& other) {
+
+		//if(_kmers.size() != other._kmers.size()){
+		//	cout << "a: " << _kmers.size() << " " << other._kmers.size() << endl;
+		//}
+		//cout << other._kmers.size() << endl;
+
+		if(_kmers.size() == 0){
+			_kmers = other._kmers;
+			//for(size_t i=0; i < other._kmers.size(); i++){
+			//	_kmers.push_back(other._kmers[i]);
+			//}
+
+		}
+		else{
+			for(size_t i=0; i < other._kmers.size(); i++){
+				_kmers[i] = other._kmers[i];
+				//std::swap(a._kmers[i], b._kmers[i]);
+			}
+
+		}
+		//cout << "blurp" << endl;
+		//getchar();
+		//n = other.n + 1; 
+	}
+
+	
+	KmerVec& operator=(const KmerVec& other){
+
+		if(_kmers.size() == 0){
+			_kmers = other._kmers;
+
+		}
+		else{
+			for(size_t i=0; i < other._kmers.size(); i++){
+				_kmers[i] = other._kmers[i];
+				//std::swap(a._kmers[i], b._kmers[i]);
+			}
+
+		}
+
+		/*
+		if(_kmers.size() != other._kmers.size()){
+			cout << "b: " << _kmers.size() << " " << other._kmers.size() << endl;
+		}
+		
+		for(size_t i=0; i < other._kmers.size(); i++){
+			_kmers[i] = other._kmers[i];
+			//std::swap(a._kmers[i], b._kmers[i]);
+		}
+		*/
+
+		//cout << "lul" << endl;
+		//getchar();
+        // this may be called once or twice
+        // if called twice, 'other' is the just-moved-from V subobject
+        return *this;
+    }
+	
+
+	friend void swap(KmerVec& a, KmerVec& b){
+        //using std::swap; // bring in swap for built-in types
+		//cout << "swap" << endl;
+
+		for(size_t i=0; i < a._kmers.size(); i++){
+        	MinimizerType tmp = a._kmers[i];
+			a._kmers[i] = b._kmers[i];
+			b._kmers[i] = tmp;
+			//std::swap(a._kmers[i], b._kmers[i]);
+		}
+
+    }
+
 	KmerVec prefix() const{
 		KmerVec vec = (*this);
 		vec._kmers.pop_back();
@@ -901,20 +920,63 @@ struct KmerVec{
 		return  equal(_kmers.begin(), _kmers.begin() + _kmers.size()/2, _kmers.rbegin()); //suffix() == prefix().reverse();
 	}
 
+	/*
 	size_t h() const{
+
+		return hash128();
+		
 		std::size_t seed = _kmers.size();
 		for(auto& i : _kmers) {
 			seed ^= i + 0x9e3779b9 + (seed << 6) + (seed >> 2);
 		}
 		return seed;
+		
 	}
+	*/
 	
+	u_int64_t packPair() const{
+		return (static_cast<u_int64_t>(_kmers[0]) << 32) | _kmers[1];
+	}
+
 	u_int128_t hash128() const{
+		/*
+		XXH128_hash_t h = XXH3_128bits(
+			_kmers.data(),
+			_kmers.size() * sizeof(MinimizerType)
+		);
+
+		__uint128_t result =
+			(static_cast<__uint128_t>(h.high64) << 64) |
+			static_cast<__uint128_t>(h.low64);
+
+		return result;
+		*/
+
+		
+		uint64_t out[2];
+
+		MurmurHash3_x64_128_original(
+			_kmers.data(),
+			_kmers.size() * sizeof(MinimizerType),
+			0,      // seed
+			out
+		);
+
+		__uint128_t result =
+			(static_cast<__uint128_t>(out[0]) << 64) |
+			static_cast<__uint128_t>(out[1]);
+			
+		return result;
+		
+		/*
 		u_int128_t seed = _kmers.size();
-		for(auto& i : _kmers) {
-			seed ^= i + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+		for(auto kmerValue : _kmers) {
+			u_int64_t kmerHash = MurmurHash3_x64_128 ((const char*)&kmerValue, sizeof(kmerValue), 42);
+
+			seed ^= kmerHash + 0x9e3779b9 + (seed << 6) + (seed >> 2);
 		}
 		return seed;
+		*/
 	}
 
 	/*
@@ -945,7 +1007,186 @@ struct KmerVec{
 
 	
 
+struct KminmerPair{
+	KmerVec _vec;
+	u_int32_t _read_pos_start;
+	u_int32_t _read_pos_end;
+	bool _isReversed;
+};
+
+struct MinimizerRead{
+
+	public:
+
+	ReadType _readIndex;
+	vector<MinimizerType> _minimizers;
+	vector<u_int32_t> _minimizersPos;
+	vector<u_int8_t> _qualities;
+	vector<u_int8_t> _readMinimizerDirections;
+	u_int32_t _readLength;
+	float _meanReadQuality;
+	//float _debugNbMatches;
+
+	//vector<u_int64_t> _snpmers;
+	//vector<u_int32_t> _snpmersPos;
+	//vector<u_int8_t> _snpmersDirections;
+	//vector<u_int8_t> _snpmersQualities;
+	//u_int32_t _datasetIndex;
+
+	void print() const{
+		for(size_t i=0; i<_minimizers.size(); i++){
+			cout << i << "\t" << _minimizers[i] << "\t" << _minimizersPos[i] << "\t" << (int) _qualities[i] << "\t" << (int) _readMinimizerDirections[i] << endl;
+		}
+	}
+
+	MinimizerRead toReverseComplement() const{
+
+		MinimizerRead read;
+		read._readIndex = _readIndex;
+		read._minimizers = _minimizers;
+		read._minimizersPos = _minimizersPos;
+		read._qualities = _qualities;
+		read._readMinimizerDirections = _readMinimizerDirections;
+		read._readLength = _readLength;
+		read._meanReadQuality = _meanReadQuality;
+
+		//read._snpmers = _snpmers;
+		//read._snpmersPos = _snpmersPos;
+		//read._snpmersDirections = _snpmersDirections;
+		//read._snpmersQualities = _snpmersQualities;
+
+		std::reverse(read._minimizers.begin(), read._minimizers.end());
+		std::reverse(read._qualities.begin(), read._qualities.end());
+		std::reverse(read._readMinimizerDirections.begin(), read._readMinimizerDirections.end());
+		std::reverse(read._minimizersPos.begin(), read._minimizersPos.end());
+
+		//std::reverse(read._snpmers.begin(), read._snpmers.end());
+		//std::reverse(read._snpmersQualities.begin(), read._snpmersQualities.end());
+		//std::reverse(read._snpmersDirections.begin(), read._snpmersDirections.end());
+		//std::reverse(read._snpmersPos.begin(), read._snpmersPos.end());
+
+		for(size_t i=0; i<read._readMinimizerDirections.size(); i++){
+			read._readMinimizerDirections[i] = !read._readMinimizerDirections[i];
+			read._minimizersPos[i] = read._readLength - read._minimizersPos[i];
+		}
+
+		//for(size_t i=0; i<read._snpmersDirections.size(); i++){
+		//	read._snpmersDirections[i] = !read._snpmersDirections[i];
+		//	read._snpmersPos[i] = read._readLength - read._snpmersPos[i];
+		//}
+
+		return read;
+	}
+
+
+	void getKminmers(const size_t kminmerSize, vector<KmerVec>& kminmers) const{
+
+        kminmers.clear();
+
+		if(_minimizers.size() < kminmerSize) return;
+
+		for(size_t i=0; i<_minimizers.size()-kminmerSize+1; i++){
+
+			KmerVec vec;
+
+			for(size_t j=i; j<i+kminmerSize; j++){
+				vec._kmers.push_back(_minimizers[j]);
+			}	
+
+			kminmers.push_back(vec.normalize());
+		}
+	}
+	
+
+	void getKminmerPairs(const size_t minimizerSize, vector<KminmerPair>& kminmers) const{
+
+		const size_t kminmerSize = 2;
+
+        kminmers.clear();
+
+		if(_minimizers.size() < kminmerSize) return;
+
+		for(size_t i=0; i<_minimizers.size()-kminmerSize+1; i++){
+
+			KmerVec vec;
+
+			for(size_t j=i; j<i+kminmerSize; j++){
+				vec._kmers.push_back(_minimizers[j]);
+			}	
+
+			u_int32_t read_pos_start = _minimizersPos[i];
+			u_int32_t read_pos_end = _minimizersPos[i+kminmerSize-1];
+
+			
+			bool isReversed;
+			vec = vec.normalize(isReversed);
+			
+			kminmers.push_back({vec, read_pos_start, read_pos_end, isReversed});
+		}
+	}
+};
   
+
+struct CompressedMinimizerRead{
+
+	public:
+
+	u_int32_t _nbMinimizers;
+	vector<unsigned char> _minimizers;
+	vector<unsigned char> _positions;
+	vector<unsigned char> _qualities;
+	vector<unsigned char> _directions;
+	u_int32_t _readLength;
+	//float _meanReadQuality;
+
+	CompressedMinimizerRead(){}
+
+	
+	CompressedMinimizerRead(MinimizerRead& read){
+		
+		//cout << read._readIndex << endl;
+
+		_nbMinimizers = read._minimizers.size();
+
+		compressMinimizers(read._minimizers);
+		compressPositions(read._minimizersPos);
+		compressQualities(read._qualities);
+		compressDirections(read._readMinimizerDirections);
+
+		//cout << _nbMinimizers << ": " << _minimizers.size() << "\t" << _minimizersPos.size() << " " << _qualities.size() << " " << _readMinimizerDirections.size() << endl;
+	}
+	
+	
+	void compressMinimizers(vector<MinimizerType>& minimizers){
+		_minimizers.resize(minimizers.size()*32, 0);
+		u_int32_t compressed_vector_size = p4nenc32(minimizers.data(), minimizers.size() , _minimizers.data());
+		_minimizers.resize(compressed_vector_size);
+	}
+
+	void compressPositions(vector<u_int32_t>& positions){
+
+		_positions.resize(positions.size()*32, 0);
+		u_int32_t compressed_vector_size = p4nd1enc32(positions.data(), positions.size() , _positions.data());
+		_positions.resize(compressed_vector_size);
+	}
+
+	void compressQualities(vector<u_int8_t>& qualities){
+
+		_qualities.resize(qualities.size()*8, 0);
+		u_int32_t compressed_vector_size = p4nenc8(qualities.data(), qualities.size() , _qualities.data());
+		_qualities.resize(compressed_vector_size);
+	}
+
+	void compressDirections(vector<u_int8_t>& directions){
+
+		_directions.resize(directions.size()*8, 0);
+		u_int32_t compressed_vector_size = p4nenc8(directions.data(), directions.size() , _directions.data());
+		_directions.resize(compressed_vector_size);
+	}
+	
+
+};
+
 struct ReadKminmerComplete{
 	KmerVec _vec;
 	bool _isReversed;
@@ -1081,14 +1322,7 @@ namespace std {
 	template <>
 	struct hash<KmerVec>{
 		std::size_t operator()(const KmerVec& vec) const{
-			return vec.h();
-			/*
-			std::size_t seed = vec._kmers.size();
-			for(auto& i : vec._kmers) {
-				seed ^= i + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-			}
-			return seed;
-			*/
+			return vec.hash128();
 		}
 	};
 }
@@ -1123,6 +1357,7 @@ struct KminmerEdge3{
 	bool _isReversed;
 	bool _isPrefix;
 	bool _isUnitigged;
+	bool _hasMultipleSuccessors;
 };
 
 struct KminmerEdge4{
@@ -1138,15 +1373,37 @@ struct KminmerEdge{
 };
 
 
+struct KminmerEdge33{
+	MinimizerType _minimizer1;
+	bool _isReversed1;
+	bool _isPrefix1;
+	bool _isUnitigged1;
+	bool _hasMultipleSuccessors1;
+	MinimizerType _minimizer2;
+	bool _isReversed2;
+	bool _isPrefix2;
+	bool _isUnitigged2;
+	bool _hasMultipleSuccessors2;
+
+	KminmerEdge33(){
+		_minimizer1 = -1;
+		_minimizer2 = -1;
+	}
+};
+
+
 //typedef phmap::parallel_flat_hash_set<KmerVec, phmap::priv::hash_default_hash<KmerVec>, phmap::priv::hash_default_eq<KmerVec>, std::allocator<KmerVec>, 4, std::mutex> KmerVecSet;
-typedef phmap::parallel_flat_hash_map<KmerVec, DbgNode, phmap::priv::hash_default_hash<KmerVec>, phmap::priv::hash_default_eq<KmerVec>, std::allocator<std::pair<KmerVec, DbgNode>>, 4, std::mutex> MdbgNodeMap;
+//typedef phmap::parallel_flat_hash_map<KmerVec, DbgNode, phmap::priv::hash_default_hash<KmerVec>, phmap::priv::hash_default_eq<KmerVec>, std::allocator<std::pair<KmerVec, DbgNode>>, 4, std::mutex> MdbgNodeMap;
 //typedef phmap::parallel_flat_hash_map<KmerVec, vector<KminmerEdge>, phmap::priv::hash_default_hash<KmerVec>, phmap::priv::hash_default_eq<KmerVec>, std::allocator<std::pair<KmerVec, vector<KminmerEdge>>>, 4, std::mutex> MdbgEdgeMap;
-typedef phmap::parallel_flat_hash_map<u_int128_t, vector<KminmerEdge2>, phmap::priv::hash_default_hash<u_int128_t>, phmap::priv::hash_default_eq<u_int128_t>, std::allocator<std::pair<u_int128_t, vector<KminmerEdge2>>>, 4, std::mutex> MdbgEdgeMap2;
-typedef phmap::parallel_flat_hash_map<u_int128_t, vector<KminmerEdge3>, phmap::priv::hash_default_hash<u_int128_t>, phmap::priv::hash_default_eq<u_int128_t>, std::allocator<std::pair<u_int128_t, vector<KminmerEdge3>>>, 4, std::mutex> MdbgEdgeMap3;
-typedef phmap::parallel_flat_hash_map<u_int128_t, vector<KminmerEdge4>, phmap::priv::hash_default_hash<u_int128_t>, phmap::priv::hash_default_eq<u_int128_t>, std::allocator<std::pair<u_int128_t, vector<KminmerEdge4>>>, 4, std::mutex> MdbgEdgeMap4;
+//typedef phmap::parallel_flat_hash_map<u_int128_t, vector<KminmerEdge2>, phmap::priv::hash_default_hash<u_int128_t>, phmap::priv::hash_default_eq<u_int128_t>, std::allocator<std::pair<u_int128_t, vector<KminmerEdge2>>>, 4, std::mutex> MdbgEdgeMap2;
+//typedef phmap::parallel_flat_hash_map<u_int128_t, vector<KminmerEdge3>, phmap::priv::hash_default_hash<u_int128_t>, phmap::priv::hash_default_eq<u_int128_t>, std::allocator<std::pair<u_int128_t, vector<KminmerEdge3>>>, 10, std::mutex> MdbgEdgeMap3;
+typedef phmap::parallel_flat_hash_map<u_int128_t, vector<KminmerEdge4>, phmap::priv::hash_default_hash<u_int128_t>, phmap::priv::hash_default_eq<u_int128_t>, std::allocator<std::pair<u_int128_t, vector<KminmerEdge4>>>, 10, std::mutex> MdbgEdgeMap4;
 //typedef phmap::parallel_flat_hash_set<KmerVec, phmap::priv::hash_default_hash<KmerVec>, phmap::priv::hash_default_eq<KmerVec>, std::allocator<KmerVec>, 4, std::mutex> KminmerSet;
+typedef phmap::parallel_flat_hash_set<pair<u_int32_t, u_int32_t>, phmap::priv::hash_default_hash<pair<u_int32_t, u_int32_t>>, phmap::priv::hash_default_eq<pair<u_int32_t, u_int32_t>>, std::allocator<pair<u_int32_t, u_int32_t>>, 10, std::mutex> DbgEdgeSet;
 
-
+typedef ankerl::unordered_dense::map<u_int128_t, KminmerEdge33> MdbgEdgeMap6;
+typedef ankerl::unordered_dense::map<u_int128_t, vector<KminmerEdge3>> MdbgEdgeMap3;
+typedef ankerl::unordered_dense::set<u_int64_t> MdbgEdgeMapTest;
 //unordered_map<KmerVec, DbgNode> _dbg_nodes;
 //unordered_map<KmerVec, vector<KmerVec>> _dbg_edges;
 
@@ -1195,10 +1452,293 @@ struct UnitigNodeObject{
 	//vector<ReadKminmer> _kminmersInfo;
 };
 
+
+struct Parameters{
+	
+	float _minimizerDensity_assembly;
+	size_t _minimizerSize;
+	size_t _kminmerSize;		
+	float _minimizerSpacingMean;
+	float _kminmerLengthMean;
+	float _kminmerOverlapMean;
+	size_t _kminmerSizeFirst;
+	size_t _kminmerSizePrev;
+	size_t _kminmerSizeLast;
+	size_t _meanReadLength;
+	float _minimizerDensity_correction;
+	float _minIdentity;
+	float _minOverlapLength;
+	bool _useHomopolymerCompression;
+	int _dataType;
+	size_t _snpmerSize;
+
+	void load(const string& parameterFilename){
+
+		//string filename_parameters = _inputDir + "/parameters.gz";
+		gzFile file_parameters = gzopen(parameterFilename.c_str(), "rb");
+
+		gzread(file_parameters, (char*)&_minimizerSize, sizeof(_minimizerSize));
+		gzread(file_parameters, (char*)&_kminmerSize, sizeof(_kminmerSize));
+		gzread(file_parameters, (char*)&_minimizerDensity_assembly, sizeof(_minimizerDensity_assembly));
+		gzread(file_parameters, (char*)&_kminmerSizeFirst, sizeof(_kminmerSizeFirst));
+		gzread(file_parameters, (char*)&_minimizerSpacingMean, sizeof(_minimizerSpacingMean));
+		gzread(file_parameters, (char*)&_kminmerLengthMean, sizeof(_kminmerLengthMean));
+		gzread(file_parameters, (char*)&_kminmerOverlapMean, sizeof(_kminmerOverlapMean));
+		gzread(file_parameters, (char*)&_kminmerSizePrev, sizeof(_kminmerSizePrev));
+		gzread(file_parameters, (char*)&_kminmerSizeLast, sizeof(_kminmerSizeLast));
+		gzread(file_parameters, (char*)&_meanReadLength, sizeof(_meanReadLength));
+		gzread(file_parameters, (char*)&_minimizerDensity_correction, sizeof(_minimizerDensity_correction));
+		gzread(file_parameters, (char*)&_useHomopolymerCompression, sizeof(_useHomopolymerCompression));
+		gzread(file_parameters, (char*)&_dataType, sizeof(_dataType));
+		gzread(file_parameters, (char*)&_snpmerSize, sizeof(_snpmerSize));
+		
+		gzclose(file_parameters);
+
+	}
+
+	void save(const string& parameterFilename){
+	}
+};
+
+struct ReadStats{
+
+	size_t _totalNbReads;
+	float _minimizerDensity;
+	u_int32_t _n50ReadLength;
+	float _averageQuality;
+	u_int64_t _nbBases;
+	u_int32_t _meanReadLength;
+	u_int64_t _totalNbMinimizers;
+
+	void load(const string& filename){
+
+		ifstream file_readStats(filename);
+
+		file_readStats.read((char*)&_totalNbReads, sizeof(_totalNbReads));
+		file_readStats.read((char*)&_n50ReadLength, sizeof(_n50ReadLength));
+		file_readStats.read((char*)&_minimizerDensity, sizeof(_minimizerDensity));
+		file_readStats.read((char*)&_nbBases, sizeof(_nbBases));
+		file_readStats.read((char*)&_averageQuality, sizeof(_averageQuality));
+		file_readStats.read((char*)&_meanReadLength, sizeof(_meanReadLength));
+		file_readStats.read((char*)&_totalNbMinimizers, sizeof(_totalNbMinimizers));
+
+		file_readStats.close();
+	}
+};
+
+
 class Commons{
 
 public:
 
+
+
+
+	template<typename T>
+	static void sortParallel(vector<T>& vec, const size_t size, const int nbCores) {
+
+		const u_int64_t data_count = size;
+		auto get_block_edge = [data_count](int i, int n) {
+			return data_count * i / n;
+		};
+
+
+		u_int64_t blocks = nbCores;
+		#pragma omp parallel num_threads(nbCores)
+		{
+			//blocks = omp_get_num_threads();
+			u_int64_t block = omp_get_thread_num();
+			u_int64_t start = get_block_edge(block, blocks);
+			u_int64_t finish = get_block_edge(block + 1, blocks);
+		
+			std::sort(std::begin(vec) + start, std::begin(vec) + finish, [](const T& a, const T& b){
+				return a < b;
+			});
+		}
+
+		//cout << "merging" << endl;
+		for (int merge_step = 1; merge_step < blocks; merge_step *= 2) {
+			#pragma omp parallel for num_threads(nbCores)
+			for (u_int64_t i = 0; i < blocks; i += 2 * merge_step) {
+				u_int64_t start = get_block_edge(i, blocks);
+				u_int64_t mid = std::min(get_block_edge(i + merge_step, blocks), data_count);
+				u_int64_t finish = std::min(get_block_edge(i + 2 * merge_step, blocks), data_count);
+				if (mid < finish)
+					std::inplace_merge(std::begin(vec) + start, std::begin(vec) + mid, std::begin(vec) + finish, [](const T& a, const T& b){
+						return a < b;
+					});
+			}
+		}
+		
+		//cout << "done" << endl;
+	}
+
+	/*
+	template<typename T>
+	static void sortParallel2(vector<T>& vec, const int nbCores) {
+
+		const u_int64_t data_count = vec.size();
+		auto get_block_edge = [data_count](int i, int n) {
+			return data_count * i / n;
+		};
+
+
+		u_int64_t blocks = nbCores;
+		#pragma omp parallel num_threads(nbCores)
+		{
+			//blocks = omp_get_num_threads();
+			u_int64_t block = omp_get_thread_num();
+			u_int64_t start = get_block_edge(block, blocks);
+			u_int64_t finish = get_block_edge(block + 1, blocks);
+		
+			std::sort(std::begin(vec) + start, std::begin(vec) + finish, [](const T& a, const T& b){
+				return a < b;
+			});
+		}
+
+		//cout << "merging" << endl;
+		for (int merge_step = 1; merge_step < blocks; merge_step *= 2) {
+			#pragma omp parallel for num_threads(nbCores)
+			for (u_int64_t i = 0; i < blocks; i += 2 * merge_step) {
+				u_int64_t start = get_block_edge(i, blocks);
+				u_int64_t mid = std::min(get_block_edge(i + merge_step, blocks), data_count);
+				u_int64_t finish = std::min(get_block_edge(i + 2 * merge_step, blocks), data_count);
+				if (mid < finish)
+					std::inplace_merge(std::begin(vec) + start, std::begin(vec) + mid, std::begin(vec) + finish, [](const T& a, const T& b){
+						return a < b;
+					});
+			}
+		}
+		
+		//cout << "done" << endl;
+	}
+	*/
+
+	static vector<MinimizerType> purgePalindrome(vector<MinimizerType> minimizers, const size_t firstK, const size_t lastK){
+
+		bool hadPalindrome = false;
+
+		vector<bool> bannedPositions(minimizers.size(), false);
+
+		//vector<int> paloufType;
+
+
+		while(true){
+
+			bool hasPalindrome = false;
+
+			for(size_t k=firstK; k<lastK; k++){
+
+				KmerVec prevVec;
+
+				int i_max = ((int)minimizers.size()) - (int)k + 1;
+
+				for(int i=0; i<i_max; i++){
+
+
+					if(bannedPositions[i]){
+						continue;
+					}
+
+					KmerVec vec;
+					vector<u_int32_t> currentMinimizerIndex;
+
+					int j=i;
+
+					while(true){
+						
+						if(j >= minimizers.size()) break;
+
+						if(bannedPositions[j]){
+							j += 1;
+							continue;
+						}
+
+						MinimizerType minimizer = minimizers[j];
+
+						vec._kmers.push_back(minimizer);
+						currentMinimizerIndex.push_back(j);
+
+						if(vec._kmers.size() == k){
+
+		
+
+							if(vec.isPalindrome() ){ 
+
+								//paloufType.push_back(k);
+								bannedPositions[currentMinimizerIndex[0]] = true;
+								//for(size_t m=0; m<k; m++){
+								//	bannedPositions[currentMinimizerIndex[m]] = true;
+								//	hasPalindromeTotal = true;
+								//	//cout << "banned " << currentMinimizerIndex[m] << endl;
+								//}
+
+								hasPalindrome = true;
+								break;
+							}
+							
+						}
+
+						j += 1;
+					}
+
+					if(hasPalindrome) break;
+				}
+
+				if(hasPalindrome) break;
+			}
+
+			if(!hasPalindrome) break;
+		}
+
+		vector<MinimizerType> minimizersNoPalouf;
+
+		for(size_t i=0; i<minimizers.size(); i++){
+			if(bannedPositions[i]){
+				continue;
+			}
+
+			minimizersNoPalouf.push_back(minimizers[i]);
+		}
+
+		/*
+		if(minimizers.size() != minimizersNoPalouf.size()){
+			#pragma omp critical(lul)
+			{
+				cout << minimizers.size() << " " << minimizersNoPalouf.size() << endl;
+				for(size_t i=0; i<paloufType.size(); i++){
+					cout << "\t" << paloufType[i] << endl;
+				}
+
+				if(minimizers.size() - minimizersNoPalouf.size() > 50){
+					for(size_t i=0; i<minimizers.size(); i++){
+						cout << i << "\t" << minimizers[i] << endl;
+					}
+				}
+			}
+		}
+		*/
+
+		return minimizersNoPalouf;
+	}
+
+
+	static int computeLastK(float minimizerDensityAssembly, const size_t meanReadLength, size_t firstK, size_t maxK){
+		size_t lastK = meanReadLength * minimizerDensityAssembly * 2.0f; //1.2f; //2.0f; //*0.95
+		//_meanReadLength = readStats._n50ReadLength;
+		//_lastK = 10;
+
+		if(maxK > 0){
+			//int minimizerSize = _minimizerSize;
+			//int maxAssemblyLength = _maxAssemblyLength;
+			//int maxK = ((maxAssemblyLength-minimizerSize) * _params._minimizerDensityAssembly) + 1;;
+			lastK = maxK; //max((u_int64_t)0, _maxK);
+		}
+
+		lastK = max(lastK, firstK+2);
+
+		return lastK;
+	}
 
 	static int64_t getCigarNbMatches(const char* cigar_, const string& readSequence, const string& contigSequence){
 		
@@ -1292,11 +1832,16 @@ public:
 
 	}
 	
-	static unordered_set<MinimizerType> loadRepetitiveMinimizers(const string& tmpDir){
+	static unordered_set<MinimizerType> loadRepetitiveMinimizers(const string& filename, int lol){
 
 		unordered_set<MinimizerType> isRepetitiveMinimizers;
 
-		ifstream file(tmpDir + "/repetitiveMinimizers.bin" );
+		if(!fs::exists(filename)){
+			cout << "Can't open file: " << filename << endl;
+			return isRepetitiveMinimizers;// new BloomCacheCoherent<SnpmerType>(1000);
+		}
+
+		ifstream file(filename);
 		
 		while (true) {
 			
@@ -1311,6 +1856,55 @@ public:
 		file.close();
 
 		return isRepetitiveMinimizers;
+	}
+
+
+	//static BloomCacheCoherent<SnpmerType>* loadSnpmersBloom(const string& filename){
+	static void loadSnpmersBloom(const string& filename, ankerl::unordered_dense::set<MinimizerType>& map){
+
+		//cout << "todo: load paralillisation" << endl;
+		//const string filename = tmpDir + "/snpmers.bin";
+
+		if(!fs::exists(filename)){
+			cout << "Can't open file: " << filename << endl;
+			return;// new BloomCacheCoherent<SnpmerType>(1000);
+		}
+
+		//u_int64_t nbSnpmers = fs::file_size(filename) / sizeof(SnpmerType);
+		//cout << "Nb snpmers from file size: " << nbSnpmers << endl;
+		//u_int64_t estimatedBloomSize = nbSnpmers * 12;
+		//estimatedBloomSize = max(estimatedBloomSize, (u_int64_t)1000);
+
+		//cout << "Bloom size: " << estimatedBloomSize << endl;
+
+		//BloomCacheCoherent<SnpmerType>* bloomFilter = new BloomCacheCoherent<SnpmerType>(estimatedBloomSize);
+		
+		u_int64_t nbSnpmersActual = 0;
+		ifstream file(filename);
+		
+		while (true) {
+			
+			SnpmerType kmer;
+			file.read((char*)&kmer, sizeof(kmer));
+
+			//cout << kmer << endl;
+			if(file.eof())break;
+
+			map.insert(kmer);
+			//cout << kmer << endl;
+			//bloomFilter->insert(kmer);
+
+			//cout << isSnpmer.size() << endl;
+			//getchar();
+			nbSnpmersActual += 1;
+		}
+
+		file.close();
+
+		//getchar(); 
+		cout << "Nb snpmers actual: " << nbSnpmersActual << " " << map.size() << endl;
+
+		//return bloomFilter;
 	}
 
 	static string inputFileToFilenames(const string& inputFilename){
@@ -1413,6 +2007,93 @@ class Utils{
 
 public:
 
+
+	static void bgzip_decompress(const string inputFilename, const string outputFilename, const int nbCores){
+
+
+		BGZF *fp = bgzf_open(inputFilename.c_str(), "r");
+		int f_dst = open(outputFilename.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
+
+		long start = 0;
+		long end = -1;
+		int c = -1;
+		int test = 0;
+		//long size = -1;
+
+
+		int threads = nbCores;
+		char *buffer = (char*)malloc(BGZF_BLOCK_SIZE);
+		
+		//if ( start>0 )
+		//{
+			//if (index_fname) {
+			//	if ( bgzf_index_load(fp, index_fname, NULL) < 0 )
+			//		error("Could not load index: %s\n", index_fname);
+			//} else {
+				//if (optind >= argc || isstdin) {
+				//	error("The -b option requires -I when reading from stdin "
+				//		"(and stdin must be seekable)\n");
+				//}
+				//if ( bgzf_index_load(fp, argv[optind], ".gzi") < 0 )
+				//	error("Could not load index: %s.gzi\n", argv[optind]);
+			//}
+		//	if ( bgzf_useek(fp, start, SEEK_SET) < 0 ) error("Could not seek to %ld-th (uncompressd) byte\n", start);
+		//}
+
+		if (threads > 1)
+			bgzf_mt(fp, threads, 256);
+
+		//#ifdef _WIN32
+		//		_setmode(f_dst, O_BINARY);
+		//#endif
+		long start_reg = start, end_reg = end;
+		while (1) {
+			if (end < 0) c = bgzf_read(fp, buffer, BGZF_BLOCK_SIZE);
+			else c = bgzf_read(fp, buffer, (end - start > BGZF_BLOCK_SIZE)? BGZF_BLOCK_SIZE:(end - start));
+			if (c == 0) break;
+			//if (c < 0) error("Error %d in block starting at offset %" PRId64 "(%" PRIX64 ")\n", fp->errcode, fp->block_address, fp->block_address);
+			start += c;
+			if ( !test && write(f_dst, buffer, c) != c ) {
+				//#ifdef _WIN32
+				//				if (GetLastError() != ERROR_NO_DATA)
+				//#endif
+				//error("Could not write %d bytes\n", c);
+			}
+			if (end >= 0 && start >= end) break;
+		}
+		start = start_reg;
+		end = end_reg;
+		free(buffer);
+		bgzf_close(fp);
+
+		close(f_dst);
+
+		//if (bgzf_close(fp) < 0) error("Close failed: Error %d\n",fp->errcode);
+		/*
+		if (statfilename) {
+			if (!write_fname) {
+				//get input file timestamp
+				if (!getfilespec(argv[optind], &filestat)) {
+					//set output file timestamp
+					if (setfilespec(statfilename, &filestat) < 0) {
+						fprintf(stderr, "[bgzip] Failed to set file specification.\n");
+					}
+				}
+				else {
+					fprintf(stderr, "[bgzip] Failed to get file specification.\n");
+				}
+			}
+
+			free(statfilename);
+		}
+
+		if (argc > optind && !pstdout && !test && !keep && !isstdin && !write_fname) unlink(argv[optind]);
+		if (!isstdin && !pstdout && !test && !write_fname) {
+			close(f_dst);                               //close output file when it is not stdout
+		}
+		*/
+	}
+
 	static void concatenateFiles(const string& file1, const std::string& file2, const std::string& outputFile) {
 		
 		std::ofstream outDummy(outputFile);
@@ -1495,24 +2176,19 @@ public:
 		}
 	}
 
-	static vector<KmerVec> minimizersToKminmers(const vector<MinimizerType>& minimizers, const size_t& kminmerSize){
 
-		vector<KmerVec> kminmers;
-
-		for(size_t i=0; i<minimizers.size()-kminmerSize+1; i++){
-			KmerVec vec;
-			for(size_t j=0; j<kminmerSize; j++){
-				vec._kmers.push_back(minimizers[i+j]);
-			}
-			
-			kminmers.push_back(vec);
-		}
-
-		return kminmers;
-	}
 
 	static bool isReadTooShort(const MinimizerRead& minimizerReadLowDensity){
-		if(minimizerReadLowDensity._minimizers.size() < 10) return true;
+		//if(minimizerReadLowDensity._minimizers.size() < 10) return true;
+		//if(minimizerReadLowDensity._readLength < 500) return true;
+		//if(minimizerReadLowDensity._readLength < _minOverlapLength) return true;
+
+		//return false;
+		return isReadTooShort(minimizerReadLowDensity._minimizers.size());
+	}
+
+	static bool isReadTooShort(const u_int64_t& nbMinimizers){
+		if(nbMinimizers < 10) return true;
 		//if(minimizerReadLowDensity._readLength < 500) return true;
 		//if(minimizerReadLowDensity._readLength < _minOverlapLength) return true;
 
@@ -1611,6 +2287,7 @@ public:
 
 		return fields;
 	}
+
 	static u_int64_t computeN50(vector<u_int32_t> allReadLengths){
 
 		if(allReadLengths.size() == 0) return 0;
@@ -1642,6 +2319,20 @@ public:
 		}
 
 		return n50;
+	}
+
+	static u_int64_t computeMeanLength(vector<u_int32_t> allReadLengths){
+
+		long double sum = 0;
+		long double n = 0;
+		
+		for(size_t i=0; i<allReadLengths.size(); i++){
+			sum += allReadLengths[i];
+			n += 1;
+		}
+
+		return sum / n;
+
 	}
 
 	static float transformQuality(u_int8_t quality){
@@ -1826,15 +2517,18 @@ public:
 		//double minimizerBound_int32 = densityThreshold * maxHashValue_int32;
 		//_minimizerBound_int32 = minimizerDensity * maxHashValue_int32;
 
-		MinimizerType maxHashValue = -1;
+		u_int64_t maxHashValue = -1;
 		double minimizerBound = densityThreshold * maxHashValue;
 
 		for(size_t i=0; i<minimizers.size(); i++){
-			MinimizerType m = minimizers[i];
+			u_int64_t kmerValue = minimizers[i];
 
-			u_int32_t minimizer_int32 = m;
-			if(m < minimizerBound){
-			//if(minimizer_int32 < minimizerBound_int32){
+			//u_int64_t kmerHash = XXH3_64bits ((const char*)&kmerValue, sizeof(kmerValue));
+			u_int64_t kmerHash = MurmurHash3_x64_128 ((const char*)&kmerValue, sizeof(kmerValue), 42);
+
+
+			//if(minimizers[i] < minimizerBound){
+			if(kmerHash < minimizerBound){
 				minimizersFiltered.push_back(minimizers[i]);
 				if(minimizerPos.size() > 0) minimizerPosFiltered.push_back(minimizerPos[i]);
 				if(minimizerDirections.size() > 0) minimizerDirectionsFiltered.push_back(minimizerDirections[i]);
@@ -2041,6 +2735,7 @@ public:
 		}
 	}
 
+	/*
 	static void executeMinimap2(const string& command, const string& outputFilename){
 		pipeCommands(command, "gzip", outputFilename);
 	}
@@ -2133,18 +2828,19 @@ public:
 
 		return 0;
 	}
+	*/
 
 	static void executeCommand(const string& command, const string& outputDir){
 
 
 		//const string& failedFilename = outputDir + "/failed.txt";
 		static double _maxMemoryUsage = 0;
-		static string s = "Maximumresidentsetsize(kbytes):";
-		static string stringCpu = "PercentofCPUthisjobgot:";
-		static string stringTime = "Elapsed(wallclock)time(h:mm:ssorm:ss):";
+		//static string s = "Maximumresidentsetsize(kbytes):";
+		//static string stringCpu = "PercentofCPUthisjobgot:";
+		//static string stringTime = "Elapsed(wallclock)time(h:mm:ssorm:ss):";
 
 
-		string command2 = "{ \\time -v " + command + "; } 2> " + outputDir + "/time.txt";
+		//string command2 = "{ \\time -v " + command + "; } 2> " + outputDir + "/time.txt";
 
 		Logger::get().debug() << "";
 		Logger::get().debug() << "";
@@ -2153,10 +2849,13 @@ public:
 		//logFile << command2 << endl;
 		//cout << command2 << endl;
 		
-		//auto timeStart = high_resolution_clock::now();
+		auto start = high_resolution_clock::now();
 
-		int ret = system(command2.c_str());
+		//int ret = system(command2.c_str());
+		int ret = system(command.c_str());
 		
+		long double wallTime = ((long double)duration_cast<milliseconds>(high_resolution_clock::now() - start).count()) / ((long double)1000.0);
+		auto wallTimeChrono = duration_cast<seconds>(high_resolution_clock::now() - start);
 		//auto timeEnd = high_resolution_clock::now();
 
 		//cout << ret  << " " << (ret != 0) << endl;
@@ -2186,7 +2885,7 @@ public:
 			//cerr << "Logs: " << outputDir + "/logs.txt" << endl;
 		//	exit(1);
 		//}
-		
+		/*
 		ifstream infile(outputDir + "/time.txt");
 		string line;
 		double maxMem = 0;
@@ -2221,20 +2920,36 @@ public:
 			}
 		}
 		infile.close();
+		*/
 		//cout << "Max memory: " << _maxMemoryUsage << " GB" << endl;
 		//getchar();
 		
 
 		//float runtime = duration_cast<seconds>(timeEnd - timeStart).count();
 
+		double cpuTime2;
+		double peakRss2;
 
+		ifstream perfFile(outputDir + "/perf.bin");
+		perfFile.read((char*)&cpuTime2, sizeof(cpuTime2));
+		perfFile.read((char*)&peakRss2, sizeof(peakRss2));
+		perfFile.close();
+
+		
 		//cout << outputDir + "/memoryTrack.txt" << endl;
 		ofstream outfileMem(outputDir + "/memoryTrack.txt", std::ios_base::app);
 		outfileMem << command << endl;
-		outfileMem << "\tTime: " << time << endl;
-		outfileMem << "\tMemory (GB): " << maxMem << endl;
-		outfileMem << "\tCPU: " << cpu << endl;
+		if(wallTime > 1){
+			outfileMem << "\tTime: " << Utils::formatTimeToHumanReadable(wallTimeChrono) << endl;
+		}
+		else{
+			outfileMem << "\tTime: " << wallTime << "s " << endl;
+		}
+		outfileMem << "\tMemory (GB): " << peakRss2 << endl;
+		outfileMem << "\tCPU: " << cpuTime2 / wallTime << endl;
 		outfileMem.close();
+
+		_maxMemoryUsage = max(_maxMemoryUsage, peakRss2);
 
 		ofstream outfile(outputDir + "/perf.txt");
 		outfile << _maxMemoryUsage;
@@ -3598,9 +4313,10 @@ public:
 	size_t _k;
 	u_int32_t _node_id;
 	//unordered_map<KmerVec, DbgNode> _dbg_nodes;
-	MdbgNodeMap _dbg_nodes;
+	//MdbgNodeMap _dbg_nodes;
 	//MdbgEdgeMap _dbg_edges;
 	//unordered_map<KmerVec, vector<KmerVec>> _dbg_edges;
+
 
 	MDBG(size_t k){
 		_k = k;
@@ -3686,6 +4402,29 @@ public:
 		return false;
 	}
 
+	static bool readKminmer2(vector<MinimizerType>& minimizers, ifstream& inputFile){
+
+		//u_int32_t nodeName = node._index;
+		//u_int32_t abundance = node._abundance;
+
+
+		//vector<MinimizerType> minimizerSeq = vec._kmers;
+
+		//inputFile.read((char*)&nodeName, sizeof(nodeName));
+
+		//u_int16_t size = kminmerSize;
+		
+		//minimizers.resize(size);
+		inputFile.read((char*)&minimizers[0], minimizers.size()*sizeof(MinimizerType));
+
+		if(inputFile.eof()) return true;
+
+		//inputFile.read((char*)&nodeName, sizeof(nodeName));
+		//inputFile.read((char*)&abundance, sizeof(abundance));
+
+		return false;
+	}
+
 	//static void writeKminmer(const u_int32_t& nodeName, const u_int32_t& abundance, const vector<MinimizerType>& minimizers, ofstream& outputFile){
 	static void writeKminmer(const vector<MinimizerType>& minimizers, ofstream& outputFile){
 
@@ -3708,22 +4447,30 @@ public:
 
 	static bool readKminmerAbundance(u_int128_t& vecHash, AbundanceType& abundance, ifstream& inputFile){
 
+		//KminmerAbundance ab;
+
 		inputFile.read((char*)&vecHash, sizeof(vecHash));
 
 		if(inputFile.eof()) return true;
 
 		inputFile.read((char*)&abundance, sizeof(abundance));
-		
+		//vecHash = ab._vecHash;
+		//abundance = ab._abundance;
+
 		return false;
 	}
 
 	static void writeKminmerAbundance(const u_int128_t& vecHash, const AbundanceType& abundance, ofstream& outputFile){
 
+		//KminmerAbundance ab = {vecHash, abundance};
+
+		//outputFile.write((const char*)&ab, sizeof(ab));
+
 		outputFile.write((const char*)&vecHash, sizeof(vecHash));
 		outputFile.write((const char*)&abundance, sizeof(abundance));
 
 	}
-
+	/*
 	void dump(const string& filename){
 
 		ofstream kminmerFile = ofstream(filename);
@@ -3803,7 +4550,7 @@ public:
 
 		kminmerFile.close();
 	}
-	
+	*/
 	/*
 	void load(const string& filename){
 
@@ -3840,6 +4587,817 @@ public:
 
 
 
+	static void getKminmers(const size_t l, const size_t k, const vector<MinimizerType>& minimizers, const vector<u_int32_t>& minimizersPos, vector<KmerVec>& kminmers, vector<ReadKminmer>& kminmersLength, const vector<u_int64_t>& rlePositions, int readIndex, bool allowPalindrome){
+
+		kminmers.clear();
+        kminmersLength.clear();
+        bool doesComputeLength = minimizersPos.size() > 0;
+		if(minimizers.size() < k) return;
+
+		#ifdef FIX_PALINDROME
+		/*
+		bool isLala = false;
+		if(std::find(minimizers.begin(), minimizers.end(), 56801217747741349) !=  minimizers.end()){
+			isLala = true;
+		}*/
+		
+		/*
+		vector<u_int64_t> minimizers_filtered;
+
+		for(u_int64_t minimizer : minimizers){
+			if(filteredMinimizers.find(minimizer) != filteredMinimizers.end()) continue;
+
+			minimizers_filtered.push_back(minimizer);
+		}
+		*/
+
+		/*
+		if(minimizers.size() < _kminmerSize) return;
+
+		int i_max = ((int)minimizers.size()) - (int)_kminmerSize + 1;
+		for(int i=0; i<i_max; i++){
+
+			KmerVec vec;
+
+			bool valid = true;
+			for(int j=i; j<i+_kminmerSize; j++){
+				u_int64_t minimizer = minimizers[j];
+				if(filteredMinimizers.find(minimizer) != filteredMinimizers.end()){
+					valid = false;
+					break;
+				}
+
+				vec._kmers.push_back(minimizer);
+			}
+
+			if(valid) kminmers.push_back(vec.normalize());
+			//mdbg_repeatFree->addNode(vec.normalize());
+			//kminmers.push_back(vec.normalize());
+		}*/
+		
+		/*
+		if(readIndex == 39679){
+			for(size_t i=0; i<minimizers.size(); i++){
+				cout << i << ": " << minimizers[i] << endl;
+			}
+		}
+		*/
+		
+
+		//unordered_set<u_int64_t> bannedMinimizers;
+		vector<bool> bannedPositions(minimizers.size(), false);
+
+
+
+
+
+		/*
+		size_t banned_k = 3;
+
+		while(true){
+
+			//if(readIndex == 39679){
+			//	cout << "------------------------" << endl;
+			//}
+
+			bool hasPalindrome = false;
+			KmerVec prevVec;
+
+			int i_max = ((int)minimizers.size()) - (int)banned_k + 1;
+			for(int i=0; i<i_max; i++){
+
+				//if(readIndex == 94931){
+				//	cout << i << ": " << minimizers[i] << endl;
+				//}
+
+				if(bannedPositions[i]) continue;
+
+				KmerVec vec;
+				vector<u_int32_t> currentMinimizerIndex;
+
+				int j=i;
+				while(true){
+					
+					if(j >= minimizers.size()) break;
+					if(bannedPositions[j]){
+						j += 1;
+						continue;
+					}
+
+					u_int64_t minimizer = minimizers[j];
+
+
+					vec._kmers.push_back(minimizer);
+					currentMinimizerIndex.push_back(j);
+
+					if(vec._kmers.size() == banned_k){
+
+						
+						if((vec.isPalindrome() || (i > 0 && vec.normalize() == prevVec.normalize()))){ //Palindrome: 121 (créé un cycle), Large palindrome = 122 221 (créé une tip)
+
+							for(size_t m=0; m<banned_k; m++){
+								bannedPositions[currentMinimizerIndex[m]] = true;
+								//cout << "Banned: " << currentMinimizerIndex[m] << endl;
+							}
+							
+							
+							for(size_t i=0; i<bannedPositions.size()-banned_k+1; i++){
+								if(bannedPositions[i]) continue;
+								bool isBanned = false;
+								for(size_t j=i; j<i+banned_k; j++){
+									if(bannedPositions[j]){
+										isBanned = true;
+									}
+								}
+
+								if(isBanned){
+									for(size_t j=i; j<i+banned_k; j++){
+										cout << "Banned: " << j << endl;
+										bannedPositions[j] = true;
+									}
+								}
+							}
+							
+							
+
+							hasPalindrome = true;
+							break;
+						}
+					}
+
+					j += 1;
+				}
+
+				if(hasPalindrome) break;
+			}
+
+			
+			if(!hasPalindrome) break;
+			//kminmers.clear();
+        	//kminmersLength.clear();
+		}
+		*/
+		/*
+		if(isLala){
+			for(size_t i=0; i<minimizers.size(); i++){
+				cout << i << " " << minimizers[i] << "     " << bannedPositions[i] << endl;
+				if(minimizers[i] == 56801217747741349){
+					cout << "\tb" << endl; 
+				}
+				//if(bannedPositions[i]){
+				//	cout << "Banned: " << i << endl;
+				//}
+			}
+			getchar();
+		}*/
+
+
+		while(true){
+
+			//if(readIndex == 39679){
+			//	cout << "------------------------" << endl;
+			//}
+
+			bool hasPalindrome = false;
+			KmerVec prevVec;
+
+			int i_max = ((int)minimizers.size()) - (int)k + 1;
+			for(int i=0; i<i_max; i++){
+
+				//if(readIndex == 94931){
+				//	cout << i << ": " << minimizers[i] << endl;
+				//}
+
+				if(bannedPositions[i]){
+					//cout << "ban i" << endl;
+					continue;
+				}
+				KmerVec vec;
+				vector<u_int32_t> currentMinimizerIndex;
+
+				int j=i;
+				while(true){
+					
+					if(j >= minimizers.size()) break;
+					if(bannedPositions[j]){
+						//cout << "ban j" << " " << j << endl;
+						j += 1;
+						continue;
+					}
+
+					MinimizerType minimizer = minimizers[j];
+					//cout << "MU: " << j << " " << minimizer << endl;
+
+					//if(bannedMinimizers.find(minimizer) != bannedMinimizers.end()) continue;
+
+					vec._kmers.push_back(minimizer);
+					currentMinimizerIndex.push_back(j);
+
+					if(vec._kmers.size() == k){
+
+						/*
+						if(readIndex == 39679){
+							cout << "-----" << endl;
+							cout << vec._kmers[0] << endl;
+							cout << vec._kmers[1] << endl;
+							cout << vec._kmers[2] << endl;
+						}
+						*/
+
+						
+						if(vec.isPalindrome() || (i > 0 && vec.normalize() == prevVec.normalize())){ //Palindrome: 121 (créé un cycle), Large palindrome = 122 221 (créé une tip)
+
+							//if(readIndex == 96573){
+							//	cout << "\tPalouf" << endl;
+							//}
+
+							//cout << "Palindrome!" << endl;
+							//for(size_t p=j-_kminmerSize+1; p<=j-1; p++){
+							//	bannedPositions[p] = true;
+							//}
+							for(size_t m=0; m<k; m++){
+								bannedPositions[currentMinimizerIndex[m]] = true;
+
+								//if(readIndex == 39679){
+								//	cout << "Banned: " << currentMinimizerIndex[m] << endl;
+								//}
+								//cout << "Banned: " << currentMinimizerIndex[m] << endl;
+							}
+							/*
+							for(size_t i=0; i<bannedPositions.size()-k+1; i++){
+								if(bannedPositions[i]) continue;
+								bool isBanned = false;
+								for(size_t j=i; j<i+k; j++){
+									if(bannedPositions[j]){
+										isBanned = true;
+									}
+								}
+
+								if(isBanned){
+									for(size_t j=i; j<i+k; j++){
+										bannedPositions[j] = true;
+									}
+								}
+							}*/
+							
+
+							hasPalindrome = true;
+							break;
+						}
+						else{
+
+							bool isReversed;
+							vec = vec.normalize(isReversed);
+
+							//cout << "Is reversed: " << isReversed << endl;
+                            if(doesComputeLength){
+
+								u_int32_t indexFirstMinimizer = currentMinimizerIndex[0];
+								u_int32_t indexSecondMinimizer = currentMinimizerIndex[1];
+								u_int32_t indexSecondLastMinimizer = currentMinimizerIndex[currentMinimizerIndex.size()-2];
+								u_int32_t indexLastMinimizer = currentMinimizerIndex[currentMinimizerIndex.size()-1];
+
+
+								u_int32_t read_pos_start = minimizersPos[indexFirstMinimizer];
+								u_int32_t read_pos_end = minimizersPos[indexLastMinimizer];
+								if(rlePositions.size() > 0){
+									read_pos_start = rlePositions[minimizersPos[indexFirstMinimizer]];
+									read_pos_end = rlePositions[minimizersPos[indexLastMinimizer]];
+									read_pos_end +=  (rlePositions[minimizersPos[indexLastMinimizer] + l] - rlePositions[minimizersPos[indexLastMinimizer]]); //l-1 a check
+								}
+								else{
+									read_pos_end +=  l;//(minimizersPos[indexLastMinimizer] + l - minimizersPos[indexLastMinimizer]); //l-1 a check
+
+								}
+								//u_int32_t read_pos_start = rlePositions[minimizersPos[indexFirstMinimizer]];
+								//u_int32_t read_pos_end = rlePositions[minimizersPos[indexLastMinimizer]]; // + (rlePositions[minimizersPos[i+k-1]] - rlePositions[minimizersPos[i+k-1] + l]); //+ l;
+								//read_pos_end +=  (rlePositions[minimizersPos[indexLastMinimizer] + l] - rlePositions[minimizersPos[indexLastMinimizer]]); //l-1 a check
+
+								//cout << "HI: " << rlePositions[minimizersPos[i+k-1] + l - 1] << endl;
+								//cout << "HI: " << rlePositions[minimizersPos[i+k-1] + l] << endl;
+								u_int16_t length = read_pos_end - read_pos_start;
+								//cout << read_pos_start << " " << read_pos_end << " " << length << endl;
+								/*
+								if(readIndex == 159){
+												cout << "----------------" << endl;
+												cout << vec._kmers[0] << endl;
+												cout << vec._kmers[1] << endl;
+												cout << vec._kmers[2] << endl;
+												//cout << read_pos_start << " " << read_pos_end << endl;
+												//cout << currentMinimizerIndex[0] << endl;
+												//cout << currentMinimizerIndex[1] << endl;
+												//cout << currentMinimizerIndex[2] << endl;
+
+												cout << read_pos_start << " " << read_pos_end << endl;
+												//cout << "huuu" << endl;
+								}*/
+								
+								// seqSize = read_pos_end - read_pos_start;
+
+								//if(isReversed){
+								//	read_pos_start = rlePositions[minimizersPos[i+k-1]];
+								//	read_pos_end = rlePositions[minimizersPos[i]];
+								//}
+
+								/*
+								cout << "------------" << endl;
+								cout << rlePositions[minimizersPos[i]] << endl;
+								cout << rlePositions[minimizersPos[i+1]] << endl;
+								cout << rlePositions[minimizersPos[i+2]] << endl;
+								cout << "Length: " << length << endl;
+								*/
+
+								u_int16_t seq_length_start = 0;
+								u_int16_t seq_length_end = 0;
+
+								u_int16_t position_of_second_minimizer = 0;
+								u_int16_t position_of_second_minimizer_seq = 0;
+								if(isReversed){
+									//position_of_second_minimizer = rlePositions[minimizersPos[indexSecondLastMinimizer]]; //rlePositions[minimizersPos[i+k-1]] - rlePositions[minimizersPos[i+k-2]];
+									//position_of_second_minimizer_seq = position_of_second_minimizer;
+									//position_of_second_minimizer_seq += (rlePositions[minimizersPos[i+k-2] + l - 1] - rlePositions[minimizersPos[i+k-2]]);
+									//exit(1);
+
+
+									u_int16_t pos_last_minimizer = minimizersPos[indexSecondLastMinimizer] + l;
+									if(rlePositions.size() > 0) pos_last_minimizer = rlePositions[pos_last_minimizer];
+									//u_int16_t pos_last_minimizer = rlePositions[minimizersPos[indexSecondLastMinimizer] + l];
+									seq_length_start = read_pos_end - pos_last_minimizer; //rlePositions[minimizersPos[i+k-1]] - rlePositions[minimizersPos[i+k-2]];
+								}
+								else{
+
+									//u_int16_t pos_last_minimizer = rlePositions[minimizersPos[indexSecondMinimizer]];
+									u_int16_t pos_last_minimizer = minimizersPos[indexSecondMinimizer];
+									if(rlePositions.size() > 0) pos_last_minimizer = rlePositions[pos_last_minimizer];
+									seq_length_start = pos_last_minimizer - read_pos_start;
+
+									//cout << "todo" << endl;
+									//seq_length_start = 
+									//position_of_second_minimizer = rlePositions[minimizersPos[i+1]];// - rlePositions[minimizersPos[i]];
+								}
+
+								u_int16_t position_of_second_to_last_minimizer = 0;
+								u_int16_t position_of_second_to_last_minimizer_seq = 0;
+								if(isReversed){
+									
+									u_int16_t pos_last_minimizer = minimizersPos[indexSecondMinimizer];
+									if(rlePositions.size() > 0) pos_last_minimizer = rlePositions[pos_last_minimizer];
+									seq_length_end = pos_last_minimizer - read_pos_start;
+
+									//position_of_second_to_last_minimizer = rlePositions[minimizersPos[i+1]]; // - rlePositions[minimizersPos[i]];
+								}
+								else{
+									//position_of_second_to_last_minimizer = rlePositions[minimizersPos[indexSecondLastMinimizer]]; //rlePositions[minimizersPos[i+k-1]] - rlePositions[minimizersPos[i+k-2]];
+									//position_of_second_to_last_minimizer_seq = position_of_second_to_last_minimizer;
+									//position_of_second_to_last_minimizer_seq += (rlePositions[minimizersPos[i+k-2] + l - 1] - rlePositions[minimizersPos[i+k-2]]);
+
+									//u_int16_t pos_last_minimizer = rlePositions[minimizersPos[indexSecondLastMinimizer] + l];
+									u_int16_t pos_last_minimizer = minimizersPos[indexSecondLastMinimizer] + l;
+									if(rlePositions.size() > 0) pos_last_minimizer = rlePositions[pos_last_minimizer];
+									//cout << "lala: " << rlePositions.size() << " " << (minimizersPos[i+k-1] + l) << endl;
+									//cout << read_pos_end << " " << pos_last_minimizer << endl;
+									//position_of_second_to_last_minimizer_seq = rlePositions[minimizersPos[i+k-2] + l - 1];
+									seq_length_end = read_pos_end - pos_last_minimizer; //rlePositions[minimizersPos[i+k-1]] - rlePositions[minimizersPos[i+k-2]];
+									//position_of_second_to_last_minimizer_seq = length - seq_length_end;
+									//seq_length_end = rlePositions[minimizersPos[i+k-1]] - rlePositions[minimizersPos[i+k-2]];
+									//position_of_second_to_last_minimizer_seq =  length - seq_length_end + 1; //(rlePositions[minimizersPos[i+k-2]] - read_pos_start);//rlePositions[minimizersPos[i+k-2]] - read_pos_start;
+								}
+
+								//cout << read_pos_start << " " <<  read_pos_end << " " << length << "      " << seq_length_start << " " << seq_length_end << endl;
+								//u_int16_t lala = seq_length_end;
+								//lala -= (rlePositions[minimizersPos[i+k-2] + l])
+								//cout << "lala: " << rlePositions[minimizersPos[i+k-2] + l] << endl;
+
+								/*
+								cout << "\t" << read_pos_start << endl;
+								cout << "\t" << seq_length_start << " " << seq_length_end << endl;
+								cout << "\t" << position_of_second_to_last_minimizer_seq << endl;
+								cout << "\t" << read_pos_end << endl;
+								*/
+							
+								//cout << minimizersPos[i] << endl;
+								//cout << rlePositions.size() << endl;
+
+                                
+
+
+								//cout << "HI: " << read_pos_start << " " << read_pos_end << " " << position_of_second_to_last_minimizer << endl;
+								//cout << "HIIIII: " << rlePositions[minimizersPos[i+k-1] + l] << " " << rlePositions[minimizersPos[i+k-1]] << endl;
+
+
+								//cout << "HO: " << read_pos_start << " " << read_pos_end << " " << position_of_second_to_last_minimizer << endl;
+
+								//cout << read_pos_start << endl;
+								//cout << read_pos_end << endl;
+
+								//u_int16_t length = (rlePositions[minimizersPos[i+k-1]] + 1 - rlePositions[minimizersPos[i]] + 1);
+								//cout << "HAAAA: " << length << endl;
+                                kminmersLength.push_back({read_pos_start, read_pos_end, length, isReversed, position_of_second_minimizer, position_of_second_to_last_minimizer, position_of_second_minimizer_seq, position_of_second_to_last_minimizer_seq, seq_length_start, seq_length_end});
+                            }
+							else{
+                                kminmersLength.push_back({0, 0, 0, isReversed, 0, 0, 0, 0, 0, 0});
+							}
+
+							//if(currentMinimizerIndex[0] + 1 != currentMinimizerIndex[1] || currentMinimizerIndex[1] + 1 != currentMinimizerIndex[2]){
+							//	cout << vec._kmers[0] << " " << vec._kmers[1] << " " << vec._kmers[2] << endl;
+							//}
+							//if(readIndex == 30539){
+							//	cout << vec._kmers[0] << " " << vec._kmers[1] << " " << vec._kmers[2] << endl;
+							//}
+
+							prevVec = vec;
+							kminmers.push_back(vec);
+							break;
+						}
+					}
+
+					j += 1;
+				}
+
+				if(hasPalindrome) break;
+			}
+
+			
+			if(!hasPalindrome) break;
+			kminmers.clear();
+        	kminmersLength.clear();
+		}
+		#else
+
+
+
+		int i_max = ((int)minimizers.size()) - (int)k + 1;
+		for(int i=0; i<i_max; i++){
+
+			KmerVec vec;
+			vector<u_int32_t> currentMinimizerIndex;
+
+			int j=i;
+			while(true){
+				
+				if(j >= minimizers.size()) break;
+
+				MinimizerType minimizer = minimizers[j];
+
+				vec._kmers.push_back(minimizer);
+				currentMinimizerIndex.push_back(j);
+
+				if(vec._kmers.size() == k){
+
+					bool isReversed;
+					vec = vec.normalize(isReversed);
+
+					if(doesComputeLength){
+
+						u_int32_t indexFirstMinimizer = currentMinimizerIndex[0];
+						u_int32_t indexSecondMinimizer = currentMinimizerIndex[1];
+						u_int32_t indexSecondLastMinimizer = currentMinimizerIndex[currentMinimizerIndex.size()-2];
+						u_int32_t indexLastMinimizer = currentMinimizerIndex[currentMinimizerIndex.size()-1];
+
+
+						u_int32_t read_pos_start = minimizersPos[indexFirstMinimizer];
+						u_int32_t read_pos_end = minimizersPos[indexLastMinimizer];
+						if(rlePositions.size() > 0){
+							read_pos_start = rlePositions[minimizersPos[indexFirstMinimizer]];
+							read_pos_end = rlePositions[minimizersPos[indexLastMinimizer]];
+							read_pos_end +=  (rlePositions[minimizersPos[indexLastMinimizer] + l] - rlePositions[minimizersPos[indexLastMinimizer]]); //l-1 a check
+						}
+						else{
+							read_pos_end +=  l;//(minimizersPos[indexLastMinimizer] + l - minimizersPos[indexLastMinimizer]); //l-1 a check
+
+						}
+
+						u_int32_t length = read_pos_end - read_pos_start;
+
+						//cout << read_pos_start << " " << read_pos_end << " " << 
+						u_int32_t seq_length_start = 0;
+						u_int32_t seq_length_end = 0;
+
+						u_int32_t position_of_second_minimizer = 0;
+						u_int32_t position_of_second_minimizer_seq = 0;
+						if(isReversed){
+
+							u_int32_t pos_last_minimizer = minimizersPos[indexSecondLastMinimizer] + l;
+							if(rlePositions.size() > 0) pos_last_minimizer = rlePositions[pos_last_minimizer];
+							//u_int16_t pos_last_minimizer = rlePositions[minimizersPos[indexSecondLastMinimizer] + l];
+							seq_length_start = read_pos_end - pos_last_minimizer; //rlePositions[minimizersPos[i+k-1]] - rlePositions[minimizersPos[i+k-2]];
+						}
+						else{
+
+							//u_int16_t pos_last_minimizer = rlePositions[minimizersPos[indexSecondMinimizer]];
+							u_int32_t pos_last_minimizer = minimizersPos[indexSecondMinimizer];
+							if(rlePositions.size() > 0) pos_last_minimizer = rlePositions[pos_last_minimizer];
+							seq_length_start = pos_last_minimizer - read_pos_start;
+
+							//cout << "todo" << endl;
+							//seq_length_start = 
+							//position_of_second_minimizer = rlePositions[minimizersPos[i+1]];// - rlePositions[minimizersPos[i]];
+						}
+
+						u_int32_t position_of_second_to_last_minimizer = 0;
+						u_int32_t position_of_second_to_last_minimizer_seq = 0;
+						if(isReversed){
+							
+							u_int32_t pos_last_minimizer = minimizersPos[indexSecondMinimizer];
+							if(rlePositions.size() > 0) pos_last_minimizer = rlePositions[pos_last_minimizer];
+							seq_length_end = pos_last_minimizer - read_pos_start;
+
+							//position_of_second_to_last_minimizer = rlePositions[minimizersPos[i+1]]; // - rlePositions[minimizersPos[i]];
+						}
+						else{
+							//position_of_second_to_last_minimizer = rlePositions[minimizersPos[indexSecondLastMinimizer]]; //rlePositions[minimizersPos[i+k-1]] - rlePositions[minimizersPos[i+k-2]];
+							//position_of_second_to_last_minimizer_seq = position_of_second_to_last_minimizer;
+							//position_of_second_to_last_minimizer_seq += (rlePositions[minimizersPos[i+k-2] + l - 1] - rlePositions[minimizersPos[i+k-2]]);
+
+							//u_int16_t pos_last_minimizer = rlePositions[minimizersPos[indexSecondLastMinimizer] + l];
+							u_int32_t pos_last_minimizer = minimizersPos[indexSecondLastMinimizer] + l;
+							if(rlePositions.size() > 0) pos_last_minimizer = rlePositions[pos_last_minimizer];
+							//cout << "lala: " << rlePositions.size() << " " << (minimizersPos[i+k-1] + l) << endl;
+							//cout << read_pos_end << " " << pos_last_minimizer << endl;
+							//position_of_second_to_last_minimizer_seq = rlePositions[minimizersPos[i+k-2] + l - 1];
+							seq_length_end = read_pos_end - pos_last_minimizer; //rlePositions[minimizersPos[i+k-1]] - rlePositions[minimizersPos[i+k-2]];
+							//position_of_second_to_last_minimizer_seq = length - seq_length_end;
+							//seq_length_end = rlePositions[minimizersPos[i+k-1]] - rlePositions[minimizersPos[i+k-2]];
+							//position_of_second_to_last_minimizer_seq =  length - seq_length_end + 1; //(rlePositions[minimizersPos[i+k-2]] - read_pos_start);//rlePositions[minimizersPos[i+k-2]] - read_pos_start;
+						}
+						//cout << i << ": " << seq_length_start << " " << seq_length_end << endl;
+						kminmersLength.push_back({read_pos_start, read_pos_end, length, isReversed, position_of_second_minimizer, position_of_second_to_last_minimizer, position_of_second_minimizer_seq, position_of_second_to_last_minimizer_seq, seq_length_start, seq_length_end});
+					}
+					else{
+						kminmersLength.push_back({0, 0, 0, isReversed, 0, 0, 0, 0, 0, 0});
+					}
+
+					kminmers.push_back(vec);
+					break;
+					
+				}
+
+				j += 1;
+			}
+
+		}
+
+			
+		
+		#endif
+
+
+	}
+
+
+
+
+	static void getKminmers_complete(const size_t k, vector<MinimizerType> minimizers, const vector<u_int32_t>& minimizersPos, vector<ReadKminmerComplete>& kminmers, int readIndex, const vector<u_int8_t>& minimizerQualities){
+
+        kminmers.clear();
+		if(minimizers.size() < k) return;
+
+		//minimizers = purgePalindrome(minimizers);
+
+		#ifdef FIX_PALINDROME
+		bool hasPalindromeTotal = false;
+
+
+
+		vector<bool> bannedPositions(minimizers.size(), false);
+
+
+
+		while(true){
+
+
+			bool hasPalindrome = false;
+			KmerVec prevVec;
+
+			int i_max = ((int)minimizers.size()) - (int)k + 1;
+			for(int i=0; i<i_max; i++){
+
+
+				if(bannedPositions[i]){
+					continue;
+				}
+				KmerVec vec;
+				vector<u_int32_t> currentMinimizerIndex;
+
+				int j=i;
+				while(true){
+					
+					if(j >= minimizers.size()) break;
+					if(bannedPositions[j]){
+						j += 1;
+						continue;
+					}
+
+					MinimizerType minimizer = minimizers[j];
+
+					vec._kmers.push_back(minimizer);
+					currentMinimizerIndex.push_back(j);
+
+					if(vec._kmers.size() == k){
+
+	
+
+						
+						if(vec.isPalindrome() || (i > 0 && vec.normalize() == prevVec.normalize())){ //Palindrome: 121 (créé un cycle), Large palindrome = 122 221 (créé une tip)
+
+							for(size_t m=0; m<k; m++){
+								bannedPositions[currentMinimizerIndex[m]] = true;
+								hasPalindromeTotal = true;
+								//cout << "banned " << currentMinimizerIndex[m] << endl;
+							}
+
+							hasPalindrome = true;
+							break;
+						}
+						else{
+
+							bool isReversed;
+							vec = vec.normalize(isReversed);
+
+							u_int32_t indexFirstMinimizer = currentMinimizerIndex[0];
+							u_int32_t indexSecondMinimizer = currentMinimizerIndex[1];
+							u_int32_t indexSecondLastMinimizer = currentMinimizerIndex[currentMinimizerIndex.size()-2];
+							u_int32_t indexLastMinimizer = currentMinimizerIndex[currentMinimizerIndex.size()-1];
+
+
+							u_int32_t read_pos_start = indexFirstMinimizer;
+							u_int32_t read_pos_end = indexLastMinimizer;
+							u_int32_t length = read_pos_end - read_pos_start + 1;
+
+							
+							u_int32_t seq_length_start = 0;
+							u_int32_t seq_length_end = 0;
+
+							if(isReversed){
+
+								u_int32_t pos_last_minimizer = indexSecondLastMinimizer;
+								seq_length_start = read_pos_end - pos_last_minimizer;
+							}
+							else{
+
+								u_int32_t pos_last_minimizer = indexSecondMinimizer;
+								seq_length_start = pos_last_minimizer - read_pos_start;
+							}
+
+							if(isReversed){
+								
+								u_int32_t pos_last_minimizer = indexSecondMinimizer;
+								seq_length_end = pos_last_minimizer - read_pos_start;
+
+							}
+							else{
+								u_int32_t pos_last_minimizer = indexSecondLastMinimizer;
+								seq_length_end = read_pos_end - pos_last_minimizer; 
+							}
+
+							//cout << read_pos_start << " " << read_pos_end << " " << isReversed << "     " << seq_length_start << " " << seq_length_end << endl;
+							//vector<u_int64_t> kminmerMinimizers;
+
+							//for(size_t i=indexFirstMinimizer; i<=indexLastMinimizer; i++){
+							//	kminmerMinimizers.push_back(minimizers[i]);
+							//}
+
+
+							//if(vec.isPalindrome()){
+							//	cout << "derp palouf" << endl;
+							//}
+
+
+							prevVec = vec;
+							kminmers.push_back({vec, isReversed, read_pos_start, read_pos_end, seq_length_start, seq_length_end, length});
+							break;
+						}
+					}
+
+					j += 1;
+				}
+
+				if(hasPalindrome) break;
+			}
+
+			
+			if(!hasPalindrome) break;
+        	kminmers.clear();
+		}
+		#else
+
+		int i_max = ((int)minimizers.size()) - (int)k + 1;
+		for(int i=0; i<i_max; i++){
+
+
+			KmerVec vec;
+			vector<u_int32_t> currentMinimizerIndex;
+
+			int j=i;
+			while(true){
+				
+				if(j >= minimizers.size()) break;
+
+				MinimizerType minimizer = minimizers[j];
+
+				vec._kmers.push_back(minimizer);
+				currentMinimizerIndex.push_back(j);
+
+				if(vec._kmers.size() == k){
+
+					bool isReversed;
+					vec = vec.normalize(isReversed);
+
+					u_int32_t indexFirstMinimizer = currentMinimizerIndex[0];
+					u_int32_t indexSecondMinimizer = currentMinimizerIndex[1];
+					u_int32_t indexSecondLastMinimizer = currentMinimizerIndex[currentMinimizerIndex.size()-2];
+					u_int32_t indexLastMinimizer = currentMinimizerIndex[currentMinimizerIndex.size()-1];
+
+
+					u_int32_t read_pos_start = indexFirstMinimizer;
+					u_int32_t read_pos_end = indexLastMinimizer;
+					u_int32_t length = read_pos_end - read_pos_start + 1;
+
+					
+					u_int32_t seq_length_start = 0;
+					u_int32_t seq_length_end = 0;
+
+					if(isReversed){
+
+						u_int32_t pos_last_minimizer = indexSecondLastMinimizer;
+						seq_length_start = read_pos_end - pos_last_minimizer;
+					}
+					else{
+
+						u_int32_t pos_last_minimizer = indexSecondMinimizer;
+						seq_length_start = pos_last_minimizer - read_pos_start;
+					}
+
+					if(isReversed){
+						
+						u_int32_t pos_last_minimizer = indexSecondMinimizer;
+						seq_length_end = pos_last_minimizer - read_pos_start;
+
+					}
+					else{
+						u_int32_t pos_last_minimizer = indexSecondLastMinimizer;
+						seq_length_end = read_pos_end - pos_last_minimizer; 
+					}
+
+					//u_int8_t minQuality = -1;
+					//for(size_t i=indexFirstMinimizer; i<=indexLastMinimizer; i++){
+					//	if(minimizerQualities[i] < minQuality){
+					//		minQuality = minimizerQualities[i];
+					//	}
+					//}
+					//if(vec.isPalindrome()){
+					//	cout << "derp palouf" << endl;
+					//}
+					kminmers.push_back({vec, isReversed, read_pos_start, read_pos_end, seq_length_start, seq_length_end, length});
+					break;
+				}
+
+				j += 1;
+			}
+
+		}
+
+			
+		#endif
+
+		//if(hasPalindromeTotal){
+		//	cout << "mioum" << endl;
+		//	getchar();
+		//}
+	}
+
+	static vector<KmerVec> minimizersToKminmers(const vector<MinimizerType>& minimizers, const size_t& kminmerSize){
+
+		/*
+		vector<KmerVec> kminmers; 
+		vector<ReadKminmer> kminmersInfo;
+		vector<u_int64_t> rlePositions;
+		vector<u_int32_t> minimizersPos(minimizers.size(), 0);
+		//getKminmers(0, kminmerSize, minimizers, minimizersPos, kminmers, vector<ReadKminmer>& kminmersLength, rlePositions, int readIndex, bool allowPalindrome){
+
+		getKminmers(0, kminmerSize, minimizers, minimizersPos, kminmers, kminmersInfo, rlePositions, 0, false);
+
+		return kminmers;
+		*/
+		
+		vector<KmerVec> kminmers;
+
+		if(minimizers.size() < kminmerSize) return kminmers;
+
+		for(size_t i=0; i<minimizers.size()-kminmerSize+1; i++){
+			KmerVec vec;
+			for(size_t j=0; j<kminmerSize; j++){
+				vec._kmers.push_back(minimizers[i+j]);
+			}
+			
+			kminmers.push_back(vec);
+		}
+
+		return kminmers;
+		
+	}
+
+	/*
 	static void getKminmers(const size_t l, const size_t k, const vector<MinimizerType>& minimizers, const vector<u_int32_t>& minimizersPos, vector<KmerVec>& kminmers, vector<ReadKminmer>& kminmersLength, const vector<u_int64_t>& rlePositions, int readIndex, bool allowPalindrome){
 
 		kminmers.clear();
@@ -3967,6 +5525,7 @@ public:
 
 	}
 
+	
 
 	static void getKminmers_complete(const size_t k, const vector<MinimizerType>& minimizers, const vector<u_int32_t>& minimizersPos, vector<ReadKminmerComplete>& kminmers, int readIndex, const vector<u_int8_t>& minimizerQualities){
 
@@ -4050,7 +5609,7 @@ public:
 			
 
 	}
-
+	*/
 };
 
 
@@ -4346,6 +5905,7 @@ public:
 					}
 
 					if(isEOF) break;
+					
 					functorSub(read);
 
 				}
@@ -4630,6 +6190,272 @@ public:
 
 
 
+/*
+struct BinaryRead2{
+	ReadType _readIndex;
+	//string _seq;
+	DnaBitset2* _seqBinary;
+	vector<u_int16_t> _positionDelta;
+	vector<u_int8_t> _types;
+	vector<u_int8_t> _qualities;
+	u_int32_t _datasetIndex;
+
+	void destroy(){
+		delete _seqBinary;
+	}
+
+	MinimizerRead toMinimizerRead(const size_t minimizerSize, const size_t snpmerSize) const{
+
+
+		char* dnaStr = _seqBinary->to_string();
+		string seq = string(dnaStr, strlen(dnaStr));
+		free(dnaStr);
+
+		MinimizerRead read;
+
+		read._readIndex = _readIndex;
+		read._readLength = seq.size();
+		read._datasetIndex = _datasetIndex;
+		
+		//vector<u_int32_t> positions;
+		u_int32_t position = 0;
+
+		for(size_t i=0; i<_positionDelta.size(); i++){
+
+			//cout << "pos delta: " << _positionDelta[i] << " " << _types[i] << endl;
+			//u_int32_t minimizerLight = queryReadCompressed._minimizers[i];
+
+
+			position += _positionDelta[i];
+
+			//positions.push_back(position);
+
+			if(_types[i] == 0){ //Minimizer
+				//cout << "Minimizer" << endl;
+				read._minimizersPos.push_back(position);
+				read._qualities.push_back(_qualities[i]);
+			}
+			else if(_types[i] == 1){ //Snpmer
+				//cout << "Snpmer" << endl;
+				read._snpmersPos.push_back(position);
+				read._snpmersQualities.push_back(_qualities[i]);
+			}
+			//read._qualities.push_back(_qualities[i]);
+			//queryRead._minimizers.push_back(minimizerLight);
+			//queryRead._minimizersPos.push_back(posLight);
+			//queryRead._readMinimizerDirections.push_back(directionLigth);
+
+		}
+
+		KmerModel minimizerModel(minimizerSize);
+
+		vector<u_int64_t> kmers;
+		vector<u_int8_t> kmerDirections;
+		minimizerModel.iterate(seq.c_str(), seq.size(), kmers, kmerDirections);
+
+		//for(size_t i=0; i<kmers.size(); i++){
+		//	cout << i << "\t" << kmers[i] << endl; 
+		//}
+
+		for(size_t i=0; i<read._minimizersPos.size(); i++){
+
+			const u_int32_t pos = read._minimizersPos[i];
+
+			u_int64_t kmerValue = kmers[pos];
+			MinimizerType minimizer = MurmurHash3_x64_128 ((const char*)&kmerValue, sizeof(kmerValue), 42);
+
+			read._minimizers.push_back(minimizer);
+			read._readMinimizerDirections.push_back(kmerDirections[pos]);
+		}
+
+		KmerModel snpmerModel(snpmerSize);
+
+		snpmerModel.iterate(seq.c_str(), seq.size(), kmers, kmerDirections);
+
+		for(size_t i=0; i<read._snpmersPos.size(); i++){
+
+			const u_int32_t pos = read._snpmersPos[i];
+
+			read._snpmers.push_back(kmers[pos]);
+			read._snpmersDirections.push_back(kmerDirections[pos]);
+		}
+
+		return read;
+	}
+};
+*/
+
+class CompressedMinimizerReadParser{
+
+public:
+
+	string _inputFilename;
+	int _nbCores;
+
+	CompressedMinimizerReadParser(){
+	}
+
+	CompressedMinimizerReadParser(const string& inputFilename, int nbCores){
+
+
+		if(!fs::exists(inputFilename)){
+			cout << "File not found: " << inputFilename << endl;
+			exit(1);
+		}
+
+		_inputFilename = inputFilename;
+		_nbCores = nbCores;
+	}
+
+	template<typename Functor>
+	void parse(const Functor& functor){
+
+		const string inputFilenameDecompressed = _inputFilename + ".decomp";
+		Utils::bgzip_decompress(_inputFilename, inputFilenameDecompressed, _nbCores);
+
+		ifstream inputFile(inputFilenameDecompressed);
+
+		//u_int64_t readIndex = -1;
+
+
+		Functor functorSub(functor);
+
+		CompressedMinimizerRead read;
+		u_int32_t size;
+		ReadType readIndex;
+		//vector<unsigned char> minimizers;
+		//vector<unsigned char> positions;
+		//vector<unsigned char> qualities;
+		//vector<unsigned char> directions;
+
+		/*
+		u_int32_t binarySize;
+		u_int8_t* binarySeq;
+		BinaryRead2 read;
+		u_int32_t nbMinimizers;
+		vector<u_int16_t> positionDelta; 
+		vector<u_int8_t> qualities; 
+		vector<u_int8_t> types; 
+		u_int32_t datasetIndex;
+		*/
+
+		while(true){
+
+
+			inputFile.read((char*)&size, sizeof(size));
+
+			if(inputFile.eof()) break;
+
+			read._nbMinimizers = size;
+
+			inputFile.read((char*)&size, sizeof(size));
+			read._minimizers.resize(size);
+			inputFile.read((char*)&read._minimizers[0], read._minimizers.size());
+
+			inputFile.read((char*)&size, sizeof(size));
+			read._positions.resize(size);
+			inputFile.read((char*)&read._positions[0], read._positions.size());
+
+			inputFile.read((char*)&size, sizeof(size));
+			read._directions.resize(size);
+			inputFile.read((char*)&read._directions[0], read._directions.size());
+
+			inputFile.read((char*)&size, sizeof(size));
+			read._qualities.resize(size);
+			inputFile.read((char*)&read._qualities[0], read._qualities.size());
+
+
+			inputFile.read((char*)&read._readLength, sizeof(read._readLength));
+			inputFile.read((char*)&readIndex, sizeof(readIndex));
+			/*
+			u_int32_t size = minimizers.size();
+			bgzf_write(partitionFile->_file, (const char*)&size, sizeof(size));
+
+			size = compressedRead._minimizers.size();
+			bgzf_write(partitionFile->_file, (const char*)&size, sizeof(size));
+			bgzf_write(partitionFile->_file, (const char*)&compressedRead._minimizers[0], size);
+
+
+			size = compressedRead._minimizersPos.size();
+			bgzf_write(partitionFile->_file, (const char*)&size, sizeof(size));
+			bgzf_write(partitionFile->_file, (const char*)&compressedRead._minimizersPos[0], size);
+
+			size = compressedRead._readMinimizerDirections.size();
+			bgzf_write(partitionFile->_file, (const char*)&size, sizeof(size));
+			bgzf_write(partitionFile->_file, (const char*)&compressedRead._readMinimizerDirections[0], size);
+
+			size = compressedRead._qualities.size();
+			bgzf_write(partitionFile->_file, (const char*)&size, sizeof(size));
+			bgzf_write(partitionFile->_file, (const char*)&compressedRead._qualities[0], size);
+
+			bgzf_write(partitionFile->_file, (const char*)&readLength, sizeof(readLength));
+			bgzf_write(partitionFile->_file, (const char*)&readIndex, sizeof(readIndex));
+			*/
+			/*
+			inputFile.read((char*)&seqSize, sizeof(seqSize));
+
+
+			if(inputFile.eof()) isEOF = true;
+
+			if(!isEOF){
+
+				
+				readIndex += 1;
+				
+				read._readIndex = readIndex;
+
+
+				inputFile.read((char*)&binarySize, sizeof(binarySize));
+
+
+
+				binarySeq = new uint8_t[binarySize];
+
+				inputFile.read((char*)binarySeq, binarySize);
+				inputFile.read((char*)&nbMinimizers, sizeof(nbMinimizers));
+
+
+				positionDelta.resize(nbMinimizers);
+				types.resize(nbMinimizers);
+				qualities.resize(nbMinimizers);
+
+				inputFile.read((char*)&positionDelta[0], nbMinimizers*sizeof(u_int16_t));
+				inputFile.read((char*)&types[0], nbMinimizers*sizeof(u_int8_t));
+				inputFile.read((char*)&qualities[0], nbMinimizers*sizeof(u_int8_t));
+				inputFile.read((char*)&datasetIndex, sizeof(datasetIndex));
+
+			}
+
+			if(isEOF) break;
+
+
+			DnaBitset2* bitset = new DnaBitset2();
+			bitset->m_data = binarySeq;
+			bitset->m_len = seqSize;
+
+			//char* dnaStr = bitset->to_string();
+			//string seq = string(dnaStr, strlen(dnaStr));
+			//free(dnaStr);
+			
+
+			read._seqBinary = bitset;
+			read._positionDelta = positionDelta;
+			read._types = types;
+			read._qualities = qualities;
+			read._datasetIndex = datasetIndex;
+			//delete bitset;
+			*/
+
+			functorSub(readIndex, read);
+		}
+
+		inputFile.close();
+		fs::remove(inputFilenameDecompressed);
+
+	}
+
+
+};
 
 
 class KminmerParser{
@@ -5495,7 +7321,7 @@ public:
 	bool _usePos;
 	int _nbCores;
 	bool _hasQuality;
-	float _densityThreshold;
+	//float _densityThreshold;
 	bool _hasContigIndex;
 	size_t _maxChunkSize;
 	//AlignmentFile* _alignmentFile;
@@ -5518,7 +7344,7 @@ public:
 		_usePos = usePos;
 		_hasQuality = hasQuality;
 		_nbCores = nbCores;
-		_densityThreshold = -1;
+		//_densityThreshold = -1;
 		_hasContigIndex = false;
 		_maxChunkSize = 1000;
 		//_alignmentFile = nullptr;
@@ -5620,7 +7446,7 @@ public:
 					}
 				}
 				*/
-
+				/*
 				if(_densityThreshold != -1){
 
 					vector<MinimizerType> minimizersFiltered;
@@ -5636,32 +7462,10 @@ public:
 					minimizerQualities = minimizerQualitiesFiltered; 
 
 					
-					/*
-					MinimizerType maxHashValue = -1;
-					MinimizerType minimizerBound = _densityThreshold * maxHashValue;
 
-
-					for(size_t i=0; i<kminmerList._readMinimizers.size(); i++){
-						u_int64_t m = kminmerList._readMinimizers[i];
-						if(m > minimizerBound) continue;
-
-						minimizersFiltered.push_back(minimizers[i]);
-						minimizerPosFiltered.push_back(minimizerPos[i]);
-						minimizerDirectionsFiltered.push_back(minimizerDirections[i]);
-						minimizerQualitiesFiltered.push_back(minimizerQualities[i]);
-
-					}
-
-					u_int32_t readLength = minimizerPos[minimizerPos.size()-1];
-					minimizers = minimizersFiltered;
-					minimizerPos = minimizerPosFiltered;
-					minimizerPos.push_back(readLength);
-					minimizerDirections = minimizerDirectionsFiltered; 
-					minimizerQualities = minimizerQualitiesFiltered; 
-					*/
 
 				}
-
+				*/
 
 				//vector<KmerVec> kminmers; 
 				//vector<ReadKminmer> kminmersInfo;
@@ -5725,11 +7529,14 @@ public:
 					
 					file_readData.read((char*)&size, sizeof(size));
 
+					//cout << readIndex <<" " << size << endl;
+
 					if(file_readData.eof()) isEOF = true;
 
 					if(!isEOF){
 
 						readIndex += 1;
+
 
 						kminmerList = {readIndex};
 
@@ -5801,6 +7608,7 @@ public:
 				kminmerList._kminmersInfo = kminmersInfo;
 				kminmerList._isCircular = isCircular;
 				*/
+				/*
 				if(_densityThreshold != -1){
 
 					vector<MinimizerType> minimizersFiltered;
@@ -5815,6 +7623,7 @@ public:
 					minimizerDirections = minimizerDirectionsFiltered; 
 					minimizerQualities = minimizerQualitiesFiltered; 
 				}
+				*/
 
 				kminmerList._readMinimizers = minimizers;
 				kminmerList._minimizerPos = minimizerPos;
@@ -5842,150 +7651,128 @@ public:
 		u_int64_t readIndex = -1;
 		u_int64_t chunkSize = 0;
 
-		#pragma omp parallel num_threads(_nbCores)
-		{
+		//#pragma omp parallel num_threads(_nbCores)
+		//{
 
-			bool isEOF = false;
-			Functor functorSub(functor);
-			vector<MinimizerType> minimizers;
-			vector<u_int32_t> minimizerPos; 
-			vector<u_int8_t> minimizerDirections; 
-			vector<u_int8_t> minimizerQualities; 
-			u_int32_t size;
-			KminmerList kminmerList;
-			u_int8_t isCircular;
-			float meanReadQuality;
-			u_int32_t readLength;
-			//KminmerList kminmer;
+		bool isEOF = false;
+		Functor functorSub(functor);
+		vector<MinimizerType> minimizers;
+		vector<u_int32_t> minimizerPos; 
+		vector<u_int8_t> minimizerDirections; 
+		vector<u_int8_t> minimizerQualities; 
+		u_int32_t size;
+		KminmerList kminmerList;
+		u_int8_t isCircular;
+		float meanReadQuality;
+		u_int32_t readLength;
+		//KminmerList kminmer;
 
-			while(true){
-				
+		while(true){
+			
 
-				#pragma omp critical(KminmerParserParallel_parseChunk)
-				{
+			//#pragma omp critical(KminmerParserParallel_parseChunk)
+			//{
 
-					
-					file_readData.read((char*)&size, sizeof(size));
+			
+			file_readData.read((char*)&size, sizeof(size));
 
-					if(file_readData.eof()) isEOF = true;
+			if(file_readData.eof()) isEOF = true;
 
-					if(!isEOF){
+			if(!isEOF){
 
-						if(chunkSize >= _maxChunkSize){
-							functorChunk();
-							chunkSize = 0;
-						}
-
-						readIndex += 1;
-
-						kminmerList = {readIndex};
-
-						minimizers.resize(size);
-						minimizerPos.resize(size);
-						minimizerQualities.resize(size);
-						minimizerDirections.resize(size);
-						
-						file_readData.read((char*)&isCircular, sizeof(isCircular));
-
-						file_readData.read((char*)&minimizers[0], size*sizeof(MinimizerType));
-						if(_hasQuality) file_readData.read((char*)&minimizerPos[0], size*sizeof(u_int32_t));
-						if(_hasQuality) file_readData.read((char*)&minimizerDirections[0], size*sizeof(u_int8_t));
-						if(_hasQuality) file_readData.read((char*)&minimizerQualities[0], size*sizeof(u_int8_t));
-						if(_hasQuality) file_readData.read((char*)&meanReadQuality, sizeof(meanReadQuality));
-						if(_hasQuality) file_readData.read((char*)&readLength, sizeof(readLength));
-
-						chunkSize += minimizers.size();
-					}
-
+				if(chunkSize >= _maxChunkSize){
+					functorChunk();
+					chunkSize = 0;
 				}
 
+				readIndex += 1;
+
+				kminmerList = {readIndex};
+
+				minimizers.resize(size);
+				minimizerPos.resize(size);
+				minimizerQualities.resize(size);
+				minimizerDirections.resize(size);
 				
+				file_readData.read((char*)&isCircular, sizeof(isCircular));
 
-				//if(_isReadProcessed.size() > 0 && _isReadProcessed.find(readIndex) != _isReadProcessed.end()){
-				//	readIndex += 1;
-				//	continue;
-				//}
+				file_readData.read((char*)&minimizers[0], size*sizeof(MinimizerType));
+				if(_hasQuality) file_readData.read((char*)&minimizerPos[0], size*sizeof(u_int32_t));
+				if(_hasQuality) file_readData.read((char*)&minimizerDirections[0], size*sizeof(u_int8_t));
+				if(_hasQuality) file_readData.read((char*)&minimizerQualities[0], size*sizeof(u_int8_t));
+				if(_hasQuality) file_readData.read((char*)&meanReadQuality, sizeof(meanReadQuality));
+				if(_hasQuality) file_readData.read((char*)&readLength, sizeof(readLength));
 
-				//cout << "----" << endl;
-
-				if(isEOF) break;
-
-				/*
-				vector<u_int64_t> minimizersPos; 
-				if(size > 0){
-					u_int64_t pos = minimizersPosOffsets[0];
-					minimizersPos.push_back(pos);
-					for(size_t i=1; i<minimizersPosOffsets.size(); i++){
-						pos += minimizersPosOffsets[i];
-						minimizersPos.push_back(pos);
-						//cout << minimizersPosOffsets[i] << " " << pos << endl;
-					}
-				}
-				*/
-
-				if(_densityThreshold != -1){
-
-					vector<MinimizerType> minimizersFiltered;
-					vector<u_int32_t> minimizerPosFiltered; 
-					vector<u_int8_t> minimizerDirectionsFiltered; 
-					vector<u_int8_t> minimizerQualitiesFiltered; 
-
-					Utils::applyDensityThreshold(_densityThreshold, minimizers, minimizerPos, minimizerDirections, minimizerQualities, minimizersFiltered, minimizerPosFiltered, minimizerDirectionsFiltered, minimizerQualitiesFiltered);
-					
-					minimizers = minimizersFiltered;
-					minimizerPos = minimizerPosFiltered;
-					minimizerDirections = minimizerDirectionsFiltered; 
-					minimizerQualities = minimizerQualitiesFiltered; 
-
-					
-					/*
-					MinimizerType maxHashValue = -1;
-					MinimizerType minimizerBound = _densityThreshold * maxHashValue;
-
-
-					for(size_t i=0; i<kminmerList._readMinimizers.size(); i++){
-						u_int64_t m = kminmerList._readMinimizers[i];
-						if(m > minimizerBound) continue;
-
-						minimizersFiltered.push_back(minimizers[i]);
-						minimizerPosFiltered.push_back(minimizerPos[i]);
-						minimizerDirectionsFiltered.push_back(minimizerDirections[i]);
-						minimizerQualitiesFiltered.push_back(minimizerQualities[i]);
-
-					}
-
-					u_int32_t readLength = minimizerPos[minimizerPos.size()-1];
-					minimizers = minimizersFiltered;
-					minimizerPos = minimizerPosFiltered;
-					minimizerPos.push_back(readLength);
-					minimizerDirections = minimizerDirectionsFiltered; 
-					minimizerQualities = minimizerQualitiesFiltered; 
-					*/
-
-				}
-
-
-				//vector<KmerVec> kminmers; 
-				//vector<ReadKminmer> kminmersInfo;
-				vector<u_int64_t> rlePositions;
-				vector<ReadKminmerComplete> kminmersInfo;
-				//MDBG::getKminmers(_l, _k, minimizers, minimizersPos, kminmers, kminmersInfo, rlePositions, 0, false);
-				MDBG::getKminmers_complete(_k, minimizers, minimizerPos, kminmersInfo, readIndex, minimizerQualities);
-				
-				
-				//fun(minimizers, kminmers, kminmersInfo, readIndex);
-				kminmerList._readMinimizers = minimizers;
-				kminmerList._minimizerPos = minimizerPos;
-				kminmerList._readMinimizerDirections = minimizerDirections;
-				kminmerList._readQualities = minimizerQualities;
-				//kminmerList._kminmers = kminmers;
-				kminmerList._kminmersInfo = kminmersInfo;
-				kminmerList._isCircular = isCircular;
-				kminmerList._meanReadQuality = meanReadQuality;
-				kminmerList._readLength = readLength;
-				functorSub(kminmerList);
+				chunkSize += minimizers.size();
 			}
+
+			//}
+
+			
+
+			//if(_isReadProcessed.size() > 0 && _isReadProcessed.find(readIndex) != _isReadProcessed.end()){
+			//	readIndex += 1;
+			//	continue;
+			//}
+
+			//cout << "----" << endl;
+
+			if(isEOF) break;
+
+			/*
+			vector<u_int64_t> minimizersPos; 
+			if(size > 0){
+				u_int64_t pos = minimizersPosOffsets[0];
+				minimizersPos.push_back(pos);
+				for(size_t i=1; i<minimizersPosOffsets.size(); i++){
+					pos += minimizersPosOffsets[i];
+					minimizersPos.push_back(pos);
+					//cout << minimizersPosOffsets[i] << " " << pos << endl;
+				}
+			}
+			*/
+
+			/*
+			if(_densityThreshold != -1){
+				vector<MinimizerType> minimizersFiltered;
+				vector<u_int32_t> minimizerPosFiltered; 
+				vector<u_int8_t> minimizerDirectionsFiltered; 
+				vector<u_int8_t> minimizerQualitiesFiltered; 
+
+				Utils::applyDensityThreshold(_densityThreshold, minimizers, minimizerPos, minimizerDirections, minimizerQualities, minimizersFiltered, minimizerPosFiltered, minimizerDirectionsFiltered, minimizerQualitiesFiltered);
+				
+				minimizers = minimizersFiltered;
+				minimizerPos = minimizerPosFiltered;
+				minimizerDirections = minimizerDirectionsFiltered; 
+				minimizerQualities = minimizerQualitiesFiltered; 
+				
+				
+
+			}
+			*/
+
+
+			//vector<KmerVec> kminmers; 
+			//vector<ReadKminmer> kminmersInfo;
+			vector<u_int64_t> rlePositions;
+			vector<ReadKminmerComplete> kminmersInfo;
+			//MDBG::getKminmers(_l, _k, minimizers, minimizersPos, kminmers, kminmersInfo, rlePositions, 0, false);
+			MDBG::getKminmers_complete(_k, minimizers, minimizerPos, kminmersInfo, readIndex, minimizerQualities);
+			
+			
+			//fun(minimizers, kminmers, kminmersInfo, readIndex);
+			kminmerList._readMinimizers = minimizers;
+			kminmerList._minimizerPos = minimizerPos;
+			kminmerList._readMinimizerDirections = minimizerDirections;
+			kminmerList._readQualities = minimizerQualities;
+			//kminmerList._kminmers = kminmers;
+			kminmerList._kminmersInfo = kminmersInfo;
+			kminmerList._isCircular = isCircular;
+			kminmerList._meanReadQuality = meanReadQuality;
+			kminmerList._readLength = readLength;
+			functorSub(kminmerList);
 		}
+		//}
 
 		file_readData.close();
 
@@ -6258,7 +8045,7 @@ class Tool{
 public:
 
 	//ofstream _logFile;
-	//string _tmpDir;
+	string _tmpDir2;
 	string _logFilename;
 
 	void run(int argc, char* argv[]){
@@ -6294,10 +8081,23 @@ public:
 
 		_logFilename = parentDir + "/metaMDBG.log";
 		Logger::get().setOutputFile(_logFilename);
+
+		_tmpDir2 = parentDir;
 	}
 
 	void end(){
+		
+		//cout << _tmpDir2 << endl;
+		
+		double cpuTime2 = cputime();
+		double peakRss2 = peakrss() / 1024.0 / 1024.0 / 1024.0;
 
+		ofstream outputFile(_tmpDir2 + "/tmp/perf.bin");
+		outputFile.write((const char*)&cpuTime2, sizeof(cpuTime2));
+		outputFile.write((const char*)&peakRss2, sizeof(peakRss2));
+		outputFile.close();
+		//cout <<  "Attention cputime != real time (utiliser un timer) " << cputime() << " " << peakrss() / 1024.0 / 1024.0 / 1024.0 << endl;
+		//fprintf(stderr, "\n[M::%s] Real time: %.3f sec; CPU: %.3f sec; Peak RSS: %.3f GB\n", __func__, realtime() - mm_realtime0, cputime(), peakrss() / 1024.0 / 1024.0 / 1024.0);
 		//ofstream file(_tmpDir + "/peakMemory.txt");
 		//file << getPeakRSS() << endl;
 		//file.close();
@@ -6317,6 +8117,262 @@ public:
 };
 
 
+struct KminmerListAbundances{
+	ReadType _readIndex;
+	vector<MinimizerType> _readMinimizers;
+	vector<u_int32_t> _minimizerPos;
+	vector<u_int8_t> _readMinimizerDirections;
+	vector<u_int8_t> _readQualities;
+	vector<ReadKminmerComplete> _kminmersInfo;
+	Read _read;
+	u_int8_t _isCircular;
+	//vector<AlignmentResult2> _alignments;
+	float _meanReadQuality;
+	u_int32_t _readLength;
+	vector<u_int32_t> _abundances;
+	//vector<KmerVec> _kminmers;
+	//vector<ReadKminmer> _kminmersInfo;
+};
+
+class KminmerAbundanceParserParallel{
+
+public:
+
+	string _inputFilename;
+	size_t _k;
+	int _nbCores;
+
+	KminmerAbundanceParserParallel(){
+	}
+
+	KminmerAbundanceParserParallel(const string& inputFilename, size_t k, int nbCores){
+
+		if(!fs::exists(inputFilename)){
+			cout << "File not found: " << inputFilename << endl;
+			exit(1);
+		}
+
+		_inputFilename = inputFilename;
+		_k = k;
+		_nbCores = nbCores;
+	}
+
+	template<typename Functor>
+	void parse(const Functor& functor){
+
+		ifstream file_readData(_inputFilename);
+
+		u_int64_t readIndex = -1;
+
+		#pragma omp parallel num_threads(_nbCores)
+		{
+
+			bool isEOF = false;
+			Functor functorSub(functor);
+			vector<MinimizerType> minimizers;
+			vector<u_int32_t> minimizerPos; 
+			vector<u_int8_t> minimizerDirections; 
+			vector<u_int8_t> minimizerQualities; 
+			u_int32_t size;
+			KminmerListAbundances kminmerList;
+			u_int8_t isCircular;
+			float meanReadQuality;
+			u_int32_t readLength;
+			vector<u_int32_t> abundances;
+			//KminmerList kminmer;
+
+			while(true){
+				
+
+				#pragma omp critical(KminmerParserParallel_parse)
+				{
+
+					
+					file_readData.read((char*)&size, sizeof(size));
+
+					if(file_readData.eof()) isEOF = true;
+
+					if(!isEOF){
+
+						readIndex += 1;
+
+						kminmerList = {readIndex};
+
+						minimizers.resize(size);
+						minimizerPos.resize(size);
+						minimizerQualities.resize(size);
+						minimizerDirections.resize(size);
+						
+						file_readData.read((char*)&isCircular, sizeof(isCircular));
+						file_readData.read((char*)&minimizers[0], size*sizeof(MinimizerType));
+
+
+						u_int32_t abundanceSize;
+						file_readData.read((char*)&abundanceSize, sizeof(abundanceSize));
+						
+						//cout << size << " " << abundanceSize << endl;
+
+						abundances.resize(abundanceSize);
+						file_readData.read((char*)&abundances[0], abundanceSize*sizeof(u_int32_t));
+
+					}
+
+				}
+
+				
+
+				if(isEOF) break;
+
+			
+				vector<u_int64_t> rlePositions;
+				vector<ReadKminmerComplete> kminmersInfo;
+				MDBG::getKminmers_complete(_k, minimizers, minimizerPos, kminmersInfo, readIndex, minimizerQualities);
+				
+				
+				//fun(minimizers, kminmers, kminmersInfo, readIndex);
+				kminmerList._readMinimizers = minimizers;
+				kminmerList._minimizerPos = minimizerPos;
+				kminmerList._readMinimizerDirections = minimizerDirections;
+				kminmerList._readQualities = minimizerQualities;
+				//kminmerList._kminmers = kminmers;
+				kminmerList._kminmersInfo = kminmersInfo;
+				kminmerList._isCircular = isCircular;
+				kminmerList._meanReadQuality = meanReadQuality;
+				kminmerList._readLength = readLength;
+				kminmerList._abundances = abundances;
+				functorSub(kminmerList);
+			}
+		}
+
+		file_readData.close();
+
+
+	}
+};
+
+
+// iterator from disk file of uint64_t with buffered read,   todo template
+class bfile_iterator_kminmerAbundance : public std::iterator<std::forward_iterator_tag, KminmerAbundance>{
+public:
+	
+	bfile_iterator_kminmerAbundance()
+	: _is(nullptr)
+	, _pos(0) ,_inbuff (0), _cptread(0)
+	{
+		_buffsize = 10000;
+		_buffer = (KminmerAbundance *) malloc(_buffsize*sizeof(KminmerAbundance));
+	}
+	
+	bfile_iterator_kminmerAbundance(const bfile_iterator_kminmerAbundance& cr)
+	{
+		_buffsize = cr._buffsize;
+		_pos = cr._pos;
+		_is = cr._is;
+		_buffer = (KminmerAbundance *) malloc(_buffsize*sizeof(KminmerAbundance));
+			memcpy(_buffer,cr._buffer,_buffsize*sizeof(KminmerAbundance) );
+		_inbuff = cr._inbuff;
+		_cptread = cr._cptread;
+		_elem = cr._elem;
+	}
+	
+	bfile_iterator_kminmerAbundance(FILE* is): _is(is) , _pos(0) ,_inbuff (0), _cptread(0)
+	{
+		//printf("bf it %p\n",_is);
+		_buffsize = 10000;
+		_buffer = (KminmerAbundance *) malloc(_buffsize*sizeof(KminmerAbundance));
+		int reso = fseek(_is,0,SEEK_SET);
+		advance();
+	}
+	
+	~bfile_iterator_kminmerAbundance()
+	{
+		if(_buffer!=NULL)
+			free(_buffer);
+	}
+	
+	
+	u_int128_t const& operator*()  {  return _elem._vecHash;  }
+	
+	bfile_iterator_kminmerAbundance& operator++()
+	{
+		advance();
+		return *this;
+	}
+	
+	friend bool operator==(bfile_iterator_kminmerAbundance const& lhs, bfile_iterator_kminmerAbundance const& rhs)
+	{
+		if (!lhs._is || !rhs._is)  {  if (!lhs._is && !rhs._is) {  return true; } else {  return false;  } }
+		assert(lhs._is == rhs._is);
+		return rhs._pos == lhs._pos;
+	}
+	
+	friend bool operator!=(bfile_iterator_kminmerAbundance const& lhs, bfile_iterator_kminmerAbundance const& rhs)  {  return !(lhs == rhs);  }
+private:
+	void advance()
+	{
+		
+		//printf("_cptread %i _inbuff %i \n",_cptread,_inbuff);
+		
+		_pos++;
+		
+		if(_cptread >= _inbuff)
+		{
+
+			int res = fread(_buffer,sizeof(KminmerAbundance),_buffsize,_is);
+
+			//printf("read %i new elem last %llu  %p\n",res,_buffer[res-1],_is);
+			_inbuff = res; _cptread = 0;
+			
+			if(res == 0)
+			{
+				_is = nullptr;
+				_pos = 0;
+				return;
+			}
+		}
+		
+		_elem = _buffer[_cptread];
+		_cptread ++;
+	}
+	KminmerAbundance _elem;
+	FILE * _is;
+	unsigned long _pos;
+	
+	KminmerAbundance * _buffer; // for buffered read
+	int _inbuff, _cptread;
+	int _buffsize;
+};
+
+
+class file_binary_kminmerAbundance{
+public:
+	
+	file_binary_kminmerAbundance(const char* filename)
+	{
+		_is = fopen(filename, "rb");
+
+		if (!_is) {
+			throw std::invalid_argument("Error opening " + std::string(filename));
+		}
+	}
+	
+	~file_binary_kminmerAbundance()
+	{
+		fclose(_is);
+	}
+	
+	bfile_iterator_kminmerAbundance begin() const
+	{
+		return bfile_iterator_kminmerAbundance(_is);
+	}
+	
+	bfile_iterator_kminmerAbundance end() const {return bfile_iterator_kminmerAbundance(); }
+	
+	size_t        size () const  {  return 0;  }//todo ?
+	
+private:
+	FILE * _is;
+};
 
 
 #endif

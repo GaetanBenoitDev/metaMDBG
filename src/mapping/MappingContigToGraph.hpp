@@ -21,6 +21,7 @@ public:
 
 	string _filename_exe;
 	string _tmpDir;
+	unordered_set<MinimizerType> _isRepetitiveMinimizers;
 
 	MappingContigToGraph(): Tool (){
 
@@ -115,6 +116,13 @@ public:
 		gzclose(file_parameters);
 
 
+		cout << _kminmerSize << endl;
+		cout << _minimizerSize << endl;
+		cout << _minimizerDensity << endl;
+
+
+		_isRepetitiveMinimizers = Commons::loadRepetitiveMinimizers(_outputDir + "/../repetitiveMinimizers.bin", 0);
+
 		cout << "Loading sequences" << endl;
 		loadReferences();
 		cout << "Nb reference kminmers: " << _kminmer_to_referenceName.size() << " " << _kminmer_to_referenceIndex.size() << endl;
@@ -176,13 +184,13 @@ public:
 		ReadSelectionFunctor(MappingContigToGraph& readSelection, size_t minimizerSize, float minimizerDensity) : _readSelection(readSelection){
 			_minimizerSize = minimizerSize;
 			_minimizerDensity = minimizerDensity;
-			_minimizerParser = new MinimizerParser(minimizerSize, minimizerDensity);
+			_minimizerParser = new MinimizerParser(minimizerSize, minimizerDensity, _readSelection._isRepetitiveMinimizers);
 		}
 
 		ReadSelectionFunctor(const ReadSelectionFunctor& copy) : _readSelection(copy._readSelection){
 			_minimizerSize = copy._minimizerSize;
 			_minimizerDensity = copy._minimizerDensity;
-			_minimizerParser = new MinimizerParser(_minimizerSize, _minimizerDensity);
+			_minimizerParser = new MinimizerParser(_minimizerSize, _minimizerDensity, _readSelection._isRepetitiveMinimizers);
 		}
 
 		~ReadSelectionFunctor(){
@@ -268,13 +276,13 @@ public:
 		ReferencePositionFunctor(MappingContigToGraph& readSelection, size_t minimizerSize, float minimizerDensity) : _readSelection(readSelection){
 			_minimizerSize = minimizerSize;
 			_minimizerDensity = minimizerDensity;
-			_minimizerParser = new MinimizerParser(minimizerSize, minimizerDensity);
+			_minimizerParser = new MinimizerParser(minimizerSize, minimizerDensity, _readSelection._isRepetitiveMinimizers);
 		}
 
 		ReferencePositionFunctor(const ReferencePositionFunctor& copy) : _readSelection(copy._readSelection){
 			_minimizerSize = copy._minimizerSize;
 			_minimizerDensity = copy._minimizerDensity;
-			_minimizerParser = new MinimizerParser(_minimizerSize, _minimizerDensity);
+			_minimizerParser = new MinimizerParser(_minimizerSize, _minimizerDensity, _readSelection._isRepetitiveMinimizers);
 		}
 
 		~ReferencePositionFunctor(){
@@ -390,9 +398,27 @@ public:
 
 		void operator () (const KminmerList& kminmerList) {
 
+
 			//cout << kminmerList._readIndex << " " << kminmerList._kminmersInfo.size() << endl;
 			//getchar();
 		
+
+
+			if(_parent._unitigOrderRev[kminmerList._readIndex] == 119526){
+				cout << "lala" << endl;
+				for(size_t i=0; i<kminmerList._readMinimizers.size(); i++){
+					cout << i << "\t" << kminmerList._readMinimizers[i] << endl;
+				}
+			}
+
+
+			if(_parent._unitigOrderRev[kminmerList._readIndex] == 105341){
+				cout << "lala" << endl;
+				for(size_t i=0; i<kminmerList._readMinimizers.size(); i++){
+					cout << i << "\t" << kminmerList._readMinimizers[i] << endl;
+				}
+			}
+
 
 
 			for(size_t i=0; i<kminmerList._kminmersInfo.size(); i++){
@@ -408,6 +434,7 @@ public:
 				//cout << i << " " << (_parent._kminmer_to_referenceIndex.find(vec) == _parent._kminmer_to_referenceIndex.end()) << endl;
 				if(_parent._kminmer_to_referenceIndex.find(vec) == _parent._kminmer_to_referenceIndex.end()) continue;
 			
+				
 				#pragma omp critical
 				{
 
@@ -418,6 +445,14 @@ public:
 					if(_parent._isUnitigWritten.find(_parent._unitigOrderRev[kminmerList._readIndex]) == _parent._isUnitigWritten.end()){
 						_parent._isUnitigWritten.insert(_parent._unitigOrderRev[kminmerList._readIndex]);
 						_parent._colorFile << "utg" << _parent._unitigOrderRev[kminmerList._readIndex] << ",green" << endl;
+
+						//if(_parent._unitigOrderRev[kminmerList._readIndex] == 59365){
+						//	cout << "lala" << endl;
+						//	for(size_t i=0; i<kminmerList._readMinimizers.size(); i++){
+						//		cout << i << "\t" << kminmerList._readMinimizers[i] << endl;
+						//	}
+						//}
+
 
 						string s = "";
 						for(const string& referenceName : _parent._kminmer_to_referenceName[vec]){

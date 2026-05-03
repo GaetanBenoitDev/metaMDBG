@@ -12,7 +12,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 #set(CMAKE_CXX_FLAGS "-Wall -w") #-g 
-set(CMAKE_CXX_FLAGS "-Wall -w -g -Wno-c++11-narrowing -D_LIBCPP_DISABLE_AVAILABILITY")
+set(CMAKE_CXX_FLAGS "-Wall -w -g -Wno-c++11-narrowing -D_LIBCPP_DISABLE_AVAILABILITY -Lhtslib -LTurboPFor-Integer-Compression -Lminimap2 -Lspoa")
 
 
 #set(CMAKE_CXX_FLAGS_DEBUG "-g -Ofast")
@@ -49,17 +49,175 @@ add_executable(${PROJECT_NAME} ${ProjectFiles})
 #endif ()
 #target_link_libraries(${PROJECT_NAME} spoa64::spoa64)
 
+set(TURBOPFOR_DIR ${PROJECT_SOURCE_DIR}/ext/TurboPFor-Integer-Compression)
+set(TURBOPFOR_LIB ${TURBOPFOR_DIR}/libic.a)
 
-if (NOT TARGET spoa)
-  add_subdirectory(src/utils/spoa)
-endif ()
-target_link_libraries(${PROJECT_NAME} spoa::spoa)
+execute_process(
+    COMMAND make -j 4
+    WORKING_DIRECTORY ${TURBOPFOR_DIR}
+    RESULT_VARIABLE result
+)
+
+if(NOT result EQUAL 0)
+    message(FATAL_ERROR "TurboPFor build failed")
+endif()
+
+
+
+add_custom_target(turbopfor_build
+    DEPENDS ${TURBOPFOR_LIB}
+)
+
+add_library(turbopfor_lib STATIC IMPORTED)
+
+set_target_properties(turbopfor_lib PROPERTIES
+    IMPORTED_LOCATION ${TURBOPFOR_LIB}
+)
+
+target_link_libraries(${PROJECT_NAME} turbopfor_lib)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+set(MINIMAP2_DIR ${PROJECT_SOURCE_DIR}/ext/minimap2)
+set(MINIMAP2_LIB ${MINIMAP2_DIR}/libminimap2.a)
+
+execute_process(
+    COMMAND make -j 4
+    WORKING_DIRECTORY ${MINIMAP2_DIR}
+    RESULT_VARIABLE result
+)
+
+if(NOT result EQUAL 0)
+    message(FATAL_ERROR "Minimap2 build failed")
+endif()
+
+add_custom_target(minimap2_build
+    DEPENDS ${MINIMAP2_LIB}
+)
+
+add_library(minimap2_lib STATIC IMPORTED)
+
+set_target_properties(minimap2_lib PROPERTIES
+    IMPORTED_LOCATION ${MINIMAP2_LIB}
+)
+
+target_link_libraries(${PROJECT_NAME} minimap2_lib)
+
+
+
+
+
+
+
+
+
+
+
+
+set(SPOA_DIR ${PROJECT_SOURCE_DIR}/ext/spoa)
+set(SPOA_LIB ${SPOA_DIR}/build/lib/libspoa.a)
+
+execute_process(
+    COMMAND cmake -B build -DCMAKE_BUILD_TYPE=Release
+    WORKING_DIRECTORY ${SPOA_DIR}
+    RESULT_VARIABLE result
+)
+
+if(NOT result EQUAL 0)
+    message(FATAL_ERROR "Spoa build failed")
+endif()
+
+execute_process(
+    COMMAND make -C build -j 4
+    WORKING_DIRECTORY ${SPOA_DIR}
+    RESULT_VARIABLE result
+)
+
+if(NOT result EQUAL 0)
+    message(FATAL_ERROR "Spoa build failed")
+endif()
+
+add_custom_target(spoa_build
+    DEPENDS ${SPOA_LIB}
+)
+
+add_library(spoa_lib STATIC IMPORTED)
+
+set_target_properties(spoa_lib PROPERTIES
+    IMPORTED_LOCATION ${SPOA_LIB}
+)
+
+target_link_libraries(${PROJECT_NAME} spoa_lib)
+
+
+
+
+
+
+set(HTSLIB_DIR ${PROJECT_SOURCE_DIR}/ext/htslib)
+set(HTSLIB_LIB ${HTSLIB_DIR}/libhts.a)
+
+execute_process(
+    COMMAND make -j 4
+    WORKING_DIRECTORY ${HTSLIB_DIR}
+    RESULT_VARIABLE result
+)
+
+if(NOT result EQUAL 0)
+    message(FATAL_ERROR "Htslib build failed")
+endif()
+
+add_custom_target(htslib_build
+    DEPENDS ${HTSLIB_LIB}
+)
+
+add_library(htslib_lib STATIC IMPORTED)
+
+set_target_properties(htslib_lib PROPERTIES
+    IMPORTED_LOCATION ${HTSLIB_LIB}
+)
+
+target_link_libraries(${PROJECT_NAME} htslib_lib)
+
+
+
+
+
+#if (NOT TARGET spoa)
+#  add_subdirectory(src/utils/spoa)
+#endif ()
+#target_link_libraries(${PROJECT_NAME} spoa::spoa)
+
+
+
 
 #if (NOT TARGET abPOA)
-#  add_subdirectory(src/utils/abPOA2 EXCLUDE_FROM_ALL)
+#  add_subdirectory(src/utils/abPOA EXCLUDE_FROM_ALL)
 #endif ()
 #target_link_libraries(${PROJECT_NAME} abpoa)
 
 target_link_libraries(${PROJECT_NAME} ZLIB::ZLIB)
 #target_link_libraries(mapper ZLIB::ZLIB)
+
+
+
+
 

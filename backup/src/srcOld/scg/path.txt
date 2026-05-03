@@ -1,1 +1,0 @@
-export PATH="/home/gats/workspace/bin/annotation/FragGeneScan/:$PATH"

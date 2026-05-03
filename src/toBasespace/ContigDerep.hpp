@@ -24,7 +24,7 @@ public:
 	unordered_map<u_int32_t, float> _contigCoverages;
 
 	typedef pair<int64_t, int64_t> Overlap;
-	gzFile _outputContigFile;
+	BGZF* _outputContigFile;
 	unordered_map<string, Overlap> _contigName_to_alignmentBounds;
 
 	struct ContigOverlap{
@@ -47,8 +47,8 @@ public:
 		_nbCores = nbCores;
 
 		_alignFilename = _tmpDirPolishing + "/align_contigsVsContigs.paf.gz";
-		_fields = new vector<string>();
-		_fields_optional = new vector<string>();
+		//_fields = new vector<string>();
+		//_fields_optional = new vector<string>();
 
 	}
 
@@ -57,32 +57,170 @@ public:
 
 		Logger::get().debug() << "\tAligning contigs vs contigs";
 		alignContigs();
+		Logger::get().debug() << "\tDone: " << (peakrss() / 1024.0 / 1024.0 / 1024.0);
 
 		Logger::get().debug() << "\tLoading contig coverages";
 		loadContigCoverages();
+		Logger::get().debug() << "\tDone: " << (peakrss() / 1024.0 / 1024.0 / 1024.0);
 
-		Logger::get().debug() << "\tLoading contig overlaps";
-		loadAlignments();
+		//Logger::get().debug() << "\tLoading contig overlaps";
+		//loadAlignments();
 		
 		Logger::get().debug() << "\tDereplicating contigs";
 		derepContigs();
+		Logger::get().debug() << "\tDone: " << (peakrss() / 1024.0 / 1024.0 / 1024.0);
 		
 	}
 
 	void alignContigs(){
 
+		const string preset = "asm20";
 		float minimapBatchSizeC = max(0.2, _minimapBatchSize / 4.0);
 		//    let args = ["-t", &opts.nb_threads.to_string(), "-c", "-xasm20", "-DP", "--dual=no", "--no-long-join", "-r100", "-z200", "-g2k", fasta_path_str, fasta_path_str];
 		string command = "minimap2 -v 0 -c -m 500 -x asm20 -I " + to_string(minimapBatchSizeC) + "G -t " + to_string(_nbCores) + " -DP --dual=no --no-long-join -r100 -z200 -g2k " + _inputContigFilename + " " + _inputContigFilename;
 		//string command = "minimap2 -v 0 -X -m 500 -x asm20 -I " + to_string(minimapBatchSizeC) + "G -t " + to_string(_nbCores) + " " + _inputContigFilename + " " + _inputContigFilename;
-		Utils::executeMinimap2(command, _alignFilename);
+		//Utils::executeMinimap2(command, _alignFilename);
 		//cout << command << endl;
 		//command += " | gzip -c - > " + _alignFilename;
 		//Utils::executeCommand(command, _tmpDir);
 
+
+		mm_idxopt_t iopt;
+		mm_mapopt_t mopt;
+		//int n_threads = nbCores;
+
+		mm_verbose = 2; // disable message output to stderr
+		mm_set_opt(0, &iopt, &mopt);
+		mm_set_opt(preset.c_str(), &iopt, &mopt); 
+		mopt.flag |= MM_F_CIGAR; // perform alignment
+		iopt.batch_size = minimapBatchSizeC*1000000000ULL; //0x7fffffffffffffffL; //always build a uni-part index
+
+		mopt.min_chain_score = 500; //-m 500
+		mopt.flag |= MM_F_ALL_CHAINS | MM_F_NO_DIAG | MM_F_NO_DUAL | MM_F_NO_LJOIN; // -D -P --no-long-join --dual=no
+
+		//cout << mopt.zdrop << " " << mopt.bw << " " << mopt.max_gap << endl;
+		mopt.zdrop = mopt.zdrop_inv = 200; //-z
+		mopt.bw = 100; //-r
+		mopt.max_gap = 2*1000; //-g
+
+		// open query file for reading; you may use your favorite FASTA/Q parser
+		//gzFile f = gzopen(_inputContigFilename.c_str(), "r");
+		//assert(f);
+		//kseq_t *ks = kseq_init(f);
+
+		// open index reader
+		mm_idx_reader_t *r = mm_idx_reader_open(_inputContigFilename.c_str(), &iopt, 0);
+
+		mm_idx_t *mi;
+		while ((mi = mm_idx_reader_read(r, _nbCores)) != 0) {
+
+
+			Logger::get().debug() << "\tBuild index: " << (peakrss() / 1024.0 / 1024.0 / 1024.0);
+			//cout << "Index pass" << endl;
+			mm_mapopt_update(&mopt, mi); // this sets the maximum minimizer occurrence; TODO: set a better default in mm_mapopt_init()!
+			mopt.mid_occ = 5;
+
+			ReadParserParallel readParser(_inputContigFilename, true, false, _nbCores);
+			readParser.parse(MapReadsFunctor(*this, mi, mopt));
+			
+			mm_idx_destroy(mi);
+			Logger::get().debug() << "\tPass done: " << (peakrss() / 1024.0 / 1024.0 / 1024.0);
+		}
+
+
+		mm_idx_reader_close(r); // close the index reader
+
 	}
 
-	
+
+
+	class MapReadsFunctor {
+
+		public:
+
+		ContigDerep& _parent;
+		mm_idx_t* _mi;
+		mm_tbuf_t*_tbuf;
+		mm_mapopt_t& _mopt;
+
+		MapReadsFunctor(ContigDerep& parent, mm_idx_t* mi, mm_mapopt_t& mopt) : _parent(parent), _mopt(mopt){
+			_tbuf = mm_tbuf_init();
+			_mi = mi;
+		}
+
+		MapReadsFunctor(const MapReadsFunctor& copy) : _parent(copy._parent), _mopt(copy._mopt){
+			_tbuf = mm_tbuf_init();
+			_mi = copy._mi;
+		}
+
+		~MapReadsFunctor(){
+			mm_tbuf_destroy(_tbuf);
+		}
+
+		void operator () (const Read& read) {
+			
+			if(read._index % 100000 == 0) Logger::get().debug() << "\t\tAlign contigs " << read._index;
+			
+			//mm_tbuf_t* _tbuf = mm_tbuf_init();
+
+			const string queryName = Utils::shortenHeader(read._header);
+			//u_int32_t readIndex = stoull(read._header);
+
+			mm_reg1_t *reg;
+			int j, i, n_reg;
+			reg = mm_map(_mi, read._seq.size(), read._seq.c_str(), &n_reg, _tbuf, &_mopt, 0); // get all hits for the query
+			
+			#pragma omp critical(loadAlignments)
+			{
+				for (j = 0; j < n_reg; ++j) { // traverse hits and print them out
+					mm_reg1_t *r = &reg[j];
+
+					AlignmentBounds alignment;
+					alignment._referenceLength = _mi->seq[r->rid].len;
+					alignment._queryLength = read._seq.size();
+					alignment._queryStart = r->qs;
+					alignment._queryEnd = r->qe;
+					alignment._referenceStart = r->rs;
+					alignment._referenceEnd = r->re;
+					alignment._isReversed = r->rev;
+					alignment._identity = ((double)r->mlen) / r->blen;// r->div;
+					alignment._nbMatches = r->mlen;
+
+					_parent.loadAlignments_read(queryName, string(_mi->seq[r->rid].name), alignment);
+					//_parent._checksum += 1;
+					//cout << r->qs << " " << r->qe << endl;
+					//assert(r->p); // with MM_F_CIGAR, this should not be NULL
+					//printf("%s\t%d\t%d\t%d\t%c\t", ks->name.s, ks->seq.l, r->qs, r->qe, "+-"[r->rev]);
+					//printf("%s\t%d\t%d\t%d\t%d\t%d\t%d\tcg:Z:", mi->seq[r->rid].name, mi->seq[r->rid].len, r->rs, r->re, r->mlen, r->blen, r->mapq);
+					//for (i = 0; i < r->p->n_cigar; ++i) // IMPORTANT: this gives the CIGAR in the aligned regions. NO soft/hard clippings!
+					//	printf("%d%c", r->p->cigar[i]>>4, MM_CIGAR_STR[r->p->cigar[i]&0xf]);
+					//putchar('\n');
+					free(r->p);
+				}
+			}
+
+			free(reg);
+			//mm_tbuf_destroy(_tbuf);
+			
+
+			
+			/*
+			//if(_parent._allAlignments.find(readIndex) == _parent._allAlignments.end()) return;
+			if(_parent._alignments.find(readIndex) == _parent._alignments.end()) return;
+
+			//const vector<Alignment>& als = _parent._allAlignments[readIndex];
+
+			//for(const Alignment& al : als){
+			const Alignment& al = _parent._alignments[readIndex];
+			//for(const Alignment& al : _alignments[readIndex]){
+			u_int32_t contigIndex = al._contigIndex;
+
+			if(_parent._contigSequences.find(contigIndex) == _parent._contigSequences.end()) return;
+			*/
+		}
+	};
+
+	/*
 	void loadAlignments(){
 		Logger::get().debug() << "\tLoading alignments";
 
@@ -91,53 +229,22 @@ public:
 		pafParser.parse(fp);
 		
 	}
+	*/
 
-	void loadContigCoverages(){
-		
 
-		auto fp = std::bind(&ContigDerep::loadContigCoverages_read, this, std::placeholders::_1);
-		ReadParser readParser(_inputContigFilename, true, false);
-		readParser.parse(fp);
-		
-	}
-
-	void loadContigCoverages_read(const Read& read){
-
-		Utils::ContigHeader contigHeader = Utils::extractContigHeader(read._header);
-
-		//const u_int32_t contigIndex = contigNameToContigIndex(read._header);
-		//const string& contigName = Utils::shortenHeader(read._header);
-		
-		//Utils::ContigHeader contigHeader = Utils::extractContigHeader(read._header);
-		_contigCoverages[contigHeader._contigIndex] = contigHeader._coverage;
-
-		//cout << contigName << " " << _contigCoverages[contigName] << endl;
-	}
-
-	enum MappingType {
-		None,
-		DovetailSuffix,
-		QueryPrefix,
-		QuerySuffix,
-		ReferencePrefix,
-		ReferenceSuffix,
-		Internal,
-		QueryContained,
-		ReferenceContained,
-		DovetailPrefix
-	};
-
-	vector<string>* _fields;
-	vector<string>* _fields_optional;
+	//vector<string>* _fields;
+	//vector<string>* _fields_optional;
 	//unordered_set<string> _isDuplication;
 
-	void loadAlignments_read(const string& line){
 
-		const vector<string>& _fields = Utils::split(line, '\t');
+	void loadAlignments_read(const string& queryName, const string& targetName, const AlignmentBounds& bounds){
+
+		//cout << queryName << " " << targetName << endl;
+		//const vector<string>& _fields = Utils::split(line, '\t');
 
 
-		u_int32_t queryContigIndex = contigNameToContigIndex(_fields[0]);
-		u_int32_t targetContigIndex = contigNameToContigIndex(_fields[5]);
+		u_int32_t queryContigIndex = contigNameToContigIndex(queryName);
+		u_int32_t targetContigIndex = contigNameToContigIndex(targetName);
 
 		/*
 		const string& queryName = Utils::shortenHeader((_fields)[0]);
@@ -154,6 +261,64 @@ public:
 		targetName.erase(0,3);
 		u_int32_t targetContigIndex = stoull(targetName);
 		*/
+
+		if(queryContigIndex == targetContigIndex) return;
+
+		u_int32_t queryLength = bounds._queryLength;// stoull((_fields)[1]);
+		u_int32_t queryStart = bounds._queryStart;// stoull((_fields)[2]);
+		u_int32_t queryEnd = bounds._queryEnd;// stoull((_fields)[3]);
+		u_int32_t targetLength = bounds._referenceLength;// stoull((_fields)[6]);
+		u_int32_t targetStart = bounds._referenceStart;// stoull((_fields)[7]);
+		u_int32_t targetEnd = bounds._referenceEnd;// stoull((_fields)[8]);
+
+		//u_int32_t nbMatches = bounds._nbMatches;// stoull((_fields)[9]);
+		//u_int32_t alignLength = stoull((_fields)[10]);
+		//u_int64_t queryLength = stoull((*_fields)[1]);
+
+		bool isReversed = bounds._isReversed;// (_fields)[4] == "-";
+
+		float identity = bounds._identity; // ((float)nbMatches) / alignLength;
+	
+
+		if((float)identity < (float)_minIdentity) return;
+
+		//if(queryLength < targetLength){
+			//if(queryLength > 30000) return;
+		//}
+		//else{
+			//if(targetLength > 30000) return;
+		//}
+
+		float queryCoverage = _contigCoverages[queryContigIndex];
+		float targetCoverage = _contigCoverages[targetContigIndex];
+		
+		//float queryFractionCovered = (queryEnd-queryStart) / ((long double) queryLength);
+		//float referenceFractionCovered = (targetEnd-targetStart) / ((long double) targetLength);
+
+
+		if(targetLength > queryLength){
+			if(queryLength > 60000) return;
+			if(queryCoverage > targetCoverage/2.0) return;
+			_contigOverlaps[queryContigIndex].push_back({targetContigIndex, queryStart, queryEnd});
+
+		}
+		else{
+			if(targetLength > 60000) return;
+			if(targetCoverage > queryCoverage/2.0) return;
+			_contigOverlaps[targetContigIndex].push_back({queryContigIndex, targetStart, targetEnd});
+
+		}
+	}
+
+	/*
+	void loadAlignments_read(const string& line){
+
+		const vector<string>& _fields = Utils::split(line, '\t');
+
+
+		u_int32_t queryContigIndex = contigNameToContigIndex(_fields[0]);
+		u_int32_t targetContigIndex = contigNameToContigIndex(_fields[5]);
+
 
 		if(queryContigIndex == targetContigIndex) return;
 
@@ -202,6 +367,31 @@ public:
 
 		}
 	}
+	*/
+
+
+	void loadContigCoverages(){
+		
+
+		auto fp = std::bind(&ContigDerep::loadContigCoverages_read, this, std::placeholders::_1);
+		ReadParser readParser(_inputContigFilename, true, false);
+		readParser.parse(fp);
+		
+	}
+
+	void loadContigCoverages_read(const Read& read){
+
+		Utils::ContigHeader contigHeader = Utils::extractContigHeader(read._header);
+
+		//const u_int32_t contigIndex = contigNameToContigIndex(read._header);
+		//const string& contigName = Utils::shortenHeader(read._header);
+		
+		//Utils::ContigHeader contigHeader = Utils::extractContigHeader(read._header);
+		_contigCoverages[contigHeader._contigIndex] = contigHeader._coverage;
+
+		//cout << contigName << " " << _contigCoverages[contigName] << endl;
+	}
+
 
 	u_int32_t contigNameToContigIndex(string contigName){
 
@@ -210,6 +400,22 @@ public:
 		return stoull(name);
 
 	}
+
+	/*
+	enum MappingType {
+		None,
+		DovetailSuffix,
+		QueryPrefix,
+		QuerySuffix,
+		ReferencePrefix,
+		ReferenceSuffix,
+		Internal,
+		QueryContained,
+		ReferenceContained,
+		DovetailPrefix
+	};
+
+
 
 	void setContained(const string& contigName, const int64_t& contigLength){
 		Overlap& existingBounds = _contigName_to_alignmentBounds[contigName];
@@ -238,7 +444,6 @@ public:
 		}
 
 	}
-	/*
 	void addOverlap(const string& contigName, const int32_t& contigStart, const int32_t& contigEnd){
 
 		if(_contigName_to_alignmentBounds.find(contigName) == _contigName_to_alignmentBounds.end()){
@@ -254,7 +459,6 @@ public:
 			_contigName_to_alignmentBounds[contigName].first = contigStart;
 		}
 	}
-	*/
 
 	MappingType getMappingType(const int64_t& b1, const int64_t& e1, const int64_t& l1, const int64_t& b2, const int64_t& e2, const int64_t& l2){
 		
@@ -297,16 +501,18 @@ public:
 		return MappingType::None;
 	}
 
+	*/
+
 	void derepContigs(){
 
-		_outputContigFile = gzopen(_outputContigFilename.c_str(),"wb");
+		_outputContigFile = bgzf_open(_outputContigFilename.c_str(),"w1");
 
 
 		auto fp = std::bind(&ContigDerep::derepContigs_read, this, std::placeholders::_1);
 		ReadParser readParser(_inputContigFilename, true, false);
 		readParser.parse(fp);
 
-		gzclose(_outputContigFile);
+		bgzf_close(_outputContigFile);
 	}
 
 	void derepContigs_read(const Read& read){
@@ -466,10 +672,10 @@ public:
 		
 
 		string headerFasta = ">" + header + '\n';
-		gzwrite(_outputContigFile, (const char*)&headerFasta[0], headerFasta.size());
+		bgzf_write(_outputContigFile, (const char*)&headerFasta[0], headerFasta.size());
 
 		string sequenceFasta = sequence + '\n';
-		gzwrite(_outputContigFile, (const char*)&sequenceFasta[0], sequenceFasta.size());
+		bgzf_write(_outputContigFile, (const char*)&sequenceFasta[0], sequenceFasta.size());
 	}
 
 };	

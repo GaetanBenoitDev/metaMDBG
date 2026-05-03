@@ -17,16 +17,37 @@ public:
 	string _inputFilename;
 	string _inputDir;
 	string _outputFilename;
-	float _minimizerDensity;
-    size_t _minimizerSize;
-    size_t _kminmerSize;
-	string _filename_readMinimizers;
+	//float _minimizerDensity;
+    //size_t _minimizerSize;
+    //size_t _kminmerSize;
+	//string _filename_readMinimizers;
 	//bool _isFirstPass;
 	float _minReadQuality;
 	int _nbCores;
-	bool _useHomopolymerCompression;
+	//bool _useHomopolymerCompression;
 	bool _outputQuality;
+	bool _skipCorrection;
 	
+	Parameters _params;
+	size_t _kminmerSizeLast;
+	/*
+	float _minimizerDensity_assembly;
+    size_t _minimizerSize;
+    size_t _kminmerSize;		
+	float _minimizerSpacingMean;
+	float _kminmerLengthMean;
+	float _kminmerOverlapMean;
+	size_t _kminmerSizeFirst;
+	size_t _kminmerSizePrev;
+	size_t _meanReadLength;
+	float _minimizerDensity_correction;
+	float _minIdentity;
+	float _minOverlapLength;
+	bool _useHomopolymerCompression;
+	int _dataType;
+	size_t _snpmerSize;
+	*/
+
 	vector<u_int32_t> _allReadSizes;
 	u_int64_t _debug_nbMinimizers;
 	u_int64_t _nbLowQualityReads;
@@ -60,6 +81,7 @@ public:
 	ofstream _file_readStats;
 	vector<float> _qualityScoreToErrorRate;
 	unordered_map<MinimizerType, u_int32_t> _minimizer_to_abundance;
+	u_int32_t _n50ReadLength;
 	//unordered_map<u_int64_t, u_int64_t> _minimizerCounts;
 	//unordered_map<KmerVec, KminmerData> _kminmersData;
 	//gzFile _file_minimizerPos;
@@ -83,7 +105,7 @@ public:
 
 		readSelection();
 
-		Logger::get().debug() << "Nb low quality reads: " << _nbLowQualityReads;
+		Logger::get().debug() << "Nb low quality reads:    " << _nbLowQualityReads;
 		Logger::get().debug() << "Nb low complexity reads: " << _nbLowComplexityReads;
 		//closeLogFile();
 	}
@@ -137,8 +159,9 @@ public:
 		//args::ValueFlag<int> arg_l(parser, "", "Minimizer length", {ARG_MINIMIZER_LENGTH2}, 13);
 		//args::ValueFlag<float> arg_d(parser, "", "Minimizer density", {ARG_MINIMIZER_DENSITY2}, 0.005f);
 		//args::ValueFlag<std::string> arg_contigs(parser, "", "", {ARG_INPUT_FILENAME_CONTIG}, "");
+		args::Flag arg_skipCorrection(parser, "", "Skip read correction", {"skip-correction"});
 		args::ValueFlag<float> arg_minReadQuality(parser, "", "Minimum read average quality", {ARG_MIN_READ_QUALITY}, 0.0);
-		args::Flag arg_homopolymerCompression(parser, "", "Activate homopolymer compression", {ARG_HOMOPOLYMER_COMPRESSION});
+		//args::Flag arg_homopolymerCompression(parser, "", "Activate homopolymer compression", {ARG_HOMOPOLYMER_COMPRESSION});
 		args::Flag arg_outputQuality(parser, "", "Output minimizer qualities for correction", {"output-quality"});
 		args::ValueFlag<int> arg_nbCores(parser, "", "Number of cores", {ARG_NB_CORES2}, NB_CORES_DEFAULT_INT);
 		//args::Flag arg_firstPass(parser, "", "Is first pass of multi-k", {ARG_FIRST_PASS});
@@ -170,35 +193,56 @@ public:
 		_minReadQuality = args::get(arg_minReadQuality);
 		_nbCores = args::get(arg_nbCores);
 
-		_useHomopolymerCompression = false;
-		if(arg_homopolymerCompression){
-			_useHomopolymerCompression = true;
+		//_useHomopolymerCompression = false;
+		//if(arg_homopolymerCompression){
+		//	_useHomopolymerCompression = true;
+		//}
+
+		_skipCorrection = false;
+		if(arg_skipCorrection){
+			_skipCorrection = true;
 		}
 
-		_outputQuality = false;
-		if(arg_outputQuality){
-			_outputQuality = true;
-		}
+		//_outputQuality = false;
+		//if(arg_outputQuality){
+		//	_outputQuality = true;
+		//}
 
+		_outputQuality = true;
+		/*
 		string filename_parameters = _inputDir + "/parameters.gz";
 		gzFile file_parameters = gzopen(filename_parameters.c_str(),"rb");
 		gzread(file_parameters, (char*)&_minimizerSize, sizeof(_minimizerSize));
 		gzread(file_parameters, (char*)&_kminmerSize, sizeof(_kminmerSize));
-		gzread(file_parameters, (char*)&_minimizerDensity, sizeof(_minimizerDensity));
+		gzread(file_parameters, (char*)&_minimizerDensity_assembly, sizeof(_minimizerDensity_assembly));
+		gzread(file_parameters, (char*)&_kminmerSizeFirst, sizeof(_kminmerSizeFirst));
+		gzread(file_parameters, (char*)&_minimizerSpacingMean, sizeof(_minimizerSpacingMean));
+		gzread(file_parameters, (char*)&_kminmerLengthMean, sizeof(_kminmerLengthMean));
+		gzread(file_parameters, (char*)&_kminmerOverlapMean, sizeof(_kminmerOverlapMean));
+		gzread(file_parameters, (char*)&_kminmerSizePrev, sizeof(_kminmerSizePrev));
+		gzread(file_parameters, (char*)&_kminmerSizeLast, sizeof(_kminmerSizeLast));
+		gzread(file_parameters, (char*)&_meanReadLength, sizeof(_meanReadLength));
+		gzread(file_parameters, (char*)&_minimizerDensity_correction, sizeof(_minimizerDensity_correction));
+		gzread(file_parameters, (char*)&_useHomopolymerCompression, sizeof(_useHomopolymerCompression));
+		gzread(file_parameters, (char*)&_dataType, sizeof(_dataType));
+		gzread(file_parameters, (char*)&_snpmerSize, sizeof(_snpmerSize));
 		gzclose(file_parameters);
+		*/
+
+		_params.load(_inputDir + "/parameters.gz");
 
 		openLogFile(_inputDir);
-
+		/*
 		Logger::get().debug() << "";
 		Logger::get().debug() << "Input filename: " << _inputFilename;
 		Logger::get().debug() << "Input dir: " << _inputDir;
 		Logger::get().debug() << "Min read quality: " << _minReadQuality;
 		Logger::get().debug() << "Minimizer length: " << _minimizerSize;
 		Logger::get().debug() << "Kminmer length: " << _kminmerSize;
-		Logger::get().debug() << "Density: " << _minimizerDensity;
+		Logger::get().debug() << "Density: " << _minimizerDensity_assembly;
 		Logger::get().debug() << "";
-
 		_filename_readMinimizers = _outputFilename; //_inputDir + "/read_data.gz";
+		*/
 	}
 
 	ofstream _file_readData;
@@ -212,16 +256,15 @@ public:
 
 		_nextReadIndexWriter = 0;
 		_debug_nbMinimizers = 0;
-		_file_readData = ofstream(_filename_readMinimizers);
+		_file_readData = ofstream(_outputFilename);
 		//_file_readData_lowDensity = ofstream(_filename_readMinimizers + ".lowDensity");
 		//_file_minimizerPos = gzopen(_filename_readMinimizers.c_str(),"wb");
 		
-		Logger::get().debug() << "Collecting repetitive minimizers";
 		determineRepetitiveMinimizers();
 
 		//auto fp = std::bind(&ReadSelection::readSelection_read, this, std::placeholders::_1);
 		ReadParserParallel readParser(_inputFilename, false, false, _nbCores);
-		readParser.parse(ReadSelectionFunctor(*this, _minimizerSize, _minimizerDensity));
+		readParser.parse(ReadSelectionFunctor(*this, _params._minimizerSize, _params._minimizerDensity_assembly));
 
 		/*
 		_logFile << _readWriterQueue.size() << endl;
@@ -253,6 +296,10 @@ public:
 		computeReadStats();
 
 		//delete _minimizerParser;
+
+		if(_params._useHomopolymerCompression || _skipCorrection){ //Hifi
+			purgePalindromes();
+		}
     }
 
 	void computeReadStats(){
@@ -262,6 +309,7 @@ public:
 
 		u_int64_t nbReads = _allReadSizes.size();
 		u_int32_t n50 = Utils::computeN50(_allReadSizes);
+		u_int32_t meanLength = Utils::computeMeanLength(_allReadSizes);
 		/*
 		std::sort(_allReadSizes.begin(),  _allReadSizes.end(), std::greater<u_int32_t>());
 
@@ -326,8 +374,12 @@ public:
 		_file_readStats.write((const char*)&minimizerDensity, sizeof(minimizerDensity));
 		_file_readStats.write((const char*)&_nbBases, sizeof(_nbBases));
 		_file_readStats.write((const char*)&averageQuality, sizeof(averageQuality));
+		_file_readStats.write((const char*)&meanLength, sizeof(meanLength));
+		_file_readStats.write((const char*)&_nbSelectedMinimizers, sizeof(_nbSelectedMinimizers));
 
 		_file_readStats.close();
+
+		_n50ReadLength = n50;
 		
 	}
 
@@ -418,7 +470,7 @@ public:
 					_allReadSizes.push_back(readWriter._readSize);	
 
 					_nbSelectedMinimizers += readWriter._minimizers.size();
-					_nbKmers += (readWriter._readSize-_minimizerSize+1);
+					_nbKmers += (readWriter._readSize-_params._minimizerSize+1);
 					_nbBases += readWriter._readSize;
 
 					
@@ -446,14 +498,16 @@ public:
 
 		ofstream outputFile(_inputDir + "/repetitiveMinimizers.bin" );
 
-		if(_useHomopolymerCompression){ //Skip if hifi
+		if(_params._useHomopolymerCompression){ //Skip if hifi
 			outputFile.close();
 			return;
 		}
 
+		Logger::get().debug() << "Collecting repetitive minimizers";
+
 		ReadParserParallel readParser(_inputFilename, false, false, _nbCores);
 		readParser._maxReads = 1000000;
-		readParser.parse(CountMinimizerFunctor(*this, _minimizerSize, _minimizerDensity));
+		readParser.parse(CountMinimizerFunctor(*this, _params._minimizerSize, _params._minimizerDensity_correction));
 
 
 		float fractionRepititiveMinimizersToFilterOut = 0.00001;
@@ -553,7 +607,7 @@ public:
 
 			string rleSequence;
 			vector<u_int64_t> rlePositions;
-			_encoderRLE.execute(seq.c_str(), seq.size(), rleSequence, rlePositions, _readSelection._useHomopolymerCompression);
+			_encoderRLE.execute(seq.c_str(), seq.size(), rleSequence, rlePositions, _readSelection._params._useHomopolymerCompression);
 
 			vector<MinimizerType> minimizers;
 			vector<u_int32_t> minimizerPos;
@@ -609,8 +663,7 @@ public:
 			delete _minimizerParser;
 			delete _kmerModelTrinucleotide;
 		}
-		//1574237525
-
+		
 
 
 		void operator () (const Read& read) {
@@ -635,13 +688,14 @@ public:
 
 			string rleSequence;
 			vector<u_int64_t> rlePositions;
-			_encoderRLE.execute(seq.c_str(), seq.size(), rleSequence, rlePositions, _readSelection._useHomopolymerCompression);
+			_encoderRLE.execute(seq.c_str(), seq.size(), rleSequence, rlePositions, _readSelection._params._useHomopolymerCompression);
 
 			vector<MinimizerType> minimizers;
 			vector<u_int32_t> minimizerPos;
 			vector<u_int8_t> minimizerDirections;
 			_minimizerParser->parse(rleSequence, minimizers, minimizerPos, minimizerDirections);
 
+			//cout << read._header << " " << read._seq.size() << " " << minimizers.size() << endl;
 			/*
 			bool isPosValid = true;
 			u_int64_t prevMinimizerPos = 0;
@@ -864,7 +918,7 @@ public:
 				_readSelection._readQualitySum += meanReadQuality;
 				_readSelection._readQualityN += 1;
 			}
-
+			
 			//cout << "\tplopB" << endl;
 			/*
 			cout << seq << endl;
@@ -1078,7 +1132,7 @@ public:
 					//u_int8_t meanQuality = averageQuals_sum / averageQuals_n;
 
 					//cout << i << " " << pos << " " << rlePositions.size() << " " << pos+_readSelection._minimizerSize << endl;
-					u_int8_t minQuality = getMinQuality(read._seq, read._qual, rlePositions[pos], rlePositions[pos+_readSelection._minimizerSize]);
+					u_int8_t minQuality = getMinQuality(read._seq, read._qual, rlePositions[pos], rlePositions[pos+_readSelection._params._minimizerSize]);
 					minimizerQualities.push_back(minQuality);
 
 				}
@@ -1313,6 +1367,67 @@ public:
 			return minQuality;
 			*/
 		}
+
+
+	};
+
+	void purgePalindromes(){
+
+		_kminmerSizeLast = Commons::computeLastK(_params._minimizerDensity_assembly, _n50ReadLength, _params._kminmerSizeFirst, 0);
+		cout << "Purge palindrome: " << _params._kminmerSizeFirst << " " << _kminmerSizeLast << endl;
+
+		_file_readData = ofstream(_inputDir + "/read_data_corrected.txt");
+
+		KminmerParserParallel parser(_outputFilename, _params._minimizerSize, _params._kminmerSize, false, true, _nbCores);
+		parser.parseSequences(PurgePalindromeFunctor(*this));
+
+		_file_readData.close();
+	}
+
+
+	class PurgePalindromeFunctor {
+
+		public:
+
+		ReadSelection& _parent;
+
+		PurgePalindromeFunctor(ReadSelection& parent) : _parent(parent){
+		}
+
+		PurgePalindromeFunctor(const PurgePalindromeFunctor& copy) : _parent(copy._parent){
+		}
+
+		~PurgePalindromeFunctor(){
+		}
+
+
+		void operator () (const KminmerList& kminmerList) {
+
+
+			ReadType readIndex = kminmerList._readIndex;			
+			if(readIndex % 100000 == 0)  Logger::get().debug() << "\tPurging palindromes: " << readIndex;
+
+			vector<MinimizerType> minimizers = kminmerList._readMinimizers;
+			minimizers = Commons::purgePalindrome(minimizers, _parent._params._kminmerSizeFirst, _parent._kminmerSizeLast);
+
+			#pragma omp critical(PurgePalindromeFunctor)
+			{
+
+				//if(kminmerList._readMinimizers.size() != minimizers.size()){
+				//	cout << kminmerList._readMinimizers.size() << " " << minimizers.size() << endl;
+				//}
+
+				u_int32_t size = minimizers.size();
+				_parent._file_readData.write((const char*)&size, sizeof(size));
+
+				u_int8_t isCircular = CONTIG_LINEAR;
+				_parent._file_readData.write((const char*)&isCircular, sizeof(isCircular));
+
+				_parent._file_readData.write((const char*)&minimizers[0], size*sizeof(MinimizerType));
+			}
+
+		}
+
 	};
 
 };	

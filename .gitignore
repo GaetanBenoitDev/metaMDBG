@@ -4,3 +4,20 @@ thirdparty/
 nohup.out
 *.pyc
 
+ext/spoa/build
+
+.cproject
+.project
+.*.swp
+*.a
+*.o
+*.dSYM
+ext/minimap2/minimap2
+ext/minimap2/mappy.c
+
+.vs/
+msvc.build/
+*.vcxproj.user
+*.obj
+*.exe
+*.lib

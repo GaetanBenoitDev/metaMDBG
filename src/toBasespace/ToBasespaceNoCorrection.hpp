@@ -4,7 +4,7 @@
 #define MDBG_METAG_TOBASESPACENOCORRECTION
 
 #include "../Commons.hpp"
-#include "OverlapRemover.hpp"
+//#include "OverlapRemover.hpp"
 #include "OverlapRemover2.hpp"
 #include "RepeatRemover.hpp"
 
@@ -122,9 +122,14 @@ public:
 
     void execute (){
 		
+		Logger::get().debug() << "Remove contig overlaps";
 
+
+		auto start = high_resolution_clock::now();
 
 		const string& contigFilenameNoOverlaps = _inputFilenameContig + ".nooverlaps";
+		
+		//const string& contigFilenameNoOverlaps = _inputFilenameContig + ".norepeats";
 
 		{
 
@@ -136,14 +141,22 @@ public:
 			overlapRemover2.execute();
 
 		}
+		Logger::get().debug() << "Done: " << duration_cast<seconds>(high_resolution_clock::now() - start).count() << "s " << (peakrss() / 1024.0 / 1024.0 / 1024.0) << " GB";
 		
+		
+		Logger::get().debug() << "Remove contig repeats";
+
 		const string& contigFilenameNoRepeats = _inputFilenameContig + ".norepeats";
 
 		{
-			RepeatRemover repeatRemover(_inputDir, contigFilenameNoOverlaps, contigFilenameNoRepeats, _kminmerSizeFirst+1, _minimizerDensity, _hasQuality, _nbCores);
+			RepeatRemover repeatRemover(_inputDir, contigFilenameNoOverlaps, contigFilenameNoRepeats, _kminmerSizeFirst+1, _minimizerDensity, _hasQuality, _nbCores, _minimizerDensity);
 			repeatRemover.execute();
 		}
+		
+		//cout << "Repeat remover disabled !!! changer: .norepeats en .nooverlaps au dessus" << endl;
 		//closeLogFile();
+
+		Logger::get().debug() << "Done: " << duration_cast<seconds>(high_resolution_clock::now() - start).count() << "s " << (peakrss() / 1024.0 / 1024.0 / 1024.0) << " GB";
 
 	}
 

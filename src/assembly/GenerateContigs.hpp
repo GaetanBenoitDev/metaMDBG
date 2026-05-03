@@ -37,15 +37,18 @@ class GenerateContigs : public Tool{
 public:
 
 	string _inputDir;
-	string _truthInputFilename;
-	string _outputFilename;
-	string _outputFilename_complete;
-	bool _debug;
+	//string _contigGraphDir;
+	//string _truthInputFilename;
+	//string _outputFilename;
+	//string _outputFilename_complete;
+	//bool _debug;
 	//bool _isFinalAssembly;
-	string _inputFilename_unitigNt;
-	string _inputFilename_unitigCluster;
-	string _filename_abundance;
+	//string _inputFilename_unitigNt;
+	//string _inputFilename_unitigCluster;
+	//string _filename_abundance;
 
+	Parameters _params;
+	/*
 	float _minimizerDensity;
     size_t _minimizerSize;
     size_t _kminmerSize;
@@ -53,24 +56,27 @@ public:
 	float _minimizerSpacingMean;
 	float _kminmerLengthMean;
 	float _kminmerOverlapMean;
+	*/
 
-	string _partitionDir;
-	string _filename_solidKminmers;
-	string _filename_inputContigs;
-	string _filename_outputContigs;
-	string _filename_readMinimizers;
-	gzFile _outputContigFile;
-	gzFile _outputContigFile_complete;
-	MDBG* _mdbg;
+	//string _partitionDir;
+	//string _filename_solidKminmers;
+	//string _filename_inputContigs;
+	//string _filename_outputContigs;
+	//string _filename_readMinimizers;
+	//gzFile _outputContigFile;
+	//gzFile _outputContigFile_complete;
+	//MDBG* _mdbg;
 	bool _genGraph;
 	//GraphSimplify* _graph;
 	//ToBasespaceOnTheFly _toBasespace;
 	//ContigFeature _contigFeature;
-	string _gfaFilename;
+	//string _gfaFilename;
 	size_t _nbCores;
 
-    vector<u_int32_t> _nodeName_to_abundance;
-	unordered_map<KmerVec, u_int32_t> _kmerVec_to_nodeName;
+    //vector<u_int32_t> _nodeName_to_abundance;
+	int _maxBubbleLength;
+	int _maxTipLength;
+	bool _isFinalAssembly;
 
 	GenerateContigs(): Tool (){
 
@@ -90,10 +96,14 @@ public:
 		//args::ValueFlag<int> arg_l(parser, "", "Minimizer length", {ARG_MINIMIZER_LENGTH2}, 13);
 		//args::ValueFlag<float> arg_d(parser, "", "Minimizer density", {ARG_MINIMIZER_DENSITY2}, 0.005f);
 		//args::ValueFlag<std::string> arg_contigs(parser, "", "", {ARG_INPUT_FILENAME_CONTIG}, "");
+		args::ValueFlag<int> arg_maxBubbleLength(parser, "", "Max bubble popping length", {ARG_MAX_BUBBLE_LENGTH}, 50000);
+		args::ValueFlag<int> arg_maxTipLength(parser, "", "Max tip clipping length", {ARG_MAX_TIP_LENGTH}, 50000);
 		args::ValueFlag<int> arg_nbCores(parser, "", "Number of cores", {ARG_NB_CORES2}, NB_CORES_DEFAULT_INT);
+		
 		//args::Flag arg_isFinalAssembly(parser, "", "Is final multi-k pass", {ARG_FINAL});
-		args::Flag arg_firstPass(parser, "", "Is first pass of multi-k", {ARG_FIRST_PASS});
+		//args::Flag arg_firstPass(parser, "", "Is first pass of multi-k", {ARG_FIRST_PASS});
 		args::Flag arg_genGraph(parser, "", "Generate temporary file for genetarating assembly graphs", {"gen-graph"});
+		args::Flag arg_finalAssembly(parser, "", "Solve final graph", {"final"});
 		args::Flag arg_help(parser, "", "", {'h', "help"}, args::Options::Hidden);
 		//args::HelpFlag help(parser, "help", "Display this help menu", {'h'});
 		//args::CompletionFlag completion(parser, {"complete"});
@@ -129,6 +139,29 @@ public:
 		_genGraph = false;
 		if(arg_genGraph){
 			_genGraph = true;
+		}
+
+		//_contigGraphDir = _inputDir;
+
+		_isFinalAssembly = false;
+		if(arg_finalAssembly){
+			_isFinalAssembly = true;
+			//_contigGraphDir = _inputDir + "/contigGraph/";
+		}
+
+		_maxBubbleLength = args::get(arg_maxBubbleLength);
+		_maxTipLength = args::get(arg_maxTipLength);
+
+
+		if(_isFinalAssembly){
+			const string contigGraphDir = _inputDir + "/contigGraph/";
+			fs::copy(contigGraphDir + "/parameters.gz", _inputDir + "/parameters.gz", fs::copy_options::overwrite_existing);
+			fs::copy(contigGraphDir + "/unitigGraph.edges.successors.bin", _inputDir + "/unitigGraph.edges.successors.bin", fs::copy_options::overwrite_existing);
+			fs::copy(contigGraphDir + "/unitigGraph.nodes.abundances.bin", _inputDir + "/unitigGraph.nodes.abundances.bin", fs::copy_options::overwrite_existing);
+			fs::copy(contigGraphDir + "/unitigGraph.nodes.bin", _inputDir + "/unitigGraph.nodes.bin", fs::copy_options::overwrite_existing);
+			fs::copy(contigGraphDir + "/unitigGraph.stats.bin", _inputDir + "/unitigGraph.stats.bin", fs::copy_options::overwrite_existing);
+			fs::copy(contigGraphDir + "/contig_data_final.bin", _inputDir + "/contig_data_final.bin", fs::copy_options::overwrite_existing);
+
 		}
 
 		//_truthInputFilename = result[ARG_INPUT_FILENAME_TRUTH].as<string>();
@@ -185,6 +218,8 @@ public:
 		*/
 
 
+		_params.load(_inputDir + "/parameters.gz");
+		/*
 		string filename_parameters = _inputDir + "/parameters.gz";
 		gzFile file_parameters = gzopen(filename_parameters.c_str(),"rb");
 		gzread(file_parameters, (char*)&_minimizerSize, sizeof(_minimizerSize));
@@ -195,9 +230,11 @@ public:
 		gzread(file_parameters, (char*)&_kminmerLengthMean, sizeof(_kminmerLengthMean));
 		gzread(file_parameters, (char*)&_kminmerOverlapMean, sizeof(_kminmerOverlapMean));
 		gzclose(file_parameters);
+		*/
 
 		openLogFile(_inputDir);
 
+		/*
 		Logger::get().debug() << "";
 		Logger::get().debug() << "Input dir: " << _inputDir;
 		//cout << "Output filename: " << _outputFilename << endl;
@@ -211,11 +248,12 @@ public:
 		_filename_readMinimizers = _inputDir + "/read_data.txt";
 		_filename_outputContigs = _inputDir + "/contigs.min.gz";
 		_filename_solidKminmers = _inputDir + "/solid.min.gz";
+		*/
 
 	}
 
-	unordered_map<u_int64_t, vector<u_int32_t>> _debug_readPath;
-    vector<bool> _isBubble;
+	//unordered_map<u_int64_t, vector<u_int32_t>> _debug_readPath;
+    //vector<bool> _isBubble;
 
 	class X
 	{
@@ -224,6 +262,8 @@ public:
 	};
 
 	void execute(){
+
+
 		/*
 		ifstream inputFile2(_inputDir + "/kminmerData_min.txt");
 
@@ -248,19 +288,31 @@ public:
 		*/
 		//cout << "Loading abundant nodes" << endl;
 		//loadAbundantNodes();
-
+		
 		loadGraph();
+
+		//if(_params._kminmerSize == 81){
+		//	mapReadsToGraph();
+		//}
 		//exit(1);
 		//generateUnitigs();
 		//generateContigs2(_inputDir + "/contigs.nodepath");
 
 
-		delete _progressiveAbundanceFilter->_unitigGraph2;
 
-		generateContigs3();
+		if(_isFinalAssembly){
 
-		dumpUnitigAbundances();
+			generateContigs3();
+			_progressiveAbundanceFilter->_repeatSolver->writeUnitigSequences();
+		}
+		else{
+			delete _progressiveAbundanceFilter->_unitigGraph2;
 
+			generateContigs3();
+
+			dumpUnitigAbundances();
+
+		}
 		//exit(1);
 		
 		/*
@@ -355,17 +407,42 @@ public:
 
 
 	void loadGraph(){
+		/*
+		KmerVec vec;
+		vec._kmers = {706036053, 218005452, 609864957};
+		printf("unsinged int 128 bit: %llu\n", (unsigned long long)vec.hash128());
+		printf("unsinged int 128 bit: %llu\n", (unsigned long long)vec.normalize().hash128());
+		vec._kmers = {218005452, 609864957, 218005452};
+		printf("unsinged int 128 bit: %llu\n", (unsigned long long)vec.hash128());
+		printf("unsinged int 128 bit: %llu\n", (unsigned long long)vec.normalize().hash128());
 
-		_gfaFilename = _inputDir + "/minimizer_graph.gfa";
-		string gfa_filename_noUnsupportedEdges = _inputDir + "/minimizer_graph_noUnsupportedEdges.gfa";
+		
+		vec._kmers = {494401525, 456413655, 220428157};
+		printf("unsinged int 128 bit: %llu\n", (unsigned long long)vec.hash128());
+		printf("unsinged int 128 bit: %llu\n", (unsigned long long)vec.normalize().hash128());
+		vec._kmers = {456413655, 220428157, 460823664};
+		printf("unsinged int 128 bit: %llu\n", (unsigned long long)vec.hash128());
+		printf("unsinged int 128 bit: %llu\n", (unsigned long long)vec.normalize().hash128());
+		vec._kmers = {220428157, 460823664, 899439573};
+		printf("unsinged int 128 bit: %llu\n", (unsigned long long)vec.hash128());
+		printf("unsinged int 128 bit: %llu\n", (unsigned long long)vec.normalize().hash128());
+		vec._kmers = {460823664, 899439573, 225835357};
+		printf("unsinged int 128 bit: %llu\n", (unsigned long long)vec.hash128());
+		printf("unsinged int 128 bit: %llu\n", (unsigned long long)vec.normalize().hash128());
+		*/
+
+
+		//_gfaFilename = _inputDir + "/minimizer_graph.gfa";
+		//string gfa_filename_noUnsupportedEdges = _inputDir + "/minimizer_graph_noUnsupportedEdges.gfa";
 		//string gfa_filename_unitigs = _inputDir + "/minimizer_graph_unitigs.gfa";
-		string mdbg_filename = _inputDir + "/mdbg_nodes.gz";
+		//string mdbg_filename = _inputDir + "/mdbg_nodes.gz";
 
 
 
 		Logger::get().debug() << "Loading unitig graph";
-		UnitigGraph2* unitigGraph2 = new UnitigGraph2(_kminmerSize, _kminmerLengthMean, _kminmerOverlapMean, _kminmerLengthMean-_kminmerOverlapMean, _kmerVec_to_nodeName, _nbCores);
-		unitigGraph2->load(_inputDir);
+		
+		UnitigGraph2* unitigGraph2 = new UnitigGraph2(_params._kminmerSize, _params._kminmerLengthMean, _params._kminmerOverlapMean, _params._kminmerLengthMean-_params._kminmerOverlapMean, _params._minimizerSpacingMean, _nbCores);
+		unitigGraph2->load(_inputDir + "/unitigGraph.stats.bin", _inputDir + "/unitigGraph.nodes.bin", _inputDir + "/unitigGraph.nodes.abundances.bin", _inputDir + "/unitigGraph.edges.successors.bin");
 
 
 		//Logger::get().debug() << "Loading unitig graph";
@@ -377,12 +454,13 @@ public:
 
 		Logger::get().debug() << "Simplifying";
 
-        _progressiveAbundanceFilter = new ProgressiveAbundanceFilter(unitigGraph2, _inputDir, _kminmerSize, true, _kminmerSize==_kminmerSizeFirst, _genGraph, _nbCores);
+        _progressiveAbundanceFilter = new ProgressiveAbundanceFilter(unitigGraph2, _inputDir, _params._kminmerSize, true, _params._kminmerSize==_params._kminmerSizeFirst, _genGraph, _maxBubbleLength, _maxTipLength, _nbCores, _isFinalAssembly, _params);
 		X dummy;
 
 		//delete _graph->_graphSuccessors;
 
         _progressiveAbundanceFilter->execute(dummy);
+
 
 		//cout << _graph->_unitigGraph->computeChecksum_successor() << endl;
 		//if(_kminmerSize == 20) exit(1);
@@ -473,7 +551,7 @@ public:
 
 		u_int64_t checkumAbundance = 0;
 		Logger::get().debug() << "Generating contigs";
-		size_t nextMultikStep = Commons::getMultikStep(_kminmerSize);
+		//size_t nextMultikStep = Commons::getMultikStep(_kminmerSize);
 
 
 		ofstream outputContigFile(_inputDir + "/contigs.nodepath");
@@ -495,6 +573,7 @@ public:
         	ifstream nodepathFile(_inputDir + "/filter/unitigs_" + to_string(cutoffIndex._cutoffIndex) + ".bin");
 
 			_minUnitigAbundance = cutoff / 0.5;
+			//_minUnitigAbundance = min(_minUnitigAbundance, cutoff+30); //cuttof + 30x
 
 			while(true){
 
@@ -524,11 +603,30 @@ public:
 					//continue;
 				}
 
-				if(isRepeatSide) continue;
+
+
+
+				//if(isRepeatSide) continue;
 				if(contigAbundance < _minUnitigAbundance) continue;
+				/*
+				for(size_t i=0; i<nodePath.size(); i++){
+					const UnitigType unitigName = UnitigGraph2::unitigIndex_to_unitigName(nodePath[i]);
+					if(unitigName == 291){
+						cout << "omg: " << contigAbundance << " " << nbMinimizers << " " << nodePath.size() << endl;
+						
+						for(const UnitigType& unitigIndex : nodePath){
+
+							const UnitigType& unitigName = UnitigGraph2::unitigIndex_to_unitigName(unitigIndex);
+							cout << "utg" << unitigName << "\t" << (_processedNodeNames.find(unitigName) != _processedNodeNames.end()) << "\t" << (_progressiveAbundanceFilter->_repeatSolver->_repeatedUnitigNames.find(unitigName) != _progressiveAbundanceFilter->_repeatSolver->_repeatedUnitigNames.end()) << endl;
+						}
+						getchar();
+					}
+				}
+				*/
+
 				if(isContigAssembled(nodePath)) continue;
 
-				checkumAbundance += (contigAbundance*(nbMinimizers-_kminmerSize+1));
+				checkumAbundance += (contigAbundance*(nbMinimizers-_params._kminmerSize+1));
 				//cout << contigIndex << " " << (int)isCircular << " " << (nbMinimizers-_kminmerSize+1) << " " << checkumAbundance << endl;
 				//u_int64_t checksum = 0;
 				//for(MinimizerType minimizer : nodePath){
@@ -541,7 +639,7 @@ public:
 				//if(isCircular){
 				//	cout << "lol" << endl;
 				//}
-				if(isCircular && nbMinimizers-_kminmerSize+1 > 1){ //&& (nodePath.size()-_kminmerSize+1) > 1
+				if(isCircular && nbMinimizers-_params._kminmerSize+1 > 1){ //&& (nodePath.size()-_kminmerSize+1) > 1
 
 					nbMinimizers += 1;
 
@@ -570,6 +668,34 @@ public:
 				outputContigFile.write((const char*)&isCircular, sizeof(isCircular));
 				outputContigFile.write((const char*)&nodePath[0], size * sizeof(UnitigType));
 
+
+
+				/*
+				for(size_t i=0; i<nodePath.size(); i++){
+					const UnitigType unitigName = UnitigGraph2::unitigIndex_to_unitigName(nodePath[i]);
+					if(unitigName == 291){
+						cout << "omg: " << contigAbundance << " " << nbMinimizers << " " << nodePath.size() << endl;
+						
+						for(const UnitigType& unitigIndex : nodePath){
+
+							const UnitigType& unitigName = UnitigGraph2::unitigIndex_to_unitigName(unitigIndex);
+							cout << "utg" << unitigName << "\t" << (_processedNodeNames.find(unitigName) != _processedNodeNames.end()) << "\t" << (_progressiveAbundanceFilter->_repeatSolver->_repeatedUnitigNames.find(unitigName) != _progressiveAbundanceFilter->_repeatSolver->_repeatedUnitigNames.end()) << endl;
+						}
+					}
+				}
+
+				if(contigAbundance > 50){
+					cout << "ctg" << contigIndex << endl;
+					for(size_t i=0; i<nodePath.size(); i++){
+						if(_progressiveAbundanceFilter->_repeatSolver->_unitigName_to_referenceName_init.find(nodePath[i]) != _progressiveAbundanceFilter->_repeatSolver->_unitigName_to_referenceName_init.end()){
+							if(_progressiveAbundanceFilter->_repeatSolver->_unitigName_to_referenceName_init[nodePath[i]][0]._referenceName == "Prevotella_corporis.final.genome2"){
+								cout << "\t" << i << "\t" << "utg" << UnitigGraph2::unitigIndex_to_unitigName(nodePath[i]) << "\t" << _progressiveAbundanceFilter->_repeatSolver->_unitigName_to_referenceName_init[nodePath[i]][0]._referenceName << endl;
+							}
+						}
+					}
+				}
+				*/
+				//cout << cutoff << " " << _minUnitigAbundance << " " << nbMinimizers << endl;
 				//vector<MinimizerType> minimizers = _progressiveAbundanceFilter->_unitigGraph2->unitigSequenceToMinimizerSequence(nodePath);
 				//cout << minimizers.size() << endl;
 				
@@ -600,7 +726,8 @@ public:
 
 					const UnitigType& unitigName = UnitigGraph2::unitigIndex_to_unitigName(unitigIndex);
 
-					
+					if(_isFinalAssembly && _progressiveAbundanceFilter->_repeatSolver->_repeatedUnitigNames.find(unitigName) != _progressiveAbundanceFilter->_repeatSolver->_repeatedUnitigNames.end()) continue; //Repeated unitigs from solved repeats can be present in multiple contigs
+
 					_processedNodeNames.insert(unitigName);
 					_nodeNameAbundances[unitigName] = {contigAbundance, nbMinimizers};
 				}
@@ -625,12 +752,15 @@ public:
 
 		//cout << "Checksum 2: " << checkumAbundance << endl;
 		//getchar();
+		
+		//if(_params._kminmerSize == 21) getchar();
 	}
 
 	void dumpUnitigAbundances(){
 
 
-
+		//if(_params._kminmerSize == _params._kminmerSizeFirst){
+			
 		ofstream outputFile(_inputDir + "/unitigGraph.nodes.refined_abundances.bin");
 
 		for(const auto& it : _nodeNameAbundances){
@@ -639,7 +769,7 @@ public:
 			const NodeAb& nodeAb = it.second;
 
 			u_int32_t abundance = ceil(nodeAb._abundance);
-			if(nodeAb._nbNodes-_kminmerSize+1 > _kminmerSize) abundance = max(abundance, (u_int32_t)2);
+			if(nodeAb._nbNodes-_params._kminmerSize+1 > _params._kminmerSize) abundance = max(abundance, (u_int32_t)2);
 			//float abundance = nodeAb._abundance;
 
 			outputFile.write((const char*)&unitigName, sizeof(unitigName));
@@ -649,9 +779,36 @@ public:
 
 		outputFile.close();
 
-		fs::copy(_inputDir + "/kminmerData_abundance.txt", _inputDir + "/kminmerData_abundance_prev.txt", fs::copy_options::overwrite_existing);
+		//}
+
 		fs::copy(_inputDir + "/unitigGraph.nodes.bin", _inputDir + "/unitigGraph_prev.nodes.bin", fs::copy_options::overwrite_existing);
+		fs::copy(_inputDir + "/kminmerData_abundance.txt", _inputDir + "/kminmerData_abundance_prev.txt", fs::copy_options::overwrite_existing);
+
+
+		if(_params._kminmerSize > _params._kminmerSizeFirst){ //Backup full unitig graph as soon as we start multiplex steps
+			fs::copy(_inputDir + "/unitigGraph.edges.successors.bin", _inputDir + "/unitigGraph_prev.edges.successors.bin", fs::copy_options::overwrite_existing);
+			fs::copy(_inputDir + "/unitigGraph.nodes.abundances.bin", _inputDir + "/unitigGraph_prev.nodes.abundances.bin", fs::copy_options::overwrite_existing);
+			fs::copy(_inputDir + "/unitigGraph.stats.bin", _inputDir + "/unitigGraph_prev.stats.bin", fs::copy_options::overwrite_existing);
+		}
 		
+		if(_params._kminmerSize == 21){ //contig graph
+
+			string dir = _inputDir + "/contigGraph/";
+
+			if(!fs::exists (dir)){
+				fs::create_directories(dir); 
+			} 
+
+			fs::copy(_inputDir + "/parameters.gz", dir + "/parameters.gz", fs::copy_options::overwrite_existing);
+			fs::copy(_inputDir + "/unitigGraph.nodes.bin", dir + "/unitigGraph.nodes.bin", fs::copy_options::overwrite_existing);
+			fs::copy(_inputDir + "/unitigGraph.edges.successors.bin", dir + "/unitigGraph.edges.successors.bin", fs::copy_options::overwrite_existing);
+			fs::copy(_inputDir + "/unitigGraph.nodes.abundances.bin", dir + "/unitigGraph.nodes.abundances.bin", fs::copy_options::overwrite_existing);
+			fs::copy(_inputDir + "/unitigGraph.stats.bin", dir + "/unitigGraph.stats.bin", fs::copy_options::overwrite_existing);
+		
+		}
+		
+		
+
 		//if(_kminmerSize == 4){
 			//cout << "GenerateContigs: copy initial unitig abundance" << endl;
 			
@@ -745,7 +902,145 @@ public:
 
 		*/
 	}
-	
+
+	/*
+	size_t _kminmerSizeMapping;
+	ankerl::unordered_dense::map<u_int128_t, vector<u_int32_t>> _kminmer_to_contigIndexes;
+	ankerl::unordered_dense::map<u_int128_t, u_int32_t> _unitigName_to_nbKminmers;
+
+	void mapReadsToGraph(){
+
+		_kminmerSizeMapping = 21;
+		loadContigs();
+
+		cout << "single core here" << endl;
+		KminmerParserParallel parser(_inputDir + "/read_data_corrected.txt", 0, _kminmerSizeMapping, false, false, 1);
+		//KminmerParserParallel parser(_inputDir + "/read_data_init.txt", 0, _kminmerSizeMapping, false, true, 1);
+		parser.parse(ReadMapperFunctor(*this));
+	}
+
+	void loadContigs(){
+
+		ifstream nodeFile(_inputDir + "/unitigGraph.nodes.bin");
+
+		while(true){
+
+			u_int32_t size;
+			nodeFile.read((char*)&size, sizeof(size));
+			
+
+			if(nodeFile.eof()) break;
+
+			vector<MinimizerType> minimizers;
+			minimizers.resize(size);
+			nodeFile.read((char*)&minimizers[0], size * sizeof(MinimizerType));
+
+			UnitigType unitigIndex;
+			nodeFile.read((char*)&unitigIndex, sizeof(unitigIndex));
+
+			const UnitigType unitigName = unitigIndex/2;
+
+			const vector<KmerVec>& kminmers = MDBG::minimizersToKminmers(minimizers, _kminmerSizeMapping);
+
+			for(const KmerVec& kminmer : kminmers){
+
+				const u_int128_t vecHash = kminmer.normalize().hash128();
+
+				if(_kminmer_to_contigIndexes.find(vecHash) == _kminmer_to_contigIndexes.end()){
+					_kminmer_to_contigIndexes[vecHash].push_back(unitigName);
+				}
+				else{
+					auto& it = _kminmer_to_contigIndexes[vecHash];
+					if(std::find(it.begin(), it.end(), unitigName) == it.end()){
+						it.push_back(unitigName);
+					}
+				}
+			}
+
+			_unitigName_to_nbKminmers[unitigName] = kminmers.size();
+			
+			if(unitigName == 525 || unitigName == 1613){
+				cout << "utg" << unitigName << endl;
+				for(const auto& m : minimizers){
+					cout << "\t" << m << endl;
+				}
+			}
+            
+        }
+
+        nodeFile.close();
+		
+
+	}
+
+
+	class ReadMapperFunctor {
+
+		public:
+
+		GenerateContigs& _parent;
+
+		ReadMapperFunctor(GenerateContigs& parent) : _parent(parent){
+		}
+
+		ReadMapperFunctor(const ReadMapperFunctor& copy) : _parent(copy._parent){
+			
+		}
+
+		~ReadMapperFunctor(){
+		}
+
+		void operator () (const KminmerList& kminmerList) {
+
+			u_int64_t readIndex = kminmerList._readIndex;
+			const vector<MinimizerType>& readMinimizers = kminmerList._readMinimizers;
+			//const vector<KmerVec>& kminmers = kminmerList._kminmers;
+			const vector<ReadKminmerComplete>& kminmersInfos = kminmerList._kminmersInfo;
+
+			unordered_map<UnitigType, u_int32_t> unitigName_to_hits;
+
+			for(size_t i=0; i<kminmersInfos.size(); i++){
+				
+				const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
+				const KmerVec& vec = kminmerInfo._vec;
+				
+				const u_int128_t vecHash = vec.normalize().hash128();
+
+				if(_parent._kminmer_to_contigIndexes.find(vecHash) == _parent._kminmer_to_contigIndexes.end()) continue;
+
+				for(const UnitigType& unitigName : _parent._kminmer_to_contigIndexes[vecHash]){
+					unitigName_to_hits[unitigName] += 1;
+				}
+
+			}
+
+
+			cout << "----" << endl;
+			cout << "read " << kminmerList._readIndex << endl;
+			for(const auto& m : readMinimizers){
+				cout << "\t" << m << endl;
+			}
+
+			cout << "Nb kminmers: " << kminmersInfos.size() << endl;
+
+			ofstream colorFile = ofstream("/pasteur/appa/homes/gbenoit/zeus/tmp/readHits.csv");
+			colorFile << "Name,Hits" << endl;
+
+			for(const auto& it : unitigName_to_hits){
+
+				float score = it.second; // / ((long double) _parent._unitigName_to_nbKminmers[it.first]);
+
+				colorFile << "utg" << it.first << "," << score << endl;
+				cout << "\t" << "utg" << it.first << "\t" << it.second << endl;
+			}
+
+			colorFile.close();
+			cout << "Mapped read: " << kminmerList._readIndex << endl;
+			getchar();
+
+		}
+	};
+	*/
 };
 
 

@@ -4,34 +4,54 @@
 #define MDBG_METAG_MDBGASSEMBLER
 
 
+#include "assembly/GenerateContigs.hpp"
+#include "toBasespace/ToMinspace.hpp"
+
+
+#include "toBasespace/ToBasespace2.hpp"
+#include "readSelection/ReadSelection.hpp"
+#include "readSelection/ReadCorrection.hpp"
+
+//#include "toBasespace/ToBasespaceNoCorrection.hpp"
+
+#include "toBasespace/RepeatRemover.hpp"
+#include "toBasespace/OverlapRemover2.hpp"
+
+
+#include "graph/CreateMdbg.hpp"
+#include "pipeline/AssemblyPipeline.hpp"
+
+
+
+
+
+
+
+#include "toBasespace/DerepSmallContigs.hpp"
+
 
 //#include "polish/ContigPolisher.hpp" //!
 
-#include "readSelection/ReadCorrection.hpp"
 
+
+
+//#include "readSelection/SnpmerFinder.hpp"
 //#include "readSelection/SetupCorrectionEvaluationSimulation.hpp"
-#include "readSelection/SetupCorrectionEvaluation.hpp"
+//#include "readSelection/SetupCorrectionEvaluation.hpp"
 
 //#include "readSelection/PerformCorrectionEvaluation.hpp"
 
-#include "readSelection/ReadSelection.hpp"
 
-#include "toBasespace/ToMinspace.hpp"
-//#include "mapping/MappingContigToGraph.hpp"
+#include "mapping/MappingContigToGraph.hpp"
 
 
 
 //#include "assembly/Circulizer.hpp"
 //#include "readSelection/ReadSelectionPaired.hpp"
-#include "graph/CreateMdbg.hpp"
 //#include "assembly/Assembly2.hpp"
 //#include "assembly/Assembly3.hpp"
-#include "assembly/GenerateContigs.hpp"
 //#include "toBasespace/ToBasespace.hpp"
-#include "toBasespace/ToBasespace2.hpp"
 //#include "toBasespace/ToBasespace3.hpp"
-#include "toBasespace/ToBasespaceNoCorrection.hpp"
-#include "pipeline/AssemblyPipeline.hpp"
 //#include "pipeline/ReassemblePipeline.hpp"
 //#include "pipeline/BinningPipeline.hpp"
 //#include "contigFeatures/KminmerCounter.hpp"
@@ -45,9 +65,9 @@
 //#include "contigFeatures/KminmerCounter.hpp"
 //#include "assembly/Circulizer2.hpp"
 //#include "contigFeatures/KmerHicLinker.hpp"
-#include "graph/GenerateGfa.hpp"
-#include "toBasespace/DerepSmallContigs.hpp"
 
+#include "toBasespace/ToBasespaceGfa.hpp"
+#include "graph/GenerateGfa.hpp"
 //#include "toBasespace/Dereplicater.hpp"
 //#include "polish/PurgeGraph.hpp"
 //#include "mapping/ContigDecontaminator.hpp"
@@ -118,6 +138,8 @@ int main (int argc, char* argv[])
     		string programName = string(argv[1]);
 
 
+			
+			
 			//if(programName == "polish"){
             //    ContigPolisher().run (argc, args); //!
     		//}
@@ -126,39 +148,52 @@ int main (int argc, char* argv[])
 			//else if(programName == "readSelectionPaired"){
             //    ReadSelectionPaired().run (argc, args);
     		//}
-    		if(programName == "readCorrection"){
-                ReadCorrection().run (argc, args);
+
+			
+			
+			if(programName == "graph"){
+                CreateMdbg().run (argc, args);
     		}
 			
-    		else if(programName == "setupCorr"){
-                SetupCorrectionEvaluation().run (argc, args);
+    		else if(programName == "toMinspace"){
+                ToMinspace().run (argc, args);
     		}
+    		else if(programName == "contig"){
+                GenerateContigs().run (argc, args);
+    		}
+			else if(programName == "asm"){
+                AssemblyPipeline().run (argc, args);
+    		}
+
+			
+			
+			else if(programName == "readSelection"){
+                ReadSelection().run (argc, args);
+    		}
+    		else if(programName == "readCorrection"){
+                ReadCorrection().run (argc, args);
+    		}
+			//else if(programName == "snpmer"){
+            //    SnpmerFinder().run (argc, args);
+    		//}
+    		//else if(programName == "setupCorr"){
+            //    SetupCorrectionEvaluation().run (argc, args);
+    		//}
 			
     		//else if(programName == "evalCorr"){
             //    PerformCorrectionEvaluation().run (argc, args);
     		//}
-			else if(programName == "readSelection"){
-                ReadSelection().run (argc, args);
-    		}
 
 			
 			//else if(programName == "extend"){
                 //Circulizer().run (argc, args);
     		//}
-    		else if(programName == "toMinspace"){
-                ToMinspace().run (argc, args);
+			else if(programName == "map"){
+              	MappingContigToGraph().run (argc, args);
     		}
-			//else if(programName == "map"){
-              //  MappingContigToGraph().run (argc, args);
-    		//}
 	
 			
-			else if(programName == "graph"){
-                CreateMdbg().run (argc, args);
-    		}
-			else if(programName == "asm"){
-                AssemblyPipeline().run (argc, args);
-    		}
+			
 			//else if(programName == "reasm"){
             //    ReassemblePipeline().run (argc, args);
     		//}
@@ -168,9 +203,6 @@ int main (int argc, char* argv[])
     		//else if(programName == "binPass"){
             //    Assembly2().run (argc, args);
     		//}
-    		else if(programName == "contig"){
-                GenerateContigs().run (argc, args);
-    		}
     		//else if(programName == "multik"){
             //    Assembly3().run (argc, args);
     		//}
@@ -180,6 +212,8 @@ int main (int argc, char* argv[])
     		//else if(programName == "circ"){
             //    Circulizer2().run (argc, args);
     		//}
+			
+			
     		else if(programName == "derepSmall"){
                 DerepSmallContigs().run (argc, args);
     		}
@@ -201,9 +235,15 @@ int main (int argc, char* argv[])
     		//else if(programName == "derepOld"){
             //    Dereplicater().run (argc, args);
     		//}
-    		else if(programName == "toBasespaceFast"){
-                ToBasespaceNoCorrection().run (argc, args);
+    		else if(programName == "removeOverlaps"){
+                OverlapRemover2().run (argc, args);
     		}
+    		else if(programName == "removeRepeats"){
+                RepeatRemover().run (argc, args);
+    		}
+    		//else if(programName == "toBasespaceFast"){
+            //    ToBasespaceNoCorrection().run (argc, args);
+    		//}
     		//else if(programName == "count"){
             //    KminmerCounter().run (argc, args);
     		//}
@@ -222,6 +262,9 @@ int main (int argc, char* argv[])
     		//else if(programName == "map-binToMDBG"){
             //    Mapping_BinToMDBG().run (argc, args);
     		//}
+			else if(programName == "toBasespaceGfa"){
+                ToBasespaceGfa().run (argc, args);
+    		}
     		else if(programName == "gfa"){
                 GenerateGfa().run (argc, args);
     		}
@@ -234,6 +277,9 @@ int main (int argc, char* argv[])
     		else{
     			displayHelp(argv[0]);
     		}
+			
+			
+			
 			
 			
     	}

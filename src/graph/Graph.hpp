@@ -152,7 +152,26 @@ class UnitigGraph2{
 
 public:
 
-    struct UnitigNode{
+
+    class UnitigNode2{
+
+    public:
+
+        u_int64_t _unitigName;
+        //vector<UnitigType> _unitigMerge;
+        //vector<UnitigType> _unitigs;
+        //vector<UnitigType> _successors_forward;
+        //vector<UnitigType> _successors_reverse;
+        u_int32_t _nbMinimizers;
+        float _abundance;
+        //vector<float> _abundances;
+        //bool _isReversed;
+        //bool _isEdgeNode;
+        u_int64_t _edgeIndex;
+        u_int16_t _nbSuccessors;
+    };
+
+    class UnitigNode{
 
     public:
 
@@ -163,22 +182,28 @@ public:
         vector<UnitigType> _successors_reverse;
         u_int32_t _nbMinimizers;
         float _abundance;
-        vector<float> _abundances;
+        vector<u_int32_t> _abundances;
         bool _isReversed;
+        bool _isEdgeNode;
         //u_int32_t _startNode_forward;
         //u_int32_t _startNode_reverse;
 
-        vector<MinimizerType> _nodes;
+        //vector<MinimizerType> _nodes;
+        //u_int64_t _successorsIndex;
+        //u_int32_t _nbSuccessors;
+        //u_int64_t _predecessorsIndex;
+        //u_int32_t _nbPredecessors;
 
         UnitigNode(){
 
         }
 
-        UnitigNode(const UnitigType& unitigName, const vector<MinimizerType>& minimizers){
+        UnitigNode(const UnitigType& unitigName, const u_int32_t nbMinimizers, const bool isEdgeNode){
             _unitigName = unitigName;
-            _nbMinimizers = minimizers.size();
+            _nbMinimizers = nbMinimizers; //minimizers.size();
             //_nodes = minimizers;
             _isReversed = false;
+            _isEdgeNode = isEdgeNode;
         }
 
         u_int32_t startNode(){
@@ -193,23 +218,58 @@ public:
             */
         }
 
+
         u_int64_t getLength(UnitigGraph2* unitigGraph) const{
-            return unitigGraph->_kminmerLength + ((_nbMinimizers - unitigGraph->_kminmerSize + 1 - 1)* unitigGraph->_kminmerLengthNonOverlap);
+            //cout << unitigGraph->_minimizerSpacingMean << endl;
+            return ((_nbMinimizers-1) * unitigGraph->_minimizerSpacingMean); //
+            //return unitigGraph->_kminmerLength + ((_nbMinimizers - unitigGraph->_kminmerSize + 1 - 1)* unitigGraph->_kminmerLengthNonOverlap);
         }
 
+        //u_int64_t getLengthNoOverlap(UnitigGraph2* unitigGraph) const{
+        //    const int overlapSize = unitigGraph->_kminmerSize - 1;
+
+            //#pragma omp critical
+            //{
+
+            //cout << _nbMinimizers << " " << overlapSize << " " << unitigGraph->_minimizerSpacingMean << " " <<  ((_nbMinimizers - overlapSize) * unitigGraph->_minimizerSpacingMean) << endl;
+            
+            //if(_nbMinimizers < unitigGraph->_kminmerSize){
+            //    cout << "Graph getLengthNoOverlap issue: " << _nbMinimizers << " " << unitigGraph->_kminmerSize << " " << overlapSize << " " << unitigGraph->_minimizerSpacingMean << " " <<  ((_nbMinimizers - overlapSize) * unitigGraph->_minimizerSpacingMean) << endl;
+            //}
+            //}
+
+        //    return ((_nbMinimizers - overlapSize) * unitigGraph->_minimizerSpacingMean); //
+            //return unitigGraph->_kminmerLength + ((_nbMinimizers - unitigGraph->_kminmerSize + 1 - 1)* unitigGraph->_kminmerLengthNonOverlap);
+        //}
+
+        u_int64_t abundanceSum() const{
+            u_int64_t sum = 0;
+            for(const auto& ab : _abundances){
+                sum += ab;
+            }
+            return sum;
+        }
+        
         double computeMedianAbundance(){
             /*
+            int nbAbundancesToUsed = _abundances.size() * 0.5f;
+            nbAbundancesToUsed = max(1, nbAbundancesToUsed);
             long double sum = 0;
             long double n = 0;
 
-            for(const float& ab : _abundances){
-                sum += ab;
+            //cout << "---- " << _nbMinimizers << endl;
+            //for(const float& ab : _abundances){
+            //for(size_t i=nbAbundancesToIgnore; i<_abundances.size()-nbAbundancesToIgnore; i++){
+            for(size_t i=0; i<nbAbundancesToUsed; i++){
+                //cout << _abundances[i] << endl;
+                sum += _abundances[i];
                 n += 1;
             }
 
             return sum / n;
-            */
             
+            */
+           
             size_t size = _abundances.size();
 
             if (size == 0){
@@ -247,13 +307,17 @@ public:
             //    _abundances.push_back(abundance);
             //}
             //mergeAbundances(node2);
-            vector<float> abundances;
+            vector<u_int32_t> abundances;
             std::merge(_abundances.begin(), _abundances.end(), node2->_abundances.begin(), node2->_abundances.end(), std::back_inserter(abundances));
 
             _abundances = abundances;
 
             _abundance = computeMedianAbundance();
-        
+            if(_abundance == 0){
+                cout << "Unitig abundance is 0: utg" << node2->_unitigName << endl;
+                _abundance = 1;
+            }
+
             _nbMinimizers += (node2->_nbMinimizers - graph->_kminmerSize + 1);
             
 
@@ -321,8 +385,10 @@ public:
 	float _kminmerLength;
 	float _kminmerOverlapMean;
 	float _kminmerLengthNonOverlap;
-	unordered_map<KmerVec, u_int32_t>& _kmerVec_to_nodeName;
+	float _minimizerSpacingMean;
     int _nbCores;
+    u_int64_t _nbEdges;
+    //vector<u_int64_t> _edges;
     //const vector<u_int32_t>& _nodeDatas;
 
     //class GraphChangedIndex{
@@ -333,13 +399,15 @@ public:
 
     //GraphChangedIndex _graphChangedIndex;
 
-    UnitigGraph2(size_t kminmerSize, float kminmerLength, float kminmerOverlapMean, float kminmerLengthNonOverlap, unordered_map<KmerVec, u_int32_t>& kmerVec_to_nodeName, const int nbCores) : _kmerVec_to_nodeName(kmerVec_to_nodeName){//}, const vector<u_int32_t>& nodeDatas) : _nodeDatas(nodeDatas){
+    UnitigGraph2(size_t kminmerSize, float kminmerLength, float kminmerOverlapMean, float kminmerLengthNonOverlap, float minimizerSpacingMean, const int nbCores) {//}, const vector<u_int32_t>& nodeDatas) : _nodeDatas(nodeDatas){
         //_currentUnitigIndex = 0;
         _kminmerSize = kminmerSize;
         _kminmerLength = kminmerLength;
         _kminmerOverlapMean = kminmerOverlapMean;
         _kminmerLengthNonOverlap = kminmerLengthNonOverlap;
+        _minimizerSpacingMean = minimizerSpacingMean;
         _nbCores = nbCores;
+        _nbEdges = 0;
         //_nodeIndex_to_unitigIndex.resize(nbNodes, -1);
     }
 
@@ -349,20 +417,101 @@ public:
         }
     }
 
+    void load(const string& statsFilename, const string& nodeFilename, const string& abundanceFilename, const string& edgeFilename){
 
-    void load(const string& inputDir){
+        /*
+        vector<UnitigNode2> nodes;
+        nodes.reserve(1031264325);
+        for(size_t i=0; i<1031264325; i++){
+            nodes[i] = UnitigNode2();
+        }
+        Logger::get().debug() << "\t\tDone: " << (peakrss() / 1024.0 / 1024.0 / 1024.0) << " GB";
+        vector<u_int64_t> edges;
+        edges.reserve(8316613876);
+        for(size_t i=0; i<8316613876; i++){
+            edges[i] = 12;
+        }
+        Logger::get().debug() << "\t\tDone: " << (peakrss() / 1024.0 / 1024.0 / 1024.0) << " GB";
+        exit(1);
+        */
+        /*
+        edges.resize(33372813);
+        for(size_t i=0; i<33372813; i++){
+            edges[i].push_back(21);
+            edges[i].shrink_to_fit();
+        }
+
+        for(size_t i=0; i<33372813; i++){
+        }
+
+        exit(1);
+        u_int32_t array[10000];
+        for(size_t i=0; i<10000; i++){
+            array[i] = 5;
+        }
+        cout << sizeof(array) << endl;
+
+        for(size_t i=0; i<10000; i++){
+            cout << array[i] << endl;
+        }
+        */
+       
+
+        /*
+        vector<UnitigType> edges;
+        //edges.reserve(33372813);
+
+
+		ifstream edgeSuccessorFile2(inputDir + "/unitigGraph.edges.successors.bin");
+
+		while(true){
+
+			u_int32_t unitigIndexFrom;
+			edgeSuccessorFile2.read((char*)&unitigIndexFrom, sizeof(unitigIndexFrom));
+			
+			if(edgeSuccessorFile2.eof()) break;
+
+			u_int32_t unitigIndexTo;
+			edgeSuccessorFile2.read((char*)&unitigIndexTo, sizeof(unitigIndexTo));
+
+            edges.push_back(unitigIndexFrom);
+            //addSuccessor(unitigIndexFrom, unitigIndexTo);
+
+            //addSuccessor(unitigIndex_to_reverseDirection(unitigIndexTo), unitigIndex_to_reverseDirection(unitigIndexFrom)); //Ensure that edge in both side exists
+            //cout << unitigIndexFrom << " " << unitigIndexTo << endl;
+            //nbEdges += 1;
+        }
+
+        edgeSuccessorFile2.close();
+        cout << edges.size() << endl;
+        exit(1);
+        */
+
 
         //const string& nodeFilename, const string& abundanceFilename, const string& edgeSuccessorFilename
         //    + "/unitigGraph.nodes.bin", _inputDir + "/unitigGraph.nodes.abundances.bin", _inputDir + "/unitigGraph.edges.successors.bin"
 
         //ofstream debugFile("/pasteur/appa/homes/gbenoit/zeus/tmp//lala2.txt");
 
-        Logger::get().debug() << "Load unitigs";
+
+        u_int64_t nbUnitigNodes = 0;
+        u_int64_t nbUnitigEdges = 0;
+        ifstream unitigGraphFile_stats(statsFilename);
+        unitigGraphFile_stats.read((char*)&nbUnitigNodes, sizeof(nbUnitigNodes));
+        unitigGraphFile_stats.read((char*)&nbUnitigEdges, sizeof(nbUnitigEdges));
+        unitigGraphFile_stats.close();
+
+        
+
+        Logger::get().debug() << "\tLoad unitigs";
 
         u_int64_t nbUnitigs = 0;
         u_int64_t nbMinimizers = 0;
 
-		ifstream nodeFile(inputDir + "/unitigGraph.nodes.bin");
+		ifstream nodeFile(nodeFilename);
+
+        //cout << "load init" << endl;
+        int addedNodes = 0;
 
 		while(true){
 
@@ -383,10 +532,16 @@ public:
             //u_int32_t nodeName;
 			//nodeFile.read((char*)&nodeName, sizeof(nodeName));
 
+            //if(unitigIndex/2 == 84){
+            //    cout << "utg" << "lala" << endl;
+            //    for(MinimizerType m : minimizers){
+            //        cout << "\t" << m << endl;
+            //    }
+            //}
 
 
-            //cout << "Add node: " << unitigIndex << " " << minimizers.size() << endl;
-            addNode(unitigIndex/2, minimizers);
+            //cout << "utg" << unitigIndex/2 << " " << minimizers.size() << endl;
+            addNode(unitigIndex/2, minimizers.size(), false);
 
             //vector<MinimizerType> minimizersRC = minimizers;
             //std::reverse(minimizersRC.begin(), minimizersRC.end());
@@ -396,14 +551,31 @@ public:
             //debugFile << unitigIndex << " " << minimizers.size() << endl;
             nbUnitigs += 1;
             nbMinimizers += minimizers.size();
+
+            addedNodes += 1;
         }
 
         nodeFile.close();
+
+        /*
+        cout << _unitigs.size() << endl;
+        int lala =0;
+        for(size_t i=0; i<_unitigs.size(); i++){
+            if(_unitigs[i] != nullptr){
+                lala += 1;
+            }
+        }
+
+        cout << lala << endl;
+        cout << addedNodes << endl;
+        */
         //return;
 
         //debugFile.close();
-        Logger::get().debug() << "Nb unitigs: " << nbUnitigs;
-        Logger::get().debug() << "Nb minimizers: " << nbMinimizers;
+        Logger::get().debug() << "\t\tNb unitigs: " << nbUnitigs;
+        Logger::get().debug() << "\t\tNb minimizers: " << nbMinimizers;
+        Logger::get().debug() << "\t\tDone: " << (peakrss() / 1024.0 / 1024.0 / 1024.0) << " GB";
+        
         //getchar();
 
         /*
@@ -443,17 +615,16 @@ public:
         startEndFile.close();
         */
 
+        
+        Logger::get().debug() << "\tAdd unitig abundances";
 
 
-        Logger::get().debug() << "Add unitig abundances";
-
-
-		ifstream abundanceFile(inputDir + "/unitigGraph.nodes.abundances.bin");
+		ifstream abundanceFile(abundanceFilename);
 
 		while(true){
 
 
-			u_int32_t unitigIndex;
+			UnitigType unitigIndex;
 			abundanceFile.read((char*)&unitigIndex, sizeof(unitigIndex));
 
 			u_int32_t nbAbundances;
@@ -462,9 +633,9 @@ public:
 
 			if(abundanceFile.eof()) break;
 
-			vector<float> abundances;
+			vector<u_int32_t> abundances;
 			abundances.resize(nbAbundances);
-			abundanceFile.read((char*)&abundances[0], nbAbundances * sizeof(float));
+			abundanceFile.read((char*)&abundances[0], nbAbundances * sizeof(u_int32_t));
 
             const UnitigType& unitigName = unitigIndex_to_unitigName(unitigIndex);
 
@@ -478,41 +649,78 @@ public:
         }
 
         abundanceFile.close();
-        
 
-        Logger::get().debug() << "Sorting abundances";
+        Logger::get().debug() << "\t\tSorting abundances";
         processUnitigsParallel(AbundanceSortFunctor(this), _nbCores);
+        Logger::get().debug() << "\t\tDone: " << (peakrss() / 1024.0 / 1024.0 / 1024.0) << " GB";
 
+        
         //cout << "Clearing node datas" << endl;
         
-        Logger::get().debug() << "Add unitig edges";
+        Logger::get().debug() << "\tAdd unitig edges";
         //cout << "Loading unitig graph edges successors" << endl;
 
-        u_int64_t nbEdges = 0;
-		ifstream edgeSuccessorFile(inputDir + "/unitigGraph.edges.successors.bin");
+        //u_int64_t nbEdges = 0;
+		ifstream edgeSuccessorFile(edgeFilename);
+
+        size_t i=0;
 
 		while(true){
 
-			u_int32_t unitigIndexFrom;
+            //i += 1;
+            //if(i%1000000 == 0) cout << i << " " << _nbEdges << endl;
+
+			UnitigType unitigIndexFrom;
 			edgeSuccessorFile.read((char*)&unitigIndexFrom, sizeof(unitigIndexFrom));
 			
 			if(edgeSuccessorFile.eof()) break;
 
-			u_int32_t unitigIndexTo;
-			edgeSuccessorFile.read((char*)&unitigIndexTo, sizeof(unitigIndexTo));
+			u_int32_t nbSuccessors;
+			edgeSuccessorFile.read((char*)&nbSuccessors, sizeof(nbSuccessors));
 
-            addSuccessor(unitigIndexFrom, unitigIndexTo);
+			vector<UnitigType> successors;
+			successors.resize(nbSuccessors);
+			edgeSuccessorFile.read((char*)&successors[0], successors.size() * sizeof(UnitigType));
+
+			u_int32_t nbPredecessors;
+			edgeSuccessorFile.read((char*)&nbPredecessors, sizeof(nbPredecessors));
+
+			vector<UnitigType> predecessors;
+			predecessors.resize(nbPredecessors);
+			edgeSuccessorFile.read((char*)&predecessors[0], predecessors.size() * sizeof(UnitigType));
+
+			//UnitigType unitigIndexTo;
+			//edgeSuccessorFile.read((char*)&unitigIndexTo, sizeof(unitigIndexTo));
+
+            //cout << "---" << endl;
+            //cout << nbSuccessors << endl;
+            for(const UnitigType& unitigIndexTo : successors){
+                //cout << "a " << unitigIndexFrom << " " << unitigIndexTo << endl;
+                addSuccessor(unitigIndexFrom, unitigIndexTo);
+                //addSuccessor(unitigIndex_to_reverseDirection(unitigIndexTo), unitigIndex_to_reverseDirection(unitigIndexFrom)); //Ensure that edge in both side exists
+            }
+
+			UnitigType unitigIndexFrom_rev = Utils::unitigIndexToReverseDirection(unitigIndexFrom);
+
+            for(const UnitigType& unitigIndexTo : predecessors){
+                //cout << "b " << unitigIndexFrom_rev << " " << unitigIndexTo << endl;
+                addSuccessor(unitigIndexFrom_rev, unitigIndexTo);
+                //addSuccessor(unitigIndex_to_reverseDirection(unitigIndexTo), unitigIndex_to_reverseDirection(unitigIndexFrom_rev)); //Ensure that edge in both side exists
+            }
+            
             //cout << unitigIndexFrom << " " << unitigIndexTo << endl;
-            nbEdges += 1;
+            //nbEdges += 1;
         }
 
         edgeSuccessorFile.close();
 
-        Logger::get().debug() << "Nb unitig edges: " << nbEdges;
+
+        Logger::get().debug() << "\t\tNb unitig edges: " << _nbEdges;
+        Logger::get().debug() << "\t\tDone: " << (peakrss() / 1024.0 / 1024.0 / 1024.0) << " GB";
        
         //cout << "Loading unitig graph sorting" << endl;
         
-        Logger::get().debug() << "Sorting unitig edges";
+        Logger::get().debug() << "\tSorting unitig edges";
 
         /*
         vector<UnitigType> successors;
@@ -536,6 +744,7 @@ public:
 
         for(UnitigNode* unitig : _unitigs){
             
+            if(unitig == nullptr) continue;
             /*
             if(unitig->_unitigName == 25045){
                 cout << unitig->startNode() << " " << unitig->_startNode_forward << " " << unitig->_startNode_reverse << endl;
@@ -621,9 +830,73 @@ public:
         }
 
         
+        /*
+        cout << "check graph: todo remove" << endl;
+
+
+		#pragma omp parallel num_threads(_nbCores)
+		{
+
+            #pragma omp for
+            for(size_t i=0; i < _unitigs.size(); i++){
+
+                if(_unitigs[i] == nullptr) continue;
+
+                UnitigNode* unitig = _unitigs[i];
+
+                if(unitig->_unitigName % 100000 == 0) cout << "\tChecking: " << unitig->_unitigName << endl;
+                UnitigType unitigIndex1 = unitigName_to_unitigIndex(unitig->_unitigName, false);
+
+                vector<UnitigType> successors;
+                getSuccessors(unitigIndex1, successors);
+
+                for(UnitigType unitigIndexSuccessor : successors){
+
+                    bool found = false;
+                    vector<UnitigType> preds;
+                    getPredecessors(unitigIndexSuccessor, preds);
+
+                    for(UnitigType pred : preds){
+                        if(pred == unitigIndex1) found = true;
+                    }
+
+                    if(!found){
+                        cout << "issue: " << unitigIndex1 << " " << unitigIndexSuccessor << endl;
+                        //exit(1);
+                    }
+                }
+
+
+                UnitigType unitigIndex2 = unitigName_to_unitigIndex(unitig->_unitigName, true);
+                getSuccessors(unitigIndex2, successors);
+
+                for(UnitigType unitigIndexSuccessor : successors){
+
+                    bool found = false;
+                    vector<UnitigType> preds;
+                    getPredecessors(unitigIndexSuccessor, preds);
+
+                    for(UnitigType pred : preds){
+                        if(pred == unitigIndex2) found = true;
+                    }
+
+                    if(!found){
+                        cout << "issue: " << unitigIndex2 << " " << unitigIndexSuccessor << endl;
+                        //exit(1);
+                    }
+                }
+
+            }
+			
+		}
+        */
+
+
+        //cout << "Expected nb nodes: " << nbUnitigNodes << " " << _unitigs.size() << endl;
+        //cout << "Expected nb edges: " << nbUnitigEdges << " " << _nbEdges << endl;
         
 
-        Logger::get().debug() << "Done loading unitig graph";
+        Logger::get().debug() << "\tDone loading unitig graph " << (peakrss() / 1024.0 / 1024.0 / 1024.0) << " GB";
     }
 
     /*
@@ -652,7 +925,9 @@ public:
     
     unordered_map<UnitigType, vector<MinimizerType>> _unitigName_to_minimizers;
 
-    void addNode(const UnitigType unitigIndex, const vector<MinimizerType>& minimizers){
+    UnitigNode* addNode(const UnitigType unitigIndex, const u_int32_t nbMinimizers, const bool isEdgeNode){
+
+        //cout << "Add node: " << unitigIndex << " " << minimizers.size() << " " << _unitigs.size() << endl;
 
         while(_unitigs.size() <= unitigIndex){
             _unitigs.push_back(nullptr);
@@ -662,7 +937,7 @@ public:
 
         //u_int32_t unitigIndex = _currentUnitigIndex;
 
-        UnitigNode* unitig = new UnitigNode(unitigIndex, minimizers);
+        UnitigNode* unitig = new UnitigNode(unitigIndex, nbMinimizers, isEdgeNode);
 
         //cout << _nodes.size() << " " << unitigIndex << endl;
         _unitigs[unitigIndex] = unitig;
@@ -674,6 +949,8 @@ public:
         //_currentUnitigIndex += 1;
 
         //_unitigName_to_minimizers[unitigIndex] = minimizers;
+
+        return unitig;
 
     }
 
@@ -699,13 +976,21 @@ public:
 
 
         if(isReversedFrom){
+
+            //if(std::find(_unitigs[fromUnitigName]->_successors_reverse.begin(), _unitigs[fromUnitigName]->_successors_reverse.end(), toUnitigIndex) == _unitigs[fromUnitigName]->_successors_reverse.end()){
+                _unitigs[fromUnitigName]->_successors_reverse.push_back(toUnitigIndex);
+                _nbEdges += 1;
+            //}
             //cout << "\tAdd edge reverse: " << fromUnitigName << " " << toUnitigIndex << endl;
-            _unitigs[fromUnitigName]->_successors_reverse.push_back(toUnitigIndex);
             //_unitigs[fromUnitigName]
         }
         else{
             //cout << "\tAdd edge forward: " << fromUnitigName << " " << toUnitigIndex << endl;
-            _unitigs[fromUnitigName]->_successors_forward.push_back(toUnitigIndex);
+
+            //if(std::find(_unitigs[fromUnitigName]->_successors_forward.begin(), _unitigs[fromUnitigName]->_successors_forward.end(), toUnitigIndex) == _unitigs[fromUnitigName]->_successors_forward.end()){
+                _unitigs[fromUnitigName]->_successors_forward.push_back(toUnitigIndex);
+                _nbEdges += 1;
+            //}
         }
 
         //cout << "Add edge: " << fromUnitigIndex << " -> " << toUnitigIndex << endl;
@@ -742,16 +1027,95 @@ public:
         }
     }
 
+    static void getStartNode(const UnitigType& unitigIndex, const vector<MinimizerType>& unitigMinimizers, const size_t kminmerSize, vector<MinimizerType>& minimizers){
+
+        minimizers.clear();
+
+        long size = unitigMinimizers.size();
+        //vector<MinimizerType> minimizers;
+
+        bool isReversed = (unitigIndex % 2) == 1;
+
+        if(isReversed){
+
+
+            for(long i=size-1; i>=0 && minimizers.size()<kminmerSize; i--){
+                minimizers.push_back(unitigMinimizers[i]);
+            }
+
+        }
+        else{
+
+            for(long i=0; i<unitigMinimizers.size() && minimizers.size()<kminmerSize; i++){
+                minimizers.push_back(unitigMinimizers[i]);
+            }
+        }
+        
+        //return minimizers;
+    }
+
+    static void getEndNode(const UnitigType& unitigIndex, const vector<MinimizerType>& unitigMinimizers, const size_t kminmerSize, vector<MinimizerType>& minimizers){
+
+        minimizers.clear();
+
+        long size = unitigMinimizers.size();
+        //vector<MinimizerType> minimizers;
+
+        bool isReversed = (unitigIndex % 2) == 1;
+
+        if(isReversed){
+
+
+            for(long i=kminmerSize-1; i>=0; i--){
+                minimizers.push_back(unitigMinimizers[i]);
+            }
+
+        }
+        else{
+
+            for(long i=size-kminmerSize; i<size; i++){
+                minimizers.push_back(unitigMinimizers[i]);
+            }
+        }
+        
+        //return minimizers;
+    }
+
+    static vector<MinimizerType> getMinimizers(const UnitigType& unitigIndex, const vector<MinimizerType>& unitigMinimizers){
+
+        long size = unitigMinimizers.size();
+        vector<MinimizerType> minimizers;
+
+        bool isReversed = (unitigIndex % 2) == 1;
+
+        if(isReversed){
+
+
+            for(long i=size-1; i>=0; i--){
+                minimizers.push_back(unitigMinimizers[i]);
+            }
+
+        }
+        else{
+
+            for(long i=0; i<unitigMinimizers.size(); i++){
+                minimizers.push_back(unitigMinimizers[i]);
+            }
+        }
+        
+        return minimizers;
+    }
+
     static string unitigIndexToString(const UnitigType& unitigIndex){
 
         bool isReversed;
         const UnitigType& unitigName = unitigIndex_to_unitigName(unitigIndex, isReversed);
 
         if(isReversed){
-            return to_string(unitigName) + "-";
+            return "utg" + to_string(unitigName) + "-";
         }
         else{
-            return to_string(unitigName) + "+";
+            return "utg" + to_string(unitigName) + "+";
         }
     }
 
@@ -960,6 +1324,59 @@ public:
     }
 
 
+    void removeSuccessor(const UnitigType unitigIndexFrom, const UnitigType unitigIndexTo){
+
+
+        bool isReversed;
+        const UnitigType& unitigName = UnitigGraph2::unitigIndex_to_unitigName(unitigIndexFrom, isReversed);
+        UnitigNode* node = _unitigs[unitigName];
+        
+        //cout << "Want to remove: " << unitigIndexFrom << " " << unitigIndexTo << endl;
+        
+        if(isReversed){
+
+            bool found = false;
+
+            //cout << "Reverse" << endl;
+            for(size_t i=0; i<node->_successors_reverse.size(); i++){
+                //cout << "Reverse: " << node->_successors_reverse[i] << endl;
+                found = true;
+            }
+
+            if(!found){
+                cout << "Can't find successor to remove" << endl;
+                exit(1);
+            }
+
+
+            node->_successors_reverse.erase(std::remove(node->_successors_reverse.begin(), node->_successors_reverse.end(), unitigIndexTo), node->_successors_reverse.end());
+
+            //cout << found << endl;
+        }
+        else{
+
+            bool found = false;
+
+            //cout << "Forward" << endl;
+            for(size_t i=0; i<node->_successors_forward.size(); i++){
+                found = true;
+                //cout << "Forward: " << node->_successors_forward[i] << endl;
+            }
+
+
+            if(!found){
+                cout << "Can't find successor to remove" << endl;
+                exit(1);
+            }
+
+            node->_successors_forward.erase(std::remove(node->_successors_forward.begin(), node->_successors_forward.end(), unitigIndexTo), node->_successors_forward.end());
+
+            //cout << found << endl;
+        }
+
+
+    }
+
     void recompact(UnitigNode* node){
 
         //cout << "Recompact: " << node->_unitigName << endl;
@@ -994,6 +1411,30 @@ public:
         */
     }
 
+    bool isCompactable(const UnitigType& unitigIndex){
+
+        vector<UnitigType> successors;
+        getSuccessors(unitigIndex, successors);
+        
+        if(successors.size() == 1){
+
+            vector<UnitigType> predecessors;
+            getPredecessors(successors[0], predecessors);
+
+
+            if(predecessors.size() == 1){
+
+                if(successors[0] != predecessors[0]){ //Do not compact a circular unitig
+                    return true;
+                }
+            }
+
+
+        }
+
+        return false;
+    }
+
     void recompact(const UnitigType& unitigIndex){
 
 
@@ -1013,7 +1454,7 @@ public:
 
             if(successors.size() == 1){
 
-                UnitigNode* nodeSuccessor = _unitigs[successors[0]];
+                //UnitigNode* nodeSuccessor = _unitigs[successors[0]];
                 //if(nodeSuccessor == nullptr){
                 //    cout << "wtf" << endl;
                 //    getchar();
@@ -1315,6 +1756,11 @@ public:
             }
         }
 
+        //cout << unitig1->_unitigMerge.size() << endl;
+
+        //if(unitigName1 == 195){
+        //    cout << unitigIndexToString(unitig1->_unitigMerge[0]) << " " << unitigIndexToString(unitig1->_unitigMerge[1]) << endl;
+        //}
         /*
         if(!isReversed1 && !isReversed2){
 
@@ -1677,7 +2123,7 @@ public:
         return nbUnitigs;
     }
 
-    void save(const string& outputFilename){
+    void save(const string& outputFilename, const string& tmpDir){
 
         
         u_int64_t checksum = 0;
@@ -1733,6 +2179,9 @@ public:
 
         unordered_set<UnitigType> isVisited;
 
+        //unordered_map<u_int32_t, u_int32_t> unitigIndex_to_order;
+        vector<u_int32_t> unitigIndexOrder;
+        
         /*
         for(UnitigType sourceUnitigIndex = 0; sourceUnitigIndex < _unitigs.size()*2; sourceUnitigIndex++){
 
@@ -1788,8 +2237,11 @@ public:
 
                 UnitigGraph2::UnitigNode* unitig = _unitigs[unitigName];
 
-                outputFile << "S" << "\tutg" << unitigName << "\t" << "*" << "\t" << "LN:i:" << unitig->getLength(this) << "\t" << "dp:i:" << unitig->_abundance << endl;
+                outputFile << "S" << "\tutg" << unitigName << "\t" << "*" << "\t" << "LN:i:" << unitig->getLength(this) << "\t" << "dp:i:" << unitig->_abundance << "\n";
                 
+                unitigIndexOrder.push_back(unitigName);
+                //unitigIndex_to_order[unitigName] = i;
+                //i += 1;
 
                 u_int8_t isCircular = 0; //isCircular(unitig);
 				//vector<u_int32_t> nodePath = nodeCurrent->_nodes;
@@ -1839,9 +2291,10 @@ public:
                 vector<UnitigType> successors;
                 getSuccessors(unitigIndex, successors);
 
-
+                //cout << "---" << endl;
                 for(const UnitigType& unitigIndexSuccessor : successors){
                     
+                    //cout << "Successor: " << "utg" << unitigIndex << " -> utg" << unitigIndexSuccessor << endl;
                     //if(unitigIndex == 0){
                     //    cout << "\tSucc: " << unitigIndexSuccessor << endl;
                     //}
@@ -1860,7 +2313,7 @@ public:
                     //}
                     
                     u_int32_t overlap = 1;
-                    outputFile << "L" << "\tutg" << unitigName << "\t" << ori1 << "\tutg" << unitigNameSuccessor << "\t" << ori2 << "\t" << overlap << "M" << endl;
+                    outputFile << "L" << "\tutg" << unitigName << "\t" << ori1 << "\tutg" << unitigNameSuccessor << "\t" << ori2 << "\t" << overlap << "M" << "\n";
                     queue.push(unitigIndexSuccessor);
 
                     //if(unitigIndexN > 100000){
@@ -1881,6 +2334,7 @@ public:
                 for(const UnitigType& unitigIndexPredecessor : predecessors){
 
 
+                    //cout << "Predecessor: " << "utg" << unitigIndexPredecessor << " -> utg" << unitigIndex << endl;
                     //if(unitigIndex == 0){
                     //    cout << "\tPred: " << unitigIndexPredecessor << endl;
                     //}
@@ -1900,7 +2354,7 @@ public:
                     //}
                     
                     u_int32_t overlap = 1;
-                    outputFile << "L" << "\tutg" << unitigNamePredecessor << "\t" << ori2 << "\tutg" << unitigName << "\t" << ori1 << "\t" << overlap << "M" << endl;
+                    outputFile << "L" << "\tutg" << unitigNamePredecessor << "\t" << ori2 << "\tutg" << unitigName << "\t" << ori1 << "\t" << overlap << "M" << "\n";
                     queue.push(unitigIndexPredecessor);
                 }
 
@@ -1918,6 +2372,8 @@ public:
         //outputContigFileToUnitigIndex.close();
 
         //_logFile << "\tdone" << endl;
+		//string command = "/pasteur/appa/homes/gbenoit/zeus/tools/merging/metaMDBG_1.4/metaMDBG/build/bin/metaMDBG toMinspace " + " " + _tmpDir + " " + _tmpDir + "/assembly_graph.gfa.unitigs.nodepath" + " " + _tmpDir + "/assembly_graph.gfa.unitigs --threads " + to_string(_nbCores);
+		//executeCommand(command);
 
 
         //cout << "\tNb minimizers: " << nbMinimizers << endl;
@@ -1928,8 +2384,37 @@ public:
 
         //getchar();
 
+        /*
+		string command = "/pasteur/appa/homes/gbenoit/zeus/tools/merging/metaMDBG_1.4/metaMDBG/build/bin/metaMDBG toMinspace " + tmpDir + " " + outputFilename + ".unitigs.nodepath" + " " + outputFilename + ".unitigs " + " --threads " + to_string(_nbCores);
+		cout << command << endl;
+        Utils::executeCommand(command, tmpDir);
 
-        
+
+
+        ifstream infile(outputFilename + ".unitigs.debug.txt");
+        ofstream outfile(outputFilename + ".unitigs.debug2.txt");
+
+        std::string line;
+        int i = 0;
+        while (std::getline(infile, line)){
+            
+            //const vector<string>& fields = Utils::split(line, '\t');
+            
+
+            if(i%2 == 0){
+                outfile << "utg" << unitigIndexOrder[i/2] << endl;
+            }
+            else{
+                outfile << line << endl;
+            }
+
+            i += 1;
+            
+        }
+
+        infile.close();
+        outfile.close();
+        */
     }
     
     u_int64_t getChecksumAbundance(){
@@ -2019,10 +2504,25 @@ public:
 
     u_int64_t nbSuccessors(const UnitigType& unitigIndex){
 
-        u_int64_t nbSuccessors = 0;
-
         bool isReversed;
         UnitigType unitigName = unitigIndex_to_unitigName(unitigIndex, isReversed);
+
+        if(isReversed){
+            return _unitigs[unitigName]->_successors_reverse.size();
+        }
+        else{
+            return _unitigs[unitigName]->_successors_forward.size();
+        }
+        
+    }
+
+
+    u_int64_t nbPredecessors(const UnitigType& unitigIndex){
+
+        const u_int32_t& unitigIndexRev = unitigIndex_to_reverseDirection(unitigIndex);
+        
+        bool isReversed;
+        UnitigType unitigName = unitigIndex_to_unitigName(unitigIndexRev, isReversed);
 
         if(isReversed){
             return _unitigs[unitigName]->_successors_reverse.size();
@@ -2182,7 +2682,12 @@ public:
 		void operator () (UnitigNode* unitig) const {
         
             std::sort(unitig->_abundances.begin(), unitig->_abundances.end());
-            unitig->_abundance = unitig->computeMedianAbundance();
+            unitig->_abundance = unitig->computeMedianAbundance();            
+            
+            if(unitig->_abundance == 0){
+                cout << "Unitig abundance is 0: utg" << unitig->_unitigName << endl;
+                unitig->_abundance = 1;
+            }
 		}
 	};
 

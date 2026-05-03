@@ -32,6 +32,8 @@ struct AlignmentResult2{
 	u_int32_t _queryEnd;
 	int64_t _queryLength;
 	int64_t _referenceLength;
+	u_int32_t _referenceStartIndex;
+	u_int32_t _referenceEndIndex;
 
 	AlignmentResult2(){
 
@@ -657,6 +659,8 @@ public:
 		alignmentResult._alignLength = alignEnd - alignStart;
 		alignmentResult._referenceStart = firstAnchor._referencePosition;
 		alignmentResult._referenceEnd = lastAnchor._referencePosition;
+		alignmentResult._referenceStartIndex = firstAnchor._referencePositionIndex;
+		alignmentResult._referenceEndIndex = lastAnchor._referencePositionIndex;
 		if(isQueryReversed){
 			//alignmentResult._queryStart = queryRead._readLength - anchors[0]._queryPosition;
 			//alignmentResult._queryEnd = queryRead._readLength - anchors[anchors.size()-1]._queryPosition;

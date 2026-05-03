@@ -21,6 +21,9 @@ public:
 	string _truthInputFilename;
 	int _nbCores;
 	int _minKminmerAbundance;
+	size_t _snpmerSize;
+	int _maxBubbleLength;
+	int _maxTipLength;
 	//bool _useInitialKminmerFilter;
 
 	size_t _firstK;
@@ -43,13 +46,8 @@ public:
 	string _usedInputArgument;
 	string _userSubmittedCommand;
 
-	enum DataType{
-		HiFi,
-		Nanopore,
-	};
-
 	struct Params{
-		DataType _dataType;
+		SequencingPlatformType _dataType;
 		float _minReadQuality;
 		u_int32_t _readCorrectionMinOverlapLength;
 		float _readCorrectionMinIdentity;
@@ -60,6 +58,8 @@ public:
 		bool _useHomopolymerCompression;
 		bool _useReadCorrection;
 		string _minimap2Params;
+		int _minContigLength;
+		int _minContigCoverage;
 	};
 
 	struct ContigStats{
@@ -99,22 +99,29 @@ public:
 
 		args::ArgumentParser parser("asm", "Example 1: " + string(argv[0]) +" asm --out-dir ./outputDir/ --in-hifi reads.fastq.gz --threads 4 \nExample 2: " + string(argv[0]) + " asm --out-dir ./outputDir/ --in-ont reads_A.fastq.gz reads_B.fastq.gz reads_C.fastq.gz --threads 4"); //"This is a test program.", "This goes after the options."
 		args::Group groupInputOutput(parser, "Basic options:");
+		args::Group groupFilter(parser, "Filter options:");
 		args::Group groupAssembly(parser, "Assembly options:");
 		args::Group groupCorrection(parser, "Correction options:");
 
+		args::ValueFlag<float> arg_minReadQuality(groupFilter, "", "Minimum read average quality", {ARG_MIN_READ_QUALITY}, 0.0);
+		args::ValueFlag<float> arg_minContigLength(groupFilter, "", "Minimum contig length", {ARG_MIN_CONTIG_LENGTH}, 50);
+		args::ValueFlag<float> arg_minContigCoverage(groupFilter, "", "Minimum contig coverage", {ARG_MIN_CONTIG_COVERAGE}, 1);
+
 		
-		args::ValueFlag<std::string> arg_outputDir(groupInputOutput, "", "Output dir for contigs and temporary files", {ARG_OUTPUT_DIR2});
 		args::NargsValueFlag<std::string> arg_readFilenames_hifi(groupInputOutput, "", "PacBio HiFi read filename(s) (separated by space)", {ARG_INPUT_HIFI}, 2);
 		args::NargsValueFlag<std::string> arg_readFilenames_nanopore(groupInputOutput, "", "Nanopore R10.4+ read filename(s) (separated by space)", {ARG_INPUT_NANOPORE}, 2);
-		args::ValueFlag<int> arg_nbCores(groupInputOutput, "", "Number of cores", {ARG_NB_CORES2}, NB_CORES_DEFAULT_INT);
+		args::ValueFlag<std::string> arg_outputDir(groupInputOutput, "", "Output dir for contigs and temporary files", {'o', ARG_OUTPUT_DIR2});
+		args::ValueFlag<int> arg_nbCores(groupInputOutput, "", "Number of cores", {'t', ARG_NB_CORES2}, NB_CORES_DEFAULT_INT);
 
 		args::ValueFlag<int> arg_minimizerSize(groupAssembly, "", "k-mer size", {ARG_MINIMIZER_LENGTH2}, 15);
 		args::ValueFlag<float> arg_densityAssembly(groupAssembly, "", "Fraction of total k-mers used for assembly", {ARG_MINIMIZER_DENSITY_ASSEMBLY}, 0.005f);
 		args::ValueFlag<int> arg_maxK(groupAssembly, "", "Stop assembly after k iterations", {ARG_MAXK}, 0);
 		args::ValueFlag<int> arg_minAbundance(groupAssembly, "", "Minimum abundance for k-min-mers (default = rescue mode)", {ARG_MIN_KMINMER_ABUNDANCE}, 0);
+		args::ValueFlag<int> arg_maxBubbleLength(groupAssembly, "", "Max bubble popping length", {ARG_MAX_BUBBLE_LENGTH}, 50000);
+		args::ValueFlag<int> arg_maxTipLength(groupAssembly, "", "Max tip clipping length", {ARG_MAX_TIP_LENGTH}, 50000);
 		args::Flag arg_generateAllAssemblyGraph(groupAssembly, "", "Generate assembly graph at each multi-k iteration (higher disk usage)", {ARG_GENERATE_ALL_ASSEMBLY_GRAPH});
+		
 
-		args::ValueFlag<float> arg_minReadQuality(groupCorrection, "", "Minimum read average quality", {ARG_MIN_READ_QUALITY}, 0.0);
 		args::ValueFlag<float> arg_densityCorrection(groupCorrection, "", "Fraction of total k-mers used for correction", {ARG_MINIMIZER_DENSITY_CORRECTION}, 0.025f);
 		args::ValueFlag<float> arg_readCorrectionMinIdentity(groupCorrection, "", "Min read identity", {"min-read-identity"}, 0.96);
 		args::ValueFlag<int> arg_readCorrectionMinOverlapLength(groupCorrection, "", "Min read overlap length", {"min-read-overlap"}, 1000);
@@ -190,11 +197,17 @@ public:
 
 		_outputDir = args::get(arg_outputDir);
 		_tmpDir = _outputDir + "/tmp/";
+
 		_minimizerSize = args::get(arg_minimizerSize);
+		_minimizerSize = min(_minimizerSize, (size_t)16);
+
 		//_minimizerDensity = args::get(arg_d);
 		_nbCores = args::get(arg_nbCores);
 		_minKminmerAbundance  = args::get(arg_minAbundance);
-
+		_snpmerSize = 21;
+		_maxBubbleLength = args::get(arg_maxBubbleLength);
+		_maxTipLength = args::get(arg_maxTipLength);
+		
 		_maxK = 0;
 		if(arg_maxK){
 			_maxK = args::get(arg_maxK);
@@ -257,6 +270,9 @@ public:
 		_params._readCorrectionMinOverlapLength = args::get(arg_readCorrectionMinOverlapLength);
 		_params._readCorrectionMinIdentity = args::get(arg_readCorrectionMinIdentity);
 		_params._minReadQuality = args::get(arg_minReadQuality);
+		
+		_params._minContigLength = max((int)50, (int)args::get(arg_minContigLength));
+		_params._minContigCoverage = max((int)1, (int)args::get(arg_minContigCoverage));
 		//_contigPolishing_nbReadFragments = args::get(arg_nbWindows);
 
 		if(_params._useReadCorrection){
@@ -277,7 +293,7 @@ public:
 
 		Params params;
 
-		params._dataType = DataType::HiFi;
+		params._dataType = SequencingPlatformType::HiFi;
 		params._readCorrectionMinIdentity = 0.99;
 		params._readCorrectionMinOverlapLength = 1000;
 		params._minReadQuality = 0;
@@ -294,7 +310,7 @@ public:
 
 		Params params;
 		
-		params._dataType = DataType::Nanopore;
+		params._dataType = SequencingPlatformType::Nanopore;
 		params._readCorrectionMinIdentity = 0.96;
 		params._readCorrectionMinOverlapLength = 1000;
 		params._minReadQuality = 0;
@@ -324,12 +340,13 @@ public:
 
 		Logger::get().info() << "";
 		Logger::get().info() << "MetaMDBG " << METAMDBG_VERSION;
+		Logger::get().info() << "";
 		Logger::get().debug() << "Used command:";
 		Logger::get().debug() << _userSubmittedCommand;
 
 		_userSubmittedCommand.clear();
 
-		checkDependencies();
+		//checkDependencies();
 
 		Logger::get().debug() << "";
 		//Logger::get().debug() << "Input: " << _inputFilename;
@@ -344,6 +361,8 @@ public:
 		Logger::get().debug() << "Contig Derep threshold:  " << _params._contigDereplicationIdentityThreshold;
 		Logger::get().debug() << "Homopolymer compression: " << _params._useHomopolymerCompression;
 		Logger::get().debug() << "Read correction:         " << _params._useReadCorrection;
+		Logger::get().debug() << "Min contig length:       " << _params._minContigLength;
+		Logger::get().debug() << "Min contig coverage:     " << _params._minContigCoverage;
 		Logger::get().debug() << "";
 		
 		auto start = high_resolution_clock::now();
@@ -366,7 +385,7 @@ public:
 		ss << perfFile.rdbuf();
 		std::string maxMemory = ss.str();
 
-		cleanTmpFolder();
+		if(!DEBUG) cleanTmpFiles();
 		
 		//print_readStats();
 
@@ -405,11 +424,46 @@ public:
 
 	}
 
-	void cleanTmpFolder(){
-		
-		fs::remove_all(_tmpDir + "/filter");
-		fs::remove(_tmpDir + "/assembly_graph.gfa.unitigs.nodepath");
+	void cleanTmpAssemblyFiles(){
+
+
+
+		//fs::remove(_tmpDir + "/assembly_graph.gfa");
+		//fs::remove(_tmpDir + "/assembly_graph.gfa.unitigs");
+		fs::remove(_tmpDir + "/kminmerData_abundance.txt");
+		fs::remove(_tmpDir + "/unitigGraph.nodes.refined_abundances.bin");
+		fs::remove(_tmpDir + "/unitig_data.txt");
 		fs::remove(_tmpDir + "/contigs.nodepath");
+		fs::remove(_tmpDir + "/assembly_graph.gfa.unitigs.nodepath");
+		fs::remove(_tmpDir + "/unitigGraph_prev.edges.successors.bin");
+		fs::remove(_tmpDir + "/unitigGraph.nodes.abundances.bin");
+		fs::remove(_tmpDir + "/unitigGraph_prev.nodes.abundances.bin");
+		fs::remove(_tmpDir + "/unitigGraph_prev.edges.successors.bin");
+		fs::remove(_tmpDir + "/unitigGraph.edges.successors.bin");
+		fs::remove(_tmpDir + "/unitigGraph.nodes.bin");
+		fs::remove(_tmpDir + "/unitigGraph_prev.nodes.bin");
+		fs::remove(_tmpDir + "/unitigGraph_prev.stats.bin");
+		fs::remove(_tmpDir + "/unitigGraph.stats.bin");
+		fs::remove(_tmpDir + "/kminmerData_abundance_prev.txt");
+		fs::remove(_tmpDir + "/read_data_corrected.txt");
+		fs::remove_all(_tmpDir + "/filter");
+		
+		fs::remove(_tmpDir + "/kminmerData_abundance_prev.txt");
+		fs::remove(_tmpDir + "/kminmerData_min.txt");
+	}
+
+	
+	void cleanTmpFiles(){
+		fs::remove(_tmpDir + "/perf.txt");
+		fs::remove(_tmpDir + "/perf.bin");
+
+		fs::remove(_tmpDir + "/contig_data_init.txt");
+		fs::remove(_tmpDir + "/contig_data_init_small.txt");
+		fs::remove(_tmpDir + "/contig_data_init_small.txt.nooverlaps");
+		fs::remove(_tmpDir + "/contig_data_init_small.txt.norepeats");
+		/*
+		//fs::remove_all(_tmpDir + "/filter");
+		fs::remove(_tmpDir + "/assembly_graph.gfa.unitigs.nodepath");
 		fs::remove(_tmpDir + "/kminmerData_min_init.txt");
 		fs::remove(_tmpDir + "/kminmerData_min.txt");
 		fs::remove(_tmpDir + "/minimizer_graph.gfa");
@@ -426,9 +480,9 @@ public:
 		//fs::remove(_tmpDir + "/data.txt");
 		//fs::remove(_tmpDir + "/contig_data_backup.txt");
 		//fs::remove(_tmpDir + "/contig_data.txt");
-		
+		*/
 	}
-
+	
 
 
     void execute_pipeline(){
@@ -444,12 +498,13 @@ public:
 
 		string command = "";
 
-		if(_params._useReadCorrection){
-			writeParameters(_minimizerSize, _firstK, _params._minimizerDensityCorrection, _firstK, _firstK, _lastK, _params._minimizerDensityCorrection, _params._useHomopolymerCompression, _params._dataType);
-		}
-		else{
-			writeParameters(_minimizerSize, _firstK, _params._minimizerDensityAssembly, _firstK, _firstK, _lastK, _params._minimizerDensityCorrection, _params._useHomopolymerCompression, _params._dataType);
-		}
+		//cout << "ReadSelection: penser a reenlever ça quand on aura la bonne manière de corriger les reads: _minimizerDensityCorrection" << endl;
+		//if(_params._useReadCorrection){
+		//	writeParameters(_minimizerSize, _firstK, _params._minimizerDensityCorrection, _firstK, _firstK, _lastK, _params._minimizerDensityCorrection, _params._useHomopolymerCompression, _params._dataType, _snpmerSize);
+		//}
+		//else{
+		writeParameters(_minimizerSize, _firstK, _params._minimizerDensityAssembly, _firstK, _firstK, _lastK, _params._minimizerDensityCorrection, _params._useHomopolymerCompression, _params._dataType, _snpmerSize);
+		//}
 		//createInputFile(false);
 
 		convertReadsToMinimizerSpace();
@@ -471,7 +526,10 @@ public:
 		readStats.load(_tmpDir + "/read_stats.txt");
 		
 
+		_lastK = Commons::computeLastK(_params._minimizerDensityAssembly, readStats._n50ReadLength, _firstK, _maxK);
+		_meanReadLength = readStats._n50ReadLength;
 
+		/*
 		//u_int64_t meanReadLength = computeMeanReadLength(_inputFilename);
 		_lastK = readStats._n50ReadLength*_params._minimizerDensityAssembly*2.0f; //1.2f; //2.0f; //*0.95
 		_meanReadLength = readStats._n50ReadLength;
@@ -485,7 +543,7 @@ public:
 		}
 
 		_lastK = max(_lastK, _firstK+2);
-
+		*/
 		//_lastK = 5;
 		/*
 		sort(_readLengths.begin(), _readLengths.end());
@@ -585,7 +643,9 @@ public:
 			//time ./bin/mdbgAsmMeta countKmer -i ~/workspace/data/AD/shortreads/input_10.txt -c /home/gats/workspace/run/overlap_test_multik_AD/contigs.nodepath.gz.fasta.gz.fasta.gz  -o ~/workspace/run/overlap_test_multik_AD/contig_coverages.tsv
 			//!!!Binning: assembly2, permettre de choisir le nom du fichier de contig via -c, actuellement c'est contigs.fasta.gz
 			//./bin/mdbgAsmMeta bin -o ~/workspace/run/overlap_test_multik_AD/ -a ~/workspace/run/overlap_test_multik_AD/contig_coverages.tsv
-
+			//if(k == 5){
+			//	exit(1);
+			//}
 
 
 			prevK = k;
@@ -662,9 +722,18 @@ public:
 		
 		if(isCheckpoint(checkpointFilename)) return;
 
+		//cout << "snpmer skipped" << endl;
+		//if(_params._useReadCorrection){
+		//	string command = _filename_exe + " snpmer " + _tmpDir + " --kmer-size " + to_string(_snpmerSize) + " --threads " + to_string(_nbCores);
+		//	if(_params._useHomopolymerCompression) command += " --homopolymer-compression";
+		//	executeCommand(command);
+		//}
+
+
 		string command = _filename_exe + " readSelection " + _tmpDir + " " + _tmpDir + "/read_data_init.txt" + " " + _inputFilename + " --threads " + to_string(_nbCores) + " --min-read-quality " + to_string(_params._minReadQuality);
-		if(_params._useHomopolymerCompression) command += " --homopolymer-compression";
+		//if(_params._useHomopolymerCompression) command += " --homopolymer-compression";
 		if(_params._useReadCorrection) command += " --output-quality";
+		if(_skipCorrection) command += " --skip-correction";
 		executeCommand(command);
 		
 		createCheckpoint(checkpointFilename);
@@ -678,7 +747,7 @@ public:
 		
 		if(isCheckpoint(checkpointFilename)) return;
 
-		writeParameters(_minimizerSize, _firstK, _params._minimizerDensityAssembly, _firstK, _firstK, _lastK, _params._minimizerDensityCorrection, _params._useHomopolymerCompression, _params._dataType);
+		writeParameters(_minimizerSize, _firstK, _params._minimizerDensityAssembly, _firstK, _firstK, _lastK, _params._minimizerDensityCorrection, _params._useHomopolymerCompression, _params._dataType, _snpmerSize);
 	
 		//if(_skipCorrection){
 		//	Logger::get().info() << "Correction skipped";
@@ -709,7 +778,7 @@ public:
 			command = _filename_exe + " graph " + _tmpDir + " --threads " + to_string(_nbCores);	
 		}
 		if(pass == 0) command += " --firstpass ";
-		if(_params._useReadCorrection) command += " --corrected-read ";
+		//if(_params._useReadCorrection) command += " --corrected-read ";
 
 		executeCommand(command);
 
@@ -728,7 +797,7 @@ public:
 
 		if(isCheckpoint(checkpointFilename)) return;
 
-		string command = _filename_exe + " contig " + " " + _tmpDir + " --threads " + to_string(_nbCores);
+		string command = _filename_exe + " contig " + " " + _tmpDir + " --threads " + to_string(_nbCores) + " --max-bubble-length " + to_string(_maxBubbleLength) + " --max-tip-length " + to_string(_maxTipLength);
 
 		if(doesGenerateAssemblyGraph(k, pass)){
 			command += " --gen-graph ";
@@ -738,6 +807,23 @@ public:
 		//if(!_truthInputFilename.empty()) command += " --itruth " + _truthInputFilename;
 		//if(pass == 0) command += " --firstpass";
 		executeCommand(command);
+		
+		createCheckpoint(checkpointFilename);
+	}
+
+	void generateContigsFinal(const size_t& k, const size_t& pass){
+
+		const string& checkpointFilename = _checkpointDir + "/generateContigs_final.checkpoint";
+
+		if(isCheckpoint(checkpointFilename)) return;
+
+
+		string command = _filename_exe + " contig " + " " + _tmpDir + " --threads " + to_string(_nbCores) + " --max-bubble-length " + to_string(_maxBubbleLength) + " --max-tip-length " + to_string(_maxTipLength) + " --final";
+
+
+		executeCommand(command);
+		
+		//fs::copy(_tmpDir + "/contig_data.txt", _tmpDir + "/contig_data_backup.txt", fs::copy_options::overwrite_existing);
 		
 		createCheckpoint(checkpointFilename);
 	}
@@ -752,14 +838,28 @@ public:
 
 	}
 
-	void toMinspaceContigs(const size_t& k, const size_t& pass, const string& outputFilename){
+	void toMinspaceContigs(const size_t& k, const size_t& pass, const string& outputFilename, const bool isFinalAssembly){
 
-		const string& checkpointFilename = _checkpointDir + "/k" + to_string(k) + "_toMinspaceContigs.checkpoint";
+		string checkpointFilename = _checkpointDir + "/k" + to_string(k) + "_toMinspaceContigs.checkpoint";
+
+		if(isFinalAssembly){
+			checkpointFilename = _checkpointDir + "/toMinspaceContigs_final.checkpoint";
+		}
 
 		if(isCheckpoint(checkpointFilename)) return;
 
-		string command = _filename_exe + " toMinspace " + " " + _tmpDir + " " + _tmpDir + "/contigs.nodepath " + outputFilename + " --threads " + to_string(_nbCores);
+		//cout << _firstK+1 << endl;
+		string command = _filename_exe + " toMinspace " + " " + _tmpDir + " " + _tmpDir + "/contigs.nodepath " + outputFilename + " " + _tmpDir + "/unitigGraph.nodes.bin" + " --threads " + to_string(_nbCores);
+		//if(k >= _firstK+1 && !isFinalPass){
+			//cout << "AssemblyPipeline: k >= 5 hard coder" << endl;
+		//	command += " --abundances " + _tmpDir + "/unitigGraph.nodes.abundances.bin";
+		//}
+		
 		executeCommand(command);
+
+		if(isFinalAssembly){
+			fs::copy(_tmpDir + "/contig_data_final.txt", _tmpDir + "/contig_data_init_small.txt.norepeats", fs::copy_options::overwrite_existing);
+		}
 
 		createCheckpoint(checkpointFilename);
 	}
@@ -773,12 +873,11 @@ public:
 
 		if(isCheckpoint(checkpointFilename)) return;
 
-		string command = _filename_exe + " toMinspace " + " " + _tmpDir + " " + _tmpDir + "/assembly_graph.gfa.unitigs.nodepath" + " " + _tmpDir + "/assembly_graph.gfa.unitigs --threads " + to_string(_nbCores);
+		string command = _filename_exe + " toMinspace " + " " + _tmpDir + " " + _tmpDir + "/assembly_graph.gfa.unitigs.nodepath" + " " + _tmpDir + "/assembly_graph.gfa.unitigs " + _tmpDir + "/unitigGraph.nodes.bin" + " --threads " + to_string(_nbCores);
 		executeCommand(command);
 
 		createCheckpoint(checkpointFilename);
 	}
-
 
 	void derepSmallContigs(){
 
@@ -792,8 +891,57 @@ public:
 		executeCommand(command);
 
 		createCheckpoint(checkpointFilename);
+
+		if(!DEBUG) fs::remove_all(_tmpDir + "/smallContigs");
 	}
 
+	void removeOverlaps(){
+
+		Logger::get().info() << "Removing overlaps and duplication";
+
+		const string& checkpointFilename = _checkpointDir + "/removeOverlaps.checkpoint";
+
+		if(isCheckpoint(checkpointFilename)) return;
+
+
+		//cout << "AssemblyPipeline: Disabled small contigs append" << endl;
+		//appendSmallContigs(contigFilename);
+		
+		//fs::copy(_tmpDir + "/contig_data.txt", _tmpDir + "/contig_data_backup.txt", fs::copy_options::overwrite_existing);
+
+		//string contigFilenameDummy = _tmpDir + "/dummy.fasta.gz ";
+		//string contigFilenameCompressed = _tmpDir + "/contigs_uncorrected.fasta.gz";
+
+		string command = _filename_exe + " removeOverlaps " + _tmpDir + " --threads " + to_string(_nbCores);
+		executeCommand(command);
+
+		createCheckpoint(checkpointFilename);
+	}
+
+	void removeRepeats(){
+
+		//Logger::get().info() << "Removing repeats";
+
+		const string& checkpointFilename = _checkpointDir + "/removeRepeats.checkpoint";
+
+		if(isCheckpoint(checkpointFilename)) return;
+
+
+		//cout << "AssemblyPipeline: Disabled small contigs append" << endl;
+		//appendSmallContigs(contigFilename);
+		
+		//fs::copy(_tmpDir + "/contig_data.txt", _tmpDir + "/contig_data_backup.txt", fs::copy_options::overwrite_existing);
+
+		//string contigFilenameDummy = _tmpDir + "/dummy.fasta.gz ";
+		//string contigFilenameCompressed = _tmpDir + "/contigs_uncorrected.fasta.gz";
+
+		string command = _filename_exe + " removeRepeats " + _tmpDir + " --threads " + to_string(_nbCores);
+		executeCommand(command);
+
+		createCheckpoint(checkpointFilename);
+	}
+
+	/*
 	void derepContigs(){
 
 		Logger::get().info() << "Removing overlaps and duplication";
@@ -820,6 +968,7 @@ public:
 
 		createCheckpoint(checkpointFilename);
 	}
+	*/
 
 	void toBasespace(){
 
@@ -835,6 +984,9 @@ public:
 		if(!_params._useReadCorrection){
 			command += " --skip-correction";
 		}
+
+		command += " --min-contig-length " + to_string(_params._minContigLength);
+		command += " --min-contig-coverage " + to_string(_params._minContigCoverage);
 
 		executeCommand(command);
 
@@ -930,7 +1082,7 @@ public:
 		bool isFinalPass = k == _lastK;
 		bool isFirstPass = k == _firstK;
 
-		writeParameters(_minimizerSize, k, _params._minimizerDensityAssembly, _firstK, prevK, _lastK, _params._minimizerDensityCorrection, _params._useHomopolymerCompression, _params._dataType);
+		writeParameters(_minimizerSize, k, _params._minimizerDensityAssembly, _firstK, prevK, _lastK, _params._minimizerDensityCorrection, _params._useHomopolymerCompression, _params._dataType, _snpmerSize);
 
 		string command = "";
 
@@ -961,8 +1113,13 @@ public:
 			generateContigs(k, pass);
 
 
-			toMinspaceContigs(k, pass, _tmpDir + "/contig_data_init.txt");
+			toMinspaceContigs(k, pass, _tmpDir + "/contig_data_init.txt", false);
 			toMinspaceAssemblyGraph(k, pass);
+
+
+			if(!DEBUG) cleanTmpAssemblyFiles();
+
+
 
 			//getchar();
 
@@ -979,11 +1136,16 @@ public:
 			derepSmallContigs();
 			//exit(1);
 
-			derepContigs();
+			removeOverlaps();
+			removeRepeats();
+			//derepContigs();
 
 			//string contigFilenameCompressed = _tmpDir + "/contigs_uncorrected.fasta.gz";
 			toBasespace();
 
+			//generateContigsFinal(0, 0);
+			//toMinspaceContigs(0, 0, _tmpDir + "/contig_data_final.txt", true);
+			//toBasespace();
 
 			//command = _filename_exe + " derep " + contigFilenameCompressed + " " + contigFilenameDummy + " " + _tmpDir + " -t " + to_string(_nbCores) + " --nodump";
 			//executeCommand(command);
@@ -1091,11 +1253,11 @@ public:
 			//	fs::copy(_tmpDir + "/unitig_data.txt", _tmpDir + "/unitig_data_prev.txt", copyOptions);
 			//}
 
-			toMinspaceContigs(k, pass, _tmpDir + "/unitig_data.txt");
+			toMinspaceContigs(k, pass, _tmpDir + "/unitig_data.txt", false);
 
 			toMinspaceAssemblyGraph(k, pass);
 
-			
+			//if(k == 5) exit(1);
 			//if(pass == 0){
 			//	fs::copy(_tmpDir + "/unitig_data.txt", _tmpDir + "/unitig_data_first.txt", fs::copy_options::overwrite_existing);
 			//}
@@ -1124,6 +1286,13 @@ public:
 		Logger::get().debug() << "pass done: " << k;
 		//exit(1);
 		//getchar();
+
+		//if(k == 6){
+		//	cout << "exiting" << endl;
+		//	exit(1);
+		//}
+		
+	
 	}
 
 	/*
@@ -1307,8 +1476,12 @@ public:
 
 
 
-	void writeParameters(size_t minimizerSize, size_t k, float assemblyDensity, size_t firstK, size_t prevK, size_t lastK, float correctionDensity, bool useHomopolymerCompression, DataType dataType){
+	void writeParameters(size_t minimizerSize, size_t k, float assemblyDensity, size_t firstK, size_t prevK, size_t lastK, float correctionDensity, bool useHomopolymerCompression, SequencingPlatformType dataType, size_t snpmerSize){
 
+
+		//float minimizerSpacingMean = 1 / assemblyDensity;
+		//float kminmerLengthMean = minimizerSpacingMean * (firstK-1);
+		//float kminmerOverlapMean = kminmerLengthMean - minimizerSpacingMean;
 
 		float minimizerSpacingMean = 1 / assemblyDensity;
 		float kminmerLengthMean = minimizerSpacingMean * (k-1);
@@ -1330,14 +1503,15 @@ public:
 		gzwrite(file_parameters, (const char*)&useHomopolymerCompression, sizeof(useHomopolymerCompression));
 
 		int dataTypeInt = 0;
-		if(dataType == DataType::HiFi){
+		if(dataType == SequencingPlatformType::HiFi){
 			dataTypeInt = 0;
 		}
-		else if(dataType == DataType::Nanopore){
+		else if(dataType == SequencingPlatformType::Nanopore){
 			dataTypeInt = 1;
 		}
 
 		gzwrite(file_parameters, (const char*)&dataTypeInt, sizeof(dataTypeInt));
+		gzwrite(file_parameters, (const char*)&snpmerSize, sizeof(snpmerSize));
 
 		gzclose(file_parameters);
 	}
@@ -1419,10 +1593,10 @@ public:
 	}
 
 
-
+	/*
 	void checkDependencies(){
 
-
+		
 		Logger::get().info() << "";
 		Logger::get().info() << "Checking dependencies: GNU time";
 
@@ -1447,104 +1621,15 @@ public:
 		}
 
 		fs::remove(_tmpDir + "/testDependencies.txt");
-		/*
-		string read = "";
-		for(size_t i=0; i<10000; i++){
-			read += "A";
-		}
-
-		string filename = _tmpDir + "/testDependencies.fasta";
-		//string outputFilename_mapping = _tmpDir + "/testDependencies_align.paf";
-		//string filenameBzip = _tmpDir + "/testDependencies_bgzip.fasta.gz";
-		string outputFilename_mapping_minimap = _tmpDir + "/testDependencies_minimap.paf";
-
-		if(fs::exists(filename)) fs::remove(filename);
-		//if(fs::exists(filenameBzip)) fs::remove(filenameBzip);
-		//if(fs::exists(filenameBzip + ".fai")) fs::remove(filenameBzip + ".fai");
-		if(fs::exists(outputFilename_mapping_minimap)) fs::remove(outputFilename_mapping_minimap);
-
-		ofstream file(filename);
-
-		file << ">read1" << endl;
-		file << read << endl;
-		file << ">read2" << endl;
-		file << read << endl;
 		
-		file.close();
-		*/
-
-		/*
-		//cerr << "Checking dependencies: bgzip (wfmash package) ";
-		//_logFile << "Checking dependencies: bgzip (wfmash package) ";
-		string command = "cat " + filename + " | bgzip --threads " + to_string(_nbCores) + " -c > " + filenameBzip;
-		Utils::executeCommand(command, _tmpDir, _logFile);
-
-		if(!fs::exists(filenameBzip)){
-			cerr << endl << "Dependency is missing: bgzip (wfmash)" << endl;
-			exit(1);
-		}
-		else{
-			cerr << "ok" << endl;
-		}
-
-		cerr << "Checking dependencies: samtools ";
-		_logFile << "Checking dependencies: samtools ";
-		command = "samtools faidx " + filenameBzip;
-		Utils::executeCommand(command, _tmpDir, _logFile);
-
-		if(!fs::exists(filenameBzip + ".fai")){
-			cerr << endl << "Dependency is missing: samtools" << endl;
-			exit(1);
-		}
-		else{
-			cerr << "ok" << endl;
-		}
-
-		cerr << "Checking dependencies: wfmash ";
-		_logFile << "Checking dependencies: wfmash ";
-		command = "wfmash " + filenameBzip + " -t " + to_string(_nbCores) + " > " + outputFilename_mapping; //-l 5000 -p 80
-		Utils::executeCommand(command, _tmpDir, _logFile);
-
-		if(!fs::exists(outputFilename_mapping)){
-			cerr << endl << "Dependency is missing: wfmash" << endl;
-			exit(1);
-		}
-		else{
-			cerr << "ok" << endl;
-		}
-		*/
-
-		/*
-		Logger::get().info() << "";
-		Logger::get().info() << "Checking dependencies: minimap2";
-
-		//cerr << "Checking dependencies: minimap2 ";
-		//_logFile << "Checking dependencies: minimap2 ";
-		string command = "minimap2 -v 0 -x map-hifi " + filename + " " + filename + " -o " + outputFilename_mapping_minimap;
-		Utils::executeCommand(command, _tmpDir);
-
-		if(!fs::exists(outputFilename_mapping_minimap)){
-			Logger::get().info() << "\n" << "Dependency is missing: minimap2.28+";
-			exit(1);
-		}
-		else{
-			Logger::get().info() << "ok";
-		}
-
-		//Logger::get().info() << "";
-
-		if(fs::exists(filename)) fs::remove(filename);
-		//if(fs::exists(filenameBzip)) fs::remove(filenameBzip);
-		//if(fs::exists(filenameBzip + ".fai")) fs::remove(filenameBzip + ".fai");
-		if(fs::exists(outputFilename_mapping_minimap)) fs::remove(outputFilename_mapping_minimap);
-		*/
+		
 	}
 
 	bool checkDependencies_time(){
 
 
 		string timeOuputFilename = _tmpDir + "/testDependencies.txt";
-		string timeCommand = "minimap2 --help > " + timeOuputFilename + " 2>&1";
+		string timeCommand = "\\time --help > " + timeOuputFilename;
 		system(timeCommand.c_str());
 
 		if(!fs::exists(timeOuputFilename)) return false;
@@ -1570,7 +1655,7 @@ public:
 
 
 		string timeOuputFilename = _tmpDir + "/testDependencies.txt";
-		string timeCommand = "\\time --help > " + timeOuputFilename;
+		string timeCommand = "minimap2 --help > " + timeOuputFilename + " 2>&1";
 		system(timeCommand.c_str());
 
 		bool exist = false;
@@ -1590,7 +1675,7 @@ public:
 		return exist;
 
 	}
-
+	*/
 
 	ContigStats _contigStats;
 	//u_int64_t _assemblySize;

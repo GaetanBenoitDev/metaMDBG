@@ -17,24 +17,24 @@ public:
 	//phmap::parallel_flat_hash_map<ReadType, ReadMapping2>& _alignments;
 	bool _useQual;
 	long double _averageDistanceBetweenMinimizers;
-
+	u_int64_t _maxMemory;
 	int _nbCores;
 
 	class PartitionFile{
 
 		public:
 
-		gzFile _file;
+		BGZF* _file;
 		omp_lock_t _mutex;
 
 		PartitionFile(u_int32_t partition, const string& partitionFilename){
-			_file = gzopen(partitionFilename.c_str(), "wb");
+			_file = bgzf_open(partitionFilename.c_str(), "w1"); 
 
 			omp_init_lock(&_mutex);
 		}
 
 		~PartitionFile(){
-			gzclose(_file);
+			bgzf_close(_file);
 			omp_destroy_lock(&_mutex);
 		}
 	};
@@ -60,13 +60,18 @@ public:
 	vector<ContigStats> _contigStats;
 	u_int64_t _checksumWrittenReads;
 
-	ReadPartitionner(const string inputFilenameRead, const string inputFilenameContig, const string readPartitionDir, long double averageDistanceBetweenMinimizers, const int nbCores) {
+	ReadPartitionner(const string inputFilenameRead, const string inputFilenameContig, const string readPartitionDir, long double averageDistanceBetweenMinimizers, const u_int64_t maxMemoryGB, const int nbCores) {
 		_inputFilenameRead = inputFilenameRead;
 		_inputFilenameContig = inputFilenameContig;
 		_readPartitionDir = readPartitionDir;
 		_averageDistanceBetweenMinimizers = averageDistanceBetweenMinimizers;
 		_nbCores = nbCores;
 		_useQual = true;
+		//_maxMemory = maxMemoryGB * 1000000000ull; //4000000000ull;
+		_maxMemory = 4000000000ull;
+
+		
+		//cout << "ReadPartitioner: on test max memory" << endl;
 	}
 
 	void execute(){
@@ -79,7 +84,6 @@ public:
 
 		vector<u_int64_t> memoryPerPartitions(nbPartitionsInit, 0);
 
-		u_int64_t maxMemory = 4000000000ull;
 
 		for(const ContigStats& contigStat : _contigStats){
 
@@ -98,7 +102,7 @@ public:
 
 			//cout << "lala " << contigMemory << endl;
 			
-			if(currentParitionMemory > 0 && currentParitionMemory+contigMemory > maxMemory){
+			if(currentParitionMemory > 0 && currentParitionMemory+contigMemory > _maxMemory){
 				memoryPerPartitions.push_back(0);
 				partitionIndex = memoryPerPartitions.size()-1;
 			}
@@ -132,9 +136,18 @@ public:
 		//cout << "_contigCoverages.clear(); a remettre" << endl;
 	}
 
+	//struct Lul{
+	//	ReadType _readIndex;
+	//	u_int64_t _checksum;
+	//};
 
 	void computeContigCoverages(){
 
+		//ofstream lala("/pasteur/appa/homes/gbenoit/zeus/tmp//lala.txt");
+		//vector<Lul> luls;
+
+		u_int64_t nbAlignments = 0;
+		u_int64_t checksum = 0;
 
 		unordered_map<u_int32_t, vector<pair<u_int32_t, u_int32_t>>> contigHits;
 
@@ -149,9 +162,28 @@ public:
 
 			contigHits[alignment._contigIndex].push_back({alignment._contigStart, alignment._contigEnd});
 
+			nbAlignments += 1;
+
+			//u_int64_t checksum2 = alignment._readIndex * alignment._readStart * alignment._readEnd * alignment._contigStart * alignment._contigEnd;
+			checksum += (alignment._readIndex * (alignment._readStart+1) * (alignment._readEnd+1) * (alignment._contigStart+1) * (alignment._contigEnd+1));
+
+			//luls.push_back({alignment._readIndex, checksum2});
 		}
 
 		alignmentFile.close();
+
+
+		//std::sort(luls.begin(), luls.end(), [](const Lul& a, const Lul& b){
+		//	return a._readIndex < b._readIndex;
+		//});
+
+		//for(const auto& it : luls){
+		//	lala << it._readIndex << "\t" << it._checksum << endl;
+		//}
+		//lala.close();
+
+		Logger::get().debug() << "Nb alignments: " << nbAlignments;
+		Logger::get().debug() << "Alignment checksum: " << checksum ;
 
 
 		for(auto& it : contigHits){
@@ -356,6 +388,14 @@ public:
 			//}
 
 
+			//cout << Utils::shortenHeader(read._header) << endl;
+
+			//if(Utils::shortenHeader(read._header) == "1601cc25-06de-4c1c-867c-2096ae321a97"){
+			//	cout << readIndex << endl;
+			//	exit(1);
+			//}
+
+
 			//_parent._partitionNbReads[partition] += 1;
 
 			u_int32_t readSize = readSeq.size();
@@ -364,19 +404,19 @@ public:
 				//string header = '@' + to_string(read._index) + '\n';
 				string header = '@' + to_string(readIndex) + '\n';
 				string seq = readSeq + '\n';
-				gzwrite(partitionFile->_file, (const char*)&header[0], header.size());
-				gzwrite(partitionFile->_file, (const char*)&seq[0], seq.size());
+				bgzf_write(partitionFile->_file, (const char*)&header[0], header.size());
+				bgzf_write(partitionFile->_file, (const char*)&seq[0], seq.size());
 				static string strPlus = "+\n";
-				gzwrite(partitionFile->_file, (const char*)&strPlus[0], strPlus.size());
+				bgzf_write(partitionFile->_file, (const char*)&strPlus[0], strPlus.size());
 				string qual = qualSeq + '\n';
-				gzwrite(partitionFile->_file, (const char*)&qual[0], qual.size());
+				bgzf_write(partitionFile->_file, (const char*)&qual[0], qual.size());
 			}
 			else{
 				//string header = '>' + to_string(read._index) + '\n';
 				string header = '>' + to_string(readIndex) + '\n';
 				string seq = readSeq + '\n';
-				gzwrite(partitionFile->_file, (const char*)&header[0], header.size());
-				gzwrite(partitionFile->_file, (const char*)&seq[0], seq.size());
+				bgzf_write(partitionFile->_file, (const char*)&header[0], header.size());
+				bgzf_write(partitionFile->_file, (const char*)&seq[0], seq.size());
 			}
 
 			//for(char letter : readName){

@@ -58,8 +58,10 @@ public:
 
     void execute (){
 
+		_nbRepeatitiveContigs = 0;
 		Logger::get().debug() << "\tAligning reads vs contigs";
 		alignReads();
+		Logger::get().debug() << "\tDone: " << (peakrss() / 1024.0 / 1024.0 / 1024.0);
 
 		//Logger::get().debug() << "\tLoading contig coverages";
 		//loadContigCoverages();
@@ -68,30 +70,165 @@ public:
 
 		Logger::get().debug() << "\tLoading alignments";
 		loadAlignments();
+		Logger::get().debug() << "\tDone: " << (peakrss() / 1024.0 / 1024.0 / 1024.0);
 		
 		//exit(1);
 		Logger::get().debug() << "\tTrimming contigs";
 		trimContigs();
+		Logger::get().debug() << "\tDone: " << (peakrss() / 1024.0 / 1024.0 / 1024.0);
 		
 	}
 
 	void alignReads(){
 
-		float minimapBatchSizeC = max(1.0, _minimapBatchSize / 4.0);
+		float minimapBatchSizeC = max(0.5, _minimapBatchSize / 4.0);
 		//    let args = ["-t", &opts.nb_threads.to_string(), "-c", "-xasm20", "-DP", "--dual=no", "--no-long-join", "-r100", "-z200", "-g2k", fasta_path_str, fasta_path_str];
 		//string command = "minimap2 -v 0 -p 1 -c -I " + to_string(minimapBatchSizeC) + "G -K 0.02G -t " + to_string(_nbCores) + " -x " + _minimap2Preset_map + " " + _inputContigFilename + " " + _usedReadFilename;
 		string command = "minimap2 -v 0 -p 1 -I " + to_string(minimapBatchSizeC) + "G -t " + to_string(_nbCores) + " -x " + _minimap2Preset_map + " " + _inputContigFilename + " " + _usedReadFilename;
+		//cout << command << endl;
 		//string command = "minimap2 -v 0 -X -m 500 -x asm20 -I " + to_string(minimapBatchSizeC) + "G -t " + to_string(_nbCores) + " " + _inputContigFilename + " " + _inputContigFilename;
-		Utils::executeMinimap2(command, _alignFilename);
+		//Utils::executeMinimap2(command, _alignFilename);
 		//cout << command << endl;
 		//command += " | gzip -c - > " + _alignFilename;
 		//Utils::executeCommand(command, _tmpDir);
-		
+
+		//cout << _minimapBatchSize << " " << minimapBatchSizeC << endl;
+
+		mm_idxopt_t iopt;
+		mm_mapopt_t mopt;
+		//int n_threads = nbCores;
+
+		mm_verbose = 2; // disable message output to stderr
+		mm_set_opt(0, &iopt, &mopt);
+		mm_set_opt(_minimap2Preset_map.c_str(), &iopt, &mopt); 
+		//mopt.flag |= MM_F_CIGAR; // perform alignment
+		iopt.batch_size = minimapBatchSizeC*1000000000ULL; //0x7fffffffffffffffL; //always build a uni-part index
+
+		//mopt.min_chain_score = 500; //-m 500
+		mopt.pri_ratio = 1; //-p 1
+
+		//cout << mopt.zdrop << " " << mopt.bw << " " << mopt.max_gap << endl;
+		//mopt.zdrop = mopt.zdrop_inv = 200; //-z
+		//mopt.bw = 100; //-r
+		//mopt.max_gap = 15*2; //-g
+
+		// open query file for reading; you may use your favorite FASTA/Q parser
+		//gzFile f = gzopen(_inputContigFilename.c_str(), "r");
+		//assert(f);
+		//kseq_t *ks = kseq_init(f);
+
+		// open index reader
+		mm_idx_reader_t *r = mm_idx_reader_open(_inputContigFilename.c_str(), &iopt, 0);
+
+		mm_idx_t *mi;
+		while ((mi = mm_idx_reader_read(r, _nbCores)) != 0) {
+
+			Logger::get().debug() << "\tBuild index: " << (peakrss() / 1024.0 / 1024.0 / 1024.0);
+			//cout << "Index pass" << endl;
+			mm_mapopt_update(&mopt, mi); // this sets the maximum minimizer occurrence; TODO: set a better default in mm_mapopt_init()!
+			//mopt.mid_occ = 5;
+
+			ReadParserParallel readParser(_usedReadFilename, true, false, _nbCores);
+			readParser.parse(MapReadsFunctor(*this, mi, mopt));
+			
+			mm_idx_destroy(mi);
+			Logger::get().debug() << "\tPass done: " << (peakrss() / 1024.0 / 1024.0 / 1024.0);
+		}
+
+
+		mm_idx_reader_close(r); // close the index reader
 
 	}
 
 
+	
 
+	class MapReadsFunctor {
+
+		public:
+
+		ContigTrimmer& _parent;
+		mm_idx_t* _mi;
+		mm_tbuf_t*_tbuf;
+		mm_mapopt_t& _mopt;
+
+		MapReadsFunctor(ContigTrimmer& parent, mm_idx_t* mi, mm_mapopt_t& mopt) : _parent(parent), _mopt(mopt){
+			_tbuf = mm_tbuf_init();
+			_mi = mi;
+		}
+
+		MapReadsFunctor(const MapReadsFunctor& copy) : _parent(copy._parent), _mopt(copy._mopt){
+			_tbuf = mm_tbuf_init();
+			_mi = copy._mi;
+		}
+
+		~MapReadsFunctor(){
+			mm_tbuf_destroy(_tbuf);
+		}
+
+		void operator () (const Read& read) {
+			
+			if(read._index % 100000 == 0) Logger::get().debug() << "\t\tAlign reads " << read._index;
+			
+			const string queryName = Utils::shortenHeader(read._header);
+			//u_int32_t readIndex = stoull(read._header);
+
+			mm_reg1_t *reg;
+			int j, i, n_reg;
+			reg = mm_map(_mi, read._seq.size(), read._seq.c_str(), &n_reg, _tbuf, &_mopt, 0); // get all hits for the query
+			
+			#pragma omp critical(loadAlignments)
+			{
+				for (j = 0; j < n_reg; ++j) { // traverse hits and print them out
+					mm_reg1_t *r = &reg[j];
+
+					AlignmentBounds alignment;
+					alignment._referenceLength = _mi->seq[r->rid].len;
+					alignment._queryLength = read._seq.size();
+					alignment._queryStart = r->qs;
+					alignment._queryEnd = r->qe;
+					alignment._referenceStart = r->rs;
+					alignment._referenceEnd = r->re;
+					alignment._isReversed = r->rev;
+					alignment._identity = ((double)r->mlen) / r->blen;// r->div;
+					alignment._nbMatches = r->mlen;
+
+					_parent.loadAlignments_read(queryName, string(_mi->seq[r->rid].name), alignment, r->score);
+					
+					//_parent._checksum += 1;
+					//cout << r->qs << " " << r->qe << endl;
+					//assert(r->p); // with MM_F_CIGAR, this should not be NULL
+					//printf("%s\t%d\t%d\t%d\t%c\t", ks->name.s, ks->seq.l, r->qs, r->qe, "+-"[r->rev]);
+					//printf("%s\t%d\t%d\t%d\t%d\t%d\t%d\tcg:Z:", mi->seq[r->rid].name, mi->seq[r->rid].len, r->rs, r->re, r->mlen, r->blen, r->mapq);
+					//for (i = 0; i < r->p->n_cigar; ++i) // IMPORTANT: this gives the CIGAR in the aligned regions. NO soft/hard clippings!
+					//	printf("%d%c", r->p->cigar[i]>>4, MM_CIGAR_STR[r->p->cigar[i]&0xf]);
+					//putchar('\n');
+					//free(r->p);
+				}
+			}
+
+			free(reg);
+			
+
+			
+			/*
+			//if(_parent._allAlignments.find(readIndex) == _parent._allAlignments.end()) return;
+			if(_parent._alignments.find(readIndex) == _parent._alignments.end()) return;
+
+			//const vector<Alignment>& als = _parent._allAlignments[readIndex];
+
+			//for(const Alignment& al : als){
+			const Alignment& al = _parent._alignments[readIndex];
+			//for(const Alignment& al : _alignments[readIndex]){
+			u_int32_t contigIndex = al._contigIndex;
+
+			if(_parent._contigSequences.find(contigIndex) == _parent._contigSequences.end()) return;
+			*/
+		}
+
+	};
+
+	/*
 
 	void loadAlignmentsTrue(){
 
@@ -110,21 +247,7 @@ public:
 		//u_int32_t queryContigIndex = contigNameToContigIndex(_fields[0]);
 		u_int32_t contigIndex = contigNameToContigIndex(_fields[5]);
 		ReadType readIndex = readNameToReadIndex(_fields[0]);
-		/*
-		const string& queryName = Utils::shortenHeader((_fields)[0]);
-		const string& targetName = Utils::shortenHeader((_fields)[5]);
-		
 
-		string contigIndexField = fields[0];
-		contigIndexField.erase(0,3); //"remove "ctg" letters
-
-		contigHeader._contigIndex = stoull(contigIndexField);
-
-		queryName.erase(0,3);
-
-		targetName.erase(0,3);
-		u_int32_t targetContigIndex = stoull(targetName);
-		*/
 
 		//if(queryContigIndex == targetContigIndex) return;
 
@@ -160,7 +283,6 @@ public:
 
 		indexReadAlignmentTrue(readIndex, alignment);
 	}
-
 
 	
 	void indexReadAlignmentTrue(const ReadType& readIndex, const Alignment& alignment){
@@ -224,6 +346,7 @@ public:
 	}
 
 
+	*/
 
 
 
@@ -239,10 +362,10 @@ public:
 	
 	void loadAlignments(){
 
-		PafParser pafParser(_alignFilename);
+		//PafParser pafParser(_alignFilename);
 		//PafParser pafParser(_readPartitionDir + "/true_align.paf.gz");
-		auto fp = std::bind(&ContigTrimmer::loadAlignments_read, this, std::placeholders::_1);
-		pafParser.parse(fp);
+		//auto fp = std::bind(&ContigTrimmer::loadAlignments_read, this, std::placeholders::_1);
+		//pafParser.parse(fp);
 		
 		/*
 		float minIdentity = 2;
@@ -358,14 +481,16 @@ public:
 	}
 
 
-	void loadAlignments_read(const string& line){
+	void loadAlignments_read(const string& queryName, const string& targetName, const AlignmentBounds& bounds, const float chainScore){
 
-		const vector<string>& _fields = Utils::split(line, '\t');
+		//cout << queryName << " " << targetName << " " << chainScore << endl;
+		//getchar();
+		//const vector<string>& _fields = Utils::split(line, '\t');
 
 
 		//u_int32_t queryContigIndex = contigNameToContigIndex(_fields[0]);
-		u_int32_t contigIndex = contigNameToContigIndex(_fields[5]);
-		ReadType readIndex = readNameToReadIndex(_fields[0]);
+		u_int32_t contigIndex = contigNameToContigIndex(targetName);
+		ReadType readIndex = readNameToReadIndex(queryName);
 		/*
 		const string& queryName = Utils::shortenHeader((_fields)[0]);
 		const string& targetName = Utils::shortenHeader((_fields)[5]);
@@ -384,20 +509,21 @@ public:
 
 		//if(queryContigIndex == targetContigIndex) return;
 
-		u_int64_t readLength = stoull((_fields)[1]);
-		u_int32_t readStart = stoull((_fields)[2]);
-		u_int32_t readEnd = stoull((_fields)[3]);
-		u_int32_t contigLength = stoull((_fields)[6]);
-		u_int32_t contigStart = stoull((_fields)[7]);
-		u_int32_t contigEnd = stoull((_fields)[8]);
+		u_int64_t readLength = bounds._queryLength; // stoull((_fields)[1]);
+		u_int32_t readStart = bounds._queryStart;// stoull((_fields)[2]);
+		u_int32_t readEnd = bounds._queryEnd; // stoull((_fields)[3]);
+		u_int32_t contigLength = bounds._referenceLength; // stoull((_fields)[6]);
+		u_int32_t contigStart = bounds._referenceStart; // stoull((_fields)[7]);
+		u_int32_t contigEnd = bounds._referenceEnd; // stoull((_fields)[8]);
 
-		u_int64_t nbMatches = stoull((_fields)[9]);
-		u_int64_t alignLength = stoull((_fields)[10]);
+		//u_int64_t nbMatches = stoull((_fields)[9]);
+		//u_int64_t alignLength = stoull((_fields)[10]);
 
-		bool strand = (_fields)[4] == "-";
+		bool strand = bounds._isReversed; // (_fields)[4] == "-";
 
-		float identity =  ((float)nbMatches) / alignLength;
+		float identity = bounds._identity; // ((float)nbMatches) / alignLength;
 	
+		/*
 		float chainScore = 0;
 		
 		for(size_t i=12; i<_fields.size(); i++){
@@ -412,7 +538,7 @@ public:
 			}
 
 		}
-
+		*/
 		//cout << chainScore << endl;
 
 		//s1:i:15632
@@ -566,30 +692,41 @@ public:
 
 		_outputContigFile = gzopen(_outputContigFilename.c_str(),"wb");
 
-		ReadParserParallel readParser(_inputContigFilename, true, false, 1); //single core
+		//cout << "single core here" << endl;
+		ReadParserParallel readParser(_inputContigFilename, true, false, _nbCores);
 		readParser.parse(ContigTrimmerFunctor(*this));
 
 		gzclose(_outputContigFile);
 
 	}
 
+
+
+	u_int64_t _nbRepeatitiveContigs;
+
 	class ContigTrimmerFunctor {
 
 		public:
 
 		ContigTrimmer& _parent;
+		mm_tbuf_t* _tbuf;
 
 
 		ContigTrimmerFunctor(ContigTrimmer& parent) : _parent(parent){
+			_tbuf = mm_tbuf_init();
 		}
 
 		ContigTrimmerFunctor(const ContigTrimmerFunctor& copy) : _parent(copy._parent){
+			_tbuf = mm_tbuf_init();
 		}
 
 		~ContigTrimmerFunctor(){
+			mm_tbuf_destroy(_tbuf);
 		}
 
 		void operator () (const Read& read) {
+
+			//if(read._seq.size() < 1000000) return;
 
 			string header = read._header;
 
@@ -653,16 +790,167 @@ public:
 			}
 
 			if(contigSequenceTrimmed.size() < _parent._minContigLength) return;
+
+
+
+			//cout << nbIters << endl;
+
+			//if(mostAbundantRepeat > 20 ){
+			//	cout << header << endl;
+			//	cout << contigSequenceTrimmed << endl;
+				//getchar();
+			//	return;
+			//}
+
+			//cout << contigSequenceTrimmed << endl;
+			//cout << header << endl;
+			//cout << computeSequenceComplexity(read._seq, 64, 32) << endl;
+
+			if(contigHeader._isCircular){
+				u_int32_t selfOverlapLength = computeSelfOverlap(contigSequenceTrimmed, _tbuf, _parent._minimap2Preset_map);
+				//cout << "Self overlap: " << selfOverlapLength << " " << read._seq.size() << endl;
+
+				//if(!contigHeader._isCircular && selfOverlapLength > 0){
+				//cout << "Self overlap: " << selfOverlapLength << " " << read._seq.size() << endl;
+				//}
+
+				if(selfOverlapLength > 0){
+					contigSequenceTrimmed = contigSequenceTrimmed.substr(0, contigSequenceTrimmed.size()-selfOverlapLength);
+				}
+
+				if(contigSequenceTrimmed.size() < _parent._minContigLength) return;
+					
+				
+			}
+
+
 			
+
+
 			header = Utils::createContigHeader(contigHeader._contigIndex, contigSequenceTrimmed.size(), contigHeader._coverage, contigHeader._isCircular);
-		
-
-			string headerFasta = ">" + header + '\n';
-			gzwrite(_parent._outputContigFile, (const char*)&headerFasta[0], headerFasta.size());
-			contigSequenceTrimmed +=  '\n';
-			gzwrite(_parent._outputContigFile, (const char*)&contigSequenceTrimmed[0], contigSequenceTrimmed.size());
-
+			
+			#pragma omp critical(writeContigs)
+			{
+				string headerFasta = ">" + header + '\n';
+				gzwrite(_parent._outputContigFile, (const char*)&headerFasta[0], headerFasta.size());
+				contigSequenceTrimmed +=  '\n';
+				gzwrite(_parent._outputContigFile, (const char*)&contigSequenceTrimmed[0], contigSequenceTrimmed.size());
+			}
+			
 		}
+
+
+		u_int32_t computeSelfOverlap(const string& sequence, mm_tbuf_t* tbuf, const string preset){
+
+			string fakeName = "target";
+			//mm_tbuf_t* tbuf = mm_tbuf_init();
+
+			//allAlignments.clear();
+			//cout << "Target size: " << reference.size() << endl;
+			//cout << "Query size: " << query.size() << endl;
+			
+			//AlignmentBounds alignment;
+			//alignment._referenceLength = reference.size();
+			//alignment._queryLength = query.size();
+
+			//string preset = _minimap2Preset_ava
+			mm_idxopt_t iopt;
+			mm_mapopt_t mopt;
+			mm_set_opt(0, &iopt, &mopt); //"ava-ont"
+			mm_set_opt(preset.c_str(), &iopt, &mopt); //"ava-ont"
+			iopt.batch_size = 0x7fffffffffffffffL; //always build a uni-part index
+
+			//if(performBaseLevelAlignment){
+			mopt.flag |= MM_F_CIGAR; // perform alignment 
+			//}
+			
+
+			mopt.flag |= MM_F_ALL_CHAINS | MM_F_NO_DIAG | MM_F_NO_DUAL | MM_F_NO_LJOIN; // -D -P --no-long-join --dual=no
+
+			mm_idx_t* mi = minimap2index(iopt.w, iopt.k, iopt.flag&1, iopt.bucket_bits, sequence);
+			//mm_idx_t* mi = minimap2_indexRead(sequence);
+			//mopt.min_chain_score = minChainScore; //-m 500
+			//iopt.bucket_bits = 14;
+
+			//cout << iopt.w << endl;
+			//cout << iopt.k << endl;
+			//cout << iopt.bucket_bits << endl;
+			//cout << (iopt.flag&1) << endl;
+			//cout << mopt.min_chain_score << endl;
+
+			//mm_idxopt_t idx_opt;
+			//mm_idx_t* mi = minimap2index(iopt.w, iopt.k, iopt.flag&1, iopt.bucket_bits, reference);
+			//mm_idx_t* mi = minimap2index(iopt.w, iopt.k, iopt.flag&1, iopt.bucket_bits, reference);
+			mm_mapopt_update(&mopt, mi);
+			//mopt.mid_occ = 10;
+			//mopt.mid_occ = 1000; // don't filter high-occ seeds
+
+			mm_reg1_t *reg;
+			//mm_tbuf_t *tbuf = mm_tbuf_init();
+			int j, i, n_reg;
+			reg = mm_map(mi, sequence.size(), sequence.c_str(), &n_reg, tbuf, &mopt, fakeName.c_str()); // get all hits for the query
+
+			//int32_t expectedOverlapLength = getEstimatedOverlapLength(alignment1, alignment2);
+			//int32_t expectedQueryStart = alignment2._readStart;
+			//int32_t expectedQueryEnd = expectedQueryStart + expectedOverlapLength;
+
+			u_int32_t maxSelfOverlapLength = 0;
+
+			//if(n_reg > 1) cout << "----" << endl;
+			for (j = 0; j < n_reg; ++j) { // traverse hits and print them out
+			
+				mm_reg1_t *r = &reg[j];
+
+
+				//cout << string(mi->seq[r->rid].name) << " " << r->qs << "\t" << r->qe << "\t" << r->rs << "\t" << r->re << "\t" << r->blen << endl;
+
+				free(r->p);
+				
+				if(r->rev) continue; 
+				if(r->qs > 50) continue; //Looking for alignment at the contig start
+				if(sequence.size() - r->re > 50) continue; //Looking for alignment at the contig end
+
+				//cout << r->qs << "\t" << r->qe << "\t" << r->rs << "\t" << r->re << endl;
+
+
+
+				//cout << "Found self overlap:\t" << r->qs << "\t" << r->qe << "\t" << r->rs << "\t" << r->re << endl;
+
+				u_int32_t overlapStart = r->qe;
+				u_int32_t overlapEnd = sequence.size() - r->rs;
+
+				u_int32_t selfOverlapLength = max(overlapStart, overlapEnd);
+				if(selfOverlapLength >= sequence.size()) continue;
+
+				if(selfOverlapLength > maxSelfOverlapLength){
+					maxSelfOverlapLength = selfOverlapLength;
+				}
+
+			}
+			
+		
+			free(reg);
+			mm_idx_destroy(mi);
+			
+
+			return maxSelfOverlapLength;
+		}
+
+		mm_idx_t* minimap2index(int w, int k, int is_hpc, int bucket_bits, const string& sequence){
+			const char *seq = sequence.c_str();
+			int len = sequence.size();
+			const char *fake_name = "target";
+			char *s;
+			mm_idx_t *mi;
+			s = (char*)calloc(len + 1, 1);
+			memcpy(s, seq, len);
+			mi = mm_idx_str(w, k, is_hpc, bucket_bits, 1, (const char**)&s, (const char**)&fake_name);
+			free(s);
+			return mi;
+		}
+
+
+		
 	};
 
 };	

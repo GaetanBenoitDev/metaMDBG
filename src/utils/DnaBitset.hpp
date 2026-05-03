@@ -17,7 +17,7 @@ enum
     BASE_G = 0x2, /* binary: 10 */
     BASE_T = 0x3, /* binary: 11 */
 };
- 
+/*
 class DnaBitset
 {
 public:
@@ -30,7 +30,6 @@ public:
         const size_t dna_len = sequence.size();
         m_len = dna_len;
  
-        /* number of bytes necessary to store dna_str as a bitset */
         size_t dna_bytes = (dna_len / 4) + (dna_len % 4 != 0);
         _bitsetSize = dna_bytes;
 
@@ -39,7 +38,6 @@ public:
         //std::memset(m_data, 0, dna_bytes);
         memset(m_data, 0, dna_bytes); 
 
-        /* for each base of the DNA sequence */
         for (size_t i = 0; i < dna_len; ++i)
         {
             uint8_t shift = 6 - 2 * (i % 4);
@@ -81,13 +79,11 @@ public:
     {
         char* dna_str = new char[m_len + 1];
  
-        /* for each base of the DNA sequence */
         for (size_t i = 0; i < m_len; ++i)
         {
             uint8_t shift = 6 - 2 * (i % 4);
             uint8_t mask = BASE_MASK << shift;
  
-            /* get the i-th DNA base */
             uint8_t base = (m_data[i / 4] & mask) >> shift;
  
             switch (base)
@@ -118,26 +114,31 @@ public:
     u_int32_t _bitsetSize;
     
 };
-
+*/
 class DnaBitset2
 {
 public:
 
-
-
+    DnaBitset2(){
+        _m_len = 0;
+    }
+    
     DnaBitset2(const string& sequence){
 
+        _m_len = 0;
+        
         const char* dna_str = sequence.c_str();
         const size_t dna_len = sequence.size();
-        m_len = dna_len;
+        _m_len = dna_len;
  
         /* number of bytes necessary to store dna_str as a bitset */
-        size_t dna_bytes = (dna_len / 4) + (dna_len % 4 != 0);
+        size_t dna_bytes = getBinarySize(dna_len); //(dna_len / 4) + (dna_len % 4 != 0);
 
-        m_data = new uint8_t[dna_bytes];
- 
+        //m_data = new uint8_t[dna_bytes];
+        _m_data.resize(dna_bytes, 0);
+
         //std::memset(m_data, 0, dna_bytes);
-        memset(m_data, 0, dna_bytes); 
+        //memset(m_data, 0, dna_bytes); 
 
         /* for each base of the DNA sequence */
         for (size_t i = 0; i < dna_len; ++i)
@@ -147,16 +148,16 @@ public:
             switch (dna_str[i])
             {
                 case 'A':
-                    m_data[i / 4] |= BASE_A << shift;
+                    _m_data[i / 4] |= BASE_A << shift;
                     break;
                 case 'C':
-                    m_data[i / 4] |= BASE_C << shift;
+                    _m_data[i / 4] |= BASE_C << shift;
                     break;
                 case 'G':
-                    m_data[i / 4] |= BASE_G << shift;
+                    _m_data[i / 4] |= BASE_G << shift;
                     break;
                 case 'T':
-                    m_data[i / 4] |= BASE_T << shift;
+                    _m_data[i / 4] |= BASE_T << shift;
                     break;
                 //default:
                   //  throw std::invalid_argument("invalid DNA base");
@@ -164,30 +165,48 @@ public:
  
             shift = (shift == 0) ? 6 : shift - 2;
         }
-    }
- 
-     DnaBitset2(uint8_t* dna_byte, u_int32_t sequenceSize){
-        m_data = dna_byte;
-        m_len = sequenceSize;
-    }
 
-    ~DnaBitset2()
-    {
-        delete[] m_data;
+        //if(sequence != to_string()){
+        //    cout << sequence << endl;
+        //    cout << to_string() << endl;
+        //    cout << sequence.size() << endl;
+        //    cout << to_string().size() << endl;
+        //    cout << "derp" << endl;
+        //    getchar();
+        //}
+
+        //#pragma omp critical
+        //{
+        //    cout << sequence << endl;
+        //    cout << to_string() << endl;
+        //}
     }
  
-    char* to_string() const
-    {
-        char* dna_str = new char[m_len + 1];
+    //DnaBitset2(uint8_t* dna_byte, u_int32_t sequenceSize){
+    //    m_data = dna_byte;
+    //    m_len = sequenceSize;
+    //}
+
+    ~DnaBitset2(){
+        _m_data.clear();
+        //delete[] m_data;
+    }
+ 
+    string to_string() const{
+        
+        if(_m_len == 0) return "";
+
+        string dna_str(_m_len, 'A');
+        //char* dna_str = new char[m_len + 1];
  
         /* for each base of the DNA sequence */
-        for (size_t i = 0; i < m_len; ++i)
+        for (size_t i = 0; i < _m_len; ++i)
         {
             uint8_t shift = 6 - 2 * (i % 4);
             uint8_t mask = BASE_MASK << shift;
  
             /* get the i-th DNA base */
-            uint8_t base = (m_data[i / 4] & mask) >> shift;
+            uint8_t base = (_m_data[i / 4] & mask) >> shift;
  
             switch (base)
             {
@@ -208,12 +227,17 @@ public:
             }
         }
  
-        dna_str[m_len] = '\0';
+        //dna_str[_m_len] = '\0';
         return dna_str;
     }
  
-    u_int32_t m_len;
-    uint8_t* m_data;
+    size_t getBinarySize(const size_t dna_len){
+        size_t dna_bytes = (dna_len / 4) + (dna_len % 4 != 0);
+        return dna_bytes;
+    }
+
+    u_int32_t _m_len;
+    vector<uint8_t> _m_data;
     
 };
 

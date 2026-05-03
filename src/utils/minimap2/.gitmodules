@@ -1,3 +1,0 @@
-[submodule "lib/simde"]
-	path = lib/simde
-	url = https://github.com/nemequ/simde.git
