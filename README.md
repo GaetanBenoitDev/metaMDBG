@@ -5,12 +5,15 @@ The method [nanoMDBG](https://www.biorxiv.org/content/10.1101/2025.04.22.649928v
 Developper: Gaëtan Benoit  
 Contact: gaetanbenoitdev at gmail dot com
 
-> [!IMPORTANT]
-> 15/09/2025:
-> MetaMDBG version 1.2 is out:
-> * Improved assembly quality (clipping events, dereplication, polishing, etc)
-> * Improved memory performances
-> * Added checkpoint system
+## News
+Feb 2026:
+MetaMDBG v1.3 is out!
+* Fixed clipping events
+* Fixed zero-coverage regions
+* Fixed chimeric contigs
+* Improved performances
+  
+Check out the new results below.
 
 
 ## Installation
@@ -173,7 +176,9 @@ Note 1) Unitig sequences in the gfa file are not polished, they have the same er
 
 ## Results
 
+[<img src="https://github.com/GaetanBenoitDev/metaMDBG/blob/main/results/fig_metaMDBG_1.3.jpg" width="75%" />](https://github.com/GaetanBenoitDev/metaMDBG/blob/main/results/fig_metaMDBG_1.3.jpg)
 
+Source data: [mags.tsv](https://github.com/GaetanBenoitDev/metaMDBG/blob/main/results/mags.tsv) [errors.tsv](https://github.com/GaetanBenoitDev/metaMDBG/blob/main/results/errors.tsv) [perf.tsv](https://github.com/GaetanBenoitDev/metaMDBG/blob/main/results/perf.tsv)
 
 Alignment and binning were performed with minimap2 and SemiBin2. Completeness and contamination were measured with checkM2 (near-complete: ≥90% completeness and ≤5% contamination, Medium: ≥50% completeness and ≤5% contamination). Clipping events and zero-coverage regions were identified using the anvi-script-find-misassembly program from the Anvi’o platform. All assemblers were run with 32 cores. 
 

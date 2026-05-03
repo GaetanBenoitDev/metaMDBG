@@ -1,0 +1,25 @@
+Dataset	Sequencing Platform	Assembler	Runtime	Peak Memory (GB)
+ONT_Gut_1	Nanopore	metaMDBG_1.3	5	17
+ONT_Gut_1	Nanopore	myloasm	8	118
+ONT_Gut_1	Nanopore	metaflye	8	114
+ONT_Gut_2	Nanopore	metaMDBG_1.3	18	38
+ONT_Gut_2	Nanopore	myloasm	13	163
+ONT_Gut_2	Nanopore	metaflye	16	156
+ONT_Oral	Nanopore	metaMDBG_1.3	4	11
+ONT_Oral	Nanopore	myloasm	5	50
+ONT_Oral	Nanopore	metaflye	5	50
+ONT_Microflora	Nanopore	metaMDBG_1.3	17	23
+ONT_Microflora	Nanopore	myloasm	27	322
+ONT_Microflora	Nanopore	metaflye	88	213
+HIFI_Gut_1	Hifi	metaMDBG_1.3	3	6
+HIFI_Gut_1	Hifi	myloasm	3	83
+HIFI_Gut_1	Hifi	metaflye	4	78
+HIFI_Gut_2	Hifi	metaMDBG_1.3	2	5
+HIFI_Gut_2	Hifi	myloasm	2	40
+HIFI_Gut_2	Hifi	metaflye	3	42
+HIFI_AD2W40	Hifi	metaMDBG_1.3	6	5
+HIFI_AD2W40	Hifi	myloasm	8	118
+HIFI_AD2W40	Hifi	metaflye	25	147
+HIFI_SeaWater	Hifi	metaMDBG_1.3	3	5
+HIFI_SeaWater	Hifi	myloasm	3	69
+HIFI_SeaWater	Hifi	metaflye	7	73

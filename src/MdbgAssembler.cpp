@@ -217,9 +217,9 @@ int main (int argc, char* argv[])
     		else if(programName == "derepSmall"){
                 DerepSmallContigs().run (argc, args);
     		}
-    		//else if(programName == "toBasespace_hifi"){
-            //    ToBasespace().run (argc, args);
-    		//}
+    		else if(programName == "toBasespaceGfa"){
+                ToBasespaceGfa().run (argc, args);
+    		}
     		else if(programName == "toBasespace"){
                 ToBasespace2().run (argc, args);
     		}
