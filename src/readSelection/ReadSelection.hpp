@@ -1374,7 +1374,7 @@ public:
 	void purgePalindromes(){
 
 		_kminmerSizeLast = Commons::computeLastK(_params._minimizerDensity_assembly, _n50ReadLength, _params._kminmerSizeFirst, 0);
-		cout << "Purge palindrome: " << _params._kminmerSizeFirst << " " << _kminmerSizeLast << endl;
+		//cout << "Purge palindrome: " << _params._kminmerSizeFirst << " " << _kminmerSizeLast << endl;
 
 		_file_readData = ofstream(_inputDir + "/read_data_corrected.txt");
 
