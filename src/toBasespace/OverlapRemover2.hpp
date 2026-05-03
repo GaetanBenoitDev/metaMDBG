@@ -188,7 +188,7 @@ public:
 		//writeContigs();
 
 		//cout << "Nb duplicated contigs: " << _nbDuplicatedContigs << endl;
-		cout << "OverlapRemover checksum: " << _checksum << endl;
+		Logger::get().debug() << "OverlapRemover checksum: " << _checksum;
 	}
 	
 	void countContigs(){

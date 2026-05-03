@@ -1966,7 +1966,7 @@ public:
 
 		int nbPartitions = 0;
 		int pass = 0;
-		u_int64_t memoryIncreased = _maxMemory*0.25;
+		u_int64_t memoryIncreased = _maxMemory*0.33;
 		u_int64_t maxMemory = _maxMemory;
 
 		while(true){
