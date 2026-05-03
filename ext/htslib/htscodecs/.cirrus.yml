@@ -1,0 +1,92 @@
+# Standard environment setup.
+env_template: &ENVIRONMENT
+  environment:
+    LC_ALL: C
+    CIRRUS_CLONE_DEPTH: 1
+  timeout_in: 10m
+
+# Standard compilation and testing rules
+compile_template: &COMPILE
+  compile_script:
+    - autoreconf -i
+    - ./configure
+    - make -j4
+
+  test_script:
+    - make check
+
+#  on_failure:
+#    - cat tests/test-suite.log
+
+# ----------
+# Linux
+
+task:
+  << : *ENVIRONMENT
+  name: linux-arm
+  arm_container:
+    image: ubuntu:latest
+    cpu: 2
+    memory: 1G
+
+  # NB: we could consider building a docker image with these
+  # preinstalled and specifying that instead, to speed up testing.
+  install_script: |
+    apt-get update
+    apt-get install -y --no-install-suggests --no-install-recommends     \
+        ca-certificates clang libc-dev make git autoconf automake libtool \
+        libbz2-dev
+
+  compile_script:
+    - autoreconf -i
+    - ./configure CC="clang" --disable-shared
+    - make -j4 CFLAGS="-g -O3 -Wall -Werror -Wextra -Wno-sign-compare -Wno-unused-parameter"
+
+  test_script:
+    - make check CFLAGS="-g -O3 -Wall -Werror -Wextra -Wno-sign-compare -Wno-unused-parameter"
+    - make distcheck
+
+# Rocky Linux
+rocky_task:
+  << : *ENVIRONMENT
+  name: rockylinux-gcc
+  container:
+    image: rockylinux:9
+    cpu: 2
+    memory: 1G
+
+#  # See https://cirrus-ci.org/guide/writing-tasks/#cache-instruction
+#  # Not worth it as it takes longer to unpack the /usr updates than
+#  # to just install the bits we need.  No easy way to install elsewhere
+#  # either. :/
+#  install_cache:
+#    folder: /usr # Will this work!? It's ~150Mb.  Yes, but don't bother
+#    populate_script: |
+#      yum install -y \
+#          autoconf automake libtool make gcc zlib-devel \
+#          bzip2 bzip2-devel git diffutils
+
+  install_script: |
+    yum install -y autoconf automake libtool make gcc zlib-devel \
+        bzip2 bzip2-devel git diffutils
+
+  << : *COMPILE
+
+# ----------
+# FreeBSD
+task:
+  name: freebsd
+  freebsd_instance:
+    image_family: freebsd-14-3
+
+  pkginstall_script:
+    - IGNORE_OSVERSION=yes pkg update -f
+    - pkg install -y gcc autoconf automake libdeflate libtool
+
+  compile_script:
+    - autoreconf -i
+    - ./configure
+    - make -j4 CFLAGS="-g -O3 -Wall -Werror"
+
+  test_script:
+    - make check CFLAGS="-g -O3 -Wall -Werror"

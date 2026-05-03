@@ -1,0 +1,37 @@
+#!/bin/sh
+out=test.out
+if test ! -d $out
+then
+    mkdir $out
+fi
+
+for f in `ls -1 $srcdir/dat/q* $srcdir/dat/u32* $srcdir/htscodecs-corpus/dat/q* 2>/dev/null`
+do 
+    comp=${f%/*/*}/dat/arith/${f##*/}
+    case $f in
+	*/q*)
+	    cut -f 1 < $f | tr -d '\012' > $out/arith-nl
+	    ;;
+	*)
+	    cp $f $out/arith-nl
+	    ;;
+    esac
+    for o in 0 1 32 64 65 128 129 192 193 8 9 4
+    do
+        if [ ! -e "$comp.$o" ]
+        then
+            continue
+        fi
+        printf 'Testing arith_dynamic -r -o%s on %s\t' $o "$f"
+
+        # Round trip
+        ./arith_dynamic -r -o$o $out/arith-nl $out/arith.comp 2>>$out/arith.stderr || exit 1
+        wc -c < $out/arith.comp
+        ./arith_dynamic -r -d $out/arith.comp $out/arith.uncomp  2>>$out/arith.stderr || exit 1
+        cmp $out/arith-nl $out/arith.uncomp || exit 1
+
+        # Precompressed data
+        ./arith_dynamic -r -d $comp.$o $out/arith.uncomp  2>>$out/arith.stderr || exit 1
+        cmp $out/arith-nl $out/arith.uncomp || exit 1
+    done
+done

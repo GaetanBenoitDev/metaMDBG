@@ -1,0 +1,69 @@
+#!/bin/sh
+out=test.out
+if test ! -d $out
+then
+    mkdir $out
+fi
+
+for f in `ls -1 $srcdir/dat/q* $srcdir/htscodecs-corpus/dat/q* 2>/dev/null`
+do
+    comp=${f%/*/*}/dat/r4x16/${f##*/}
+    cut -f 1 < $f | tr -d '\012' > $out/r4x16-nl
+    for o in 0 1 32 64 65 128 129 192 193 68 69 132 133 196 197 8 9
+    do
+        if [ ! -e "$comp.$o" ]
+        then
+            continue
+        fi
+        printf 'Testing rans4x16 -r -o%s on %s\t' $o "$f"
+
+        # Round trip
+        ./rans4x16pr -r -o$o  $out/r4x16-nl $out/r4x16.comp 2>>$out/r4x16.stderr || exit 1
+        wc -c < $out/r4x16.comp
+        ./rans4x16pr -r -d $out/r4x16.comp $out/r4x16.uncomp  2>>$out/r4x16.stderr || exit 1
+        cmp $out/r4x16-nl $out/r4x16.uncomp || exit 1
+
+        # Precompressed data
+        ./rans4x16pr -r -d $comp.$o $out/r4x16.uncomp  2>>$out/r4x16.stderr || exit 1
+        cmp $out/r4x16-nl $out/r4x16.uncomp || exit 1
+    done
+
+    # 32-way, with cross-compatibility between scalar and SIMD implementations
+    for o in 4 5
+    do
+        printf 'Testing rans4x16 -r -o%s on %s\t' $o "$f"
+
+        # Round trip
+        # SIMD vs SIMD (auto)
+        ./rans4x16pr -r -o$o $out/r4x16-nl $out/r4x16.comp 2>>$out/r4x16.stderr || exit 1
+        wc -c < $out/r4x16.comp
+        ./rans4x16pr -r -d $out/r4x16.comp $out/r4x16.uncomp  2>>$out/r4x16.stderr || exit 1
+        cmp $out/r4x16-nl $out/r4x16.uncomp || exit 1
+
+        # Scalar vs scalar
+        ./rans4x16pr -r -o$o -c 0 $out/r4x16-nl $out/r4x16.comp 2>>$out/r4x16.stderr || exit 1
+        wc -c < $out/r4x16.comp
+        ./rans4x16pr -r -d -o$o -c 0 $out/r4x16.comp $out/r4x16.uncomp  2>>$out/r4x16.stderr || exit 1
+        cmp $out/r4x16-nl $out/r4x16.uncomp || exit 1
+
+        # Scalar vs SIMD
+        ./rans4x16pr -r -o$o -c 0 $out/r4x16-nl $out/r4x16.comp 2>>$out/r4x16.stderr || exit 1
+        wc -c < $out/r4x16.comp
+        ./rans4x16pr -r -d -o$o $out/r4x16.comp $out/r4x16.uncomp  2>>$out/r4x16.stderr || exit 1
+        cmp $out/r4x16-nl $out/r4x16.uncomp || exit 1
+
+        # SIMD vs Scalar
+        ./rans4x16pr -r -o$o  $out/r4x16-nl $out/r4x16.comp 2>>$out/r4x16.stderr || exit 1
+        wc -c < $out/r4x16.comp
+        ./rans4x16pr -r -d -o$o -c 0 $out/r4x16.comp $out/r4x16.uncomp  2>>$out/r4x16.stderr || exit 1
+        cmp $out/r4x16-nl $out/r4x16.uncomp || exit 1
+
+#       # Precompressed data
+        if [ ! -e "$comp.$o" ]
+        then
+            continue
+        fi
+        ./rans4x16pr -r -d $comp.$o $out/r4x16.uncomp  2>>$out/r4x16.stderr || exit 1
+        cmp $out/r4x16-nl $out/r4x16.uncomp || exit 1
+    done
+done
