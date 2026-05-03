@@ -1,11 +1,5 @@
 
 
-<<<<<<< HEAD
-=======
-/*
-Known limitation: won't work with ont skip-correction (need to add a flag in the parameter file)
-*/
->>>>>>> ccec9fda44318f79c35d2b7b4993ce27929368bb
 
 #ifndef MDBG_METAG_TOBASESPACEGFA
 #define MDBG_METAG_TOBASESPACEGFA
@@ -99,7 +93,6 @@ public:
 	//unordered_set<u_int32_t> _requiredCopiers_left;
 	//unordered_set<u_int32_t> _requiredCopiers_right;
 
-<<<<<<< HEAD
 	phmap::parallel_flat_hash_map<u_int32_t, vector<DnaBitset2*>> _kminmerSequenceCopies_all_entire;
 	phmap::parallel_flat_hash_map<u_int32_t, vector<DnaBitset2*>> _kminmerSequenceCopies_all_left;
 	phmap::parallel_flat_hash_map<u_int32_t, vector<DnaBitset2*>> _kminmerSequenceCopies_all_right;
@@ -109,37 +102,17 @@ public:
 	phmap::parallel_flat_hash_map<ReadNodeName, DnaBitset2*> _repeatedKminmerSequence_entire;
 	phmap::parallel_flat_hash_map<ReadNodeName, DnaBitset2*> _repeatedKminmerSequence_left;
 	phmap::parallel_flat_hash_map<ReadNodeName, DnaBitset2*> _repeatedKminmerSequence_right;
-=======
-	phmap::parallel_flat_hash_map<u_int32_t, vector<DnaBitset*>> _kminmerSequenceCopies_all_entire;
-	phmap::parallel_flat_hash_map<u_int32_t, vector<DnaBitset*>> _kminmerSequenceCopies_all_left;
-	phmap::parallel_flat_hash_map<u_int32_t, vector<DnaBitset*>> _kminmerSequenceCopies_all_right;
-	
-	//unordered_set<u_int32_t> isKminmerRepeated;
-
-	phmap::parallel_flat_hash_map<ReadNodeName, DnaBitset*> _repeatedKminmerSequence_entire;
-	phmap::parallel_flat_hash_map<ReadNodeName, DnaBitset*> _repeatedKminmerSequence_left;
-	phmap::parallel_flat_hash_map<ReadNodeName, DnaBitset*> _repeatedKminmerSequence_right;
->>>>>>> ccec9fda44318f79c35d2b7b4993ce27929368bb
 
 	//unordered_map<ReadNodeName, VariantQueue> _repeatedKminmerSequence_copies_entire;
 	//unordered_map<ReadNodeName, VariantQueue> _repeatedKminmerSequence_copies_left;
 	//unordered_map<ReadNodeName, VariantQueue> _repeatedKminmerSequence_copies_right;
 
-<<<<<<< HEAD
 	phmap::parallel_flat_hash_map<u_int32_t, DnaBitset2*> _kminmerSequence_entire;
 	phmap::parallel_flat_hash_map<u_int32_t, DnaBitset2*> _kminmerSequence_left;
 	phmap::parallel_flat_hash_map<u_int32_t, DnaBitset2*> _kminmerSequence_right;
 	//phmap::parallel_flat_hash_map<u_int32_t, vector<ReadSequence>> _kminmerSequence_entire_multi;
 	//phmap::parallel_flat_hash_map<u_int32_t, vector<ReadSequence>> _kminmerSequence_left_multi;
 	//phmap::parallel_flat_hash_map<u_int32_t, vector<ReadSequence>> _kminmerSequence_right_multi;
-=======
-	phmap::parallel_flat_hash_map<u_int32_t, DnaBitset*> _kminmerSequence_entire;
-	phmap::parallel_flat_hash_map<u_int32_t, DnaBitset*> _kminmerSequence_left;
-	phmap::parallel_flat_hash_map<u_int32_t, DnaBitset*> _kminmerSequence_right;
-	phmap::parallel_flat_hash_map<u_int32_t, vector<ReadSequence>> _kminmerSequence_entire_multi;
-	phmap::parallel_flat_hash_map<u_int32_t, vector<ReadSequence>> _kminmerSequence_left_multi;
-	phmap::parallel_flat_hash_map<u_int32_t, vector<ReadSequence>> _kminmerSequence_right_multi;
->>>>>>> ccec9fda44318f79c35d2b7b4993ce27929368bb
 	//unordered_map<u_int32_t, vector<DnaBitset*>> _kminmerSequenceCopies_left;
 	//unordered_map<u_int32_t, vector<DnaBitset*>> _kminmerSequenceCopies_right;
 
@@ -178,11 +151,7 @@ public:
 		args::Positional<std::string> arg_inputContigFilename(parser, "inputContigFilename", "", args::Options::Required);
 		args::Positional<std::string> arg_outputContigFilename(parser, "outputContigFilename", "", args::Options::Required);
 		args::Positional<std::string> arg_inputReadFilename(parser, "inputReadFilename", "", args::Options::Required);
-<<<<<<< HEAD
 		//args::Flag arg_skipCorrection(parser, "", "Skip read correction", {"skip-correction"});
-=======
-		args::Flag arg_skipCorrection(parser, "", "Skip read correction", {"skip-correction"});
->>>>>>> ccec9fda44318f79c35d2b7b4993ce27929368bb
 		//args::Positional<std::string> arg_contigs(parser, "contigs", "", args::Options::Required);
 		//args::PositionalList<std::string> arg_readFilenames(parser, "reads", "Input filename(s) (separated by space)", args::Options::Required);
 		//args::ValueFlag<int> arg_l(parser, "", "Minimizer length", {ARG_MINIMIZER_LENGTH2}, 13);
@@ -271,17 +240,10 @@ public:
 		_inputDir = getInput()->getStr(STR_INPUT_DIR);
 		*/
 
-<<<<<<< HEAD
 		//_skipCorrection = false;
 		//if(arg_skipCorrection){
 		//	_skipCorrection = true;
 		//}
-=======
-		_skipCorrection = false;
-		if(arg_skipCorrection){
-			_skipCorrection = true;
-		}
->>>>>>> ccec9fda44318f79c35d2b7b4993ce27929368bb
 
 		string filename_parameters = _inputDir + "/parameters.gz";
 		gzFile file_parameters = gzopen(filename_parameters.c_str(),"rb");
@@ -317,12 +279,7 @@ public:
 
     void execute (){
 		
-<<<<<<< HEAD
 		_isRepetitiveMinimizers = Commons::loadRepetitiveMinimizers(_inputDir + "/repetitiveMinimizers.bin", 0);
-=======
-
-		_isRepetitiveMinimizers = Commons::loadRepetitiveMinimizers(_inputDir);
->>>>>>> ccec9fda44318f79c35d2b7b4993ce27929368bb
 		
 		_checksum = 0;
 
@@ -488,15 +445,9 @@ public:
 	phmap::parallel_flat_hash_map<KmerVec, vector<KminmerPos>> _kmerVecIndex;
 	phmap::parallel_flat_hash_map<u_int32_t, KminmerPos> _bestReadMatch;
 	phmap::parallel_flat_hash_map<ContigPosition, ReadPositionMatch> _contigPosition_to_readPosition;
-<<<<<<< HEAD
 	phmap::parallel_flat_hash_map<ReadPosition, DnaBitset2*> _readPosition_entire;
 	phmap::parallel_flat_hash_map<ReadPosition, DnaBitset2*> _readPosition_left;
 	phmap::parallel_flat_hash_map<ReadPosition, DnaBitset2*> _readPosition_right;
-=======
-	phmap::parallel_flat_hash_map<ReadPosition, DnaBitset*> _readPosition_entire;
-	phmap::parallel_flat_hash_map<ReadPosition, DnaBitset*> _readPosition_left;
-	phmap::parallel_flat_hash_map<ReadPosition, DnaBitset*> _readPosition_right;
->>>>>>> ccec9fda44318f79c35d2b7b4993ce27929368bb
 
 	KminmerPosMap _kminmer_to_readIndex;
 
@@ -611,20 +562,8 @@ public:
 		//	hasQuality = false;
 		//}
 
-<<<<<<< HEAD
 		KminmerParserParallel parser(_inputDir + "/read_data_init.txt", _minimizerSize, _kminmerSize, false, true, _nbCores);
 		parser.parseSequences(AlignReadFunctor(*this));
-=======
-		if(_skipCorrection){
-			KminmerParserParallel parser(_inputDir + "/read_data_init.txt", _minimizerSize, _kminmerSize, false, true, _nbCores);
-			parser.parseSequences(AlignReadFunctor(*this));
-		}
-		else{
-			KminmerParserParallel parser(_inputDir + "/read_data_init.txt", _minimizerSize, _kminmerSize, false, true, _nbCores);
-			parser._densityThreshold = _minimizerDensity;
-			parser.parseSequences(AlignReadFunctor(*this));
-		}
->>>>>>> ccec9fda44318f79c35d2b7b4993ce27929368bb
 
 	}
 
@@ -1028,256 +967,6 @@ public:
 	}
 
 
-<<<<<<< HEAD
-=======
-	/*
-	struct MinimizerAlignment{
-		vector<MinimizerType> _minimizerSequence;
-		vector<MinimizerType> _minimizerQualities;
-		MinimizerAligner::Alignment _alignment;
-		double _alignmentScore;
-		int _lastMatchPos;
-	};
-
-	void indexReads(){
-
-
-		Logger::get().debug() << "Indexing reads";
-		_unitigDatas.resize(_kmerVec_to_nodeName.size());
-		
-		KminmerParserParallel parser(_inputDir + "/read_data_init.txt", _minimizerSize, _kminmerSize, false, true, _nbCores);
-		//parser2.parse(FilterKminmerFunctor2(*this));
-		parser.parse(IndexReadsFunctor(*this));
-
-		//KminmerParser parser(_inputDir + "/read_data_init.txt", _minimizerSize, _kminmerSize, false, true);
-		//auto fp = std::bind(&ToBasespace::indexReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5);
-		//parser.parse(fp);
-	}
-
-	struct MatchPosition{
-		u_int32_t _contigIndex;
-		u_int32_t _contigPos;
-		u_int32_t _contigMatchPos_right;
-		u_int32_t _contigMatchPos_left;
-		u_int32_t _matchLength;
-		bool _isValid_right;
-		bool _isValid_left;
-	};
-
-	class IndexReadsFunctor {
-
-		public:
-
-		ToBasespaceGfa& _parent;
-
-		IndexReadsFunctor(ToBasespaceGfa& parent) : _parent(parent){
-		}
-
-		IndexReadsFunctor(const IndexReadsFunctor& copy) : _parent(copy._parent){
-		}
-
-		~IndexReadsFunctor(){
-		}
-
-		void operator () (KminmerList& kminmerList) {
-
-			processKminmers(kminmerList, false);
-
-			std::reverse(kminmerList._kminmersInfo.begin(), kminmerList._kminmersInfo.end());
-
-			processKminmers(kminmerList, true);
-		}
-
-			
-		void processKminmers(const KminmerList& kminmerList, bool isReversed){
-
-			for(u_int32_t i=0; i<kminmerList._kminmersInfo.size(); i++){
-			
-				
-				//cout << "------- " << i << endl;
-
-				//_logFile << readIndex << " " << i << endl;
-				const ReadKminmerComplete& kminmerInfo = kminmerList._kminmersInfo[i];
-
-				const KmerVec& vec = kminmerInfo._vec;
-				
-				if(_parent._kmerVecIndex.find(vec) == _parent._kmerVecIndex.end()) continue;
-
-				vector<MatchPosition> matches;
-
-				const vector<KminmerPos>& initialMatches = _parent._kmerVecIndex[vec];
-				for(const KminmerPos& initialMatch : initialMatches){
-					matches.push_back({initialMatch._contigIndex, initialMatch._pos, initialMatch._pos, initialMatch._pos, 1, true, true});
-				}
-
-				findBestMatches(kminmerList, matches, i);
-
-				for(const MatchPosition& match : matches){
-
-					ContigPosition contigPosition =  {match._contigIndex, match._contigPos};
-					ReadPositionMatch readPosition = {kminmerList._readIndex, i, match._matchLength};
-
-					if(isReversed){
-						readPosition._readPosition = kminmerList._kminmersInfo.size()-1-readPosition._readPosition;
-					}
-
-					#pragma omp critical(processKminmers)
-					{
-						if(_parent._contigPosition_to_readPosition.find(contigPosition) == _parent._contigPosition_to_readPosition.end()){
-							_parent._contigPosition_to_readPosition[contigPosition] = readPosition;
-							//cout << isReversed << " " << readPosition._matchLength << endl;
-						}
-						else{
-							
-							const ReadPositionMatch& readPositionExisting = _parent._contigPosition_to_readPosition[contigPosition];
-
-							if(readPosition._matchLength > readPositionExisting._matchLength){
-								_parent._contigPosition_to_readPosition[contigPosition] = readPosition;
-								//cout << isReversed << " " << readPosition._matchLength << endl;
-
-								//if(contigPosition._contigIndex == 6 && contigPosition._contigPosition == 2401)
-								//cout << contigPosition._contigIndex << " " << contigPosition._contigPosition << " " << readPosition._matchLength << endl;
-							}
-						}
-
-
-						//cout << match._contigIndex << " " << match._contigPos << " " << match._matchLength << endl;
-						//getchar();
-					}
-				}
-
-			}
-
-		}
-
-		void findBestMatches(const KminmerList& kminmerList, vector<MatchPosition>& initialMatches, long readStartPos){
-
-			for(u_int32_t i=readStartPos+1; i<kminmerList._kminmersInfo.size(); i++){
-			
-				//cout << i << " " << kminmerList._kminmersInfo.size() << endl;
-				//cout << "\t" << i << endl;
-				
-				//_logFile << readIndex << " " << i << endl;
-				const ReadKminmerComplete& kminmerInfo = kminmerList._kminmersInfo[i];
-
-				const KmerVec& vec = kminmerInfo._vec;
-				if(_parent._kmerVecIndex.find(vec) == _parent._kmerVecIndex.end()){
-					//for(const MatchPosition& initialMatch : initialMatches){
-					//	initialMatch._isValid_left = false;
-					//	break;
-					//}
-					break;
-				} 
-
-				const vector<KminmerPos>& currentMatches = _parent._kmerVecIndex[vec];
-				
-				//if(_parent._kmerVecIndex.find(vec) == _parent._kmerVecIndex.end()) continue;
-
-				for(MatchPosition& initialMatch : initialMatches){
-
-					//cout << "\t" <<  initialMatch._contigIndex << " " << initialMatch._contigPos << " " << initialMatch._contigMatchPos << endl;
-
-					if(!initialMatch._isValid_right) continue;
-
-					bool isValid = false;
-
-					for(const KminmerPos& currentMatch : currentMatches){
-
-
-						if(initialMatch._contigIndex == currentMatch._contigIndex){
-							if(initialMatch._contigMatchPos_right+1 == currentMatch._pos){
-								initialMatch._contigMatchPos_right += 1;
-								initialMatch._matchLength += 1;
-								isValid = true;
-								break;
-							}
-						}
-					}
-
-					initialMatch._isValid_right = isValid;
-				}
-
-				bool allMatchInvalid = true;
-				for(const MatchPosition& initialMatch : initialMatches){
-					if(initialMatch._isValid_right){
-						allMatchInvalid = false;
-						break;
-					}
-				}
-
-				if(allMatchInvalid) break;
-
-
-
-			}
-
-			
-
-			for(long i=readStartPos-1; i >= 0; i--){
-			
-				//cout << "\t" << i << endl;
-				
-				//_logFile << readIndex << " " << i << endl;
-				const ReadKminmerComplete& kminmerInfo = kminmerList._kminmersInfo[i];
-
-				const KmerVec& vec = kminmerInfo._vec;
-
-				if(_parent._kmerVecIndex.find(vec) == _parent._kmerVecIndex.end()){
-					//for(MatchPosition& initialMatch : initialMatches){
-					//	initialMatch._isValid_left = false;
-					//	break;
-					//}
-					break;
-				} 
-
-				const vector<KminmerPos>& currentMatches = _parent._kmerVecIndex[vec];
-				
-				//if(_parent._kmerVecIndex.find(vec) == _parent._kmerVecIndex.end()) continue;
-
-				for(MatchPosition& initialMatch : initialMatches){
-
-					//cout << "\t" <<  initialMatch._contigIndex << " " << initialMatch._contigPos << " " << initialMatch._contigMatchPos << endl;
-
-					if(!initialMatch._isValid_left) continue;
-
-					bool isValid = false;
-
-					for(const KminmerPos& currentMatch : currentMatches){
-
-
-						if(initialMatch._contigIndex == currentMatch._contigIndex){
-							if(initialMatch._contigMatchPos_left-1 == currentMatch._pos){
-								initialMatch._contigMatchPos_left -= 1;
-								initialMatch._matchLength += 1;
-								isValid = true;
-								break;
-							}
-						}
-					}
-
-					initialMatch._isValid_left = isValid;
-				}
-
-				bool allMatchInvalid = true;
-				for(const MatchPosition& initialMatch : initialMatches){
-					if(initialMatch._isValid_left){
-						allMatchInvalid = false;
-						break;
-					}
-				}
-
-				if(allMatchInvalid) break;
-
-
-			}
-
-
-		}
-
-	};
-	*/
-
->>>>>>> ccec9fda44318f79c35d2b7b4993ce27929368bb
 
 	void setupKminmerSequenceExtraction(){
 
@@ -1351,752 +1040,11 @@ public:
 		}
 	};
 
-<<<<<<< HEAD
 
 
 	u_int64_t _nbContigs;
 	phmap::parallel_flat_hash_map<u_int32_t, u_int32_t> _kminmerCounts;
 
-=======
-	/*
-	void indexKminmers(){
-
-		cerr << "Indexing reads" << endl;
-
-		_kminmerNodeName = 0;
-
-		KminmerParserParallel parser(_inputDir + "/read_data_init.txt", _minimizerSize, _kminmerSize, false, true, _nbCores);
-		parser.parse(IndexKminmerFunctor(*this));
-
-	}
-
-
-	class IndexKminmerFunctor {
-
-		public:
-
-		ToBasespace& _parent;
-
-		IndexKminmerFunctor(ToBasespace& parent) : _parent(parent){
-		}
-
-		IndexKminmerFunctor(const IndexKminmerFunctor& copy) : _parent(copy._parent){
-		}
-
-		~IndexKminmerFunctor(){
-		}
-
-		void operator () (const KminmerList& kminmerList) {
-
-			#pragma omp critical(indexKminmerFunctor)
-			{
-
-				for(u_int16_t i=0; i<kminmerList._kminmersInfo.size(); i++){
-				
-					
-					const ReadKminmerComplete& kminmerInfo = kminmerList._kminmersInfo[i];
-
-					KmerVec vec = kminmerInfo._vec;
-					if(_parent._kmerVec_to_nodeName.find(vec) == _parent._kmerVec_to_nodeName.end()){
-						_parent._kminmerNodeName += 1;
-						_parent._kmerVec_to_nodeName[vec] = _parent._kminmerNodeName;
-					}
-
-				}
-			}
-
-
-		}
-	};
-
-
-	void indexReads(){
-
-
-		_logFile << "Indexing reads" << endl;
-		_unitigDatas.resize(_kmerVec_to_nodeName.size());
-		
-		KminmerParserParallel parser(_inputDir + "/read_data_init.txt", _minimizerSize, _kminmerSize, false, true, _nbCores);
-		//parser2.parse(FilterKminmerFunctor2(*this));
-		parser.parse(IndexReadsFunctor(*this));
-
-		//KminmerParser parser(_inputDir + "/read_data_init.txt", _minimizerSize, _kminmerSize, false, true);
-		//auto fp = std::bind(&ToBasespace::indexReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5);
-		//parser.parse(fp);
-	}
-
-	class IndexReadsFunctor {
-
-		public:
-
-		ToBasespace& _parent;
-
-		IndexReadsFunctor(ToBasespace& parent) : _parent(parent){
-		}
-
-		IndexReadsFunctor(const IndexReadsFunctor& copy) : _parent(copy._parent){
-		}
-
-		~IndexReadsFunctor(){
-		}
-
-		void operator () (const KminmerList& kminmerList) {
-
-			u_int64_t readIndex = kminmerList._readIndex;
-
-			for(size_t i=0; i<kminmerList._kminmersInfo.size(); i++){
-			
-				
-				//_logFile << readIndex << " " << i << endl;
-				const ReadKminmerComplete& kminmerInfo = kminmerList._kminmersInfo[i];
-
-				KmerVec vec = kminmerInfo._vec;
-				
-				if(_parent._kmerVec_to_nodeName.find(vec) == _parent._kmerVec_to_nodeName.end()){
-					continue;
-				}
-				
-				u_int32_t nodeName = _parent._kmerVec_to_nodeName[vec];
-
-				#pragma omp critical(indexReadsFunctor)
-				{
-					if(_parent._unitigDatas[nodeName].size() < 50){
-						_parent._unitigDatas[nodeName].push_back(readIndex);
-					}
-				}
-
-				
-
-			}
-
-		}
-	};
-
-	*/
-
-	void endCorrection(auto& copies, auto& isDoneNodeName, auto& correctedSequences, auto& repeatedKminmers_model, auto& repeatedKminmers_variants){
-
-		/*
-		_logFile << "-----" << endl;
-		for(const auto& it : repeatedKminmers){
-			_logFile << (it.second != nullptr) << endl;
-			if(it.second == nullptr){
-				_logFile << it.first._nodeIndex << " " << it.first._supportingReadIndex << endl;
-				getchar();
-			}
-
-			if(it.first._nodeIndex == 602){
-				_logFile << (it.second != nullptr) << endl;
-				getchar();
-			}
-		}
-		*/
-
-		vector<u_int32_t> nodeNames;
-		for(auto& it : copies){
-			if(isDoneNodeName.find(it.first) != isDoneNodeName.end()) continue;
-			nodeNames.push_back(it.first);
-		}
-		
-		/*
-		_logFile << nodeNames.size() << endl;
-		#pragma omp parallel num_threads(_nbCores)
-		{
-
-			ExtractKminmerSequenceFunctor functor(_minimizerSize, _minimizerDensity, *this, false);
-
-			#pragma omp for
-			for(size_t i=0; i<nodeNames.size(); i++){
-				
-				u_int32_t nodeName = nodeNames[i];
-				if(isKminmerRepeated.find(nodeName) != isKminmerRepeated.end()) continue;
-
-				vector<DnaBitset*>* dnaSeq;
-
-				#pragma omp critical
-				dnaSeq = &copies[nodeName];
-
-
-				string correctedSequence;
-				functor.performErrorCorrection_all(nodeName, *dnaSeq, correctedSequence);
-				//writeKminmerSequence_all(nodeName, correctedSequence, _outputFile_left);
-
-				//}
-				
-				#pragma omp critical
-				{
-					
-					correctedSequences[nodeName] = new DnaBitset(correctedSequence);
-
-					for(DnaBitset* dna : *dnaSeq){
-						delete dna;
-					}
-					//dnaSeq.clear();
-
-					//if(nodeName == 10042){
-					//	_logFile << "omg" << endl;
-					//	getchar();
-					//}
-				}
-			}
-		}
-
-		_logFile << correctedSequences.size() << endl;
-		*/
-
-
-
-		
-		vector<u_int32_t> readNodeNames;
-		for(const auto& it : repeatedKminmers_variants){
-			readNodeNames.push_back(it.first);
-		}
-		
-		//"reprise: verifier que cette partie est bien paralleliser, ça a tourner a 100% de cpu la derniere run"
-		Logger::get().debug() << "Correcting repeated kminmers: " << readNodeNames.size();
-		#pragma omp parallel num_threads(_nbCores)
-		{
-
-			ExtractKminmerSequenceFunctor functor(_minimizerSize, _minimizerDensity, *this, false);
-
-			#pragma omp for
-			for(size_t i=0; i<readNodeNames.size(); i++){
-				
-				u_int32_t nodeName = readNodeNames[i];
-				
-				for(ReadSequence& readSequence : repeatedKminmers_variants[nodeName]){
-
-					if(readSequence._sequence == nullptr){
-						//_logFile << "No model sequence" << endl;
-						continue;
-					}
-
-					VariantQueue& queue = readSequence._variants;
-
-					//#pragma omp critical
-					//queue = &repeatedKminmers_variants[readNodeName];
-
-					//const vector<DnaBitset*>& kminmerCopies = copies[readNodeName._nodeIndex];
-
-
-					vector<DnaBitset*> sequences;
-
-					while(!queue.empty()){
-						sequences.push_back(queue.top()._sequence);
-						queue.pop();
-					}
-
-					sequences.push_back(readSequence._sequence);
-
-					string correctedSequence;
-					functor.performErrorCorrection_all(nodeName, sequences, correctedSequence);
-					
-					#pragma omp critical
-					{
-						//delete repeatedKminmers_model[nodeName];
-						repeatedKminmers_model[{nodeName, readSequence._readIndex}] = new DnaBitset(correctedSequence);
-					}
-
-					for(DnaBitset* dnaSeq : sequences){
-						delete dnaSeq;
-					}
-					sequences.clear();
-
-				}
-				//_logFile << readNodeName._nodeIndex << endl;
-
-
-
-
-			}
-		}
-		
-
-	}
-
-	/*
-	void writeKminmerSequence(u_int32_t nodeName, unordered_map<u_int32_t, VariantQueue>& variants){
-
-		_isDoneCorrection.insert()
-		string correctedSequence;
-		performErrorCorrection(nodeName, dnaSeq, _kminmerSequenceCopies_all_left[nodeName], correctedSequence, alignment_engine, graph);
-
-		writeKminmerSequence_all(nodeName, correctedSequence, outputFile_left);
-
-
-	}*/
-
-
-	/*
-	void loadContigs(const string& contigFilename){
-
-		_logFile << "Loading mContigs: " << contigFilename << endl;
-		gzFile contigFile = gzopen(contigFilename.c_str(),"rb");
-		u_int64_t nbContigs = 0;
-		
-		while(true){
-
-			vector<u_int32_t> nodePath;
-			//vector<u_int64_t> supportingReads;
-			u_int64_t size;
-			gzread(contigFile, (char*)&size, sizeof(size));
-			
-
-			if(gzeof(contigFile)) break;
-
-			nodePath.resize(size);
-			//supportingReads.resize(size);
-			gzread(contigFile, (char*)&nodePath[0], size * sizeof(u_int32_t));
-			//gzread(contigFile, (char*)&supportingReads[0], size * sizeof(u_int64_t));
-
-			//for(u_int32_t nodeIndex : nodePath){
-			for(size_t i=0; i<nodePath.size(); i++){
-				u_int32_t nodeIndex = nodePath[i];
-				bool orientation;
-				u_int32_t nodeName = BiGraph::nodeIndex_to_nodeName(nodeIndex, orientation);
-
-				if(i == 0){
-					_kminmerSequenceCopies_all_entire[nodeName] = {};
-				}
-				else {
-					if(orientation){ //+
-						_kminmerSequenceCopies_all_right[nodeName] = {};
-					}
-					else{ //-
-						_kminmerSequenceCopies_all_left[nodeName] = {};
-					}
-				}
-
-			}
-
-			nbContigs += 1;
-			//_logFile << nodePath.size() << endl;
-		}
-
-		gzclose(contigFile);
-
-		_logFile << "Nb contigs: " << nbContigs << endl;
-	}
-	*/
-	//MDBG* _mdbgInit;
-	//size_t _originalKminmerSize;
-	u_int64_t _nbContigs;
-	phmap::parallel_flat_hash_map<u_int32_t, u_int32_t> _kminmerCounts;
-
-	/*
-	void loadContigs_fasta (const string& contigFilename){
-
-
-		_nbContigs = 0;
-
-		auto fp = std::bind(&ToBasespace::loadContigs_fasta_read, this, std::placeholders::_1, std::placeholders::_2);
-		ReadParser readParser(contigFilename, true, false);
-		readParser.parse(fp);
-
-		_logFile << "Nb contigs: " << _nbContigs << endl;
-
-		double nbRepeatedKminmers = 0;
-		for(auto& it : _kminmerCounts){
-			if(it.second > 1){
-				nbRepeatedKminmers += 1;
-			}
-		}
-		_logFile << "Nb kminmer: " << _kminmerCounts.size() << endl;
-		_logFile << "Repeated kminmer: " << nbRepeatedKminmers << endl;
-		_logFile << "Repeated kminmer rate: " << (nbRepeatedKminmers / _kminmerCounts.size()) << endl;
-
-		_kminmerCounts.clear();
-	}
-	*/
-
-
-
-
-
-
-	/*
-	void indexReads_read(const vector<u_int64_t>& minimizers, const vector<KmerVec>& kminmers, const vector<ReadKminmer>& kminmersInfos, u_int8_t isCircular, u_int64_t readIndex){//}, const vector<KmerVec>& kminmers_k3, const vector<ReadKminmer>& kminmersInfos_k3){
-
-		for(const KmerVec& vec : kminmers){
-			
-			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()) continue;
-
-			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
-			
-			if(_unitigDatas[nodeName].size() > 50) continue;
-
-			//_logFile << nodeName << " " << readIndex << endl;
-			_unitigDatas[nodeName].push_back(readIndex);
-		}
-	}
-	*/
-
-	/*
-	struct Contig{
-		u_int64_t _readIndex;
-		vector<u_int32_t> _nodepath;
-		vector<u_int32_t> _nodepath_sorted;
-	};
-
-	vector<Contig> _contigs;
-	static bool ContigComparator_ByLength(const Contig &a, const Contig &b){
-
-		if(a._nodepath.size() == b._nodepath.size()){
-			for(size_t i=0; i<a._nodepath.size() && i<b._nodepath.size(); i++){
-				if(BiGraph::nodeIndex_to_nodeName(a._nodepath[i]) == BiGraph::nodeIndex_to_nodeName(b._nodepath[i])){
-					continue;
-				}
-				else{
-					return BiGraph::nodeIndex_to_nodeName(a._nodepath[i]) > BiGraph::nodeIndex_to_nodeName(b._nodepath[i]);
-				}
-			}
-		}
-
-
-		return a._nodepath.size() > b._nodepath.size();
-	}
-	*/
-
-	//unordered_set<u_int32_t> _invalidContigIndex;
-	/*
-	void loadContigs_min(const string& contigFilename){
-
-		_logFile << "Extracting kminmers: " << contigFilename << endl;
-		KminmerParser parser2(contigFilename, _minimizerSize, _kminmerSize, false, false);
-		auto fp2 = std::bind(&ToBasespace::loadContigs_min_read2, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
-		parser2.parseMinspace(fp2);
-
-	}
-
-	void loadContigs_min_read2(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int8_t isCircular, u_int64_t readIndex){
-
-		//_logFile << kminmersInfos.size() << " " << (_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) << endl;
-		//if(_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) return;
-		double s = 0;
-		for(size_t i=0; i<kminmersInfos.size(); i++){
-			
-			const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
-
-			KmerVec vec = kminmerInfo._vec;
-			
-			if(_mdbg->_dbg_nodes.find(vec) == _mdbg->_dbg_nodes.end()){
-				_logFile << "Not found kminmer" << endl;
-				//getchar();
-				continue;
-			}
-
-
-			//if(kminmersInfos.size() <= 1) continue;
-
-			u_int32_t nodeName = _mdbg->_dbg_nodes[vec]._index;
-			//s += nodeName;
-			//nodepath.push_back(nodeName);
-			//if(nodeName == 38376){
-
-			//	_logFile << "lala" << endl;
-			//	getchar();
-			//}
-			//_logFile << kminmersInfos.size() << " " << nodeName << endl;
-
-			
-			_kminmerCounts[nodeName] += 1;
-
-			//if(_kminmerCounts[nodeName] > 1){
-			//	isKminmerRepeated.insert(nodeName);
-			//}
-			//vector<u_int64_t> minimizerSeq;
-			
-			//for(size_t i=kminmerInfo._read_pos_start; i<=kminmerInfo._read_pos_end; i++){
-			//	minimizerSeq.push_back(readMinimizers[i]);
-			//}
-			
-
-			//if(kminmerInfo._isReversed){
-			//	std::reverse(minimizerSeq.begin(), minimizerSeq.end());
-			//}
-			bool orientation = !kminmerInfo._isReversed;
-			u_int32_t nodeIndex = BiGraph::nodeName_to_nodeIndex(nodeName, orientation);
-			s += nodeIndex;
-
-			if(i == 0){
-				_kminmerSequenceCopies_all_entire[nodeName] = {};
-			}
-			else {
-				if(orientation){ //+
-					_kminmerSequenceCopies_all_right[nodeName] = {};
-				}
-				else{ //-
-					_kminmerSequenceCopies_all_left[nodeName] = {};
-				}
-			}
-			
-
-		}
-
-		_checksum += s*kminmersInfos.size();
-
-
-	}
-	*/
-
-
-	/*
-	void collectBestSupportingReads(const string& contigFilename){
-
-		_nextReadIndexWriter = 0;
-		_contigFileSupported = ofstream(contigFilename + ".tmp");
-
-		_logFile << "Collecting best supporting reads" << endl;
-		KminmerParserParallel parser(contigFilename, _minimizerSize, _kminmerSize, false, false, _nbCores);
-		parser.parse(CollectBestSupportingReadsFunctor(*this));
-		//KminmerParser parser(contigFilename, _minimizerSize, _kminmerSize, false, false);
-		//auto fp = std::bind(&ToBasespace::collectBestSupportingReads_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
-		//parser.parse(fp);
-
-
-		_contigFileSupported.close();
-
-	}
-
-	
-    struct CollectBestSupportingReadsFunctor_Writer{
-        u_int64_t _readIndex;
-        vector<u_int64_t> _supportingReads;
-        //u_int32_t _prevNodeIndex;
-    };
-
-    struct CollectBestSupportingReadsFunctor_WriterComparator {
-        bool operator()(CollectBestSupportingReadsFunctor_Writer const& p1, CollectBestSupportingReadsFunctor_Writer const& p2){
-            return p1._readIndex > p2._readIndex;
-        }
-    };
-
-	priority_queue<CollectBestSupportingReadsFunctor_Writer, vector<CollectBestSupportingReadsFunctor_Writer> , CollectBestSupportingReadsFunctor_WriterComparator> _readWriterQueue;
-	u_int64_t _nextReadIndexWriter;
-
-	class CollectBestSupportingReadsFunctor {
-
-		public:
-
-		ToBasespace& _toBasespace;
-
-		CollectBestSupportingReadsFunctor(ToBasespace& toBasespace) : _toBasespace(toBasespace){
-		}
-
-		CollectBestSupportingReadsFunctor(const CollectBestSupportingReadsFunctor& copy) : _toBasespace(copy._toBasespace){
-		}
-
-		~CollectBestSupportingReadsFunctor(){
-		}
-
-		//void collectBestSupportingReads_read(const vector<u_int64_t>& readMinimizers, const vector<ReadKminmerComplete>& kminmersInfos, u_int8_t isCircular, u_int64_t readIndex){
-
-		void operator () (const KminmerList& kminmerList) {
-			//if(_invalidContigIndex.find(readIndex) != _invalidContigIndex.end()) return;
-
-			//_logFile << "----------------------" << endl;
-			vector<u_int64_t> supportingReads;
-
-			//cout << kminmerList._readMinimizers.size() << endl;
-			//_logFile << readIndex << " " << kminmersInfos.size() << endl;
-			for(size_t i=0; i<kminmerList._kminmersInfo.size(); i++){
-				
-				//_logFile << readIndex << " " << i << endl;
-				const ReadKminmerComplete& kminmerInfo = kminmerList._kminmersInfo[i];
-
-				KmerVec vec = kminmerInfo._vec;
-				
-				if(_toBasespace._kmerVec_to_nodeName.find(vec) == _toBasespace._kmerVec_to_nodeName.end()){
-					_toBasespace._logFile << "Not found kminmer" << endl;
-					supportingReads.push_back(-1);
-					//getchar();
-					continue;
-				}
-
-				bool orientation = !kminmerInfo._isReversed;
-
-				
-				u_int32_t nodeName = _toBasespace._kmerVec_to_nodeName[vec];
-
-				//_kminmerCounts.clear();
-				//if(_kminmerCounts[nodeName] > 1){
-					//_logFile << nodeName << endl;
-					//isKminmerRepeated.insert(nodeName);
-					u_int64_t readIndex = getBestSupportingRead(nodeName, i, kminmerList._kminmersInfo);
-					supportingReads.push_back(readIndex);
-					
-					ReadNodeName readNodeName = {nodeName, readIndex};
-
-					#pragma omp critical(bestSupport)
-					{
-						if(i == 0){
-							ReadSequence rs = {readIndex, nullptr, {}};
-							_toBasespace._kminmerSequence_entire_multi[nodeName].push_back(rs);
-						}
-						else {
-							if(orientation){ //+
-								//_logFile << "right: " << nodeName << " " << readIndex << endl;
-								ReadSequence rs = {readIndex, nullptr, {}};
-								_toBasespace._kminmerSequence_right_multi[nodeName].push_back(rs);
-							}
-							else{ //-
-								//_logFile << "left: " << nodeName << " " << readIndex << endl;
-								ReadSequence rs = {readIndex, nullptr, {}};
-								_toBasespace._kminmerSequence_left_multi[nodeName].push_back(rs);
-							}
-						}
-					}
-
-			}
-
-			//_toBasespace._nbContigs += 1;
-
-			#pragma omp critical(bestSupport)
-			{
-				_toBasespace._readWriterQueue.push({kminmerList._readIndex, supportingReads});
-				//_logFile << _readWriterQueue.size() << " " << read._index << " " << _nextReadIndexWriter << endl;
-
-				while(!_toBasespace._readWriterQueue.empty()){
-
-					const CollectBestSupportingReadsFunctor_Writer& readWriter = _toBasespace._readWriterQueue.top();
-
-					if(readWriter._readIndex == _toBasespace._nextReadIndexWriter){
-
-						for(u_int64_t readIndex : readWriter._supportingReads){
-							_toBasespace._bestSupportChecksum += readIndex;
-						}
-
-						u_int32_t size = readWriter._supportingReads.size();
-						_toBasespace._contigFileSupported.write((const char*)&size, sizeof(size));
-						_toBasespace._contigFileSupported.write((const char*)&readWriter._supportingReads[0], size*sizeof(u_int64_t));
-
-						_toBasespace._readWriterQueue.pop();
-						_toBasespace._nextReadIndexWriter += 1;
-					}
-					else{
-						break;
-					}
-				}
-				
-			}
-
-
-
-		}
-
-		u_int64_t getBestSupportingRead(u_int32_t nodeName, size_t nodeNamePosition, const vector<ReadKminmerComplete>& kminmersInfos){
-
-			const vector<u_int32_t>& reads = _toBasespace._unitigDatas[nodeName];
-
-			u_int64_t maxNbmatches = 0;
-			u_int64_t bestReadIndex = -1;
-
-			for(u_int64_t readIndex : reads){
-				u_int64_t nbMatchesRight = getMatchDirection(nodeName, nodeNamePosition+1, kminmersInfos, 1, readIndex);
-				u_int64_t nbMatchesLeft = getMatchDirection(nodeName, nodeNamePosition-1, kminmersInfos, -1, readIndex);
-				u_int64_t nbMatches = nbMatchesRight + nbMatchesLeft + 1; //+1 seed match not counted
-				if(nbMatches > maxNbmatches){
-					maxNbmatches = nbMatches;
-					bestReadIndex = readIndex;
-				}
-			}
-
-			return bestReadIndex;
-
-
-		}
-
-		u_int64_t getBestSupportingRead_direction(u_int32_t nodeName, size_t nodeNamePosition, const vector<ReadKminmerComplete>& kminmersInfos, int inc){
-			
-			u_int64_t readIndex = -1;
-			vector<u_int32_t> sharedElements;
-
-			long i = nodeNamePosition;
-
-			while(true){
-				if(i < 0 || i >= kminmersInfos.size()){
-					break;
-				}
-
-				const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
-
-				KmerVec vec = kminmerInfo._vec;
-
-				if(_toBasespace._kmerVec_to_nodeName.find(vec) != _toBasespace._kmerVec_to_nodeName.end()){
-
-					u_int32_t nodeName2 = _toBasespace._kmerVec_to_nodeName[vec];
-					
-					if(sharedElements.size() == 0){
-						Utils::collectSharedElements(_toBasespace._unitigDatas[nodeName], _toBasespace._unitigDatas[nodeName2], sharedElements);
-					}
-					else{
-						vector<u_int32_t> sharedElementTmp;
-						Utils::collectSharedElements(sharedElements, _toBasespace._unitigDatas[nodeName2], sharedElementTmp);
-						sharedElements = sharedElementTmp;
-					}
-
-					if(sharedElements.size() == 0) break;
-
-
-					readIndex = sharedElements[0];
-
-
-
-				}
-
-				i += inc;
-
-			}
-
-			return readIndex;
-
-
-		}
-
-		u_int64_t getMatchDirection(u_int32_t nodeName, size_t nodeNamePosition, const vector<ReadKminmerComplete>& kminmersInfos, int inc, u_int64_t readIndex){
-			
-			//vector<u_int64_t> readIndexSource = {readIndex};
-			u_int64_t nbMatches = 0;
-
-			long i = nodeNamePosition;
-
-			while(true){
-				if(i < 0 || i >= kminmersInfos.size()){
-					break;
-				}
-
-				const ReadKminmerComplete& kminmerInfo = kminmersInfos[i];
-
-				KmerVec vec = kminmerInfo._vec;
-
-				if(_toBasespace._kmerVec_to_nodeName.find(vec) != _toBasespace._kmerVec_to_nodeName.end()){
-
-					u_int32_t nodeName2 = _toBasespace._kmerVec_to_nodeName[vec];
-
-					vector<u_int32_t>& readIndexes = _toBasespace._unitigDatas[nodeName2];
-					if(std::find(readIndexes.begin(), readIndexes.end(), readIndex) == readIndexes.end()){
-						break; 
-					}
-
-				}
-				else{
-					break;
-				}
-
-				nbMatches += 1;
-				i += inc;
-
-			}
-
-			return nbMatches;
-
-
-		}
-
-	};
-
-	*/
->>>>>>> ccec9fda44318f79c35d2b7b4993ce27929368bb
 
 
 	void extractKminmerSequence(const char* sequenceOriginal, const ReadKminmer& kminmerInfo, LoadType loadType, string& sequence){
@@ -2273,30 +1221,18 @@ public:
 
 				if(isEntire){
 					_toBasespace.extractKminmerSequence(sequenceOriginal, kminmerInfo, LoadType::Entire, kminmerSequence);
-<<<<<<< HEAD
 					_toBasespace._readPosition_entire[readPosition] = new DnaBitset2(kminmerSequence);
-=======
-					_toBasespace._readPosition_entire[readPosition] = new DnaBitset(kminmerSequence);
->>>>>>> ccec9fda44318f79c35d2b7b4993ce27929368bb
 					//addKminmerSequenceVariant_add_all(nodeName, readIndex, _toBasespace._kminmerSequenceCopies_all_entire, kminmerSequence, _toBasespace._isDoneNodeName_entire, _toBasespace._kminmerSequence_entire, _toBasespace._kminmerSequence_entire_multi);
 				}
 				
 				if(isLeft){
 					_toBasespace.extractKminmerSequence(sequenceOriginal, kminmerInfo, LoadType::Left, kminmerSequence);
-<<<<<<< HEAD
 					_toBasespace._readPosition_left[readPosition] = new DnaBitset2(kminmerSequence);
-=======
-					_toBasespace._readPosition_left[readPosition] = new DnaBitset(kminmerSequence);
->>>>>>> ccec9fda44318f79c35d2b7b4993ce27929368bb
 					//addKminmerSequenceVariant_add_all(nodeName, readIndex, _toBasespace._kminmerSequenceCopies_all_left, kminmerSequence, _toBasespace._isDoneNodeName_left, _toBasespace._kminmerSequence_left, _toBasespace._kminmerSequence_left_multi);
 				}
 				if(isRight){
 					_toBasespace.extractKminmerSequence(sequenceOriginal, kminmerInfo, LoadType::Right, kminmerSequence);
-<<<<<<< HEAD
 					_toBasespace._readPosition_right[readPosition] = new DnaBitset2(kminmerSequence);
-=======
-					_toBasespace._readPosition_right[readPosition] = new DnaBitset(kminmerSequence);
->>>>>>> ccec9fda44318f79c35d2b7b4993ce27929368bb
 					//addKminmerSequenceVariant_add_all(nodeName, readIndex, _toBasespace._kminmerSequenceCopies_all_right, kminmerSequence, _toBasespace._isDoneNodeName_right, _toBasespace._kminmerSequence_right, _toBasespace._kminmerSequence_right_multi);
 				}
 
@@ -2447,119 +1383,6 @@ public:
 		}
 
 
-<<<<<<< HEAD
-=======
-		void addKminmerSequenceVariant_add_all(u_int32_t nodeName, u_int64_t readIndex, auto& variants, const string& sequence, auto& isDoneNodeName, auto& correctedSequences, auto& repeatedKminmers){
-			
-			//static EdlibAlignConfig config = edlibNewAlignConfig(-1, EDLIB_MODE_NW, EDLIB_TASK_DISTANCE, NULL, 0);
-
-			//_logFile << (isDoneNodeName.find(nodeName) != isDoneNodeName.end()) << endl;
-			//if(sequenceModel == nullptr){
-			//	_logFile << "pas normal" << endl;
-			//	return; //model not found yet
-			//}
-
-			//_logFile << nodeName << " " << sequence.size() << endl;
-						
-
-			vector<DnaBitset*>* queue;
-			VariantQueue* variantQueue;
-			DnaBitset* dnaSeq_model;
-
-			vector<ReadSequence>* readSequences = nullptr;
-
-			bool isRepeated = false;
-			bool cancel = false;
-			
-			#pragma omp critical(indexKminmer)
-			{
-				
-				if(_collectModel){
-
-					for(ReadSequence& rs : repeatedKminmers[nodeName]){
-						if(rs._readIndex == readIndex){
-							rs._sequence = new DnaBitset(sequence);
-						}
-					}
-
-					//ReadNodeName readNodeName = {nodeName, readIndex};
-					//repeatedKminmers_model[readNodeName] = new DnaBitset(sequence);
-					cancel = true;
-
-					//_logFile << repeatedKminmers_model.size() << " " << _toBasespace.isKminmerRepeated.size() << endl;
-					//_logFile << nodeName << " " << readIndex << endl;
-					//if(nodeName == 24 && readIndex == 6){
-					//	getchar();
-					//}
-				}
-				else{
-					/*
-					if(_toBasespace.isKminmerRepeated.find(nodeName) == _toBasespace.isKminmerRepeated.end()){
-						if(isDoneNodeName.find(nodeName) != isDoneNodeName.end()) cancel = true;
-
-						if(!cancel){
-							queue = &variants[nodeName];
-							queue->push_back(new DnaBitset(sequence));
-
-							//if(_toBasespace.isKminmerRepeated.find(nodeName) != _toBasespace.isKminmerRepeated.end()) cancel = true;
-
-							if(queue->size() < 20) cancel = true;
-							
-							if(!cancel) isDoneNodeName.insert(nodeName);
-						}
-
-						isRepeated = false;
-					}
-					else{*/
-
-						//_logFile << "1" << endl;
-						cancel = true;
-						isRepeated = true;
-
-						//if(repeatedKminmers.find(nodeName) != repeatedKminmers.end()){
-						readSequences = &repeatedKminmers[nodeName];
-						//}
-						/*
-						ReadNodeName readNodeName = {nodeName, readIndex};
-						dnaSeq_model = repeatedKminmers_model[readNodeName];
-						//_logFile << nodeName << " " << readIndex << " " << (dnaSeq_model != nullptr) << " " << (_toBasespace.isKminmerRepeated.find(nodeName) != _toBasespace.isKminmerRepeated.end()) << endl;
-						variantQueue = &repeatedKminmers_variants[readNodeName];
-
-						for(const ReadSequence& rs : _toBasespace._kminmerSequence_right_multi){
-							if(rs._readIndex == readIndex){
-								isRight = true;
-							}
-						}
-						*/
-
-					//}
-				}
-
-
-
-
-			}
-
-
-			if(cancel) return;
-
-			string correctedSequence;
-			performErrorCorrection_all(nodeName, *queue, correctedSequence);
-
-			#pragma omp critical
-			{
-				correctedSequences[nodeName] = new DnaBitset(correctedSequence);
-			}
-
-
-		}
-
-
-		void performErrorCorrection_all(u_int32_t nodeName, const vector<DnaBitset*>& sequences, string& correctedSequence){
-			
-		}
-
->>>>>>> ccec9fda44318f79c35d2b7b4993ce27929368bb
 	};
 
 	phmap::parallel_flat_hash_set<u_int32_t> _isDoneNodeName_entire;
@@ -2719,22 +1542,14 @@ public:
 				if(i == 0){
 					if(orientation){ //+
 
-<<<<<<< HEAD
 						string seq = "";
-=======
-						char* seq = nullptr;
->>>>>>> ccec9fda44318f79c35d2b7b4993ce27929368bb
 
 						if(_toBasespace._readPosition_entire.find(readPosition) != _toBasespace._readPosition_entire.end() && _toBasespace._readPosition_entire[readPosition] != nullptr){
 							seq = _toBasespace._readPosition_entire[readPosition]->to_string();
 						}
 
 						
-<<<<<<< HEAD
 						if(seq.size() == 0){
-=======
-						if(seq == nullptr){
->>>>>>> ccec9fda44318f79c35d2b7b4993ce27929368bb
 							//cerr << "No sequence for kminmer" << endl;
 							continue;
 						}
@@ -2759,32 +1574,20 @@ public:
 						*/
 
 						string kminmerSequence = string(seq);
-<<<<<<< HEAD
 						//free(seq);
-=======
-						free(seq);
->>>>>>> ccec9fda44318f79c35d2b7b4993ce27929368bb
 
 						contigSequence += kminmerSequence;
 						//_logFile << contigSequence << endl;
 					}
 					else{
 						
-<<<<<<< HEAD
 						string seq = "";
-=======
-						char* seq = nullptr;
->>>>>>> ccec9fda44318f79c35d2b7b4993ce27929368bb
 
 						if(_toBasespace._readPosition_entire.find(readPosition) != _toBasespace._readPosition_entire.end() && _toBasespace._readPosition_entire[readPosition] != nullptr){
 							seq = _toBasespace._readPosition_entire[readPosition]->to_string();
 						}
 						
-<<<<<<< HEAD
 						if(seq.size() == 0){
-=======
-						if(seq == nullptr){
->>>>>>> ccec9fda44318f79c35d2b7b4993ce27929368bb
 							//cerr << "No sequence for kminmer" << endl;
 							continue;
 						}
@@ -2829,11 +1632,7 @@ public:
 						*/
 
 						string kminmerSequence = string(seq);
-<<<<<<< HEAD
 						//free(seq);
-=======
-						free(seq);
->>>>>>> ccec9fda44318f79c35d2b7b4993ce27929368bb
 
 						Utils::revcomp(kminmerSequence);
 						contigSequence += kminmerSequence;
@@ -2842,21 +1641,13 @@ public:
 				else {
 					if(orientation){
 
-<<<<<<< HEAD
 						string seq = "";
-=======
-						char* seq = nullptr;
->>>>>>> ccec9fda44318f79c35d2b7b4993ce27929368bb
 
 						if(_toBasespace._readPosition_right.find(readPosition) != _toBasespace._readPosition_right.end() && _toBasespace._readPosition_right[readPosition] != nullptr){
 							seq = _toBasespace._readPosition_right[readPosition]->to_string();
 						}
 
-<<<<<<< HEAD
 						if(seq.size() == 0){
-=======
-						if(seq == nullptr){
->>>>>>> ccec9fda44318f79c35d2b7b4993ce27929368bb
 							//cerr << "No sequence for kminmer" << endl;
 							continue;
 						}
@@ -2897,11 +1688,7 @@ public:
 						*/
 
 						string kminmerSequence = string(seq);
-<<<<<<< HEAD
 						//free(seq);
-=======
-						free(seq);
->>>>>>> ccec9fda44318f79c35d2b7b4993ce27929368bb
 						
 						contigSequence += kminmerSequence;
 						
@@ -2909,21 +1696,13 @@ public:
 					}
 					else{
 						
-<<<<<<< HEAD
 						string seq = "";
-=======
-						char* seq = nullptr;
->>>>>>> ccec9fda44318f79c35d2b7b4993ce27929368bb
 
 						if(_toBasespace._readPosition_left.find(readPosition) != _toBasespace._readPosition_left.end() && _toBasespace._readPosition_left[readPosition] != nullptr){
 							seq = _toBasespace._readPosition_left[readPosition]->to_string();
 						}
 						
-<<<<<<< HEAD
 						if(seq.size() == 0){
-=======
-						if(seq == nullptr){
->>>>>>> ccec9fda44318f79c35d2b7b4993ce27929368bb
 							//cerr << "No sequence for kminmer" << endl;
 							continue;
 						}
@@ -2964,11 +1743,7 @@ public:
 						*/
 
 						string kminmerSequence = string(seq);
-<<<<<<< HEAD
 						//free(seq);
-=======
-						free(seq);
->>>>>>> ccec9fda44318f79c35d2b7b4993ce27929368bb
 
 						Utils::revcomp(kminmerSequence);
 						contigSequence += kminmerSequence;
