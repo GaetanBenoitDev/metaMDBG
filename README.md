@@ -146,6 +146,8 @@ metaMDBG asm --out-dir ./outputDir/ --in-ont reads.fastq.gz --max-k 11
 
 ## Generating an assembly graph
 
+<details><summary>See details</summary>
+
 After a successful run of metaMDBG, assembly graph (.gfa) can be generated with the following command.
 ```sh
 metaMDBG gfa --assembly-dir ./assemblyDir/ --k 21 --contigpath --readpath --threads 4
@@ -166,6 +168,8 @@ metaMDBG gfa --assembly-dir ./assemblyDir/ --k 21
 MetaMDBG will generate the assembly graph in the GFA format in assemblyDir (e.g. "assemblyGraph_k21_4013bps.gfa").
 
 Note 1) Unitig sequences in the gfa file are not polished, they have the same error rate as in the original reads. Note 2) To generate the unitig sequences, a pass on the original reads that generated the assembly is required, if you have moved the original readsets, you will need to edit the file ./assemblyDir/tmp/input.txt with the new paths. Note 3) In nanopore mode, the read-path are not very accurate because of the high error rate, we recommend using actual aligner instead, such as graphAligner.
+
+</details>
 
 ## Results
 
