@@ -1,6 +1,6 @@
-MetaMDBG is a fast and low-memory assembler for long and accurate metagenomics reads (e.g. PacBio HiFi, Nanopore r10.4). It is based on the [minimizer de-Brujin graph](https://github.com/ekimb/rust-mdbg) (MDBG), which have been reimplemetend specifically for metagenomics assembly. [MetaMDBG](https://www.nature.com/articles/s41587-023-01983-6) combines an efficient multi-k approach in minimizer-space for dealing with uneven species coverages, and a novel abundance-based filtering method for simplifying strain complexity.
+MetaMDBG is a fast and low-memory assembler for long and accurate metagenomics reads (e.g. PacBio HiFi, Nanopore R10). It is optimized for metagenomes, but also works well on bacterial isolates samples.
 
-The method [nanoMDBG](https://www.biorxiv.org/content/10.1101/2025.04.22.649928v1) for assembling simplex Nanopore reads (R10.4+) is integrated in metaMDBG.
+The method [nanoMDBG](https://www.biorxiv.org/content/10.1101/2025.04.22.649928v1) for assembling Nanopore R10 simplex reads is integrated in metaMDBG.
 
 Developper: Gaëtan Benoit  
 Contact: gaetanbenoitdev at gmail dot com
@@ -36,12 +36,12 @@ git clone https://github.com/GaetanBenoitDev/metaMDBG.git
 # Create metaMDBG conda environment
 cd metaMDBG
 conda env create -f conda_env.yml
-conda activate metamdbg1.2
+conda activate metamdbg1.4
 conda env config vars set CPATH=${CONDA_PREFIX}/include:${CPATH}
 conda deactivate
 
 # Activate metaMDBG environment
-conda activate metamdbg1.2
+conda activate metamdbg1.4
 
 # Compile the software
 mkdir build
@@ -65,8 +65,6 @@ After successful installation, an executable named metaMDBG will appear in ./bui
 - cmake 3.10+
 - zlib
 - openmp
-- [minimap2 2.28+](https://github.com/lh3/minimap2)
-- [GNU time](https://www.gnu.org/software/time/)
   
 </p>
 	
@@ -196,10 +194,16 @@ Alignment and binning were performed with minimap2 and SemiBin2. Completeness an
 
 ## Results on bacterial isolates
 
-| Sample | # contigs | Genome fraction (%) | Duplication ratio | # mismatches per 100 kbp | # indels per 100 kbp | # misassemblies | # local misassemblies | 
-| --- | --- | --- | --- | --- | --- | --- | --- | 
-| [Agarivorans_1](https://journals.asm.org/doi/full/10.1128/mra.00577-25) | 1 | 100.000 | 1.000 | 0.28 | 0.12 | 0 | 0 | 
+| Sample | # reference genomes | # contigs | Genome fraction (%) | Duplication ratio | # mismatches per 100 kbp | # indels per 100 kbp | # misassemblies | # local misassemblies | 
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | 
+| [Escherichia_coli_1](https://journals.asm.org/doi/full/10.1128/mra.00006-26) | 6 | 6 | 99.999 | 1.000 | 0.00 | 0.14 | 0 | 0 | 
+| [Mycobacterium_avium_1](https://journals.asm.org/doi/full/10.1128/mra.00014-26) | 1 | 1 | 100.000 | 1.000 | 0.00 | 0.05 | 0 | 0 | 
+| [Phascolarctobacterium_faecium_1](https://journals.asm.org/doi/full/10.1128/mra.00789-25) | 1 | 1 | 100.000 | 1.000 | 8.60 | 12.90 | 0 | 0 | 
+| [Escherichia_coli_2](https://journals.asm.org/doi/full/10.1128/mra.00746-25) | 5 | 4 | 99.905 | 1.000 | 1.09 | 1.47 | 0 | 1 | 
+| [Saccharolobus_islandicus_1](https://journals.asm.org/doi/full/10.1128/mra.00626-25) | 1 | 1 | 99.838 | 1.000 | 0.00 | 0.00 | 0 | 0 | 
+| [Agarivorans_1](https://journals.asm.org/doi/full/10.1128/mra.00577-25) | 1 | 1 | 100.000 | 1.000 | 0.28 | 0.12 | 0 | 0 | 
 
+MetaMDBG was applied to bacterial isolate samples (each containing a single bacterial genome and, in some cases, multiple plasmids). The linked studies provide the original sequencing reads and the reference genomes assembled using Autocycler. Assembly quality was evaluated using QUAST. 
 
 ## License
 
