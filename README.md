@@ -1,6 +1,6 @@
 MetaMDBG is a fast and low-memory assembler for long and accurate metagenomics reads (e.g. PacBio HiFi, Nanopore R10). It is optimized for metagenomes, but also works well on bacterial isolates samples.
 
-The method [nanoMDBG](https://www.biorxiv.org/content/10.1101/2025.04.22.649928v1) for assembling Nanopore R10 simplex reads is integrated in metaMDBG.
+The method [nanoMDBG](https://www.nature.com/articles/s41467-026-69760-y) for assembling Nanopore R10 simplex reads is integrated in metaMDBG.
 
 Developper: Gaëtan Benoit  
 Contact: gaetanbenoitdev at gmail dot com
