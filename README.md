@@ -66,6 +66,8 @@ After successful installation, an executable named metaMDBG will appear in ./bui
 - zlib
 - openmp
   
+After successful installation, an executable named metaMDBG will appear in ./build/bin.
+
 </p>
 	
 ```sh
