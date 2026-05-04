@@ -66,7 +66,6 @@ After successful installation, an executable named metaMDBG will appear in ./bui
 - zlib
 - openmp
   
-After successful installation, an executable named metaMDBG will appear in ./build/bin.
 
 </p>
 	
@@ -78,6 +77,8 @@ cd build
 cmake ..
 make -j 3
 ```
+
+After successful installation, an executable named metaMDBG will appear in ./build/bin.
 
 </details>
 
