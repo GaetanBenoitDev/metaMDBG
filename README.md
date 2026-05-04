@@ -194,6 +194,12 @@ Alignment and binning were performed with minimap2 and SemiBin2. Completeness an
 | Anaerobic Digester (HiFi) | ERR10905743 | 67 | 10.2 | 40.6 | 
 | Sea Water (HiFi) | ERR9769281 | 22 | 8.2 | 35 | 
 
+## Results on bacterial isolates
+
+| Sample | # contigs | Genome fraction (%) | Duplication ratio | # mismatches per 100 kbp | # indels per 100 kbp | # misassemblies | # local misassemblies | 
+| --- | --- | --- | --- | --- | --- | --- | --- | 
+| [Agarivorans_1](https://journals.asm.org/doi/full/10.1128/mra.00577-25) | 1 | 100.000 | 1.000 | 0.28 | 0.12 | 0 | 0 | 
+
 
 ## License
 
