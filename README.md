@@ -189,14 +189,15 @@ Alignment and binning were performed with minimap2 and SemiBin2. Completeness an
 
 ## Results on bacterial isolates
 
-| Sample | # reference genomes | # contigs | Genome fraction (%) | Duplication ratio | # mismatches per 100 kbp | # indels per 100 kbp | # misassemblies | # local misassemblies | 
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | 
-| [Escherichia_coli_1](https://journals.asm.org/doi/full/10.1128/mra.00006-26) | 6 | 6 | 99.999 | 1.000 | 0.00 | 0.14 | 0 | 0 | 
-| [Mycobacterium_avium_1](https://journals.asm.org/doi/full/10.1128/mra.00014-26) | 1 | 1 | 100.000 | 1.000 | 0.00 | 0.05 | 0 | 0 | 
-| [Phascolarctobacterium_faecium_1](https://journals.asm.org/doi/full/10.1128/mra.00789-25) | 1 | 1 | 100.000 | 1.000 | 8.60 | 12.90 | 0 | 0 | 
-| [Escherichia_coli_2](https://journals.asm.org/doi/full/10.1128/mra.00746-25) | 5 | 4 | 99.905 | 1.000 | 1.09 | 1.47 | 0 | 1 | 
-| [Saccharolobus_islandicus_1](https://journals.asm.org/doi/full/10.1128/mra.00626-25) | 1 | 1 | 99.838 | 1.000 | 0.00 | 0.00 | 0 | 0 | 
-| [Agarivorans_1](https://journals.asm.org/doi/full/10.1128/mra.00577-25) | 1 | 1 | 100.000 | 1.000 | 0.28 | 0.12 | 0 | 0 | 
+| Sample | Average quality score | # reference genomes | # contigs | Genome fraction (%) | Duplication ratio | # mismatches per 100 kbp | # indels per 100 kbp | # misassemblies | # local misassemblies | 
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | 
+| [Escherichia_coli_1](https://journals.asm.org/doi/full/10.1128/mra.00006-26) | 20.97 | 6 | 6 | 99.999 | 1.000 | 0.00 | 0.14 | 0 | 0 | 
+| [Mycobacterium_avium_1](https://journals.asm.org/doi/full/10.1128/mra.00014-26) | 28.08 | 1 | 1 | 100.000 | 1.000 | 0.00 | 0.05 | 0 | 0 | 
+| [Phascolarctobacterium_faecium_1](https://journals.asm.org/doi/full/10.1128/mra.00789-25) | 15.45 | 1 | 1 | 100.000 | 1.000 | 8.60 | 12.90 | 0 | 0 | 
+| [Escherichia_coli_2](https://journals.asm.org/doi/full/10.1128/mra.00746-25) | 16.23 | 5 | 4 | 99.905 | 1.000 | 1.09 | 1.47 | 0 | 1 | 
+| [Saccharolobus_islandicus_1](https://journals.asm.org/doi/full/10.1128/mra.00626-25) | 27.54 | 1 | 1 | 99.838 | 1.000 | 0.00 | 0.00 | 0 | 0 | 
+| [Agarivorans_1](https://journals.asm.org/doi/full/10.1128/mra.00577-25) | 20.73 | 1 | 1 | 100.000 | 1.000 | 0.28 | 0.12 | 0 | 0 | 
+
 
 MetaMDBG was applied to bacterial isolate samples (each containing a single bacterial genome and, in some cases, multiple plasmids). The linked studies provide the original sequencing reads and the reference genomes assembled using Autocycler. Assembly quality was evaluated using QUAST. 
 
