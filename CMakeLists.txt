@@ -12,7 +12,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 #set(CMAKE_CXX_FLAGS "-Wall -w") #-g 
-set(CMAKE_CXX_FLAGS "-Wall -w -g -Wno-c++11-narrowing -D_LIBCPP_DISABLE_AVAILABILITY -Lhtslib -LTurboPFor-Integer-Compression -Lminimap2 -Lspoa")
+set(CMAKE_CXX_FLAGS "-Wall -w -g -Wno-c++11-narrowing -D_LIBCPP_DISABLE_AVAILABILITY")
 
 
 #set(CMAKE_CXX_FLAGS_DEBUG "-g -Ofast")
