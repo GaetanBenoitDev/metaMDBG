@@ -1,5 +1,5 @@
 /**
-    Copyright (C) powturbo 2013-2023
+    Copyright (C) powturbo 2013-2026
     SPDX-License-Identifier: GPL v2 License
 
     This program is free software; you can redistribute it and/or modify
@@ -21,8 +21,8 @@
     - twitter  : https://twitter.com/powturbo
     - email    : powturbo [_AT_] gmail [_DOT_] com
 **/
-// vint.c - "Integer Compression" variable byte 
-  #ifndef USIZE 
+// vint.c - "Integer Compression" variable byte
+  #ifndef USIZE
 #pragma warning( disable : 4005)
 #pragma warning( disable : 4090)
 #pragma warning( disable : 4068)
@@ -32,9 +32,9 @@
 #include "include_/conf.h"
 #include "include_/bitutil.h"
 #include "include_/vint.h"
-#define VB_MAX 0xfd  // reserved : 0xfe=all zeros, 0xff=overflow 
+#define VB_MAX 0xfd  // reserved : 0xfe=all zeros, 0xff=overflow
 #include "include_/vlcbyte.h"
- 
+
 #include "include_/bitutil_.h"
 
 size_t vbbound8( size_t n) { return n; }

@@ -1,5 +1,5 @@
-includedir=/pasteur/appa/homes/gbenoit/appa/bin/htslib4/htslib
-libdir=/pasteur/appa/homes/gbenoit/appa/bin/htslib4/htslib
+includedir=/pasteur/helix/projects/seqbio/gbenoit/workspace/home/tools/merging/metaMDBG_1.4/metaMDBG/ext/htslib
+libdir=/pasteur/helix/projects/seqbio/gbenoit/workspace/home/tools/merging/metaMDBG_1.4/metaMDBG/ext/htslib
 
 # Flags and libraries needed when linking against a static libhts.a
 # (used by manual and semi-manual pkg-config(1)-style enquiries).

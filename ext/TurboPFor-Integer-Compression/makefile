@@ -72,7 +72,7 @@ endif
   _SSE=-march=armv8-a
 else ifeq ($(ARCH),$(filter $(ARCH),x86_64))
 # set minimum arch sandy bridge SSE4.1 + AVX
-  _SSE=-msse4.1
+  _SSE=-msse4.1 #-march=corei7-avx -mtune=corei7-avx
 # _SSE+=-mno-avx -mno-aes
   _AVX2=-march=haswell
 endif

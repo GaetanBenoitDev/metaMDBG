@@ -1,3 +1,26 @@
+/**
+    Copyright (C) powturbo 2013-2026
+    GPL v2 License
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License along
+    with this program; if not, write to the Free Software Foundation, Inc.,
+    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+    - homepage : https://sites.google.com/site/powturbo/
+    - github   : https://github.com/powturbo
+    - twitter  : https://twitter.com/powturbo
+    - email    : powturbo [_AT_] gmail [_DOT_] com
+**/
 //--  transpose.h - Byte/Nibble transpose for further compressing with lz77 or other compressors -------------------------------------
 
 #ifdef __cplusplus
@@ -20,20 +43,20 @@ void tpxenc(       unsigned char *in, unsigned n, unsigned char *out, unsigned e
 void tpxdec(       unsigned char *in, unsigned n, unsigned char *out, unsigned esize);
 
 //2D transpose
-void tp2denc(      unsigned char *in,             unsigned nx, unsigned ny,             unsigned char *out, unsigned esize); 
+void tp2denc(      unsigned char *in,             unsigned nx, unsigned ny,             unsigned char *out, unsigned esize);
 void tp2ddec(      unsigned char *in,             unsigned nx, unsigned ny,             unsigned char *out, unsigned esize);
 
-void tp2denc2(     unsigned char *in,             unsigned nx, unsigned ny,             unsigned char *out); 
+void tp2denc2(     unsigned char *in,             unsigned nx, unsigned ny,             unsigned char *out);
 void tp2ddec2(     unsigned char *in,             unsigned nx, unsigned ny,             unsigned char *out);
 
-void tp2denc4(     unsigned char *in,             unsigned nx, unsigned ny,             unsigned char *out); 
+void tp2denc4(     unsigned char *in,             unsigned nx, unsigned ny,             unsigned char *out);
 void tp2ddec4(     unsigned char *in,             unsigned nx, unsigned ny,             unsigned char *out);
 
-void tp2denc8(     unsigned char *in,             unsigned nx, unsigned ny,             unsigned char *out); 
+void tp2denc8(     unsigned char *in,             unsigned nx, unsigned ny,             unsigned char *out);
 void tp2ddec8(     unsigned char *in,             unsigned nx, unsigned ny,             unsigned char *out);
 
 //3D transpose
-void tp3denc(      unsigned char *in,             unsigned nx, unsigned ny, unsigned nz, unsigned char *out, unsigned esize); 
+void tp3denc(      unsigned char *in,             unsigned nx, unsigned ny, unsigned nz, unsigned char *out, unsigned esize);
 void tp3ddec(      unsigned char *in,             unsigned nx, unsigned ny, unsigned nz, unsigned char *out, unsigned esize);
 
 void tp3denc2(     unsigned char *in,             unsigned nx, unsigned ny, unsigned nz, unsigned char *out);
@@ -46,7 +69,7 @@ void tp3denc8(     unsigned char *in,             unsigned nx, unsigned ny, unsi
 void tp3ddec8(     unsigned char *in,             unsigned nx, unsigned ny, unsigned nz, unsigned char *out);
 
 //4D transpose
-void tp4denc(      unsigned char *in, unsigned nw, unsigned nx, unsigned ny, unsigned nz, unsigned char *out, unsigned esize); 
+void tp4denc(      unsigned char *in, unsigned nw, unsigned nx, unsigned ny, unsigned nz, unsigned char *out, unsigned esize);
 void tp4ddec(      unsigned char *in, unsigned nw, unsigned nx, unsigned ny, unsigned nz, unsigned char *out, unsigned esize);
 
 void tp4denc2(     unsigned char *in, unsigned nw, unsigned nx, unsigned ny, unsigned nz, unsigned char *out);
@@ -170,7 +193,7 @@ void tp4zdec128v8( unsigned char *in, unsigned n, unsigned char *out);
 void tp4xenc128v8( unsigned char *in, unsigned n, unsigned char *out);
 void tp4xdec128v8( unsigned char *in, unsigned n, unsigned char *out);
 
-//-- avx2 
+//-- avx2
 //-- byte transpose
 void tpenc256v2(   unsigned char *in, unsigned n, unsigned char *out); //-- 16 bits
 void tpdec256v2(   unsigned char *in, unsigned n, unsigned char *out);

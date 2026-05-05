@@ -1,5 +1,5 @@
 /**
-    Copyright (C) powturbo 2013-2023
+    Copyright (C) powturbo 2013-2026
     SPDX-License-Identifier: GPL v2 License
 
     This program is free software; you can redistribute it and/or modify
@@ -48,7 +48,7 @@ unsigned bicbdec16(unsigned char *in, unsigned n, uint16_t      *out);
 unsigned bicbenc32(uint32_t      *in, unsigned n, unsigned char *out);
 unsigned bicbdec32(unsigned char *in, unsigned n, uint32_t      *out);
 
-//-- Leftmost minimal 
+//-- Leftmost minimal
 unsigned bicenc16( uint16_t      *in, unsigned n, unsigned char *out);
 unsigned bicdec16( unsigned char *in, unsigned n, uint16_t      *out);
 unsigned bicenc32( uint32_t      *in, unsigned n, unsigned char *out);

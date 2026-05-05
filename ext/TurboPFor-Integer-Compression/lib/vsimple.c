@@ -1,5 +1,5 @@
 /**
-    Copyright (C) powturbo 2013-2023
+    Copyright (C) powturbo 2013-2026
     SPDX-License-Identifier: GPL v2 License
 
     This program is free software; you can redistribute it and/or modify
@@ -453,7 +453,8 @@ unsigned char *T2(VSDEC, USIZE)(unsigned char *__restrict ip, size_t n, uint_t *
           unsigned b = ((*ip++) >> 5)+1;
           *op = *(unsigned long long *)ip;
           if(unlikely(b!=8))
-            *op &= (1ull<<(b*8))-1;         op++; ip += b;
+            *op &= (1ull<<(b*8))-1;
+                                            op++; ip += b;
           break;
         }
           #endif

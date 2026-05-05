@@ -1,3 +1,26 @@
+/**
+    Copyright (C) powturbo 2013-2026
+    GPL v2 License
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License along
+    with this program; if not, write to the Free Software Foundation, Inc.,
+    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+    - homepage : https://sites.google.com/site/powturbo/
+    - github   : https://github.com/powturbo
+    - twitter  : https://twitter.com/powturbo
+    - email    : powturbo [_AT_] gmail [_DOT_] com
+**/
 //---- "Integer Compression" scalar variable byte -------------------------------
 #include "conf.h"
 //----------------------------------- Variable byte: single value macros (low level) -----------------------------------------------
@@ -84,23 +107,23 @@ extern unsigned char _vtab32_[];
 #define VS22MAX            4276351
 #define vslen22(_x_)       _vslen(_x_,0xff,6)
 #define vsput22(_op_, _x_) _vsput(_op_, _x_, 0xff, 6, ;)
-#define vsget22(_ip_, _x_) _vsget(_ip_, _x_, 0xff, 6, ;) 
+#define vsget22(_ip_, _x_) _vsget(_ip_, _x_, 0xff, 6, ;)
 
 #define VS21MAX            2171071
 #define vslen21(_x_)       _vslen(_x_,       0xff, 5)
 #define vsput21(_op_, _x_) _vsput(_op_, _x_, 0xff, 5, ;)
-#define vsget21(_ip_, _x_) _vsget(_ip_, _x_, 0xff, 5, ;) 
+#define vsget21(_ip_, _x_) _vsget(_ip_, _x_, 0xff, 5, ;)
 
 #define VS20MAX            1118431
 #define vslen20(_x_)       _vslen(_x_,0xff,4)
 #define vsput20(_op_, _x_) _vsput(_op_, _x_, 0xff, 4, ;)
-#define vsget20(_ip_, _x_) _vsget(_ip_, _x_, 0xff, 4, ;) 
+#define vsget20(_ip_, _x_) _vsget(_ip_, _x_, 0xff, 4, ;)
  #else
  #endif
 
 //----------------------------------------------------- 32/64 integer 1,2,3,4,5 bytes----------------------------------------------------------------------------------------
 #define _vbba3(_vbsize_,_vbmax_)                    (_vbmax_ - (_vbsize_/8 - 3))
-#define _vbba2(_vbsize_,_vbmax_,_vbb3_)             (_vbba3(_vbsize_,_vbmax_) - (1<<_vbb3_))  
+#define _vbba2(_vbsize_,_vbmax_,_vbb3_)             (_vbba3(_vbsize_,_vbmax_) - (1<<_vbb3_))
 
 #define _vbo1(_vbsize_,_vbmax_,_vbb2_,_vbb3_)       (_vbba2( _vbsize_,_vbmax_,       _vbb3_) - (1<<_vbb2_))
 #define _vbo2(_vbsize_,_vbmax_,_vbb2_,_vbb3_)       (_vbo1(_vbsize_,_vbmax_,_vbb2_,_vbb3_) + (1 << ( 8+_vbb2_)))
@@ -109,7 +132,7 @@ extern unsigned char _vtab32_[];
 #define _vblen(_x_, _vbsize_,_vbmax_,_vbb2_,_vbb3_) ((_x_) < _vbo1(_vbsize_,_vbmax_,_vbb2_,_vbb3_)?1:\
                                                     ((_x_) < _vbo2(_vbsize_,_vbmax_,_vbb2_,_vbb3_)?2:\
 													((_x_) < _vbo3(_vbsize_,_vbmax_,_vbb2_,_vbb3_)?3:((T2(bsr,_vbsize_)(_x_)+7)/8+1))))
-													
+
 #define _vbvlen(_x_,_vbsize_,_vbmax_,_vbb2_,_vbb3_) ((_x_) < _vbo1(_vbsize_,_vbmax_,_vbb2_,_vbb3_)?1:((_x_) < _vbba2(_vbsize_,_vbmax_,_vbb3_)?2:((_x_) < _vbba3(_vbsize_,_vbmax_))?3:((_x_)-_vbba3(_vbsize_,_vbmax_))))
 
 #define _vbput(_op_, _x_, _vbsize_,_vbmax_,_vbb2_,_vbb3_, _act_) do {\
@@ -131,20 +154,20 @@ extern unsigned char _vtab32_[];
 #endif
 
   #ifndef NMACROS
-//-- 64 bits -----  
-#define vblen64(_x_)               _vblen( _x_,      64, VB_MAX, 6, 5) 
-#define vbvlen64(_x_)              _vbvlen(_x_,      64, VB_MAX, 6, 5) 
+//-- 64 bits -----
+#define vblen64(_x_)               _vblen( _x_,      64, VB_MAX, 6, 5)
+#define vbvlen64(_x_)              _vbvlen(_x_,      64, VB_MAX, 6, 5)
 #define _vbput64(_op_, _x_, _act_) _vbput(_op_, _x_, 64, VB_MAX, 6, 5, _act_)
-#define _vbget64(_ip_, _x_, _act_) _vbget(_ip_, _x_, 64, VB_MAX, 6, 5, _act_) 
+#define _vbget64(_ip_, _x_, _act_) _vbget(_ip_, _x_, 64, VB_MAX, 6, 5, _act_)
 #define vbput64(_op_, _x_)         do { unsigned long long _x = _x_; _vbput64(_op_, _x_, ;); } while(0)
 #define vbget64(_ip_, _x_)         _vbget64(_ip_, _x_, ;)
 //-- 32 bits -----
-#define vblen32(      _x_)         _vblen(      _x_, 32, VB_MAX, 6, 5) 
-#define vbvlen32(     _x_)         _vbvlen(     _x_, 32, VB_MAX, 6, 5) 
+#define vblen32(      _x_)         _vblen(      _x_, 32, VB_MAX, 6, 5)
+#define vbvlen32(     _x_)         _vbvlen(     _x_, 32, VB_MAX, 6, 5)
 #define _vbput32(_op_, _x_, _act_) _vbput(_op_, _x_, 32, VB_MAX, 6, 5, _act_)
-#define _vbget32(_ip_, _x_, _act_) _vbget(_ip_, _x_, 32, VB_MAX, 6, 5, _act_) 
+#define _vbget32(_ip_, _x_, _act_) _vbget(_ip_, _x_, 32, VB_MAX, 6, 5, _act_)
 #define vbput32(_op_, _x_)         do { unsigned _x = _x_; _vbput32(_op_, _x, ;); } while(0)
-#define vbget32(_ip_, _x_)         _vbget32(_ip_, _x_, ;) 
+#define vbget32(_ip_, _x_)         _vbget32(_ip_, _x_, ;)
 //-- 16 bits -----
 #define vblen16( _x_)              vblen32(_x_)
 #define vbvlen16(_x_)              vbvlen32(_x_)
@@ -158,9 +181,9 @@ extern unsigned char _vtab32_[];
 #define _vbget8(_ip_, _x_, _act_)  { _x_ = *_ip_++; _act_; }
 #define vbvlen8(_x_) 1
 
-#define vllen32(_x_)                                _vblen(       _x_, 32, VB_MAX, 4, 3) 
+#define vllen32(_x_)                                _vblen(       _x_, 32, VB_MAX, 4, 3)
 #define vlput32(_op_, _x_)  do { unsigned _x = _x_; _vbput(_op_, _x,  32, VB_MAX, 4, 3, ;); } while(0)
-#define vlget32(_ip_, _x_)                          _vbget(_ip_, _x_, 32, VB_MAX, 4, 3, ;) 
+#define vlget32(_ip_, _x_)                          _vbget(_ip_, _x_, 32, VB_MAX, 4, 3, ;)
   #else
 static ALWAYS_INLINE unsigned vblen32(unsigned       x) { return _vblen(      x, 32, VB_MAX, 6, 5); }
 #define vbput32(_op_, _x_) _vbput(_op_, _x_, 32, VB_MAX, 6, 5, ;)

@@ -1,5 +1,5 @@
 /**
-    Copyright (C) powturbo 2015-2023
+    Copyright (C) powturbo 2015-2026
     SPDX-License-Identifier: GPL v2 License
 
     This program is free software; you can redistribute it and/or modify
@@ -48,7 +48,7 @@
 #include "include_/conf.h"
 #include "include_/trle.h"
 #include "trle_.h"
-  
+
   #ifdef __ARM_NEON
 #define PREFETCH(_ip_,_rw_)
   #else
@@ -356,14 +356,22 @@ unsigned T2(_srled, USIZE)(const unsigned char *__restrict in, unsigned char *__
       op += r;
       ip += (r+1)*sizeof(uint_t);                                               PREFETCH(ip+512, 0);
        #else
-    if(((c = ctout(ip)) == e)) goto a;        ip += sizeof(uint_t); *op++ = c;
-    if(((c = ctout(ip)) == e)) goto a;        ip += sizeof(uint_t); *op++ = c;
-    if(((c = ctout(ip)) == e)) goto a;        ip += sizeof(uint_t); *op++ = c;
-    if(((c = ctout(ip)) == e)) goto a;        ip += sizeof(uint_t); *op++ = c;
-    if(((c = ctout(ip)) == e)) goto a;        ip += sizeof(uint_t); *op++ = c;
-    if(((c = ctout(ip)) == e)) goto a;        ip += sizeof(uint_t); *op++ = c;
-    if(((c = ctout(ip)) == e)) goto a;        ip += sizeof(uint_t); *op++ = c;
-    if(((c = ctout(ip)) == e)) goto a;        ip += sizeof(uint_t); *op++ = c;          PREFETCH(ip +512, 0);
+    if(((c = ctout(ip)) == e)) goto a;
+    ip += sizeof(uint_t); *op++ = c;
+    if(((c = ctout(ip)) == e)) goto a;
+    ip += sizeof(uint_t); *op++ = c;
+    if(((c = ctout(ip)) == e)) goto a;
+    ip += sizeof(uint_t); *op++ = c;
+    if(((c = ctout(ip)) == e)) goto a;
+    ip += sizeof(uint_t); *op++ = c;
+    if(((c = ctout(ip)) == e)) goto a;
+    ip += sizeof(uint_t); *op++ = c;
+    if(((c = ctout(ip)) == e)) goto a;
+    ip += sizeof(uint_t); *op++ = c;
+    if(((c = ctout(ip)) == e)) goto a;
+    ip += sizeof(uint_t); *op++ = c;
+    if(((c = ctout(ip)) == e)) goto a;
+    ip += sizeof(uint_t); *op++ = c;                                            PREFETCH(ip +512, 0);
     continue;
     a: ip += sizeof(uint_t);                                                    PREFETCH(ip +512, 0);
        #endif

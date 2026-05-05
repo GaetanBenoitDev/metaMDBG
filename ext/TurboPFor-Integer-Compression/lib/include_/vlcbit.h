@@ -1,3 +1,26 @@
+/**
+    Copyright (C) powturbo 2013-2026
+    GPL v2 License
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License along
+    with this program; if not, write to the Free Software Foundation, Inc.,
+    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+    - homepage : https://sites.google.com/site/powturbo/
+    - github   : https://github.com/powturbo
+    - twitter  : https://twitter.com/powturbo
+    - email    : powturbo [_AT_] gmail [_DOT_] com
+**/
 //-- Turbo VLC : Novel Variable Length Coding for large integers with exponent + mantissa
 #include "conf.h"
 
@@ -124,7 +147,7 @@ static inline int vlcexpo(unsigned x, unsigned vn) { unsigned expo; _vlcexpo_(x,
 #define VHI_I 2
 #define VHI_J 1
 
-//#define _vlcexpo_(_x_, _k_,_i_,_j, _expo_) 
+//#define _vlcexpo_(_x_, _k_,_i_,_j, _expo_)
 #define vhienc(_x_, _k_, _i_, _j_, _expo_, _mb_, _ma_) {\
   unsigned n = __bsr32(_x_), m = _x_ - (1 << n);\
   _expo_ = (1<<_k_) + ((n - _k_) << (_i_ + _j_)) + ((m >> (n - _i_)) << _j_) + BZHI32(m,_j_);\

@@ -1,5 +1,5 @@
 /**
-    Copyright (C) powturbo 2015-2023
+    Copyright (C) powturbo 2015-2026
     SPDX-License-Identifier: GPL v2 License
 
     This program is free software; you can redistribute it and/or modify
@@ -252,7 +252,7 @@ unsigned trlec(const unsigned char *__restrict in, unsigned inlen, unsigned char
     TRLEPUT(pp, ip, m, rmap, op);
     pp = ++ip;
   }
-  if(ip < ie) PUTC(op, *ip++);                                      
+  if(ip < ie) PUTC(op, *ip++);
                                                                 AS(ip == ie, "Fatal ip>ie=%d ", (int)(ip-ie));
 
   if(op - out < inlen)

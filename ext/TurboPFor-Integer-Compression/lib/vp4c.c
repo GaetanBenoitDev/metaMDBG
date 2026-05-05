@@ -1,5 +1,5 @@
 /**
-    Copyright (C) powturbo 2013-2023
+    Copyright (C) powturbo 2013-2026
     SPDX-License-Identifier: GPL v2 License
 
     This program is free software; you can redistribute it and/or modify
@@ -43,7 +43,7 @@
 #define HYBRID 1 // Hybrid TurboPFor : 0=fixed bit packing, 1=fixed BP+Variable byte
 
   #ifndef __AVX2__
-#define VP4BOUND(_n_, _esize_, _csize_) ((_esize_*_n_) + ((_n_+_csize_-1)/_csize_))
+#define VP4BOUND(_n_, _esize_, _csize_) (((_esize_+1)*_n_) + ((_n_+_csize_-1)/_csize_)) // variable byte requires in worst case usize+1 for each entry
 size_t p4nbound8(     size_t n) { return VP4BOUND(n, 1, 128); }
 size_t p4nbound16(    size_t n) { return VP4BOUND(n, 2, 128); }
 size_t p4nbound32(    size_t n) { return VP4BOUND(n, 4, 128); }
@@ -57,8 +57,8 @@ size_t p4nbound128v64(size_t n) { return VP4BOUND(n, 8, 128); }
 size_t p4nbound256v8( size_t n) { return VP4BOUND(n, 1, 256); }
 size_t p4nbound256v16(size_t n) { return VP4BOUND(n, 2, 256); }
 size_t p4nbound256v32(size_t n) { return VP4BOUND(n, 4, 256); }
-size_t p4nbound256v64(size_t n) { return VP4BOUND(n, 8, 128); }
-  
+size_t p4nbound256v64(size_t n) { return VP4BOUND(n, 8, 256); }
+
 #define _P4BITS _p4bits
 #define  P4BITS _p4bits
 #define _P4ENC   _p4enc
@@ -377,17 +377,18 @@ unsigned char *T2(_P4ENC, USIZE)(uint_t *__restrict in, unsigned n, unsigned cha
     #if HYBRID > 0 && USIZE >= 16
   if(bx <= USIZE) {
     #endif
-    for(i = 0; i < (n+63)/64; i++) ctou64(out+i*8) = xmap[i];     out += PAD8(n);   //if(eqx == xn && bx) { out[-1] |=0x80; T2(ctou, USIZE)(out)=ax; out += (bx+7)/8; } else
+    for(i = 0; i < (n+63)/64; i++) ctou64(out+i*8) = xmap[i];            //if(eqx == xn && bx) { out[-1] |=0x80; T2(ctou, USIZE)(out)=ax; out += (bx+7)/8; } else
+    out += PAD8(n);
     out = T2(bitpack, USIZE)(inx, xn, out, bx);                          //if(eq == n && b) { out[-1]|= 0x80; T2(ctou, USIZE)(out)=a; out += (b+7)/8; } else
     out = T2(BITPACK, USIZE)(_in, n,  out, b);
     #if HYBRID > 0 && USIZE >= 16
   }
-  else {
+  else { 																//unsigned char *o = out;
     *out++ = xn;                                                                //if(b && eq == n) { *out++ = 0x80; T2(ctou, USIZE)(out) = _in[0]; out += (b+7)/8; } else { *out++ = 0;
-      out = T2(BITPACK, USIZE)(_in, n, out, b);
+    out    = T2(BITPACK, USIZE)(_in, n, out, b);
 
-    out = T2(vbenc, USIZE)(inx, xn, out);
-    for(i = 0; i != xn; ++i) *out++ = miss[i];
+    out    = T2(vbenc, USIZE)(inx, xn, out);
+    for(i = 0; i != xn; ++i) *out++ = miss[i];                          //	printf("$bit=n=%d, b=%d,xn=%d o-out=%d ", n, b, xn, (unsigned)(out - o));
   }
     #endif
   return out;
