@@ -6,12 +6,10 @@ Developper: Gaëtan Benoit
 Contact: gaetanbenoitdev at gmail dot com
 
 ## News
-Feb 2026:
-MetaMDBG v1.3 is out!
-* Fixed clipping events
-* Fixed zero-coverage regions
-* Fixed chimeric contigs
-* Improved performances
+May 2026:
+MetaMDBG v1.4 is out!
+* Major performance update (both runtime and memory)
+* Better polishing
   
 Check out the new results below.
 
