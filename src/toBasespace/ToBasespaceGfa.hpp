@@ -4,6 +4,7 @@
 #ifndef MDBG_METAG_TOBASESPACEGFA
 #define MDBG_METAG_TOBASESPACEGFA
 
+#include <mutex>
 #include "../Commons.hpp"
 //#include "../utils/edlib.h"
 //#include "../utils/spoa/include/spoa/spoa.hpp"
@@ -444,7 +445,13 @@ public:
 	phmap::parallel_flat_hash_map<KmerVec, u_int32_t> _kmerVec_to_nodeName;
 	phmap::parallel_flat_hash_map<KmerVec, vector<KminmerPos>> _kmerVecIndex;
 	phmap::parallel_flat_hash_map<u_int32_t, KminmerPos> _bestReadMatch;
-	phmap::parallel_flat_hash_map<ContigPosition, ReadPositionMatch> _contigPosition_to_readPosition;
+	// Sharded: 2^8 submaps, each with its own mutex, so concurrent
+	// indexMatchingPosition calls only contend when they hit the same submap.
+	phmap::parallel_flat_hash_map<ContigPosition, ReadPositionMatch,
+		phmap::priv::hash_default_hash<ContigPosition>,
+		phmap::priv::hash_default_eq<ContigPosition>,
+		phmap::priv::Allocator<phmap::priv::Pair<const ContigPosition, ReadPositionMatch>>,
+		8, std::mutex> _contigPosition_to_readPosition;
 	phmap::parallel_flat_hash_map<ReadPosition, DnaBitset2*> _readPosition_entire;
 	phmap::parallel_flat_hash_map<ReadPosition, DnaBitset2*> _readPosition_left;
 	phmap::parallel_flat_hash_map<ReadPosition, DnaBitset2*> _readPosition_right;
@@ -938,30 +945,17 @@ public:
 
 
 		
-		#pragma omp critical(indexMatchingPosition)
-		{
-			if(_contigPosition_to_readPosition.find(contigPosition) == _contigPosition_to_readPosition.end()){
-				_contigPosition_to_readPosition[contigPosition] = readPosition;
-			}
-			else{
-				
-				const ReadPositionMatch& readPositionExisting = _contigPosition_to_readPosition[contigPosition];
-
-
-				if(readPosition._matchLength == readPositionExisting._matchLength){
-					if(readPosition._readIndex < readPositionExisting._readIndex){
-						_contigPosition_to_readPosition[contigPosition] = readPosition;
-					}
-
+		// Keep the longest match per contig position; ties go to the lower read
+		// index, so the result does not depend on thread scheduling.
+		_contigPosition_to_readPosition.try_emplace_l(contigPosition,
+			[&readPosition](auto& entry){
+				ReadPositionMatch& existing = entry.second;
+				if(readPosition._matchLength > existing._matchLength ||
+				   (readPosition._matchLength == existing._matchLength && readPosition._readIndex < existing._readIndex)){
+					existing = readPosition;
 				}
-				else if(readPosition._matchLength > readPositionExisting._matchLength){
-					_contigPosition_to_readPosition[contigPosition] = readPosition;
-
-				}
-			}
-
-
-		}
+			},
+			readPosition);
 		
 
 	}
