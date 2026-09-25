@@ -4,6 +4,9 @@
 #ifndef MDBG_METAG_TOBASESPACEGFA
 #define MDBG_METAG_TOBASESPACEGFA
 
+#include <unordered_map>
+#include <mutex>
+#include <map>
 #include "../Commons.hpp"
 //#include "../utils/edlib.h"
 //#include "../utils/spoa/include/spoa/spoa.hpp"
@@ -389,12 +392,12 @@ public:
 		*/
 		
 		_contigIndex = 0;
-		_basespaceContigFile = gzopen(_filename_outputContigs.c_str(),"wb");
+		_basespaceContigFile = fopen(_filename_outputContigs.c_str(),"wb");
 
 		createBaseContigs(_inputFilenameContig);
 		//createBaseContigs(inputFilenameContigSmall);
 
-		gzclose(_basespaceContigFile);
+		fclose(_basespaceContigFile);
 		//delete _mdbg;
 		/*
 		gzclose(_outputFile_left);
@@ -1415,8 +1418,79 @@ public:
 	}
 
 
-	gzFile _basespaceContigFile;
+	FILE* _basespaceContigFile;
 	u_int64_t _contigIndex;
+
+	// createBaseContigs builds contig records on several threads. Records are
+	// grouped into chunks of consecutive contigs; the thread that completes a
+	// chunk compresses it as a standalone gzip member, and members are written
+	// in chunk order. The file is a valid multi-member gzip whose decompressed
+	// content matches a single-threaded run.
+	static const u_int64_t _contigChunkSize = 1024;
+	std::mutex _contigWriteMutex;
+	std::unordered_map<u_int64_t, pair<u_int64_t, vector<string>>> _contigChunks;
+	std::map<u_int64_t, string> _compressedContigChunks;
+	u_int64_t _nextContigChunkToWrite;
+
+	static string gzipCompress(const vector<string>& records){
+		string input;
+		for(const string& r : records) input += r;
+		z_stream zs = {};
+		deflateInit2(&zs, Z_DEFAULT_COMPRESSION, Z_DEFLATED, 15 + 16, 8, Z_DEFAULT_STRATEGY);
+		string output(deflateBound(&zs, input.size()), '\0');
+		zs.next_in = (Bytef*) input.data();
+		zs.avail_in = input.size();
+		zs.next_out = (Bytef*) &output[0];
+		zs.avail_out = output.size();
+		deflate(&zs, Z_FINISH);
+		output.resize(zs.total_out);
+		deflateEnd(&zs);
+		return output;
+	}
+
+	// Caller holds _contigWriteMutex.
+	void flushCompressedContigChunks(){
+		auto it = _compressedContigChunks.begin();
+		while(it != _compressedContigChunks.end() && it->first == _nextContigChunkToWrite){
+			fwrite(it->second.data(), 1, it->second.size(), _basespaceContigFile);
+			it = _compressedContigChunks.erase(it);
+			_nextContigChunkToWrite += 1;
+		}
+	}
+
+	void writeContigRecordOrdered(u_int64_t index, string&& record, u_int64_t nbBps){
+		u_int64_t chunkIndex = index / _contigChunkSize;
+		vector<string> completed;
+		{
+			std::lock_guard<std::mutex> lock(_contigWriteMutex);
+			_nbBps += nbBps;
+			_contigIndex += 1;
+			auto& chunk = _contigChunks[chunkIndex];
+			if(chunk.second.empty()) chunk.second.resize(_contigChunkSize);
+			chunk.second[index % _contigChunkSize] = std::move(record);
+			chunk.first += 1;
+			if(chunk.first < _contigChunkSize) return;
+			completed = std::move(chunk.second);
+			_contigChunks.erase(chunkIndex);
+		}
+		string compressed = gzipCompress(completed);
+		std::lock_guard<std::mutex> lock(_contigWriteMutex);
+		_compressedContigChunks.emplace(chunkIndex, std::move(compressed));
+		flushCompressedContigChunks();
+	}
+
+	// After parsing: only the last, partial chunk can remain.
+	void finishContigRecords(){
+		std::lock_guard<std::mutex> lock(_contigWriteMutex);
+		for(auto& it : _contigChunks){
+			_compressedContigChunks.emplace(it.first, gzipCompress(it.second.second));
+		}
+		_contigChunks.clear();
+		flushCompressedContigChunks();
+		if(!_compressedContigChunks.empty()){
+			Logger::get().error() << "createBaseContigs: " << _compressedContigChunks.size() << " contig chunks were not written";
+		}
+	}
 
 	/*
 	void createBaseContigs (const string& contigFilename, const string& outputFilename){
@@ -1444,8 +1518,12 @@ public:
 
 
 		//KminmerParserParallel parser(contigFilename, _minimizerSize, _kminmerSize, false, false);
-		KminmerParserParallel parser(_inputFilenameContig, _minimizerSize, _kminmerSize, false, false, 1);
+		_nextContigChunkToWrite = 0;
+		_contigChunks.clear();
+		_compressedContigChunks.clear();
+		KminmerParserParallel parser(_inputFilenameContig, _minimizerSize, _kminmerSize, false, false, _nbCores);
 		parser.parse(CreateBaseContigsFunctor(*this));
+		finishContigRecords();
 		//auto fp = std::bind(&ToBasespace::createBaseContigs_read, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
 		//parser.parseMinspace(fp);
 
@@ -1499,7 +1577,10 @@ public:
 				
 				
 				ContigPosition contigPosition =  {(u_int32_t) readIndex, i};
-				const ReadPositionMatch& readPositionMatch = _toBasespace._contigPosition_to_readPosition[contigPosition];
+				// Read-only lookup: this functor runs on several threads. A missing
+				// position behaves like the value-initialized entry operator[] would add.
+				auto matchIt = _toBasespace._contigPosition_to_readPosition.find(contigPosition);
+				const ReadPositionMatch readPositionMatch = matchIt != _toBasespace._contigPosition_to_readPosition.end() ? matchIt->second : ReadPositionMatch{};
 				const ReadPosition& readPosition = {readPositionMatch._readIndex, readPositionMatch._readPosition};
 
 				//_logFile << i << " " << supportingReads.size() << endl;
@@ -1753,17 +1834,12 @@ public:
 				}
 			}
 
+			string record;
 			if(contigSequence.size() == 0){
-				//cout << "lul" << endl;
-				//Logger::get().debug() << "Empty contig " << kminmerList._kminmersInfo.size();
-				//return;
-				string header = ">ctg" + to_string(readIndex) + "l\n";
-				gzwrite(_toBasespace._basespaceContigFile, (const char*)&header[0], header.size());
+				record = ">ctg" + to_string(readIndex) + "l\n";
 				contigSequence = "A\n";
-				gzwrite(_toBasespace._basespaceContigFile, (const char*)&contigSequence[0], contigSequence.size());
 			}
 			else{
-				//cout << "lala:" << ((u_int32_t) isCircular) << endl;
 				string linearOrCircular;
 				if(isCircular == CONTIG_LINEAR){
 					linearOrCircular = "l";
@@ -1774,22 +1850,11 @@ public:
 				else if(isCircular == CONTIG_CIRCULAR_RESCUED){
 					linearOrCircular = "rc";
 				}
-
-				//_logFile << contigSequence.size() << endl;
-
-				string header = ">ctg" + to_string(readIndex) + linearOrCircular + '\n';
-				gzwrite(_toBasespace._basespaceContigFile, (const char*)&header[0], header.size());
-				contigSequence +=  '\n';
-				gzwrite(_toBasespace._basespaceContigFile, (const char*)&contigSequence[0], contigSequence.size());
-
+				record = ">ctg" + to_string(readIndex) + linearOrCircular + '\n';
+				contigSequence += '\n';
 			}
-
-
-
-
-			_toBasespace._nbBps += contigSequence.size();
-
-			_toBasespace._contigIndex += 1;
+			record += contigSequence;
+			_toBasespace.writeContigRecordOrdered(readIndex, std::move(record), contigSequence.size());
 
 		}
 	};
